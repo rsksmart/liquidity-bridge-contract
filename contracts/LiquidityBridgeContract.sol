@@ -7,37 +7,16 @@ abstract contract LiquidityBridgeContract {
 
     Bridge bridge;
 
-    constructor(address bridgeAddress) {
-        bridge = Bridge(bridgeAddress);
-    }
-
     function registerFastBridgeBtcTransaction(
         bytes memory btcRawTransaction, 
         bytes memory partialMerkleTree, 
         uint256 height, 
-        bytes memory fedBtcAddress, 
-        address liquidityProviderRskAddress, 
         bytes memory userBtcRefundAddress, 
         bytes memory liquidityProviderBtcAddress, 
-        address callContract, 
-        bytes memory callContractArguments, 
-        int penaltyFee, 
-        int successFee, 
-        int gasLimit, 
-        int nonce ,
-        int valueToTransfer)
-    public returns (int result) {
-        bytes32 preHash = hash(fedBtcAddress, 
-            liquidityProviderRskAddress, 
-            callContract, 
-            callContractArguments, 
-            penaltyFee, 
-            successFee, 
-            gasLimit,
-            nonce,
-            valueToTransfer);
+        bytes32 preHash
+    ) public returns (int result) {
+        
         bytes32 derivationHash = hash(preHash, userBtcRefundAddress, liquidityProviderBtcAddress);
-
         uint amountToTransfer = validateData(derivationHash);
 
         int256 transferredAmount = bridge.registerBtcTransfer(
@@ -68,7 +47,8 @@ abstract contract LiquidityBridgeContract {
         int gasLimit, 
         int nonce ,
         int valueToTransfer
-    ) internal pure returns (bytes32 derivationHash) {
+    ) public pure returns (bytes32 derivationHash) {
+        
         return keccak256(abi.encode(
             fedBtcAddress, 
             liquidityProviderRskAddres, 
