@@ -1,4 +1,5 @@
-pragma solidity >=0.4.22 <0.8.0;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.7.4;
 
 import "./Bridge.sol";
 
@@ -15,9 +16,9 @@ abstract contract LiquidityBridgeContract {
         bytes memory partialMerkleTree, 
         uint256 height, 
         bytes memory fedBtcAddress, 
-        address LiquidityProviderRskAddress, 
+        address liquidityProviderRskAddress, 
         bytes memory userBtcRefundAddress, 
-        bytes memory LiquidityProviderBtcAddress, 
+        bytes memory liquidityProviderBtcAddress, 
         address callContract, 
         bytes memory callContractArguments, 
         int penaltyFee, 
@@ -27,14 +28,15 @@ abstract contract LiquidityBridgeContract {
         int valueToTransfer)
     public returns (int result) {
         bytes32 preHash = hash(fedBtcAddress, 
-            LiquidityProviderRskAddress, 
+            liquidityProviderRskAddress, 
             callContract, 
             callContractArguments, 
-            penaltyFee, successFee, 
+            penaltyFee, 
+            successFee, 
             gasLimit,
             nonce,
             valueToTransfer);
-        bytes32 derivationHash = hash(preHash, userBtcRefundAddress, LiquidityProviderBtcAddress);
+        bytes32 derivationHash = hash(preHash, userBtcRefundAddress, liquidityProviderBtcAddress);
 
         uint amountToTransfer = validateData(derivationHash);
 
@@ -45,7 +47,7 @@ abstract contract LiquidityBridgeContract {
             preHash, 
             userBtcRefundAddress, 
             address(this),
-            LiquidityProviderBtcAddress, 
+            liquidityProviderBtcAddress, 
             amountToTransfer
         );
 
@@ -58,7 +60,7 @@ abstract contract LiquidityBridgeContract {
 
     function hash(
         bytes memory fedBtcAddress, 
-        address LiquidityProviderRskAddres,
+        address liquidityProviderRskAddres,
         address callContract, 
         bytes memory callContractArguments, 
         int penaltyFee, 
@@ -69,7 +71,7 @@ abstract contract LiquidityBridgeContract {
     ) internal pure returns (bytes32 derivationHash) {
         return keccak256(abi.encode(
             fedBtcAddress, 
-            LiquidityProviderRskAddres, 
+            liquidityProviderRskAddres, 
             callContract, 
             callContractArguments, 
             penaltyFee, successFee, 
@@ -82,18 +84,17 @@ abstract contract LiquidityBridgeContract {
     function hash(
         bytes32 preHash,
         bytes memory userBtcRefundAddress, 
-        bytes memory LiquidityProviderBtcAddres
+        bytes memory liquidityProviderBtcAddres
     ) internal view returns (bytes32 derivationHash) {
         return keccak256(abi.encode(
             preHash,
             userBtcRefundAddress,
             address(this),
-            LiquidityProviderBtcAddres
+            liquidityProviderBtcAddres
         ));
     }
 
     function validateData(bytes32 derivationHash) internal virtual returns (uint remainder);
 
     function updateTransferredAmount(bytes32 derivationHash, uint256 transferredAmount) internal virtual;
-
 }
