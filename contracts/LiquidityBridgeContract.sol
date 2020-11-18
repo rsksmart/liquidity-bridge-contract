@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.4;
 
-import "./Bridge.sol";
+import './Bridge.sol';
 
 abstract contract LiquidityBridgeContract {
 
     Bridge bridge;
+
+    constructor(address bridgeAddress) {
+        bridge = Bridge(bridgeAddress);
+    }
 
     function registerFastBridgeBtcTransaction(
         bytes memory btcRawTransaction, 
@@ -14,7 +18,7 @@ abstract contract LiquidityBridgeContract {
         bytes memory userBtcRefundAddress, 
         bytes memory liquidityProviderBtcAddress, 
         bytes32 preHash
-    ) public returns (int result) {
+    ) public returns (int256 result) {
         
         bytes32 derivationHash = hash(preHash, userBtcRefundAddress, liquidityProviderBtcAddress);
         uint amountToTransfer = validateData(derivationHash);
@@ -39,7 +43,7 @@ abstract contract LiquidityBridgeContract {
 
     function hash(
         bytes memory fedBtcAddress, 
-        address liquidityProviderRskAddres,
+        address liquidityProviderRskAddress,
         address callContract, 
         bytes memory callContractArguments, 
         int penaltyFee, 
@@ -51,7 +55,7 @@ abstract contract LiquidityBridgeContract {
         
         return keccak256(abi.encode(
             fedBtcAddress, 
-            liquidityProviderRskAddres, 
+            liquidityProviderRskAddress, 
             callContract, 
             callContractArguments, 
             penaltyFee, successFee, 
@@ -64,13 +68,13 @@ abstract contract LiquidityBridgeContract {
     function hash(
         bytes32 preHash,
         bytes memory userBtcRefundAddress, 
-        bytes memory liquidityProviderBtcAddres
+        bytes memory liquidityProviderBtcAddress
     ) internal view returns (bytes32 derivationHash) {
         return keccak256(abi.encode(
             preHash,
             userBtcRefundAddress,
             address(this),
-            liquidityProviderBtcAddres
+            liquidityProviderBtcAddress
         ));
     }
 
