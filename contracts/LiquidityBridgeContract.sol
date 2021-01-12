@@ -21,9 +21,9 @@ abstract contract LiquidityBridgeContract {
     ) public returns (int256 result) {
         
         bytes32 derivationHash = hash(preHash, userBtcRefundAddress, liquidityProviderBtcAddress);
-        uint amountToTransfer = validateData(derivationHash);
+        bool shouldTransferToContract = validateData(derivationHash);
 
-        int256 transferredAmount = bridge.registerBtcTransfer(
+        int256 transferredAmount = bridge.registerFastBridgeBtcTransaction(
             btcRawTransaction, 
             height, 
             partialMerkleTree, 
@@ -31,7 +31,7 @@ abstract contract LiquidityBridgeContract {
             userBtcRefundAddress, 
             address(this),
             liquidityProviderBtcAddress, 
-            amountToTransfer
+            shouldTransferToContract
         );
 
         if (transferredAmount > 0) {
@@ -58,7 +58,8 @@ abstract contract LiquidityBridgeContract {
             liquidityProviderRskAddress, 
             callContract, 
             callContractArguments, 
-            penaltyFee, successFee, 
+            penaltyFee, 
+            successFee, 
             gasLimit,
             nonce,
             valueToTransfer
@@ -70,7 +71,7 @@ abstract contract LiquidityBridgeContract {
         bytes memory userBtcRefundAddress, 
         bytes memory liquidityProviderBtcAddress
     ) internal view returns (bytes32 derivationHash) {
-        return keccak256(abi.encode(
+        return keccak256(abi.encodePacked(
             preHash,
             userBtcRefundAddress,
             address(this),
@@ -78,7 +79,7 @@ abstract contract LiquidityBridgeContract {
         ));
     }
 
-    function validateData(bytes32 derivationHash) internal virtual returns (uint remainder);
+    function validateData(bytes32 derivationHash) internal virtual returns (bool shouldTransferToContract);
 
     function updateTransferredAmount(bytes32 derivationHash, uint256 transferredAmount) internal virtual;
 }

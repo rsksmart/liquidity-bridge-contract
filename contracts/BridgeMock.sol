@@ -7,7 +7,7 @@ contract BridgeMock is Bridge {
 
     mapping(bytes32 => int256) private returnStatus;
 
-    function registerBtcTransfer(
+    function registerFastBridgeBtcTransaction(
         bytes calldata btcTxSerialized, 
         uint256 height, 
         bytes calldata pmtSerialized, 
@@ -15,7 +15,7 @@ contract BridgeMock is Bridge {
         bytes calldata userRefundBtcAddress, 
         address liquidityBridgeContractAddress,
         bytes calldata liquidityProviderBtcAddress, 
-        uint amountToTransfer
+        bool shouldTransferToContract
     ) external override returns (int256 executionStatus) {
         return returnStatus[derivationArgumentsHash];
     }

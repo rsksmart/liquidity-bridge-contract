@@ -1,4 +1,3 @@
-const truffleAssert = require('truffle-assertions');
 const LiquidityBridgeContract = artifacts.require('LiquidityBridgeContractImpl');
 const BridgeMock = artifacts.require("BridgeMock");
 
@@ -49,8 +48,8 @@ contract('LiquidityBridgeContract', async accounts => {
     it('should create derivation hash', async () => {
         // Arrange
         let preHash = '0x53230a92e3ad30bd6a9394e4aa15e7e4ad6edf0d04d5f2fd9b0e1551d600ed28';
-        let userBtcRefundAddress = '0x005';
-        let liquidityProviderBtcAddress = '0x006';
+        let userBtcRefundAddress = '0x0005';
+        let liquidityProviderBtcAddress = '0x0006';
 
         // Act
         let derivationHash = await instance.getDerivationHash(
@@ -60,12 +59,13 @@ contract('LiquidityBridgeContract', async accounts => {
         );
 
         // Assert
-        let encodedParams = await web3.eth.abi.encodeParameters(
-            ['bytes32','bytes','address','bytes'], 
-            [preHash, userBtcRefundAddress, instance.address, liquidityProviderBtcAddress]
+        let expectedHash = await web3.utils.keccak256(
+            [preHash, userBtcRefundAddress.substring(2), 
+             instance.address.substring(2), 
+             liquidityProviderBtcAddress.substring(2)
+            ].join('')
         );
-        let expectedHash = await web3.utils.keccak256(encodedParams);
-        
+                
         assert.equal(expectedHash, derivationHash);
     });
 
