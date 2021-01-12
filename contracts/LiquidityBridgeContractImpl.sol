@@ -5,24 +5,24 @@ import './LiquidityBridgeContract.sol';
 
 contract LiquidityBridgeContractImpl is LiquidityBridgeContract {
 
-    mapping(bytes32 => uint256) private balances;
+    mapping(bytes32 => uint256) private bals;
 
     constructor(address bridgeAddress) LiquidityBridgeContract(bridgeAddress) {}
 
     function validateData(bytes32 derivationHash) internal view override returns (bool shouldTransferToContract) {
-        return balances[derivationHash] > 0;
+        return bals[derivationHash] > 0;
     }
 
     function updateTransferredAmount(bytes32 derivationHash, uint256 transferredAmount) internal override {
-        balances[derivationHash] -= transferredAmount;
+        bals[derivationHash] -= transferredAmount;
     }
 
     function getDerivationHashBalance(bytes32 derivationHash) external view returns (uint256 balance) {
-        return balances[derivationHash];
+        return bals[derivationHash];
     }
 
     function setDerivationHashBalance(bytes32 derivationHash, uint256 amount) external {
-        balances[derivationHash] = amount;
+        bals[derivationHash] = amount;
     }
 
     function getDerivationHash(

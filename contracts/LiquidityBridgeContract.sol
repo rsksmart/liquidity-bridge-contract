@@ -6,9 +6,59 @@ import './Bridge.sol';
 abstract contract LiquidityBridgeContract {
 
     Bridge bridge;
+    mapping(address => uint256) private balances;
+    mapping(address => uint256) private deposits;
+    mapping(bytes32 => address) private callRegistry;
 
     constructor(address bridgeAddress) {
         bridge = Bridge(bridgeAddress);
+    }
+
+    function register() external payable {
+        deposits[msg.sender] += msg.value;
+    }
+
+    function deposit() external payable {
+        balances[msg.sender] += msg.value;
+    }
+
+    function callForUser(
+        bytes memory fedBtcAddress,
+        address liquidityProviderRskAddress,
+        address callContract,
+        bytes memory callContractArguments,
+        uint penaltyFee,
+        uint successFee,
+        uint gasLimit,
+        uint nonce,
+        uint valueToTransfer
+    ) external payable {
+        require(msg.sender == liquidityProviderRskAddress, "Unauthorized");
+        require(valueToTransfer >= successFee, "Cannot pay fee");
+
+        bytes32 derivationHash = hash(
+            fedBtcAddress,
+            liquidityProviderRskAddress,
+            callContract,
+            callContractArguments,
+            penaltyFee,
+            successFee,
+            gasLimit,
+            nonce,
+            valueToTransfer);
+
+        balances[liquidityProviderRskAddress] += msg.value;
+
+        uint actualValue = valueToTransfer - successFee;
+
+        require(balances[liquidityProviderRskAddress] >= actualValue, "Insufficient funds");
+
+        (bool success, bytes memory ret) = callContract.call{gas:gasLimit, value:actualValue}(callContractArguments);
+
+        if (success) {
+            callRegistry[derivationHash] = liquidityProviderRskAddress;
+            balances[liquidityProviderRskAddress] -= actualValue;
+        }
     }
 
     function registerFastBridgeBtcTransaction(
@@ -46,11 +96,11 @@ abstract contract LiquidityBridgeContract {
         address liquidityProviderRskAddress,
         address callContract, 
         bytes memory callContractArguments, 
-        int penaltyFee, 
-        int successFee, 
-        int gasLimit, 
-        int nonce ,
-        int valueToTransfer
+        uint penaltyFee,
+        uint successFee,
+        uint gasLimit,
+        uint nonce ,
+        uint valueToTransfer
     ) public pure returns (bytes32 derivationHash) {
         
         return keccak256(abi.encode(
