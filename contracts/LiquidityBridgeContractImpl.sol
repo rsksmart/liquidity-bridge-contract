@@ -9,8 +9,8 @@ contract LiquidityBridgeContractImpl is LiquidityBridgeContract {
 
     constructor(address bridgeAddress) LiquidityBridgeContract(bridgeAddress) {}
 
-    function validateData(bytes32 derivationHash) internal override returns (uint remainder) {
-        return balances[derivationHash];
+    function validateData(bytes32 derivationHash) internal view override returns (bool shouldTransferToContract) {
+        return balances[derivationHash] > 0;
     }
 
     function updateTransferredAmount(bytes32 derivationHash, uint256 transferredAmount) internal override {

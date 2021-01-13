@@ -2,7 +2,7 @@
 pragma solidity ^0.7.4;
 
 interface Bridge {
-    function registerBtcTransfer(
+    function registerFastBridgeBtcTransaction(
         bytes calldata btcTxSerialized, 
         uint256 height, 
         bytes calldata pmtSerialized, 
@@ -10,6 +10,6 @@ interface Bridge {
         bytes calldata userRefundBtcAddress, 
         address liquidityBridgeContractAddress,
         bytes calldata liquidityProviderBtcAddress, 
-        uint amountToTransfer
+        bool shouldTransferToContract
     ) external returns (int256 executionStatus);
 }
