@@ -1,4 +1,4 @@
-var LiquidityBridgeContract = artifacts.require('LiquidityBridgeContractImpl');
+var LiquidityBridgeContract = artifacts.require('LiquidityBridgeContract');
 var Mock = artifacts.require('Mock')
 //var BridgeMock = artifacts.require('BridgeMock');
 

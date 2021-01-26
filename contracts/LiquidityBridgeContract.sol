@@ -3,7 +3,7 @@ pragma solidity ^0.7.4;
 
 import './Bridge.sol';
 
-abstract contract LiquidityBridgeContract {
+contract LiquidityBridgeContract {
 
     Bridge bridge;
     mapping(address => uint256) private balances;
@@ -18,46 +18,51 @@ abstract contract LiquidityBridgeContract {
         deposits[msg.sender] += msg.value;
     }
 
-    function deposit() external payable {
+    function transfer() external payable {
         balances[msg.sender] += msg.value;
+    }
+
+    function getDeposit(address lp) external view returns (uint256 qty) {
+        return deposits[lp];
+    }
+
+    function getBalance(address lp) external view returns (uint256 qty) {
+        return balances[lp];
     }
 
     function callForUser(
         bytes memory fedBtcAddress,
         address liquidityProviderRskAddress,
-        address callContract,
-        bytes memory callContractArguments,
+        address contractAddress,
+        bytes memory data,
         uint penaltyFee,
         uint successFee,
         uint gasLimit,
         uint nonce,
-        uint valueToTransfer
+        uint value
     ) external payable {
         require(msg.sender == liquidityProviderRskAddress, "Unauthorized");
-        require(valueToTransfer >= successFee, "Cannot pay fee");
+
+        balances[liquidityProviderRskAddress] += msg.value;
+        require(balances[liquidityProviderRskAddress] >= value, "Insufficient funds");
 
         bytes32 derivationHash = hash(
             fedBtcAddress,
             liquidityProviderRskAddress,
-            callContract,
-            callContractArguments,
+            contractAddress,
+            data,
             penaltyFee,
             successFee,
             gasLimit,
             nonce,
-            valueToTransfer);
+            value);
 
-        balances[liquidityProviderRskAddress] += msg.value;
+        (bool success, bytes memory ret) = contractAddress.call{gas:gasLimit, value: value}(data);
 
-        uint actualValue = valueToTransfer - successFee;
-
-        require(balances[liquidityProviderRskAddress] >= actualValue, "Insufficient funds");
-
-        (bool success, bytes memory ret) = callContract.call{gas:gasLimit, value:actualValue}(callContractArguments);
+        callRegistry[derivationHash] = liquidityProviderRskAddress;
 
         if (success) {
-            callRegistry[derivationHash] = liquidityProviderRskAddress;
-            balances[liquidityProviderRskAddress] -= actualValue;
+            balances[liquidityProviderRskAddress] -= value;
         }
     }
 
@@ -69,9 +74,12 @@ abstract contract LiquidityBridgeContract {
         bytes memory liquidityProviderBtcAddress, 
         bytes32 preHash
     ) public returns (int256 result) {
-        
-        bytes32 derivationHash = hash(preHash, userBtcRefundAddress, liquidityProviderBtcAddress);
-        bool shouldTransferToContract = validateData(derivationHash);
+        address liquidityProviderRskAddress = callRegistry[preHash];
+        bool callPerformed = false;
+
+        if (liquidityProviderRskAddress != address(0x0)) {
+            callPerformed = true;
+        }
 
         int256 transferredAmount = bridge.registerFastBridgeBtcTransaction(
             btcRawTransaction, 
@@ -81,13 +89,13 @@ abstract contract LiquidityBridgeContract {
             userBtcRefundAddress, 
             address(this),
             liquidityProviderBtcAddress, 
-            shouldTransferToContract
+            callPerformed
         );
 
-        if (transferredAmount > 0) {
-            updateTransferredAmount(derivationHash, uint(transferredAmount));
+        if (transferredAmount >= 0 && callPerformed) {
+            balances[liquidityProviderRskAddress] += uint256(transferredAmount);
+            callRegistry[preHash] = address(0x0);
         }
-
         return transferredAmount;
     }
 
@@ -128,8 +136,4 @@ abstract contract LiquidityBridgeContract {
             liquidityProviderBtcAddress
         ));
     }
-
-    function validateData(bytes32 derivationHash) internal virtual returns (bool shouldTransferToContract);
-
-    function updateTransferredAmount(bytes32 derivationHash, uint256 transferredAmount) internal virtual;
 }
