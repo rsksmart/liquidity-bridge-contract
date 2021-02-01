@@ -8,8 +8,8 @@ interface Bridge {
         bytes calldata pmtSerialized, 
         bytes32 derivationArgumentsHash, 
         bytes calldata userRefundBtcAddress, 
-        address liquidityBridgeContractAddress,
+        address payable liquidityBridgeContractAddress,
         bytes calldata liquidityProviderBtcAddress, 
         bool shouldTransferToContract
-    ) external returns (int256 executionStatus);
+    ) external returns (int256);
 }

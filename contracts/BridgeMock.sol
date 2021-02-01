@@ -5,7 +5,7 @@ import "./Bridge.sol";
 
 contract BridgeMock is Bridge {
 
-    mapping(bytes32 => int256) private returnStatus;
+    mapping(bytes32 => uint256) private amounts;
 
     function registerFastBridgeBtcTransaction(
         bytes calldata btcTxSerialized, 
@@ -13,14 +13,21 @@ contract BridgeMock is Bridge {
         bytes calldata pmtSerialized, 
         bytes32 derivationArgumentsHash, 
         bytes calldata userRefundBtcAddress, 
-        address liquidityBridgeContractAddress,
+        address payable liquidityBridgeContractAddress,
         bytes calldata liquidityProviderBtcAddress, 
         bool shouldTransferToContract
-    ) external override returns (int256 executionStatus) {
-        return returnStatus[derivationArgumentsHash];
+    ) external override returns (int256) {
+        uint256 amount = amounts[derivationArgumentsHash];
+        amounts[derivationArgumentsHash] = 0;
+        (bool success, ) = liquidityBridgeContractAddress.call{value: amount}("");
+        return int(amount);
     }
 
-    function setReturnStatus(bytes32 derivationArgumentsHash, int256 status) public {
-        returnStatus[derivationArgumentsHash] = status;
+    function setPegin(bytes32 derivationArgumentsHash) public payable {
+        amounts[derivationArgumentsHash] = msg.value;
+    }
+
+    function getPegin(bytes32 hashe) external view returns (uint256) {
+        return amounts[hashe];
     }
 }

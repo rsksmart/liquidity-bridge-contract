@@ -10,7 +10,7 @@ contract Mock {
         status = s;
     }
 
-    function check() external view returns (int s){
+    function check() external view returns (int){
         return status;
     }
 }
