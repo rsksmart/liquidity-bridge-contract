@@ -13,4 +13,8 @@ contract Mock {
     function check() external view returns (int){
         return status;
     }
+
+    function fail() external pure {
+        require(false, "error");
+    }
 }

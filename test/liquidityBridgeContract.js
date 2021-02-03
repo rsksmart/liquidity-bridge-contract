@@ -34,77 +34,63 @@ contract('LiquidityBridgeContract', async accounts => {
         let liquidityProviderBtcAddress = '0x004';
         let rskRefundAddress = web3.eth.currentProvider.addresses[2];
         let destAddr = web3.eth.currentProvider.addresses[1];
-        let previousUserBalance = await web3.eth.getBalance(destAddr);
-        let fedBtcAddress = '0x001';
+        let initialUserBalance = await web3.eth.getBalance(destAddr);
+        let fedBtcAddress = '0x01';
         let liquidityProviderRskAddress = web3.eth.currentProvider.getAddress();
-        let previousLPBalance = await instance.getBalance(liquidityProviderRskAddress);
-        let data = '0x0';
+        let initialLPBalance = await instance.getBalance(liquidityProviderRskAddress);
+        let data = '0x00';
         let penaltyFee = 0;
         let successFee = 1;
         let gasLimit = 3;
         let nonce = 0;
         let peginAmount = val + successFee;
+        let derivationParams = [fedBtcAddress, liquidityProviderRskAddress, rskRefundAddress, destAddr, data, penaltyFee, successFee, gasLimit, nonce, val];
+
         let encodedParams = await web3.eth.abi.encodeParameters(
             ['bytes','address','address','address','bytes','int','int','int','int','int'],
-            [fedBtcAddress, liquidityProviderRskAddress, rskRefundAddress, destAddr, data, penaltyFee, successFee, gasLimit, nonce, val]
+            derivationParams
         );
         let preHash = await web3.utils.keccak256(encodedParams);
 
         await bridgeMockInstance.setPegin(preHash, {value : peginAmount});
 
         await instance.callForUser(
-            fedBtcAddress,
-            liquidityProviderRskAddress,
-            rskRefundAddress,
-            destAddr,
-            data,
-            penaltyFee,
-            successFee,
-            gasLimit,
-            nonce,
-            val,
+            derivationParams,
             {value : val}
         );
 
         currentLPBalance = await instance.getBalance(liquidityProviderRskAddress);
-        newUserBalance = await web3.eth.getBalance(destAddr);
-        previousLBCBalance = await web3.eth.getBalance(instance.address);
+        finalUserBalance = await web3.eth.getBalance(destAddr);
+        initialLBCBalance = await web3.eth.getBalance(instance.address);
 
-        assert.equal(currentLPBalance.toNumber(), previousLPBalance.toNumber());
+        assert.equal(currentLPBalance.toNumber(), initialLPBalance.toNumber());
 
         amount = await instance.registerFastBridgeBtcTransaction.call(
+            derivationParams,
             btcRawTransaction,
             partialMerkleTree,
             height,
             userBtcRefundAddress,
-            liquidityProviderBtcAddress,
-            rskRefundAddress,
-            preHash,
-            successFee,
-            penaltyFee
+            liquidityProviderBtcAddress
         );
 
         await instance.registerFastBridgeBtcTransaction(
+            derivationParams,
             btcRawTransaction,
             partialMerkleTree,
             height,
             userBtcRefundAddress,
-            liquidityProviderBtcAddress,
-            rskRefundAddress,
-            preHash,
-            successFee,
-            penaltyFee
+            liquidityProviderBtcAddress
         );
 
-        newLPBalance = await instance.getBalance(liquidityProviderRskAddress);
-        newLBCBalance = await web3.eth.getBalance(instance.address);
+        finalLPBalance = await instance.getBalance(liquidityProviderRskAddress);
+        finalLBCBalance = await web3.eth.getBalance(instance.address);
 
         assert.equal(peginAmount, amount.toNumber());
-        assert.equal(val, parseInt(newUserBalance) - parseInt(previousUserBalance));
-        assert.equal(peginAmount, parseInt(newLBCBalance) - parseInt(previousLBCBalance));
-        assert.equal(peginAmount, newLPBalance.toNumber() - previousLPBalance.toNumber());
+        assert.equal(val, parseInt(finalUserBalance) - parseInt(initialUserBalance));
+        assert.equal(peginAmount, parseInt(finalLBCBalance) - parseInt(initialLBCBalance));
+        assert.equal(peginAmount, finalLPBalance.toNumber() - initialLPBalance.toNumber());
     });
-
 
     it ('should call contract for user', async () => {
         let val = 0;
@@ -114,7 +100,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let userBtcRefundAddress = '0x003';
         let liquidityProviderBtcAddress = '0x004';
         let destAddr = mock.address;
-        let fedBtcAddress = '0x001';
+        let fedBtcAddress = '0x01';
         let liquidityProviderRskAddress = web3.eth.currentProvider.getAddress();
         let rskRefundAddress = web3.eth.currentProvider.addresses[2];
         let penaltyFee = 0;
@@ -122,11 +108,12 @@ contract('LiquidityBridgeContract', async accounts => {
         let gasLimit = 50000;
         let nonce = 0;
         let data = web3.eth.abi.encodeFunctionCall(mock.abi[0], ['12']);
-        let previousLPBalance = await instance.getBalance(liquidityProviderRskAddress);
+        let initialLPBalance = await instance.getBalance(liquidityProviderRskAddress);
         let peginAmount = val + successFee;
+        let derivationParams = [fedBtcAddress, liquidityProviderRskAddress, rskRefundAddress, destAddr, data, penaltyFee, successFee, gasLimit, nonce, val];
         let encodedParams = await web3.eth.abi.encodeParameters(
             ['bytes','address','address','address','bytes','int','int','int','int','int'],
-            [fedBtcAddress, liquidityProviderRskAddress, rskRefundAddress, destAddr, data, penaltyFee, successFee, gasLimit, nonce, val]
+            derivationParams
         );
         let preHash = await web3.utils.keccak256(encodedParams);
 
@@ -134,57 +121,139 @@ contract('LiquidityBridgeContract', async accounts => {
         await mock.set(0);
 
         await instance.callForUser(
-            fedBtcAddress,
-            liquidityProviderRskAddress,
-            rskRefundAddress,
-            destAddr,
-            data,
-            penaltyFee,
-            successFee,
-            gasLimit,
-            nonce,
-            val
+            derivationParams,
+            {value : val}
         );
 
-        previousLBCBalance = await web3.eth.getBalance(instance.address);
+        initialLBCBalance = await web3.eth.getBalance(instance.address);
         currentLPBalance = await instance.getBalance(liquidityProviderRskAddress);        
 
-        assert.equal(currentLPBalance.toNumber(), previousLPBalance.toNumber());
+        assert.equal(currentLPBalance.toNumber(), initialLPBalance.toNumber());
 
         amount = await instance.registerFastBridgeBtcTransaction.call(
+            derivationParams,
             btcRawTransaction,
             partialMerkleTree,
             height,
             userBtcRefundAddress,
-            liquidityProviderBtcAddress,
-            rskRefundAddress,
-            preHash,
-            successFee,
-            penaltyFee
+            liquidityProviderBtcAddress
         );
 
         await instance.registerFastBridgeBtcTransaction(
+            derivationParams,
             btcRawTransaction,
             partialMerkleTree,
             height,
             userBtcRefundAddress,
-            liquidityProviderBtcAddress,
-            rskRefundAddress,
-            preHash,
-            successFee,
-            penaltyFee
+            liquidityProviderBtcAddress
         );
 
-        newLPBalance = await instance.getBalance(liquidityProviderRskAddress);
-        newLBCBalance = await web3.eth.getBalance(instance.address);
+        finalLPBalance = await instance.getBalance(liquidityProviderRskAddress);
+        finalLBCBalance = await web3.eth.getBalance(instance.address);
 
-        assert.equal(peginAmount, amount);
         assert.equal(peginAmount, amount.toNumber());
-        assert.equal(peginAmount, newLPBalance.toNumber() - previousLPBalance.toNumber());
-        assert.equal(peginAmount, parseInt(newLBCBalance) - parseInt(previousLBCBalance));
+        assert.equal(peginAmount, finalLPBalance.toNumber() - initialLPBalance.toNumber());
+        assert.equal(peginAmount, parseInt(finalLBCBalance) - parseInt(initialLBCBalance));
 
-        currentValue = await mock.check();
+        finalValue = await mock.check();
 
-        assert.equal(12, currentValue.toNumber());
+        assert.equal(12, finalValue.toNumber());
+    });
+
+    it ('should refund user on failed call', async () => {
+        let val = 2;
+        let btcRawTransaction = '0x101';
+        let partialMerkleTree = '0x202';
+        let height = 100;
+        let userBtcRefundAddress = '0x003';
+        let liquidityProviderBtcAddress = '0x004';
+        let destAddr = mock.address;
+        let fedBtcAddress = '0x01';
+        let liquidityProviderRskAddress = web3.eth.currentProvider.getAddress();
+        let rskRefundAddress = web3.eth.currentProvider.addresses[2];
+        let penaltyFee = 1;
+        let successFee = 1;
+        let gasLimit = 50000;
+        let nonce = 0;
+        let data = web3.eth.abi.encodeFunctionCall(mock.abi[2], []);
+        let initialLPBalance = await instance.getBalance(liquidityProviderRskAddress);
+        let peginAmount = val + successFee;
+        let derivationParams = [fedBtcAddress, liquidityProviderRskAddress, rskRefundAddress, destAddr, data, penaltyFee, successFee, gasLimit, nonce, val];
+        let encodedParams = await web3.eth.abi.encodeParameters(
+            ['bytes','address','address','address','bytes','int','int','int','int','int'],
+            derivationParams
+        );
+        let preHash = await web3.utils.keccak256(encodedParams);
+        let initialUserBalance = await web3.eth.getBalance(rskRefundAddress);
+
+        await bridgeMockInstance.setPegin(preHash, {value : peginAmount});
+
+        await instance.callForUser(
+            derivationParams,
+            {value : val}
+        );
+
+        currentLPBalance = await instance.getBalance(liquidityProviderRskAddress);
+
+        assert.equal(val, parseInt(currentLPBalance) - parseInt(initialLPBalance));
+
+        await instance.registerFastBridgeBtcTransaction(
+            derivationParams,
+            btcRawTransaction,
+            partialMerkleTree,
+            height,
+            userBtcRefundAddress,
+            liquidityProviderBtcAddress
+        );
+
+        finalUserBalance = await web3.eth.getBalance(rskRefundAddress);
+        finalLPBalance = await instance.getBalance(liquidityProviderRskAddress);
+
+        assert.equal(successFee + val, finalLPBalance.toNumber() - initialLPBalance.toNumber());
+        assert.equal(peginAmount - successFee, parseInt(finalUserBalance) - parseInt(initialUserBalance));
+    });
+
+    it ('should refund user on missed call', async () => {
+        let val = 2;
+        let btcRawTransaction = '0x101';
+        let partialMerkleTree = '0x202';
+        let height = 100;
+        let userBtcRefundAddress = '0x003';
+        let liquidityProviderBtcAddress = '0x004';
+        let destAddr = mock.address;
+        let fedBtcAddress = '0x01';
+        let liquidityProviderRskAddress = web3.eth.currentProvider.getAddress();
+        let rskRefundAddress = web3.eth.currentProvider.addresses[2];
+        let penaltyFee = 1;
+        let successFee = 1;
+        let gasLimit = 50000;
+        let nonce = 0;
+        let data = web3.eth.abi.encodeFunctionCall(mock.abi[2], []);
+        let initialLPDeposit = await instance.getDeposit(liquidityProviderRskAddress);
+        let peginAmount = val + successFee;
+        let derivationParams = [fedBtcAddress, liquidityProviderRskAddress, rskRefundAddress, destAddr, data, penaltyFee, successFee, gasLimit, nonce, val];
+        let encodedParams = await web3.eth.abi.encodeParameters(
+            ['bytes','address','address','address','bytes','int','int','int','int','int'],
+            derivationParams
+        );
+        let preHash = await web3.utils.keccak256(encodedParams);
+        let initialUserBalance = await web3.eth.getBalance(rskRefundAddress);
+
+        await bridgeMockInstance.setPegin(preHash, {value : peginAmount});
+
+        await instance.registerFastBridgeBtcTransaction(
+            derivationParams,
+            btcRawTransaction,
+            partialMerkleTree,
+            height,
+            userBtcRefundAddress,
+            liquidityProviderBtcAddress
+        );
+
+        finalUserBalance = await web3.eth.getBalance(rskRefundAddress);
+        finalLPDeposit = await instance.getDeposit(liquidityProviderRskAddress);
+
+        assert.equal(initialLPDeposit.toNumber() - penaltyFee, finalLPDeposit.toNumber());
+        assert.equal(peginAmount + penaltyFee, parseInt(finalUserBalance) - parseInt(initialUserBalance));
     });
 });

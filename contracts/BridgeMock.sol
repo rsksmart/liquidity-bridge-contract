@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.4;
 
-import "./Bridge.sol";
-
-contract BridgeMock is Bridge {
+contract BridgeMock {
 
     mapping(bytes32 => uint256) private amounts;
 
@@ -16,7 +14,7 @@ contract BridgeMock is Bridge {
         address payable liquidityBridgeContractAddress,
         bytes calldata liquidityProviderBtcAddress, 
         bool shouldTransferToContract
-    ) external override returns (int256) {
+    ) external returns (int256) {
         uint256 amount = amounts[derivationArgumentsHash];
         amounts[derivationArgumentsHash] = 0;
         (bool success, ) = liquidityBridgeContractAddress.call{value: amount}("");
@@ -25,9 +23,5 @@ contract BridgeMock is Bridge {
 
     function setPegin(bytes32 derivationArgumentsHash) public payable {
         amounts[derivationArgumentsHash] = msg.value;
-    }
-
-    function getPegin(bytes32 hashe) external view returns (uint256) {
-        return amounts[hashe];
     }
 }
