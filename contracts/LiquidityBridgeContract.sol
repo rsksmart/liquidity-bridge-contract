@@ -89,7 +89,12 @@ contract LiquidityBridgeContract {
 
         if (transferredAmount > 0 && callRegistry[derivationHash]) {
             if (callSuccess[derivationHash]) {
-                balances[params.liquidityProviderRskAddress] += uint256(transferredAmount);
+                balances[params.liquidityProviderRskAddress] += params.value + params.successFee;
+                uint256 remainingAmount = uint256(transferredAmount) - (params.value + params.successFee);
+
+                if (remainingAmount > 0) {
+                    (bool success, ) = params.rskRefundAddress.call{value : remainingAmount}("");
+                }
                 callSuccess[derivationHash] = false;
             } else {
                 balances[params.liquidityProviderRskAddress] += params.successFee;
