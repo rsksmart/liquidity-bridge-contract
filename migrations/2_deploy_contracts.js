@@ -14,7 +14,7 @@ module.exports = function(deployer, network) {
 
     deployer.deploy(BridgeMock).then((mockInstance) => {
                 let bridgeAddress = mockInstance.address;
-                deployer.deploy(LiquidityBridgeContract, bridgeAddress);
+                deployer.deploy(LiquidityBridgeContract, bridgeAddress, 1);
     });
     deployer.deploy(Mock);
 };
