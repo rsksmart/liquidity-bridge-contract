@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.4;
+pragma solidity ^0.8.3;
 
 interface Bridge {
 
     function registerFastBridgeBtcTransaction(
-        bytes calldata btcTxSerialized, 
+        bytes memory btcTxSerialized, 
         uint256 height, 
-        bytes calldata pmtSerialized, 
+        bytes memory pmtSerialized, 
         bytes32 derivationArgumentsHash, 
-        bytes calldata userRefundBtcAddress, 
+        bytes20 userRefundBtcAddress, 
         address payable liquidityBridgeContractAddress,
-        bytes calldata liquidityProviderBtcAddress, 
+        bytes20 liquidityProviderBtcAddress, 
         bool shouldTransferToContract
     ) external returns (int256);
+
+    function getBitcoinHeaderByHeight(uint256 height) external view returns (bytes memory);
 }
