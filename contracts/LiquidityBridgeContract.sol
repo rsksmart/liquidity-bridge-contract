@@ -2,7 +2,7 @@
 pragma solidity ^0.7.4;
 pragma experimental ABIEncoderV2;
 
-import './BridgeMock.sol';
+import './Bridge.sol';
 
 contract LiquidityBridgeContract {
 
@@ -26,14 +26,14 @@ contract LiquidityBridgeContract {
         bool success;
     }
 
-    BridgeMock bridge;
+    Bridge bridge;
     mapping(address => uint256) private balances;
     mapping(address => uint256) private collateral;
     mapping(bytes32 => Registry) private callRegistry;  
     uint private minCol;
 
     constructor(address bridgeAddress, uint minCollateral) {
-        bridge = BridgeMock(bridgeAddress);
+        bridge = Bridge(bridgeAddress);
         minCol = minCollateral;
     }
 
