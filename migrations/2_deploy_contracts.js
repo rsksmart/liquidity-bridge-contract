@@ -10,6 +10,7 @@ module.exports = function(deployer, network) {
         });
         deployer.deploy(Mock);
     } else {
-        // deployer.deploy(LiquidityBridgeContract, '0x0000000000000000000000000000000001000006');
+        args = process.argv[2].split(" ");
+        deployer.deploy(LiquidityBridgeContract, '0x0000000000000000000000000000000001000006', parseInt(args[args.length - 1]));
     }    
 };
