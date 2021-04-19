@@ -104,7 +104,7 @@ contract LiquidityBridgeContract {
             callRegistry[derivationHash].performed
         );
 
-        require(transferredAmount != -303, "Not enough BTC validations");
+        require(transferredAmount != -303, "Failed to validate BTC transaction");
         
         if (transferredAmount == -200 || transferredAmount == -100) {
             // Bridge cap surpassed
