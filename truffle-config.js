@@ -16,7 +16,8 @@ console.log("Gas price Testnet: " + gasPriceTestnet);
 module.exports = {
 
   mocha: {
-    enableTimeouts: false
+    enableTimeouts: false,
+    timeout: 500000
   },
 
   networks: {

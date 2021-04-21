@@ -13,9 +13,9 @@ contract BridgeMock is Bridge {
         uint256 height, 
         bytes memory pmtSerialized, 
         bytes32 derivationArgumentsHash, 
-        bytes20 userRefundBtcAddress, 
+        bytes21 userRefundBtcAddress, 
         address payable liquidityBridgeContractAddress,
-        bytes20 liquidityProviderBtcAddress, 
+        bytes21 liquidityProviderBtcAddress, 
         bool shouldTransferToContract
     ) external override returns (int256) {
         uint256 amount = amounts[derivationArgumentsHash];

@@ -30,8 +30,8 @@ contract('LiquidityBridgeContract', async accounts => {
         let btcRawTransaction = '0x101';
         let partialMerkleTree = '0x202';
         let height = 10;
-        let userBtcRefundAddress = '0x0000000000000000000000000000000000000000';
-        let liquidityProviderBtcAddress = '0x0000000000000000000000000000000000000000';
+        let userBtcRefundAddress = '0x000000000000000000000000000000000000000000';
+        let liquidityProviderBtcAddress = '0x000000000000000000000000000000000000000000';
         let rskRefundAddress = web3.eth.currentProvider.addresses[2];
         let destAddr = web3.eth.currentProvider.addresses[1];
         let initialUserBalance = await web3.eth.getBalance(destAddr);
@@ -52,8 +52,8 @@ contract('LiquidityBridgeContract', async accounts => {
         let derivationParams = [fedBtcAddress, lbcAddress, liquidityProviderRskAddress, userBtcRefundAddress, rskRefundAddress, liquidityProviderBtcAddress, callFee, destAddr, data, gasLimit, nonce, val];
         let quote = [fedBtcAddress, lbcAddress, liquidityProviderRskAddress, userBtcRefundAddress, rskRefundAddress, liquidityProviderBtcAddress, callFee, destAddr, data, gasLimit, nonce, val, agreementTime, timeForDeposit, callTime, depositConfirmations];
         let quoteParams = [derivationParams, agreementTime, timeForDeposit, callTime, depositConfirmations];
-        let encodedQuote = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes20','address','bytes20','uint','address','bytes','uint','uint','uint', 'uint', 'uint', 'uint', 'uint'], quote);
-        let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes20','address','bytes20','uint','address','bytes','uint','uint','uint'], derivationParams);
+        let encodedQuote = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes21','address','bytes21','uint','address','bytes','uint','uint','uint', 'uint', 'uint', 'uint', 'uint'], quote);
+        let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes21','address','bytes21','uint','address','bytes','uint','uint','uint'], derivationParams);
         let preHash = await web3.utils.keccak256(encodedParams);   
         let quoteHash = await web3.utils.keccak256(encodedQuote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
@@ -109,8 +109,8 @@ contract('LiquidityBridgeContract', async accounts => {
         let btcRawTransaction = '0x101';
         let partialMerkleTree = '0x202';
         let height = 10;
-        let userBtcRefundAddress = '0x0000000000000000000000000000000000000000';
-        let liquidityProviderBtcAddress = '0x0000000000000000000000000000000000000000';
+        let userBtcRefundAddress = '0x000000000000000000000000000000000000000000';
+        let liquidityProviderBtcAddress = '0x000000000000000000000000000000000000000000';
         let destAddr = mock.address;
         let fedBtcAddress = '0x0000000000000000000000000000000000000000';
         let liquidityProviderRskAddress = web3.eth.currentProvider.getAddress();
@@ -130,8 +130,8 @@ contract('LiquidityBridgeContract', async accounts => {
         let derivationParams = [fedBtcAddress, lbcAddress, liquidityProviderRskAddress, userBtcRefundAddress, rskRefundAddress, liquidityProviderBtcAddress, callFee, destAddr, data, gasLimit, nonce, val];
         let quote = [fedBtcAddress, lbcAddress, liquidityProviderRskAddress, userBtcRefundAddress, rskRefundAddress, liquidityProviderBtcAddress, callFee, destAddr, data, gasLimit, nonce, val, agreementTime, timeForDeposit, callTime, depositConfirmations];
         let quoteParams = [derivationParams, agreementTime, timeForDeposit, callTime, depositConfirmations];
-        let encodedQuote = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes20','address','bytes20','uint','address','bytes','uint','uint','uint', 'uint', 'uint', 'uint', 'uint'], quote);
-        let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes20','address','bytes20','uint','address','bytes','uint','uint','uint'], derivationParams);
+        let encodedQuote = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes21','address','bytes21','uint','address','bytes','uint','uint','uint', 'uint', 'uint', 'uint', 'uint'], quote);
+        let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes21','address','bytes21','uint','address','bytes','uint','uint','uint'], derivationParams);
         let preHash = await web3.utils.keccak256(encodedParams);   
         let quoteHash = await web3.utils.keccak256(encodedQuote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
@@ -191,8 +191,8 @@ contract('LiquidityBridgeContract', async accounts => {
         let btcRawTransaction = '0x101';
         let partialMerkleTree = '0x202';
         let height = 10;
-        let userBtcRefundAddress = '0x0000000000000000000000000000000000000000';
-        let liquidityProviderBtcAddress = '0x0000000000000000000000000000000000000000';
+        let userBtcRefundAddress = '0x000000000000000000000000000000000000000000';
+        let liquidityProviderBtcAddress = '0x000000000000000000000000000000000000000000';
         let rskRefundAddress = web3.eth.currentProvider.addresses[2];
         let destAddr = web3.eth.currentProvider.addresses[1];
         let initialUserBalance = await web3.eth.getBalance(destAddr);
@@ -215,8 +215,8 @@ contract('LiquidityBridgeContract', async accounts => {
         let derivationParams = [fedBtcAddress, lbcAddress, liquidityProviderRskAddress, userBtcRefundAddress, rskRefundAddress, liquidityProviderBtcAddress, callFee, destAddr, data, gasLimit, nonce, val];
         let quote = [fedBtcAddress, lbcAddress, liquidityProviderRskAddress, userBtcRefundAddress, rskRefundAddress, liquidityProviderBtcAddress, callFee, destAddr, data, gasLimit, nonce, val, agreementTime, timeForDeposit, callTime, depositConfirmations];
         let quoteParams = [derivationParams, agreementTime, timeForDeposit, callTime, depositConfirmations];
-        let encodedQuote = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes20','address','bytes20','uint','address','bytes','uint','uint','uint', 'uint', 'uint', 'uint', 'uint'], quote);
-        let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes20','address','bytes20','uint','address','bytes','uint','uint','uint'], derivationParams);
+        let encodedQuote = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes21','address','bytes21','uint','address','bytes','uint','uint','uint', 'uint', 'uint', 'uint', 'uint'], quote);
+        let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes21','address','bytes21','uint','address','bytes','uint','uint','uint'], derivationParams);
         let preHash = await web3.utils.keccak256(encodedParams);   
         let quoteHash = await web3.utils.keccak256(encodedQuote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
@@ -275,8 +275,8 @@ contract('LiquidityBridgeContract', async accounts => {
         let btcRawTransaction = '0x101';
         let partialMerkleTree = '0x202';
         let height = 10;
-        let userBtcRefundAddress = '0x0000000000000000000000000000000000000000';
-        let liquidityProviderBtcAddress = '0x0000000000000000000000000000000000000000';
+        let userBtcRefundAddress = '0x000000000000000000000000000000000000000000';
+        let liquidityProviderBtcAddress = '0x000000000000000000000000000000000000000000';
         let destAddr = mock.address;
         let fedBtcAddress = '0x0000000000000000000000000000000000000000';
         let liquidityProviderRskAddress = web3.eth.currentProvider.getAddress();
@@ -295,8 +295,8 @@ contract('LiquidityBridgeContract', async accounts => {
         let derivationParams = [fedBtcAddress, lbcAddress, liquidityProviderRskAddress, userBtcRefundAddress, rskRefundAddress, liquidityProviderBtcAddress, callFee, destAddr, data, gasLimit, nonce, val];
         let quote = [fedBtcAddress, lbcAddress, liquidityProviderRskAddress, userBtcRefundAddress, rskRefundAddress, liquidityProviderBtcAddress, callFee, destAddr, data, gasLimit, nonce, val, agreementTime, timeForDeposit, callTime, depositConfirmations];
         let quoteParams = [derivationParams, agreementTime, timeForDeposit, callTime, depositConfirmations];
-        let encodedQuote = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes20','address','bytes20','uint','address','bytes','uint','uint','uint', 'uint', 'uint', 'uint', 'uint'], quote);
-        let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes20','address','bytes20','uint','address','bytes','uint','uint','uint'], derivationParams);
+        let encodedQuote = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes21','address','bytes21','uint','address','bytes','uint','uint','uint', 'uint', 'uint', 'uint', 'uint'], quote);
+        let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes21','address','bytes21','uint','address','bytes','uint','uint','uint'], derivationParams);
         let preHash = await web3.utils.keccak256(encodedParams);   
         let quoteHash = await web3.utils.keccak256(encodedQuote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
@@ -344,8 +344,8 @@ contract('LiquidityBridgeContract', async accounts => {
         let btcRawTransaction = '0x101';
         let partialMerkleTree = '0x202';
         let height = 10;
-        let userBtcRefundAddress = '0x0000000000000000000000000000000000000000';
-        let liquidityProviderBtcAddress = '0x0000000000000000000000000000000000000000';
+        let userBtcRefundAddress = '0x000000000000000000000000000000000000000000';
+        let liquidityProviderBtcAddress = '0x000000000000000000000000000000000000000000';
         let destAddr = mock.address;
         let fedBtcAddress = '0x0000000000000000000000000000000000000000';
         let liquidityProviderRskAddress = web3.eth.currentProvider.getAddress();
@@ -363,8 +363,8 @@ contract('LiquidityBridgeContract', async accounts => {
         let derivationParams = [fedBtcAddress, lbcAddress, liquidityProviderRskAddress, userBtcRefundAddress, rskRefundAddress, liquidityProviderBtcAddress, callFee, destAddr, data, gasLimit, nonce, val];
         let quote = [fedBtcAddress, lbcAddress, liquidityProviderRskAddress, userBtcRefundAddress, rskRefundAddress, liquidityProviderBtcAddress, callFee, destAddr, data, gasLimit, nonce, val, agreementTime, timeForDeposit, callTime, depositConfirmations];
         let quoteParams = [derivationParams, agreementTime, timeForDeposit, callTime, depositConfirmations];
-        let encodedQuote = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes20','address','bytes20','uint','address','bytes','uint','uint','uint', 'uint', 'uint', 'uint', 'uint'], quote);
-        let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes20','address','bytes20','uint','address','bytes','uint','uint','uint'], derivationParams);
+        let encodedQuote = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes21','address','bytes21','uint','address','bytes','uint','uint','uint', 'uint', 'uint', 'uint', 'uint'], quote);
+        let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes21','address','bytes21','uint','address','bytes','uint','uint','uint'], derivationParams);
         let preHash = await web3.utils.keccak256(encodedParams);   
         let quoteHash = await web3.utils.keccak256(encodedQuote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
@@ -407,8 +407,8 @@ contract('LiquidityBridgeContract', async accounts => {
         let btcRawTransaction = '0x101';
         let partialMerkleTree = '0x202';
         let height = 10;
-        let userBtcRefundAddress = '0x0000000000000000000000000000000000000000';
-        let liquidityProviderBtcAddress = '0x0000000000000000000000000000000000000000';
+        let userBtcRefundAddress = '0x000000000000000000000000000000000000000000';
+        let liquidityProviderBtcAddress = '0x000000000000000000000000000000000000000000';
         let destAddr = mock.address;
         let fedBtcAddress = '0x0000000000000000000000000000000000000000';
         let liquidityProviderRskAddress = web3.eth.currentProvider.getAddress();
@@ -426,8 +426,8 @@ contract('LiquidityBridgeContract', async accounts => {
         let derivationParams = [fedBtcAddress, lbcAddress, liquidityProviderRskAddress, userBtcRefundAddress, rskRefundAddress, liquidityProviderBtcAddress, callFee, destAddr, data, gasLimit, nonce, val];
         let quote = [fedBtcAddress, lbcAddress, liquidityProviderRskAddress, userBtcRefundAddress, rskRefundAddress, liquidityProviderBtcAddress, callFee, destAddr, data, gasLimit, nonce, val, agreementTime, timeForDeposit, callTime, depositConfirmations];
         let quoteParams = [derivationParams, agreementTime, timeForDeposit, callTime, depositConfirmations];
-        let encodedQuote = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes20','address','bytes20','uint','address','bytes','uint','uint','uint', 'uint', 'uint', 'uint', 'uint'], quote);
-        let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes20','address','bytes20','uint','address','bytes','uint','uint','uint'], derivationParams);
+        let encodedQuote = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes21','address','bytes21','uint','address','bytes','uint','uint','uint', 'uint', 'uint', 'uint', 'uint'], quote);
+        let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes21','address','bytes21','uint','address','bytes','uint','uint','uint'], derivationParams);
         let preHash = await web3.utils.keccak256(encodedParams);   
         let quoteHash = await web3.utils.keccak256(encodedQuote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
@@ -462,8 +462,8 @@ contract('LiquidityBridgeContract', async accounts => {
         let btcRawTransaction = '0x101';
         let partialMerkleTree = '0x202';
         let height = 10;
-        let userBtcRefundAddress = '0x0000000000000000000000000000000000000000';
-        let liquidityProviderBtcAddress = '0x0000000000000000000000000000000000000000';
+        let userBtcRefundAddress = '0x000000000000000000000000000000000000000000';
+        let liquidityProviderBtcAddress = '0x000000000000000000000000000000000000000000';
         let rskRefundAddress = web3.eth.currentProvider.addresses[2];
         let destAddr = web3.eth.currentProvider.addresses[1];
         let initialUserBalance = await web3.eth.getBalance(destAddr);
@@ -483,8 +483,8 @@ contract('LiquidityBridgeContract', async accounts => {
         let derivationParams = [fedBtcAddress, lbcAddress, liquidityProviderRskAddress, userBtcRefundAddress, rskRefundAddress, liquidityProviderBtcAddress, callFee, destAddr, data, gasLimit, nonce, val];
         let quote = [fedBtcAddress, lbcAddress, liquidityProviderRskAddress, userBtcRefundAddress, rskRefundAddress, liquidityProviderBtcAddress, callFee, destAddr, data, gasLimit, nonce, val, agreementTime, timeForDeposit, callTime, depositConfirmations];
         let quoteParams = [derivationParams, agreementTime, timeForDeposit, callTime, depositConfirmations];
-        let encodedQuote = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes20','address','bytes20','uint','address','bytes','uint','uint','uint', 'uint', 'uint', 'uint', 'uint'], quote);
-        let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes20','address','bytes20','uint','address','bytes','uint','uint','uint'], derivationParams);
+        let encodedQuote = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes21','address','bytes21','uint','address','bytes','uint','uint','uint', 'uint', 'uint', 'uint', 'uint'], quote);
+        let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes21','address','bytes21','uint','address','bytes','uint','uint','uint'], derivationParams);
         let preHash = await web3.utils.keccak256(encodedParams);   
         let quoteHash = await web3.utils.keccak256(encodedQuote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
@@ -523,5 +523,30 @@ contract('LiquidityBridgeContract', async accounts => {
         assert.equal(val, parseInt(finalUserBalance) - parseInt(initialUserBalance));
         assert.equal(penalty, initialLPDeposit.toNumber() - finalLPDeposit.toNumber());
         assert.equal(reward +  peginAmount, finalLPBalance.toNumber() - initialLPBalance.toNumber());        
-    });    
+    });  
+
+    it ('should resign', async () => {
+        let liquidityProviderRskAddress = web3.eth.currentProvider.getAddress();
+        let lbcAddress = instance.address;
+        let initialLPBalance = await instance.getBalance(liquidityProviderRskAddress);
+        let initialLBCBalance = await web3.eth.getBalance(lbcAddress);
+        let initialLPCol = await instance.getCollateral(liquidityProviderRskAddress);
+
+        await instance.resign();
+        await instance.withdraw(initialLPBalance);
+
+        let finalLPBalance = await instance.getBalance(liquidityProviderRskAddress);
+        let currentLBCBalance = await web3.eth.getBalance(lbcAddress);
+
+        assert.equal(initialLPBalance.toNumber(), parseInt(initialLBCBalance) - parseInt(currentLBCBalance));
+        assert.equal(0, finalLPBalance.toNumber());
+
+        await instance.withdrawCollateral();
+
+        let finalLPCol = await instance.getCollateral(liquidityProviderRskAddress);
+        let finalLBCBalance = await web3.eth.getBalance(lbcAddress);
+
+        assert.equal(initialLPCol.toNumber(), parseInt(currentLBCBalance) - parseInt(finalLBCBalance));
+        assert.equal(0, finalLPCol.toNumber());
+    });
 });

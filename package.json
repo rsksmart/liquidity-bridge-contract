@@ -20,8 +20,6 @@
     "solidity-coverage": "^0.7.11"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^4.0.0",
-    "@truffle/hdwallet-provider": "^1.2.3",
-    "ethereumjs-util": "^6.2.1"
+    "@truffle/hdwallet-provider": "^1.2.3"
   }
 }
