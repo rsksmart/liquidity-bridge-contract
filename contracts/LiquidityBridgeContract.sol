@@ -1,85 +1,152 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.4;
+pragma experimental ABIEncoderV2;
 
 import './Bridge.sol';
 
-abstract contract LiquidityBridgeContract {
+contract LiquidityBridgeContract {
 
-    Bridge bridge;
-
-    constructor(address bridgeAddress) {
-        bridge = Bridge(bridgeAddress);
+    struct DerivationParams {
+        bytes fedBtcAddress;
+        address lbcAddress;
+        address liquidityProviderRskAddress;
+        bytes btcRefundAddress;
+        address rskRefundAddress;
+        bytes liquidityProviderBtcAddress;
+        uint callFee;
+        address contractAddress;
+        bytes data;        
+        uint gasLimit;
+        uint nonce;
+        uint value;
     }
 
-    function registerFastBridgeBtcTransaction(
+    struct Registry {
+        bool performed;  
+        bool success;
+    }
+
+    Bridge bridge;
+    mapping(address => uint256) private balances;
+    mapping(address => uint256) private collateral;
+    mapping(bytes32 => Registry) private callRegistry;  
+    uint private minCol;
+
+    constructor(address bridgeAddress, uint minCollateral) {
+        bridge = Bridge(bridgeAddress);
+        minCol = minCollateral;
+    }
+
+    receive() external payable { }
+
+    function register() external payable {
+        require(collateral[msg.sender] == 0, "Already registered");
+        require(msg.value >= minCol, "Not enough collateral");
+        collateral[msg.sender] = msg.value;
+    }
+
+    function addCollateral() external payable {
+        require(collateral[msg.sender] > 0, "Not registered");
+        collateral[msg.sender] += msg.value;
+    }
+
+    function deposit() external payable {
+        require(collateral[msg.sender] > 0, "Not registered");
+        balances[msg.sender] += msg.value;
+    }
+
+    function getCollateral(address lp) external view returns (uint256) {
+        return collateral[lp];
+    }
+
+    function getBalance(address lp) external view returns (uint256) {
+        return balances[lp];
+    }
+
+    function callForUser(DerivationParams memory params) external payable returns (bool) {
+        require(msg.sender == params.liquidityProviderRskAddress, "Unauthorized");
+        require(balances[params.liquidityProviderRskAddress] + msg.value >= params.value, "Insufficient funds");   
+        require(address(this) == params.lbcAddress, "Wrong LBC address");  
+        require(collateral[msg.sender] > 0, "Not registered");
+        require(collateral[msg.sender] >= minCol, "Insufficient collateral");   
+
+        bytes32 derivationHash = hash(params);
+
+        require(gasleft() >= params.gasLimit, "Insufficient gas");
+        (bool success, bytes memory ret) = params.contractAddress.call{gas:params.gasLimit, value: params.value}(params.data);
+
+        balances[params.liquidityProviderRskAddress] += msg.value;
+        callRegistry[derivationHash].performed = true;
+
+        if (success) {
+            balances[params.liquidityProviderRskAddress] -= params.value;
+            callRegistry[derivationHash].success = true;
+        } 
+        return success;
+    }
+
+    function registerPegIn(
+        DerivationParams memory params,
         bytes memory btcRawTransaction, 
         bytes memory partialMerkleTree, 
-        uint256 height, 
-        bytes memory userBtcRefundAddress, 
-        bytes memory liquidityProviderBtcAddress, 
-        bytes32 preHash
-    ) public returns (int256 result) {
-        
-        bytes32 derivationHash = hash(preHash, userBtcRefundAddress, liquidityProviderBtcAddress);
-        bool shouldTransferToContract = validateData(derivationHash);
+        uint256 height
+    ) public returns (int256) {
+        bytes32 derivationHash = hash(params);
 
         int256 transferredAmount = bridge.registerFastBridgeBtcTransaction(
             btcRawTransaction, 
             height, 
             partialMerkleTree, 
-            preHash, 
-            userBtcRefundAddress, 
+            derivationHash, 
+            params.btcRefundAddress, 
             address(this),
-            liquidityProviderBtcAddress, 
-            shouldTransferToContract
+            params.liquidityProviderBtcAddress,
+            callRegistry[derivationHash].performed
         );
 
-        if (transferredAmount > 0) {
-            updateTransferredAmount(derivationHash, uint(transferredAmount));
+        require(transferredAmount != -303, "Failed to validate BTC transaction");
+        
+        if (transferredAmount == -200 || transferredAmount == -100) {
+            // Bridge cap surpassed
+            callRegistry[derivationHash].performed = false;
+            callRegistry[derivationHash].success = false;
+            return transferredAmount;
         }
 
+        if (transferredAmount > 0 && callRegistry[derivationHash].performed) {
+            if (callRegistry[derivationHash].success) {
+                balances[params.liquidityProviderRskAddress] += params.value + params.callFee;
+                uint256 remainingAmount = uint256(transferredAmount) - (params.value + params.callFee);
+                
+                if (remainingAmount > 0) {
+                    (bool success, ) = params.rskRefundAddress.call{value : remainingAmount}("");
+                }
+                callRegistry[derivationHash].success = false;
+            } else {
+                balances[params.liquidityProviderRskAddress] += params.callFee;
+                (bool success, ) = params.rskRefundAddress.call{value : uint256(transferredAmount) - params.callFee}("");
+            }
+            callRegistry[derivationHash].performed = false;
+        } else if (transferredAmount > 0) {
+            (bool success, ) = params.rskRefundAddress.call{value : uint256(transferredAmount)}("");
+        }
         return transferredAmount;
     }
 
-    function hash(
-        bytes memory fedBtcAddress, 
-        address liquidityProviderRskAddress,
-        address callContract, 
-        bytes memory callContractArguments, 
-        int penaltyFee, 
-        int successFee, 
-        int gasLimit, 
-        int nonce ,
-        int valueToTransfer
-    ) public pure returns (bytes32 derivationHash) {
-        
+    function hash(DerivationParams memory params) public pure returns (bytes32) {        
         return keccak256(abi.encode(
-            fedBtcAddress, 
-            liquidityProviderRskAddress, 
-            callContract, 
-            callContractArguments, 
-            penaltyFee, 
-            successFee, 
-            gasLimit,
-            nonce,
-            valueToTransfer
+            params.fedBtcAddress, 
+            params.lbcAddress,
+            params.liquidityProviderRskAddress,
+            params.btcRefundAddress,    
+            params.rskRefundAddress,
+            params.liquidityProviderBtcAddress,
+            params.callFee, 
+            params.contractAddress, 
+            params.data, 
+            params.gasLimit,            
+            params.nonce,
+            params.value                    
         ));
     }
-
-    function hash(
-        bytes32 preHash,
-        bytes memory userBtcRefundAddress, 
-        bytes memory liquidityProviderBtcAddress
-    ) internal view returns (bytes32 derivationHash) {
-        return keccak256(abi.encodePacked(
-            preHash,
-            userBtcRefundAddress,
-            address(this),
-            liquidityProviderBtcAddress
-        ));
-    }
-
-    function validateData(bytes32 derivationHash) internal virtual returns (bool shouldTransferToContract);
-
-    function updateTransferredAmount(bytes32 derivationHash, uint256 transferredAmount) internal virtual;
 }
