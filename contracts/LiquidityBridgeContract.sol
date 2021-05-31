@@ -13,9 +13,9 @@ contract LiquidityBridgeContract {
         bytes20 fedBtcAddress;
         address lbcAddress;
         address liquidityProviderRskAddress;
-        bytes21 btcRefundAddress;
+        bytes btcRefundAddress;
         address rskRefundAddress;
-        bytes21 liquidityProviderBtcAddress;
+        bytes liquidityProviderBtcAddress;
         uint callFee;
         address contractAddress;
         bytes data;        
@@ -406,11 +406,7 @@ contract LiquidityBridgeContract {
 
     function encodeQuote(Quote memory quote) private pure returns (bytes memory) {
         // Encode in two parts because abi.encode cannot take more than 12 parameters due to stack depth limits.
-        // Then modify the offset of the params.data parameter (at byte 286) because encoding in two parts gets it wrong.
-        // This is awful but I do not know another way of encoding more than 12 parameters that include dynamic types.
-        bytes memory encoding = abi.encodePacked(encodePart1(quote.params), encodePart2(quote));
-        encoding[286] = 0x02;
-        return encoding;
+        return abi.encode(encodePart1(quote.params), encodePart2(quote));
     }
 
     function encodePart1(DerivationParams memory params) private pure returns (bytes memory) {
