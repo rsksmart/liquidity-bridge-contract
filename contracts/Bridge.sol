@@ -14,5 +14,5 @@ interface Bridge {
         bool shouldTransferToContract
     ) external returns (int256);
 
-    function getBitcoinHeaderByHeight(uint256 height) external view returns (bytes memory);
+    function getBtcBlockchainBlockHeaderByHeight(uint256 height) external view returns (bytes memory);
 }

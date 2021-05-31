@@ -341,7 +341,7 @@ contract LiquidityBridgeContract {
         @return Boolean indicating whether the penalty applies
      */
     function shouldPenalize(Quote memory quote, uint256 callTimestamp, uint256 height) private view returns (bool) {
-        bytes memory firstConfirmationHeader = bridge.getBitcoinHeaderByHeight(height);
+        bytes memory firstConfirmationHeader = bridge.getBtcBlockchainBlockHeaderByHeight(height);
         uint256 firstConfirmationTimestamp = getBtcBlockTimestamp(firstConfirmationHeader);        
 
         // do not penalize if deposit was not made on time
@@ -352,7 +352,7 @@ contract LiquidityBridgeContract {
         if (callTimestamp <= 0) {
             return true;
         }
-        bytes memory nConfirmationsHeader = bridge.getBitcoinHeaderByHeight(height + quote.depositConfirmations - 1);
+        bytes memory nConfirmationsHeader = bridge.getBtcBlockchainBlockHeaderByHeight(height + quote.depositConfirmations - 1);
         uint256 nConfirmationsTimestamp = getBtcBlockTimestamp(nConfirmationsHeader);
 
         // penalize if the call was not made on time

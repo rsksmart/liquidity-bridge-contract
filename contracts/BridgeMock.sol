@@ -24,7 +24,7 @@ contract BridgeMock is Bridge {
         return int(amount);
     }    
 
-    function getBitcoinHeaderByHeight(uint256 height) external view override returns (bytes memory) {
+    function getBtcBlockchainBlockHeaderByHeight(uint256 height) external view override returns (bytes memory) {
         return headers[height];
     }
 
