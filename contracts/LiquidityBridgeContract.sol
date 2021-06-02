@@ -251,23 +251,24 @@ contract LiquidityBridgeContract {
             callRegistry[derivationHash].timestamp = 0;
             callRegistry[derivationHash].success = false;
             return transferredAmount;
-        } 
+        }
 
         if (transferredAmount > 0 && callRegistry[derivationHash].timestamp > 0) {
+            uint refundAmount;
+
             if (callRegistry[derivationHash].success) {
-                balances[quote.params.liquidityProviderRskAddress] += quote.params.value + quote.params.callFee;
-                uint256 remainingAmount = uint256(transferredAmount) - (quote.params.value + quote.params.callFee);
-                
-                if (remainingAmount > 0) {
-                    (bool success, ) = quote.params.rskRefundAddress.call{value : remainingAmount}("");
-                    require(success, "Refund failed");
-                }
+                refundAmount = min(uint(transferredAmount), quote.params.value + quote.params.callFee);
                 callRegistry[derivationHash].success = false;
             } else {
-                balances[quote.params.liquidityProviderRskAddress] += quote.params.callFee;
-                (bool success, ) = quote.params.rskRefundAddress.call{value : uint256(transferredAmount) - quote.params.callFee}("");
-                require(success, "Refund failed");
+                refundAmount = min(uint(transferredAmount), quote.params.callFee);
             }
+            balances[quote.params.liquidityProviderRskAddress] += refundAmount;
+            int256 remainingAmount = transferredAmount - int(refundAmount);
+            
+            if (remainingAmount > 0) {
+                (bool success, ) = quote.params.rskRefundAddress.call{value : uint(remainingAmount)}("");
+                require(success, "Refund failed");
+            }            
             callRegistry[derivationHash].timestamp = 0;
         } else if (transferredAmount > 0) {
             (bool success, ) = quote.params.rskRefundAddress.call{value : uint256(transferredAmount)}("");
@@ -295,6 +296,10 @@ contract LiquidityBridgeContract {
 
     function hashQuote(Quote memory quote) public pure returns (bytes32) { 
         return keccak256(encodeQuote(quote));        
+    }
+
+    function min(uint a, uint b) private pure returns (uint) {
+        return a < b ? a : b;
     }
 
     /**
