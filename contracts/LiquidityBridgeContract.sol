@@ -233,7 +233,7 @@ contract LiquidityBridgeContract {
         require(transferredAmount != -302, "Transaction already processed");
         require(transferredAmount != -304, "Invalid transaction value");
 
-        if (shouldPenalize(quote, callRegistry[derivationHash].timestamp, height)) {
+        if (shouldPenalize(quote, transferredAmount, callRegistry[derivationHash].timestamp, height)) {
             uint256 penalty = collateral[quote.params.liquidityProviderRskAddress] / penaltyR;
             collateral[quote.params.liquidityProviderRskAddress] -= penalty;
             
@@ -345,7 +345,11 @@ contract LiquidityBridgeContract {
         @param height The block height where the peg-in transaction is included
         @return Boolean indicating whether the penalty applies
      */
-    function shouldPenalize(Quote memory quote, uint256 callTimestamp, uint256 height) private view returns (bool) {
+    function shouldPenalize(Quote memory quote, int256 amount, uint256 callTimestamp, uint256 height) private view returns (bool) {
+        // do not penalize if deposit amount is insufficient
+        if (amount < int(quote.params.value + quote.params.callFee) && amount > 0) {
+            return false;
+        }
         bytes memory firstConfirmationHeader = bridge.getBtcBlockchainBlockHeaderByHeight(height);
         uint256 firstConfirmationTimestamp = getBtcBlockTimestamp(firstConfirmationHeader);        
 

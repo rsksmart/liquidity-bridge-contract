@@ -17,7 +17,7 @@ module.exports = {
 
   mocha: {
     enableTimeouts: false,
-    timeout: 500000
+    timeout: 1000000
   },
 
   networks: {
