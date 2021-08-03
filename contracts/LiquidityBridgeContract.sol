@@ -9,7 +9,7 @@ import './Bridge.sol';
  */
 contract LiquidityBridgeContract {
 
-    struct DerivationParams {
+    struct Quote {
         bytes20 fedBtcAddress;
         address lbcAddress;
         address liquidityProviderRskAddress;
@@ -22,10 +22,6 @@ contract LiquidityBridgeContract {
         uint gasLimit;
         uint nonce;
         uint value;
-    }
-
-    struct Quote {
-        DerivationParams params;
         uint agreementTimestamp;
         uint timeForDeposit;
         uint callTime;
@@ -181,28 +177,28 @@ contract LiquidityBridgeContract {
 
     /**
         @dev Performs a call on behalf of a user
-        @param params The derivation params that identify the service
+        @param quote The quote that identifies the service
         @return Boolean indicating whether the call was successful
      */
-    function callForUser(DerivationParams memory params) external payable onlyRegistered returns (bool) {
-        require(msg.sender == params.liquidityProviderRskAddress, "Unauthorized");
-        require(balances[params.liquidityProviderRskAddress] + msg.value >= params.value, "Insufficient funds");   
-        require(address(this) == params.lbcAddress, "Wrong LBC address");  
+    function callForUser(Quote memory quote) external payable onlyRegistered returns (bool) {
+        require(msg.sender == quote.liquidityProviderRskAddress, "Unauthorized");
+        require(balances[quote.liquidityProviderRskAddress] + msg.value >= quote.value, "Insufficient funds");   
+        require(address(this) == quote.lbcAddress, "Wrong LBC address");  
         require(collateral[msg.sender] >= minCol, "Insufficient collateral");   
 
-        bytes32 derivationHash = hashParams(params);
+        bytes32 derivationHash = hashParams(quote);
 
-        balances[params.liquidityProviderRskAddress] += msg.value - params.value;
+        balances[quote.liquidityProviderRskAddress] += msg.value - quote.value;
 
-        require(gasleft() >= params.gasLimit, "Insufficient gas");
-        (bool success, ) = params.contractAddress.call{gas:params.gasLimit, value: params.value}(params.data);
+        require(gasleft() >= quote.gasLimit, "Insufficient gas");
+        (bool success, ) = quote.contractAddress.call{gas:quote.gasLimit, value: quote.value}(quote.data);
         
         callRegistry[derivationHash].timestamp = block.timestamp;
 
         if (success) {            
             callRegistry[derivationHash].success = true;
         } else {
-            balances[params.liquidityProviderRskAddress] += params.value;
+            balances[quote.liquidityProviderRskAddress] += quote.value;
         }
         return success;
     }
@@ -223,9 +219,9 @@ contract LiquidityBridgeContract {
         bytes memory partialMerkleTree, 
         uint256 height
     ) public returns (int256) {
-        require(verify(quote.params.liquidityProviderRskAddress, hashQuote(quote), signature), "Invalid signature");
+        require(verify(quote.liquidityProviderRskAddress, hashQuote(quote), signature), "Invalid signature");
 
-        bytes32 derivationHash = hashParams(quote.params);
+        bytes32 derivationHash = hashParams(quote);
 
         int256 transferredAmount = registerBridge(quote, btcRawTransaction, partialMerkleTree, height, derivationHash);
 
@@ -234,8 +230,8 @@ contract LiquidityBridgeContract {
         require(transferredAmount != -304, "Invalid transaction value");
 
         if (shouldPenalize(quote, transferredAmount, callRegistry[derivationHash].timestamp, height)) {
-            uint256 penalty = collateral[quote.params.liquidityProviderRskAddress] / penaltyR;
-            collateral[quote.params.liquidityProviderRskAddress] -= penalty;
+            uint256 penalty = collateral[quote.liquidityProviderRskAddress] / penaltyR;
+            collateral[quote.liquidityProviderRskAddress] -= penalty;
             
             // pay reward to sender
             uint256 reward = penalty / rewardR;            
@@ -257,40 +253,40 @@ contract LiquidityBridgeContract {
             uint refundAmount;
 
             if (callRegistry[derivationHash].success) {
-                refundAmount = min(uint(transferredAmount), quote.params.value + quote.params.callFee);
+                refundAmount = min(uint(transferredAmount), quote.value + quote.callFee);
                 callRegistry[derivationHash].success = false;
             } else {
-                refundAmount = min(uint(transferredAmount), quote.params.callFee);
+                refundAmount = min(uint(transferredAmount), quote.callFee);
             }
-            balances[quote.params.liquidityProviderRskAddress] += refundAmount;
+            balances[quote.liquidityProviderRskAddress] += refundAmount;
             int256 remainingAmount = transferredAmount - int(refundAmount);
             
             if (remainingAmount > 0) {
-                (bool success, ) = quote.params.rskRefundAddress.call{value : uint(remainingAmount)}("");
+                (bool success, ) = quote.rskRefundAddress.call{value : uint(remainingAmount)}("");
                 require(success, "Refund failed");
             }            
             callRegistry[derivationHash].timestamp = 0;
         } else if (transferredAmount > 0) {
-            (bool success, ) = quote.params.rskRefundAddress.call{value : uint256(transferredAmount)}("");
+            (bool success, ) = quote.rskRefundAddress.call{value : uint256(transferredAmount)}("");
             require(success, "Refund failed");
         }
         return transferredAmount;
     }
 
-    function hashParams(DerivationParams memory params) public pure returns (bytes32) {        
+    function hashParams(Quote memory quote) public pure returns (bytes32) {        
         return keccak256(abi.encode(
-            params.fedBtcAddress, 
-            params.lbcAddress,
-            params.liquidityProviderRskAddress,
-            params.btcRefundAddress,    
-            params.rskRefundAddress,
-            params.liquidityProviderBtcAddress,
-            params.callFee, 
-            params.contractAddress, 
-            params.data, 
-            params.gasLimit,            
-            params.nonce,
-            params.value                  
+            quote.fedBtcAddress, 
+            quote.lbcAddress,
+            quote.liquidityProviderRskAddress,
+            quote.btcRefundAddress,    
+            quote.rskRefundAddress,
+            quote.liquidityProviderBtcAddress,
+            quote.callFee, 
+            quote.contractAddress, 
+            quote.data, 
+            quote.gasLimit,            
+            quote.nonce,
+            quote.value                  
         ));
     }
 
@@ -331,9 +327,9 @@ contract LiquidityBridgeContract {
             height, 
             partialMerkleTree, 
             derivationHash, 
-            quote.params.btcRefundAddress, 
+            quote.btcRefundAddress, 
             payable(this),
-            quote.params.liquidityProviderBtcAddress,
+            quote.liquidityProviderBtcAddress,
             callRegistry[derivationHash].timestamp > 0
         );
     }
@@ -347,7 +343,7 @@ contract LiquidityBridgeContract {
      */
     function shouldPenalize(Quote memory quote, int256 amount, uint256 callTimestamp, uint256 height) private view returns (bool) {
         // do not penalize if deposit amount is insufficient
-        if (amount < int(quote.params.value + quote.params.callFee) && amount > 0) {
+        if (amount < int(quote.value + quote.callFee) && amount > 0) {
             return false;
         }
         bytes memory firstConfirmationHeader = bridge.getBtcBlockchainBlockHeaderByHeight(height);
@@ -415,25 +411,27 @@ contract LiquidityBridgeContract {
 
     function encodeQuote(Quote memory quote) private pure returns (bytes memory) {
         // Encode in two parts because abi.encode cannot take more than 12 parameters due to stack depth limits.
-        return abi.encode(encodePart1(quote.params), encodePart2(quote));
+        return abi.encode(encodePart1(quote), encodePart2(quote));
     }
 
-    function encodePart1(DerivationParams memory params) private pure returns (bytes memory) {
-        return abi.encode(params.fedBtcAddress, 
-            params.lbcAddress,
-            params.liquidityProviderRskAddress,
-            params.btcRefundAddress,    
-            params.rskRefundAddress,
-            params.liquidityProviderBtcAddress,
-            params.callFee, 
-            params.contractAddress);
+    function encodePart1(Quote memory quote) private pure returns (bytes memory) {
+        return abi.encode(
+            quote.fedBtcAddress, 
+            quote.lbcAddress,
+            quote.liquidityProviderRskAddress,
+            quote.btcRefundAddress,    
+            quote.rskRefundAddress,
+            quote.liquidityProviderBtcAddress,
+            quote.callFee, 
+            quote.contractAddress);
     }
 
     function encodePart2(Quote memory quote) private pure returns (bytes memory) {
-        return abi.encode(quote.params.data, 
-            quote.params.gasLimit,            
-            quote.params.nonce,
-            quote.params.value,
+        return abi.encode(
+            quote.data, 
+            quote.gasLimit,            
+            quote.nonce,
+            quote.value,
             quote.agreementTimestamp,
             quote.timeForDeposit,
             quote.callTime,

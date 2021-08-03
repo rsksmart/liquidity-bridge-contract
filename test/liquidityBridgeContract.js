@@ -49,11 +49,41 @@ contract('LiquidityBridgeContract', async accounts => {
         let timeForDeposit = 600;
         let callTime = 600;
         let depositConfirmations = 10;
-        let derivationParams = [fedBtcAddress, lbcAddress, liquidityProviderRskAddress, userBtcRefundAddress, rskRefundAddress, liquidityProviderBtcAddress, callFee, destAddr, data, gasLimit, nonce, val];
-        let quoteParams = [derivationParams, agreementTime, timeForDeposit, callTime, depositConfirmations];
+        let derivationParams = [
+            fedBtcAddress, 
+            lbcAddress, 
+            liquidityProviderRskAddress, 
+            userBtcRefundAddress, 
+            rskRefundAddress, 
+            liquidityProviderBtcAddress, 
+            callFee, 
+            destAddr, 
+            data, 
+            gasLimit, 
+            nonce, 
+            val
+        ];
+        let quote = [
+            fedBtcAddress, 
+            lbcAddress, 
+            liquidityProviderRskAddress, 
+            userBtcRefundAddress, 
+            rskRefundAddress, 
+            liquidityProviderBtcAddress, 
+            callFee, 
+            destAddr, 
+            data, 
+            gasLimit, 
+            nonce, 
+            val, 
+            agreementTime, 
+            timeForDeposit, 
+            callTime, 
+            depositConfirmations
+        ];
         let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes','address','bytes','uint','address','bytes','uint','uint','uint'], derivationParams);
         let preHash = await web3.utils.keccak256(encodedParams);   
-        let quoteHash = await instance.hashQuote(quoteParams);
+        let quoteHash = await instance.hashQuote(quote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
         let firstConfirmationTime = web3.utils.toHex(agreementTime + 300).slice(2, 12);
         let nConfirmationTime = web3.utils.toHex(agreementTime + 600).slice(2, 12);
@@ -66,7 +96,7 @@ contract('LiquidityBridgeContract', async accounts => {
         initialLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
 
         await instance.callForUser(
-            derivationParams,
+            quote,
             {value : val}
         );
 
@@ -75,7 +105,7 @@ contract('LiquidityBridgeContract', async accounts => {
         assert.equal(currentLPBalance.toNumber(), initialLPBalance.toNumber());
 
         amount = await instance.registerPegIn.call(
-            quoteParams,
+            quote,
             signature,
             btcRawTransaction,
             partialMerkleTree,
@@ -83,7 +113,7 @@ contract('LiquidityBridgeContract', async accounts => {
         );
 
         await instance.registerPegIn(
-            quoteParams,
+            quote,
             signature,
             btcRawTransaction,
             partialMerkleTree,
@@ -125,11 +155,41 @@ contract('LiquidityBridgeContract', async accounts => {
         let timeForDeposit = 600;
         let callTime = 600;
         let depositConfirmations = 10;
-        let derivationParams = [fedBtcAddress, lbcAddress, liquidityProviderRskAddress, userBtcRefundAddress, rskRefundAddress, liquidityProviderBtcAddress, callFee, destAddr, data, gasLimit, nonce, val];
-        let quoteParams = [derivationParams, agreementTime, timeForDeposit, callTime, depositConfirmations];
+        let derivationParams = [
+            fedBtcAddress, 
+            lbcAddress, 
+            liquidityProviderRskAddress, 
+            userBtcRefundAddress, 
+            rskRefundAddress, 
+            liquidityProviderBtcAddress, 
+            callFee, 
+            destAddr, 
+            data, 
+            gasLimit, 
+            nonce, 
+            val
+        ];
+        let quote = [
+            fedBtcAddress, 
+            lbcAddress, 
+            liquidityProviderRskAddress, 
+            userBtcRefundAddress, 
+            rskRefundAddress, 
+            liquidityProviderBtcAddress, 
+            callFee, 
+            destAddr, 
+            data, 
+            gasLimit, 
+            nonce, 
+            val, 
+            agreementTime, 
+            timeForDeposit, 
+            callTime, 
+            depositConfirmations
+        ];
         let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes','address','bytes','uint','address','bytes','uint','uint','uint'], derivationParams);
         let preHash = await web3.utils.keccak256(encodedParams);   
-        let quoteHash = await instance.hashQuote(quoteParams);
+        let quoteHash = await instance.hashQuote(quote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
         let firstConfirmationTime = web3.utils.toHex(agreementTime + 300).slice(2, 12);
         let nConfirmationTime = web3.utils.toHex(agreementTime + 600).slice(2, 12);
@@ -144,7 +204,7 @@ contract('LiquidityBridgeContract', async accounts => {
         initialLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
 
         await instance.callForUser(
-            derivationParams,
+            quote,
             {value : val}
         );
 
@@ -153,7 +213,7 @@ contract('LiquidityBridgeContract', async accounts => {
         assert.equal(currentLPBalance.toNumber(), initialLPBalance.toNumber());
             
         amount = await instance.registerPegIn.call(
-            quoteParams,
+            quote,
             signature,
             btcRawTransaction,
             partialMerkleTree,
@@ -161,7 +221,7 @@ contract('LiquidityBridgeContract', async accounts => {
         );
 
         await instance.registerPegIn(
-            quoteParams,
+            quote,
             signature,
             btcRawTransaction,
             partialMerkleTree,
@@ -208,11 +268,41 @@ contract('LiquidityBridgeContract', async accounts => {
         let timeForDeposit = 600;
         let callTime = 600;
         let depositConfirmations = 10;
-        let derivationParams = [fedBtcAddress, lbcAddress, liquidityProviderRskAddress, userBtcRefundAddress, rskRefundAddress, liquidityProviderBtcAddress, callFee, destAddr, data, gasLimit, nonce, val];
-        let quoteParams = [derivationParams, agreementTime, timeForDeposit, callTime, depositConfirmations];
+        let derivationParams = [
+            fedBtcAddress, 
+            lbcAddress, 
+            liquidityProviderRskAddress, 
+            userBtcRefundAddress, 
+            rskRefundAddress, 
+            liquidityProviderBtcAddress, 
+            callFee, 
+            destAddr, 
+            data, 
+            gasLimit, 
+            nonce, 
+            val
+        ];
+        let quote = [
+            fedBtcAddress, 
+            lbcAddress, 
+            liquidityProviderRskAddress, 
+            userBtcRefundAddress, 
+            rskRefundAddress, 
+            liquidityProviderBtcAddress, 
+            callFee, 
+            destAddr, 
+            data, 
+            gasLimit, 
+            nonce, 
+            val, 
+            agreementTime, 
+            timeForDeposit, 
+            callTime, 
+            depositConfirmations
+        ];
         let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes','address','bytes','uint','address','bytes','uint','uint','uint'], derivationParams);
         let preHash = await web3.utils.keccak256(encodedParams);   
-        let quoteHash = await instance.hashQuote(quoteParams);
+        let quoteHash = await instance.hashQuote(quote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
         let firstConfirmationTime = web3.utils.toHex(agreementTime + 300).slice(2, 12);
         let nConfirmationTime = web3.utils.toHex(agreementTime + 600).slice(2, 12);
@@ -226,7 +316,7 @@ contract('LiquidityBridgeContract', async accounts => {
         initialLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
 
         await instance.callForUser(
-            derivationParams,
+            quote,
             {value : val}
         );
 
@@ -235,7 +325,7 @@ contract('LiquidityBridgeContract', async accounts => {
         assert.equal(currentLPBalance.toNumber(), initialLPBalance.toNumber());
 
         amount = await instance.registerPegIn.call(
-            quoteParams,
+            quote,
             signature,
             btcRawTransaction,
             partialMerkleTree,
@@ -243,7 +333,7 @@ contract('LiquidityBridgeContract', async accounts => {
         );
 
         await instance.registerPegIn(
-            quoteParams,
+            quote,
             signature,
             btcRawTransaction,
             partialMerkleTree,
@@ -289,11 +379,41 @@ contract('LiquidityBridgeContract', async accounts => {
         let timeForDeposit = 600;
         let callTime = 600;
         let depositConfirmations = 10;
-        let derivationParams = [fedBtcAddress, lbcAddress, liquidityProviderRskAddress, userBtcRefundAddress, rskRefundAddress, liquidityProviderBtcAddress, callFee, destAddr, data, gasLimit, nonce, val];
-        let quoteParams = [derivationParams, agreementTime, timeForDeposit, callTime, depositConfirmations];
+        let derivationParams = [
+            fedBtcAddress, 
+            lbcAddress, 
+            liquidityProviderRskAddress, 
+            userBtcRefundAddress, 
+            rskRefundAddress, 
+            liquidityProviderBtcAddress, 
+            callFee, 
+            destAddr, 
+            data, 
+            gasLimit, 
+            nonce, 
+            val
+        ];
+        let quote = [
+            fedBtcAddress, 
+            lbcAddress, 
+            liquidityProviderRskAddress, 
+            userBtcRefundAddress, 
+            rskRefundAddress, 
+            liquidityProviderBtcAddress, 
+            callFee, 
+            destAddr, 
+            data, 
+            gasLimit, 
+            nonce, 
+            val, 
+            agreementTime, 
+            timeForDeposit, 
+            callTime, 
+            depositConfirmations
+        ];
         let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes','address','bytes','uint','address','bytes','uint','uint','uint'], derivationParams);
         let preHash = await web3.utils.keccak256(encodedParams);   
-        let quoteHash = await instance.hashQuote(quoteParams);
+        let quoteHash = await instance.hashQuote(quote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
         let firstConfirmationTime = web3.utils.toHex(agreementTime + 300).slice(2, 12);
         let nConfirmationTime = web3.utils.toHex(agreementTime + 600).slice(2, 12);
@@ -307,7 +427,7 @@ contract('LiquidityBridgeContract', async accounts => {
         initialLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
 
         await instance.callForUser(
-            derivationParams,
+            quote,
             {value : val}
         );
 
@@ -316,7 +436,7 @@ contract('LiquidityBridgeContract', async accounts => {
         assert.equal(currentLPBalance.toNumber(), initialLPBalance.toNumber());
 
         amount = await instance.registerPegIn.call(
-            quoteParams,
+            quote,
             signature,
             btcRawTransaction,
             partialMerkleTree,
@@ -324,7 +444,7 @@ contract('LiquidityBridgeContract', async accounts => {
         );
 
         await instance.registerPegIn(
-            quoteParams,
+            quote,
             signature,
             btcRawTransaction,
             partialMerkleTree,
@@ -365,11 +485,41 @@ contract('LiquidityBridgeContract', async accounts => {
         let timeForDeposit = 600;
         let callTime = 600;
         let depositConfirmations = 10;
-        let derivationParams = [fedBtcAddress, lbcAddress, liquidityProviderRskAddress, userBtcRefundAddress, rskRefundAddress, liquidityProviderBtcAddress, callFee, destAddr, data, gasLimit, nonce, val];
-        let quoteParams = [derivationParams, agreementTime, timeForDeposit, callTime, depositConfirmations];
+        let derivationParams = [
+            fedBtcAddress, 
+            lbcAddress, 
+            liquidityProviderRskAddress, 
+            userBtcRefundAddress, 
+            rskRefundAddress, 
+            liquidityProviderBtcAddress, 
+            callFee, 
+            destAddr, 
+            data, 
+            gasLimit, 
+            nonce, 
+            val
+        ];
+        let quote = [
+            fedBtcAddress, 
+            lbcAddress, 
+            liquidityProviderRskAddress, 
+            userBtcRefundAddress, 
+            rskRefundAddress, 
+            liquidityProviderBtcAddress, 
+            callFee, 
+            destAddr, 
+            data, 
+            gasLimit, 
+            nonce, 
+            val, 
+            agreementTime, 
+            timeForDeposit, 
+            callTime, 
+            depositConfirmations
+        ];
         let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes','address','bytes','uint','address','bytes','uint','uint','uint'], derivationParams);
         let preHash = await web3.utils.keccak256(encodedParams);   
-        let quoteHash = await instance.hashQuote(quoteParams);
+        let quoteHash = await instance.hashQuote(quote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
         let firstConfirmationTime = web3.utils.toHex(agreementTime + 300).slice(2, 12);
         let nConfirmationTime = web3.utils.toHex(agreementTime + 600).slice(2, 12);
@@ -385,7 +535,7 @@ contract('LiquidityBridgeContract', async accounts => {
         initialLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
 
         await instance.callForUser(
-            derivationParams,
+            quote,
             {value : val}
         );
 
@@ -394,7 +544,7 @@ contract('LiquidityBridgeContract', async accounts => {
         assert.equal(val, parseInt(currentLPBalance) - parseInt(initialLPBalance));
 
         await instance.registerPegIn(
-            quoteParams,
+            quote,
             signature,
             btcRawTransaction,
             partialMerkleTree,
@@ -431,11 +581,41 @@ contract('LiquidityBridgeContract', async accounts => {
         let timeForDeposit = 600;
         let callTime = 600;
         let depositConfirmations = 10;
-        let derivationParams = [fedBtcAddress, lbcAddress, liquidityProviderRskAddress, userBtcRefundAddress, rskRefundAddress, liquidityProviderBtcAddress, callFee, destAddr, data, gasLimit, nonce, val];
-        let quoteParams = [derivationParams, agreementTime, timeForDeposit, callTime, depositConfirmations];
+        let derivationParams = [
+            fedBtcAddress, 
+            lbcAddress, 
+            liquidityProviderRskAddress, 
+            userBtcRefundAddress, 
+            rskRefundAddress, 
+            liquidityProviderBtcAddress, 
+            callFee, 
+            destAddr, 
+            data, 
+            gasLimit, 
+            nonce, 
+            val
+        ];
+        let quote = [
+            fedBtcAddress, 
+            lbcAddress, 
+            liquidityProviderRskAddress, 
+            userBtcRefundAddress, 
+            rskRefundAddress, 
+            liquidityProviderBtcAddress, 
+            callFee, 
+            destAddr, 
+            data, 
+            gasLimit, 
+            nonce, 
+            val, 
+            agreementTime, 
+            timeForDeposit, 
+            callTime, 
+            depositConfirmations
+        ];
         let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes','address','bytes','uint','address','bytes','uint','uint','uint'], derivationParams);
         let preHash = await web3.utils.keccak256(encodedParams);   
-        let quoteHash = await instance.hashQuote(quoteParams);
+        let quoteHash = await instance.hashQuote(quote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
         let firstConfirmationTime = web3.utils.toHex(agreementTime + 300).slice(2, 12);
         let nConfirmationTime = web3.utils.toHex(agreementTime + 600).slice(2, 12);
@@ -453,7 +633,7 @@ contract('LiquidityBridgeContract', async accounts => {
         await bridgeMockInstance.setHeader(height + depositConfirmations - 1, nHeader);
 
         await instance.registerPegIn(
-            quoteParams,
+            quote,
             signature,
             btcRawTransaction,
             partialMerkleTree,
@@ -492,11 +672,41 @@ contract('LiquidityBridgeContract', async accounts => {
         let timeForDeposit = 1;
         let callTime = 600;
         let depositConfirmations = 10;
-        let derivationParams = [fedBtcAddress, lbcAddress, liquidityProviderRskAddress, userBtcRefundAddress, rskRefundAddress, liquidityProviderBtcAddress, callFee, destAddr, data, gasLimit, nonce, val];
-        let quoteParams = [derivationParams, agreementTime, timeForDeposit, callTime, depositConfirmations];
+        let derivationParams = [
+            fedBtcAddress, 
+            lbcAddress, 
+            liquidityProviderRskAddress, 
+            userBtcRefundAddress, 
+            rskRefundAddress, 
+            liquidityProviderBtcAddress, 
+            callFee, 
+            destAddr, 
+            data, 
+            gasLimit, 
+            nonce, 
+            val
+        ];
+        let quote = [
+            fedBtcAddress, 
+            lbcAddress, 
+            liquidityProviderRskAddress, 
+            userBtcRefundAddress, 
+            rskRefundAddress, 
+            liquidityProviderBtcAddress, 
+            callFee, 
+            destAddr, 
+            data, 
+            gasLimit, 
+            nonce, 
+            val, 
+            agreementTime, 
+            timeForDeposit, 
+            callTime, 
+            depositConfirmations
+        ];
         let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes','address','bytes','uint','address','bytes','uint','uint','uint'], derivationParams);
         let preHash = await web3.utils.keccak256(encodedParams);   
-        let quoteHash = await instance.hashQuote(quoteParams);
+        let quoteHash = await instance.hashQuote(quote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
         let firstConfirmationTime = web3.utils.toHex(agreementTime + 300).slice(2, 12);
         let nConfirmationTime = web3.utils.toHex(agreementTime + 600).slice(2, 12);
@@ -510,7 +720,7 @@ contract('LiquidityBridgeContract', async accounts => {
         await bridgeMockInstance.setHeader(height + depositConfirmations - 1, nHeader);
 
         await instance.registerPegIn(
-            quoteParams,
+            quote,
             signature,
             btcRawTransaction,
             partialMerkleTree,
@@ -545,11 +755,41 @@ contract('LiquidityBridgeContract', async accounts => {
         let timeForDeposit = 600;
         let callTime = 600;
         let depositConfirmations = 10;
-        let derivationParams = [fedBtcAddress, lbcAddress, liquidityProviderRskAddress, userBtcRefundAddress, rskRefundAddress, liquidityProviderBtcAddress, callFee, destAddr, data, gasLimit, nonce, val];
-        let quoteParams = [derivationParams, agreementTime, timeForDeposit, callTime, depositConfirmations];
+        let derivationParams = [
+            fedBtcAddress, 
+            lbcAddress, 
+            liquidityProviderRskAddress, 
+            userBtcRefundAddress, 
+            rskRefundAddress, 
+            liquidityProviderBtcAddress, 
+            callFee, 
+            destAddr, 
+            data, 
+            gasLimit, 
+            nonce, 
+            val
+        ];
+        let quote = [
+            fedBtcAddress, 
+            lbcAddress, 
+            liquidityProviderRskAddress, 
+            userBtcRefundAddress, 
+            rskRefundAddress, 
+            liquidityProviderBtcAddress, 
+            callFee, 
+            destAddr, 
+            data, 
+            gasLimit, 
+            nonce, 
+            val, 
+            agreementTime, 
+            timeForDeposit, 
+            callTime, 
+            depositConfirmations
+        ];
         let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes','address','bytes','uint','address','bytes','uint','uint','uint'], derivationParams);
         let preHash = await web3.utils.keccak256(encodedParams);   
-        let quoteHash = await instance.hashQuote(quoteParams);
+        let quoteHash = await instance.hashQuote(quote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
         let firstConfirmationTime = web3.utils.toHex(agreementTime + 300).slice(2, 12);
         let nConfirmationTime = web3.utils.toHex(agreementTime + 600).slice(2, 12);
@@ -563,7 +803,7 @@ contract('LiquidityBridgeContract', async accounts => {
         await bridgeMockInstance.setHeader(height + depositConfirmations - 1, nHeader);
 
         await instance.registerPegIn(
-            quoteParams,
+            quote,
             signature,
             btcRawTransaction,
             partialMerkleTree,
@@ -600,11 +840,41 @@ contract('LiquidityBridgeContract', async accounts => {
         let timeForDeposit = 600;
         let callTime = 1;
         let depositConfirmations = 10;
-        let derivationParams = [fedBtcAddress, lbcAddress, liquidityProviderRskAddress, userBtcRefundAddress, rskRefundAddress, liquidityProviderBtcAddress, callFee, destAddr, data, gasLimit, nonce, val];
-        let quoteParams = [derivationParams, agreementTime, timeForDeposit, callTime, depositConfirmations];
+        let derivationParams = [
+            fedBtcAddress, 
+            lbcAddress, 
+            liquidityProviderRskAddress, 
+            userBtcRefundAddress, 
+            rskRefundAddress, 
+            liquidityProviderBtcAddress, 
+            callFee, 
+            destAddr, 
+            data, 
+            gasLimit, 
+            nonce, 
+            val
+        ];
+        let quote = [
+            fedBtcAddress, 
+            lbcAddress, 
+            liquidityProviderRskAddress, 
+            userBtcRefundAddress, 
+            rskRefundAddress, 
+            liquidityProviderBtcAddress, 
+            callFee, 
+            destAddr, 
+            data, 
+            gasLimit, 
+            nonce, 
+            val, 
+            agreementTime, 
+            timeForDeposit, 
+            callTime, 
+            depositConfirmations
+        ];
         let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes','address','bytes','uint','address','bytes','uint','uint','uint'], derivationParams);
         let preHash = await web3.utils.keccak256(encodedParams);   
-        let quoteHash = await instance.hashQuote(quoteParams);
+        let quoteHash = await instance.hashQuote(quote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
         let firstConfirmationTime = web3.utils.toHex(agreementTime + 300).slice(2, 12);
         let nConfirmationTime = web3.utils.toHex(agreementTime + 1).slice(2, 12);
@@ -619,7 +889,7 @@ contract('LiquidityBridgeContract', async accounts => {
         await bridgeMockInstance.setHeader(height + depositConfirmations - 1, nHeader);
 
         await instance.callForUser(
-            derivationParams,
+            quote,
             {value : val}
         );
 
@@ -627,7 +897,7 @@ contract('LiquidityBridgeContract', async accounts => {
         assert.equal(currentLPBalance.toNumber(), initialLPBalance.toNumber());
 
         await instance.registerPegIn(
-            quoteParams,
+            quote,
             signature,
             btcRawTransaction,
             partialMerkleTree,
