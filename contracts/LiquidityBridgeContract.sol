@@ -38,6 +38,20 @@ contract LiquidityBridgeContract {
         uint256 amount;
     }
 
+    event Register(address from, uint256 amount);
+    event Deposit(address from, uint256 amount);
+    event CollateralIncrease(address from, uint256 amount);
+    event Withdrawal(address from, uint256 amount);
+    event WithdrawCollateral(address from, uint256 amount);
+    event Resigned(address from);
+    event CallForUser(address from, address dest, uint gasLimit, uint value, bytes data, bool success, bytes32 quoteHash);
+    event Penalized(address liquidityProvider, uint penalty, bytes32 quoteHash);
+    event BridgeCapExceeded(bytes32 quoteHash, int256 errorCode);
+    event BalanceIncrease(address dest, uint amount);
+    event BalanceDecrease(address dest, uint amount);
+    event BridgeError(bytes32 quoteHash, int256 errorCode);
+    event Refund(address dest, int256 amount, bytes32 quoteHash);
+
     Bridge bridge;
     mapping(address => uint256) private balances;
     mapping(address => uint256) private collateral;
@@ -109,6 +123,7 @@ contract LiquidityBridgeContract {
         require(msg.value >= minCol, "Not enough collateral");
         require(resignations[msg.sender] == 0, "Withdraw collateral first");
         collateral[msg.sender] = msg.value;
+        emit Register(msg.sender, msg.value);
     }
 
     /**
@@ -116,13 +131,14 @@ contract LiquidityBridgeContract {
      */
     function addCollateral() external payable onlyRegistered {
         collateral[msg.sender] += msg.value;
+        emit CollateralIncrease(msg.sender, msg.value);
     }
 
     /**
         @dev Increases the balance of the sender
      */
     function deposit() external payable onlyRegistered {
-        balances[msg.sender] += msg.value;    
+        increaseBalance(msg.sender, msg.value); 
     }
 
     /**
@@ -134,6 +150,7 @@ contract LiquidityBridgeContract {
         balances[msg.sender] -= amount;
         (bool success, ) = msg.sender.call{value : amount}("");
         require(success, "Sending funds failed");
+        emit Withdrawal(msg.sender, amount);
     }
 
     /**
@@ -147,6 +164,7 @@ contract LiquidityBridgeContract {
         resignations[msg.sender] = 0;
         (bool success, ) = msg.sender.call{value : amount}("");
         require(success, "Sending funds failed");
+        emit WithdrawCollateral(msg.sender, amount);
     }
 
     /**
@@ -155,6 +173,7 @@ contract LiquidityBridgeContract {
     function resign() external onlyRegistered {
         require(resignations[msg.sender] == 0, "Already resigned");
         resignations[msg.sender] = block.number;
+        emit Resigned(msg.sender);
     }    
 
     /**
@@ -189,6 +208,7 @@ contract LiquidityBridgeContract {
         bytes32 derivationHash = hashParams(quote);
 
         balances[quote.liquidityProviderRskAddress] += msg.value - quote.value;
+        emit BalanceIncrease(quote.liquidityProviderRskAddress, msg.value);
 
         require(gasleft() >= quote.gasLimit, "Insufficient gas");
         (bool success, ) = quote.contractAddress.call{gas:quote.gasLimit, value: quote.value}(quote.data);
@@ -197,9 +217,11 @@ contract LiquidityBridgeContract {
 
         if (success) {            
             callRegistry[derivationHash].success = true;
+            emit BalanceDecrease(quote.liquidityProviderRskAddress, quote.value);
         } else {
             balances[quote.liquidityProviderRskAddress] += quote.value;
         }
+        emit CallForUser(msg.sender, quote.contractAddress, quote.gasLimit, quote.value, quote.data, success, hashQuote(quote));
         return success;
     }
 
@@ -219,7 +241,8 @@ contract LiquidityBridgeContract {
         bytes memory partialMerkleTree, 
         uint256 height
     ) public returns (int256) {
-        require(verify(quote.liquidityProviderRskAddress, hashQuote(quote), signature), "Invalid signature");
+        bytes32 quoteHash = hashQuote(quote);
+        require(verify(quote.liquidityProviderRskAddress, quoteHash, signature), "Invalid signature");
 
         bytes32 derivationHash = hashParams(quote);
 
@@ -232,20 +255,22 @@ contract LiquidityBridgeContract {
         if (shouldPenalize(quote, transferredAmount, callRegistry[derivationHash].timestamp, height)) {
             uint256 penalty = collateral[quote.liquidityProviderRskAddress] / penaltyR;
             collateral[quote.liquidityProviderRskAddress] -= penalty;
+            emit Penalized(quote.liquidityProviderRskAddress, penalty, quoteHash);
             
             // pay reward to sender
-            uint256 reward = penalty / rewardR;            
-            balances[msg.sender] += reward;
+            uint256 reward = penalty / rewardR;    
+            increaseBalance(msg.sender, reward);        
             
             // burn the rest of the penalty
             (bool success, ) = payable(0x00).call{value : penalty - reward}("");
-            require(success, "Could not burn penalty");
+            require(success, "Could not burn penalty");            
         }
 
         if (transferredAmount == -200 || transferredAmount == -100) {
-            // Bridge cap surpassed
+            // Bridge cap exceeded
             callRegistry[derivationHash].timestamp = 0;
             callRegistry[derivationHash].success = false;
+            emit BridgeCapExceeded(quoteHash, transferredAmount);
             return transferredAmount;
         }
 
@@ -258,18 +283,20 @@ contract LiquidityBridgeContract {
             } else {
                 refundAmount = min(uint(transferredAmount), quote.callFee);
             }
-            balances[quote.liquidityProviderRskAddress] += refundAmount;
+            increaseBalance(quote.liquidityProviderRskAddress, refundAmount);
             int256 remainingAmount = transferredAmount - int(refundAmount);
             
             if (remainingAmount > 0) {
                 (bool success, ) = quote.rskRefundAddress.call{value : uint(remainingAmount)}("");
                 require(success, "Refund failed");
+                emit Refund(quote.rskRefundAddress, remainingAmount, quoteHash);
             }            
             callRegistry[derivationHash].timestamp = 0;
         } else if (transferredAmount > 0) {
             (bool success, ) = quote.rskRefundAddress.call{value : uint256(transferredAmount)}("");
             require(success, "Refund failed");
-        }
+            emit Refund(quote.rskRefundAddress, transferredAmount, quoteHash);
+        } 
         return transferredAmount;
     }
 
@@ -296,6 +323,11 @@ contract LiquidityBridgeContract {
 
     function min(uint a, uint b) private pure returns (uint) {
         return a < b ? a : b;
+    }
+
+    function increaseBalance(address dest, uint amount) private {
+        balances[dest] += amount;
+        emit BalanceIncrease(dest, amount);
     }
 
     /**
