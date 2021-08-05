@@ -205,23 +205,22 @@ contract LiquidityBridgeContract {
         require(address(this) == quote.lbcAddress, "Wrong LBC address");  
         require(collateral[msg.sender] >= minCol, "Insufficient collateral");   
 
-        bytes32 derivationHash = hashParams(quote);
-
         balances[quote.liquidityProviderRskAddress] += msg.value - quote.value;
         emit BalanceIncrease(quote.liquidityProviderRskAddress, msg.value);
 
         require(gasleft() >= quote.gasLimit, "Insufficient gas");
         (bool success, ) = quote.contractAddress.call{gas:quote.gasLimit, value: quote.value}(quote.data);
         
-        callRegistry[derivationHash].timestamp = block.timestamp;
+        bytes32 quoteHash = hashQuote(quote);
+        callRegistry[quoteHash].timestamp = block.timestamp;
 
         if (success) {            
-            callRegistry[derivationHash].success = true;
+            callRegistry[quoteHash].success = true;
             emit BalanceDecrease(quote.liquidityProviderRskAddress, quote.value);
         } else {
             balances[quote.liquidityProviderRskAddress] += quote.value;
         }
-        emit CallForUser(msg.sender, quote.contractAddress, quote.gasLimit, quote.value, quote.data, success, hashQuote(quote));
+        emit CallForUser(msg.sender, quote.contractAddress, quote.gasLimit, quote.value, quote.data, success, quoteHash);
         return success;
     }
 
@@ -244,15 +243,13 @@ contract LiquidityBridgeContract {
         bytes32 quoteHash = hashQuote(quote);
         require(verify(quote.liquidityProviderRskAddress, quoteHash, signature), "Invalid signature");
 
-        bytes32 derivationHash = hashParams(quote);
-
-        int256 transferredAmount = registerBridge(quote, btcRawTransaction, partialMerkleTree, height, derivationHash);
+        int256 transferredAmount = registerBridge(quote, btcRawTransaction, partialMerkleTree, height, quoteHash);
 
         require(transferredAmount != -303, "Failed to validate BTC transaction");
         require(transferredAmount != -302, "Transaction already processed");
         require(transferredAmount != -304, "Invalid transaction value");
 
-        if (shouldPenalize(quote, transferredAmount, callRegistry[derivationHash].timestamp, height)) {
+        if (shouldPenalize(quote, transferredAmount, callRegistry[quoteHash].timestamp, height)) {
             uint256 penalty = collateral[quote.liquidityProviderRskAddress] / penaltyR;
             collateral[quote.liquidityProviderRskAddress] -= penalty;
             emit Penalized(quote.liquidityProviderRskAddress, penalty, quoteHash);
@@ -268,18 +265,18 @@ contract LiquidityBridgeContract {
 
         if (transferredAmount == -200 || transferredAmount == -100) {
             // Bridge cap exceeded
-            callRegistry[derivationHash].timestamp = 0;
-            callRegistry[derivationHash].success = false;
+            callRegistry[quoteHash].timestamp = 0;
+            callRegistry[quoteHash].success = false;
             emit BridgeCapExceeded(quoteHash, transferredAmount);
             return transferredAmount;
         }
 
-        if (transferredAmount > 0 && callRegistry[derivationHash].timestamp > 0) {
+        if (transferredAmount > 0 && callRegistry[quoteHash].timestamp > 0) {
             uint refundAmount;
 
-            if (callRegistry[derivationHash].success) {
+            if (callRegistry[quoteHash].success) {
                 refundAmount = min(uint(transferredAmount), quote.value + quote.callFee);
-                callRegistry[derivationHash].success = false;
+                callRegistry[quoteHash].success = false;
             } else {
                 refundAmount = min(uint(transferredAmount), quote.callFee);
             }
@@ -291,30 +288,13 @@ contract LiquidityBridgeContract {
                 require(success, "Refund failed");
                 emit Refund(quote.rskRefundAddress, remainingAmount, quoteHash);
             }            
-            callRegistry[derivationHash].timestamp = 0;
+            callRegistry[quoteHash].timestamp = 0;
         } else if (transferredAmount > 0) {
             (bool success, ) = quote.rskRefundAddress.call{value : uint256(transferredAmount)}("");
             require(success, "Refund failed");
             emit Refund(quote.rskRefundAddress, transferredAmount, quoteHash);
         } 
         return transferredAmount;
-    }
-
-    function hashParams(Quote memory quote) public pure returns (bytes32) {        
-        return keccak256(abi.encode(
-            quote.fedBtcAddress, 
-            quote.lbcAddress,
-            quote.liquidityProviderRskAddress,
-            quote.btcRefundAddress,    
-            quote.rskRefundAddress,
-            quote.liquidityProviderBtcAddress,
-            quote.callFee, 
-            quote.contractAddress, 
-            quote.data, 
-            quote.gasLimit,            
-            quote.nonce,
-            quote.value                  
-        ));
     }
 
     function hashQuote(Quote memory quote) public pure returns (bytes32) { 
