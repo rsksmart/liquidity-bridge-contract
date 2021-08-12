@@ -17,6 +17,7 @@ contract LiquidityBridgeContract {
         address rskRefundAddress;
         bytes liquidityProviderBtcAddress;
         uint callFee;
+        uint penaltyFee;
         address contractAddress;
         bytes data;        
         uint gasLimit;
@@ -58,8 +59,7 @@ contract LiquidityBridgeContract {
     mapping(bytes32 => Registry) private callRegistry;  
     mapping(address => uint256) private resignations;
 
-    uint private minCol;      
-    uint private penaltyR;    
+    uint private minCol;       
     uint private rewardR;     
     uint private resignBlocks;  
 
@@ -71,14 +71,12 @@ contract LiquidityBridgeContract {
     /**
         @param bridgeAddress The address of the bridge contract
         @param minCollateral The minimum required collateral for liquidity providers
-        @param penaltyRatio The penalty to apply to a liquidity provider in case of misbehavior is computed by dividing the collateral by penaltyRatio
         @param rewardRatio The reward that an honest party receives when calling registerPegIn in case of a liquidity provider misbehaving is the penalty divided by rewardRatio
         @param resignationBlocks The number of block confirmations that a liquidity provider needs to wait before it can withdraw its collateral
      */
-    constructor(address bridgeAddress, uint minCollateral, uint penaltyRatio, uint rewardRatio, uint resignationBlocks) {
+    constructor(address bridgeAddress, uint minCollateral, uint rewardRatio, uint resignationBlocks) {
         bridge = Bridge(bridgeAddress);
         minCol = minCollateral;
-        penaltyR = penaltyRatio;
         rewardR = rewardRatio;
         resignBlocks = resignationBlocks;
     }
@@ -93,10 +91,6 @@ contract LiquidityBridgeContract {
 
     function getMinCollateral() external view returns (uint) {
         return minCol;
-    }
-
-    function getPenaltyRatio() external view returns (uint) {
-        return penaltyR;
     }
 
     function getRewardRatio() external view returns (uint) {
@@ -250,16 +244,15 @@ contract LiquidityBridgeContract {
         require(transferredAmount != -304, "Invalid transaction value");
 
         if (shouldPenalize(quote, transferredAmount, callRegistry[quoteHash].timestamp, height)) {
-            uint256 penalty = collateral[quote.liquidityProviderRskAddress] / penaltyR;
-            collateral[quote.liquidityProviderRskAddress] -= penalty;
-            emit Penalized(quote.liquidityProviderRskAddress, penalty, quoteHash);
+            collateral[quote.liquidityProviderRskAddress] -= quote.penaltyFee;
+            emit Penalized(quote.liquidityProviderRskAddress, quote.penaltyFee, quoteHash);
             
             // pay reward to sender
-            uint256 reward = penalty / rewardR;    
+            uint256 reward = quote.penaltyFee / rewardR;    
             increaseBalance(msg.sender, reward);        
             
             // burn the rest of the penalty
-            (bool success, ) = payable(0x00).call{value : penalty - reward}("");
+            (bool success, ) = payable(0x00).call{value : quote.penaltyFee - reward}("");
             require(success, "Could not burn penalty");            
         }
 
@@ -434,7 +427,8 @@ contract LiquidityBridgeContract {
             quote.btcRefundAddress,    
             quote.rskRefundAddress,
             quote.liquidityProviderBtcAddress,
-            quote.callFee, 
+            quote.callFee,
+            quote.penaltyFee, 
             quote.contractAddress);
     }
 

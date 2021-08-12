@@ -49,20 +49,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let timeForDeposit = 600;
         let callTime = 600;
         let depositConfirmations = 10;
-        let derivationParams = [
-            fedBtcAddress, 
-            lbcAddress, 
-            liquidityProviderRskAddress, 
-            userBtcRefundAddress, 
-            rskRefundAddress, 
-            liquidityProviderBtcAddress, 
-            callFee, 
-            destAddr, 
-            data, 
-            gasLimit, 
-            nonce, 
-            val
-        ];
+        let penaltyFee = 0;
         let quote = [
             fedBtcAddress, 
             lbcAddress, 
@@ -71,6 +58,7 @@ contract('LiquidityBridgeContract', async accounts => {
             rskRefundAddress, 
             liquidityProviderBtcAddress, 
             callFee, 
+            penaltyFee,
             destAddr, 
             data, 
             gasLimit, 
@@ -81,8 +69,6 @@ contract('LiquidityBridgeContract', async accounts => {
             callTime, 
             depositConfirmations
         ];
-        let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes','address','bytes','uint','address','bytes','uint','uint','uint'], derivationParams);
-        let preHash = await web3.utils.keccak256(encodedParams);   
         let quoteHash = await instance.hashQuote(quote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
         let firstConfirmationTime = web3.utils.toHex(agreementTime + 300).slice(2, 12);
@@ -90,7 +76,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let firstHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + firstConfirmationTime + '0000000000000000';
         let nHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + nConfirmationTime + '0000000000000000';
 
-        await bridgeMockInstance.setPegin(preHash, {value : peginAmount});
+        await bridgeMockInstance.setPegin(quoteHash, {value : peginAmount});
         await bridgeMockInstance.setHeader(height, firstHeader);
         await bridgeMockInstance.setHeader(height + depositConfirmations - 1, nHeader);
         initialLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
@@ -155,20 +141,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let timeForDeposit = 600;
         let callTime = 600;
         let depositConfirmations = 10;
-        let derivationParams = [
-            fedBtcAddress, 
-            lbcAddress, 
-            liquidityProviderRskAddress, 
-            userBtcRefundAddress, 
-            rskRefundAddress, 
-            liquidityProviderBtcAddress, 
-            callFee, 
-            destAddr, 
-            data, 
-            gasLimit, 
-            nonce, 
-            val
-        ];
+        let penaltyFee = 0;
         let quote = [
             fedBtcAddress, 
             lbcAddress, 
@@ -177,6 +150,7 @@ contract('LiquidityBridgeContract', async accounts => {
             rskRefundAddress, 
             liquidityProviderBtcAddress, 
             callFee, 
+            penaltyFee,
             destAddr, 
             data, 
             gasLimit, 
@@ -187,8 +161,6 @@ contract('LiquidityBridgeContract', async accounts => {
             callTime, 
             depositConfirmations
         ];
-        let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes','address','bytes','uint','address','bytes','uint','uint','uint'], derivationParams);
-        let preHash = await web3.utils.keccak256(encodedParams);   
         let quoteHash = await instance.hashQuote(quote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
         let firstConfirmationTime = web3.utils.toHex(agreementTime + 300).slice(2, 12);
@@ -196,7 +168,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let firstHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + firstConfirmationTime + '0000000000000000';
         let nHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + nConfirmationTime + '0000000000000000';
 
-        await bridgeMockInstance.setPegin(preHash, {value : peginAmount});
+        await bridgeMockInstance.setPegin(quoteHash, {value : peginAmount});
         await bridgeMockInstance.setHeader(height, firstHeader);
         await bridgeMockInstance.setHeader(height + depositConfirmations - 1, nHeader);
         await mock.set(0);
@@ -268,20 +240,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let timeForDeposit = 600;
         let callTime = 600;
         let depositConfirmations = 10;
-        let derivationParams = [
-            fedBtcAddress, 
-            lbcAddress, 
-            liquidityProviderRskAddress, 
-            userBtcRefundAddress, 
-            rskRefundAddress, 
-            liquidityProviderBtcAddress, 
-            callFee, 
-            destAddr, 
-            data, 
-            gasLimit, 
-            nonce, 
-            val
-        ];
+        let penaltyFee = 0;
         let quote = [
             fedBtcAddress, 
             lbcAddress, 
@@ -290,6 +249,7 @@ contract('LiquidityBridgeContract', async accounts => {
             rskRefundAddress, 
             liquidityProviderBtcAddress, 
             callFee, 
+            penaltyFee,
             destAddr, 
             data, 
             gasLimit, 
@@ -300,8 +260,6 @@ contract('LiquidityBridgeContract', async accounts => {
             callTime, 
             depositConfirmations
         ];
-        let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes','address','bytes','uint','address','bytes','uint','uint','uint'], derivationParams);
-        let preHash = await web3.utils.keccak256(encodedParams);   
         let quoteHash = await instance.hashQuote(quote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
         let firstConfirmationTime = web3.utils.toHex(agreementTime + 300).slice(2, 12);
@@ -309,7 +267,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let firstHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + firstConfirmationTime + '0000000000000000';
         let nHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + nConfirmationTime + '0000000000000000';
 
-        await bridgeMockInstance.setPegin(preHash, {value : peginAmount});
+        await bridgeMockInstance.setPegin(quoteHash, {value : peginAmount});
         await bridgeMockInstance.setHeader(height, firstHeader);
         await bridgeMockInstance.setHeader(height + depositConfirmations - 1, nHeader);
 
@@ -379,20 +337,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let timeForDeposit = 600;
         let callTime = 600;
         let depositConfirmations = 10;
-        let derivationParams = [
-            fedBtcAddress, 
-            lbcAddress, 
-            liquidityProviderRskAddress, 
-            userBtcRefundAddress, 
-            rskRefundAddress, 
-            liquidityProviderBtcAddress, 
-            callFee, 
-            destAddr, 
-            data, 
-            gasLimit, 
-            nonce, 
-            val
-        ];
+        let penaltyFee = 0;
         let quote = [
             fedBtcAddress, 
             lbcAddress, 
@@ -401,6 +346,7 @@ contract('LiquidityBridgeContract', async accounts => {
             rskRefundAddress, 
             liquidityProviderBtcAddress, 
             callFee, 
+            penaltyFee,
             destAddr, 
             data, 
             gasLimit, 
@@ -411,8 +357,6 @@ contract('LiquidityBridgeContract', async accounts => {
             callTime, 
             depositConfirmations
         ];
-        let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes','address','bytes','uint','address','bytes','uint','uint','uint'], derivationParams);
-        let preHash = await web3.utils.keccak256(encodedParams);   
         let quoteHash = await instance.hashQuote(quote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
         let firstConfirmationTime = web3.utils.toHex(agreementTime + 300).slice(2, 12);
@@ -420,7 +364,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let firstHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + firstConfirmationTime + '0000000000000000';
         let nHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + nConfirmationTime + '0000000000000000';
 
-        await bridgeMockInstance.setPegin(preHash, {value : peginAmount});
+        await bridgeMockInstance.setPegin(quoteHash, {value : peginAmount});
         await bridgeMockInstance.setHeader(height, firstHeader);
         await bridgeMockInstance.setHeader(height + depositConfirmations - 1, nHeader);
 
@@ -485,20 +429,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let timeForDeposit = 600;
         let callTime = 600;
         let depositConfirmations = 10;
-        let derivationParams = [
-            fedBtcAddress, 
-            lbcAddress, 
-            liquidityProviderRskAddress, 
-            userBtcRefundAddress, 
-            rskRefundAddress, 
-            liquidityProviderBtcAddress, 
-            callFee, 
-            destAddr, 
-            data, 
-            gasLimit, 
-            nonce, 
-            val
-        ];
+        let penaltyFee = 0;
         let quote = [
             fedBtcAddress, 
             lbcAddress, 
@@ -507,6 +438,7 @@ contract('LiquidityBridgeContract', async accounts => {
             rskRefundAddress, 
             liquidityProviderBtcAddress, 
             callFee, 
+            penaltyFee,
             destAddr, 
             data, 
             gasLimit, 
@@ -517,8 +449,6 @@ contract('LiquidityBridgeContract', async accounts => {
             callTime, 
             depositConfirmations
         ];
-        let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes','address','bytes','uint','address','bytes','uint','uint','uint'], derivationParams);
-        let preHash = await web3.utils.keccak256(encodedParams);   
         let quoteHash = await instance.hashQuote(quote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
         let firstConfirmationTime = web3.utils.toHex(agreementTime + 300).slice(2, 12);
@@ -528,7 +458,7 @@ contract('LiquidityBridgeContract', async accounts => {
 
         let initialUserBalance = await web3.eth.getBalance(rskRefundAddress);
 
-        await bridgeMockInstance.setPegin(preHash, {value : peginAmount});
+        await bridgeMockInstance.setPegin(quoteHash, {value : peginAmount});
         await bridgeMockInstance.setHeader(height, firstHeader);
         await bridgeMockInstance.setHeader(height + depositConfirmations - 1, nHeader);
 
@@ -581,20 +511,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let timeForDeposit = 600;
         let callTime = 600;
         let depositConfirmations = 10;
-        let derivationParams = [
-            fedBtcAddress, 
-            lbcAddress, 
-            liquidityProviderRskAddress, 
-            userBtcRefundAddress, 
-            rskRefundAddress, 
-            liquidityProviderBtcAddress, 
-            callFee, 
-            destAddr, 
-            data, 
-            gasLimit, 
-            nonce, 
-            val
-        ];
+        let penaltyFee = 10;
         let quote = [
             fedBtcAddress, 
             lbcAddress, 
@@ -603,6 +520,7 @@ contract('LiquidityBridgeContract', async accounts => {
             rskRefundAddress, 
             liquidityProviderBtcAddress, 
             callFee, 
+            penaltyFee,
             destAddr, 
             data, 
             gasLimit, 
@@ -613,8 +531,6 @@ contract('LiquidityBridgeContract', async accounts => {
             callTime, 
             depositConfirmations
         ];
-        let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes','address','bytes','uint','address','bytes','uint','uint','uint'], derivationParams);
-        let preHash = await web3.utils.keccak256(encodedParams);   
         let quoteHash = await instance.hashQuote(quote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
         let firstConfirmationTime = web3.utils.toHex(agreementTime + 300).slice(2, 12);
@@ -624,11 +540,10 @@ contract('LiquidityBridgeContract', async accounts => {
         let initialAltBalance = await instance.getBalance(liquidityProviderRskAddress);
         let initialUserBalance = await web3.eth.getBalance(rskRefundAddress);
         let initialLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
-        let penalty = Math.floor(initialLPDeposit / 10);
-        let reward = Math.floor(penalty / 10);
+        let reward = Math.floor(penaltyFee / 10);
         let initialLbcBalance = await web3.eth.getBalance(instance.address);
 
-        await bridgeMockInstance.setPegin(preHash, {value : peginAmount});
+        await bridgeMockInstance.setPegin(quoteHash, {value : peginAmount});
         await bridgeMockInstance.setHeader(height, firstHeader);
         await bridgeMockInstance.setHeader(height + depositConfirmations - 1, nHeader);
 
@@ -647,8 +562,8 @@ contract('LiquidityBridgeContract', async accounts => {
 
         assert.equal(peginAmount, parseInt(finalUserBalance) - parseInt(initialUserBalance));
         assert.equal(reward, finalAltBalance.toNumber() - initialAltBalance.toNumber());
-        assert.equal(penalty, initialLPDeposit.toNumber() - finalLPDeposit.toNumber());
-        assert.equal(penalty - reward, parseInt(initialLbcBalance) - parseInt(finalLbcBalance));
+        assert.equal(penaltyFee, initialLPDeposit.toNumber() - finalLPDeposit.toNumber());
+        assert.equal(penaltyFee - reward, parseInt(initialLbcBalance) - parseInt(finalLbcBalance));
     });
 
     it ('should not penalize with late deposit', async () => {
@@ -672,20 +587,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let timeForDeposit = 1;
         let callTime = 600;
         let depositConfirmations = 10;
-        let derivationParams = [
-            fedBtcAddress, 
-            lbcAddress, 
-            liquidityProviderRskAddress, 
-            userBtcRefundAddress, 
-            rskRefundAddress, 
-            liquidityProviderBtcAddress, 
-            callFee, 
-            destAddr, 
-            data, 
-            gasLimit, 
-            nonce, 
-            val
-        ];
+        let penaltyFee = 10;
         let quote = [
             fedBtcAddress, 
             lbcAddress, 
@@ -694,6 +596,7 @@ contract('LiquidityBridgeContract', async accounts => {
             rskRefundAddress, 
             liquidityProviderBtcAddress, 
             callFee, 
+            penaltyFee,
             destAddr, 
             data, 
             gasLimit, 
@@ -704,8 +607,6 @@ contract('LiquidityBridgeContract', async accounts => {
             callTime, 
             depositConfirmations
         ];
-        let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes','address','bytes','uint','address','bytes','uint','uint','uint'], derivationParams);
-        let preHash = await web3.utils.keccak256(encodedParams);   
         let quoteHash = await instance.hashQuote(quote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
         let firstConfirmationTime = web3.utils.toHex(agreementTime + 300).slice(2, 12);
@@ -715,7 +616,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let initialUserBalance = await web3.eth.getBalance(rskRefundAddress);
         let initialLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
 
-        await bridgeMockInstance.setPegin(preHash, {value : peginAmount});
+        await bridgeMockInstance.setPegin(quoteHash, {value : peginAmount});
         await bridgeMockInstance.setHeader(height, firstHeader);
         await bridgeMockInstance.setHeader(height + depositConfirmations - 1, nHeader);
 
@@ -755,20 +656,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let timeForDeposit = 600;
         let callTime = 600;
         let depositConfirmations = 10;
-        let derivationParams = [
-            fedBtcAddress, 
-            lbcAddress, 
-            liquidityProviderRskAddress, 
-            userBtcRefundAddress, 
-            rskRefundAddress, 
-            liquidityProviderBtcAddress, 
-            callFee, 
-            destAddr, 
-            data, 
-            gasLimit, 
-            nonce, 
-            val
-        ];
+        let penaltyFee = 10;
         let quote = [
             fedBtcAddress, 
             lbcAddress, 
@@ -777,6 +665,7 @@ contract('LiquidityBridgeContract', async accounts => {
             rskRefundAddress, 
             liquidityProviderBtcAddress, 
             callFee, 
+            penaltyFee,
             destAddr, 
             data, 
             gasLimit, 
@@ -787,8 +676,6 @@ contract('LiquidityBridgeContract', async accounts => {
             callTime, 
             depositConfirmations
         ];
-        let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes','address','bytes','uint','address','bytes','uint','uint','uint'], derivationParams);
-        let preHash = await web3.utils.keccak256(encodedParams);   
         let quoteHash = await instance.hashQuote(quote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
         let firstConfirmationTime = web3.utils.toHex(agreementTime + 300).slice(2, 12);
@@ -798,7 +685,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let initialUserBalance = await web3.eth.getBalance(rskRefundAddress);
         let initialLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
 
-        await bridgeMockInstance.setPegin(preHash, {value : peginAmount - 1});
+        await bridgeMockInstance.setPegin(quoteHash, {value : peginAmount - 1});
         await bridgeMockInstance.setHeader(height, firstHeader);
         await bridgeMockInstance.setHeader(height + depositConfirmations - 1, nHeader);
 
@@ -840,20 +727,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let timeForDeposit = 600;
         let callTime = 1;
         let depositConfirmations = 10;
-        let derivationParams = [
-            fedBtcAddress, 
-            lbcAddress, 
-            liquidityProviderRskAddress, 
-            userBtcRefundAddress, 
-            rskRefundAddress, 
-            liquidityProviderBtcAddress, 
-            callFee, 
-            destAddr, 
-            data, 
-            gasLimit, 
-            nonce, 
-            val
-        ];
+        let penaltyFee = 10;
         let quote = [
             fedBtcAddress, 
             lbcAddress, 
@@ -862,6 +736,7 @@ contract('LiquidityBridgeContract', async accounts => {
             rskRefundAddress, 
             liquidityProviderBtcAddress, 
             callFee, 
+            penaltyFee,
             destAddr, 
             data, 
             gasLimit, 
@@ -872,8 +747,6 @@ contract('LiquidityBridgeContract', async accounts => {
             callTime, 
             depositConfirmations
         ];
-        let encodedParams = await web3.eth.abi.encodeParameters(['bytes20','address','address','bytes','address','bytes','uint','address','bytes','uint','uint','uint'], derivationParams);
-        let preHash = await web3.utils.keccak256(encodedParams);   
         let quoteHash = await instance.hashQuote(quote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
         let firstConfirmationTime = web3.utils.toHex(agreementTime + 300).slice(2, 12);
@@ -881,10 +754,9 @@ contract('LiquidityBridgeContract', async accounts => {
         let firstHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + firstConfirmationTime + '0000000000000000';
         let nHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + nConfirmationTime + '0000000000000000';
         let initialLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
-        let penalty = Math.floor(initialLPDeposit / 10);
-        let reward = Math.floor(penalty / 10);
+        let reward = Math.floor(penaltyFee / 10);
 
-        await bridgeMockInstance.setPegin(preHash, {value : peginAmount});
+        await bridgeMockInstance.setPegin(quoteHash, {value : peginAmount});
         await bridgeMockInstance.setHeader(height, firstHeader);
         await bridgeMockInstance.setHeader(height + depositConfirmations - 1, nHeader);
 
@@ -909,7 +781,7 @@ contract('LiquidityBridgeContract', async accounts => {
         finalLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
 
         assert.equal(val, parseInt(finalUserBalance) - parseInt(initialUserBalance));
-        assert.equal(penalty, initialLPDeposit.toNumber() - finalLPDeposit.toNumber());
+        assert.equal(penaltyFee, initialLPDeposit.toNumber() - finalLPDeposit.toNumber());
         assert.equal(reward +  peginAmount, finalLPBalance.toNumber() - initialLPBalance.toNumber());        
     });  
 
