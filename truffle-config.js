@@ -14,6 +14,12 @@ if (typeof gasPriceTestnet !== 'number' || isNaN(gasPriceTestnet)) {
 console.log("Gas price Testnet: " + gasPriceTestnet);
 
 module.exports = {
+
+  mocha: {
+    enableTimeouts: false,
+    timeout: 1000000
+  },
+
   networks: {
     development: {
          host: "127.0.0.1",     // Localhost (default: none)
@@ -30,7 +36,7 @@ module.exports = {
   },
   compilers: {
     solc: {
-        version : "0.7.4"
+        version : "0.8.3"
     }
   }
 }

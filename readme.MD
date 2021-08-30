@@ -1,75 +1,56 @@
 # Liquidity Bridge Contract
 
-## registerFastBridgeBtcTransaction
+The Liquidity Bridge Contract (LBC) manages the interaction between users and liquidity providers (LP) in order to achieve fast peg-ins. The process is as follows:
 
-### ABI Signature
+1. A user and an LP agree on the conditions of the service
+2. The user makes a deposit in BTC
+3. After a number of confirmations, the LP performs a call in RSK on behalf of the user advancing the funds
+4. After the deposit achieves a number of additional confirmations, the Bridge contract refunds the LBC in RBTC. The LBC then pays the LP for the service.
 
-    function registerFastBridgeBtcTransaction(
-		bytes btcTxSerialized, 
-		uint256 height, 
-		bytes pmtSerialized, 
-		bytes32 derivationArgumentsHash, 
-		bytes32 userRefundBtcAddress, 
-		bytes LiquidityBridgeContractAddress, 
-		bytes LiquidityProviderBtcAddress, 
-		bool shouldTransferToContract
+Note that the call performed by the LP can be a transfer of value to an account or a call to a contract method. This is specified by the ``value`` and ``data`` arguments of the call.
+
+## Quote
+
+The quote structure defines the conditions of a service, and acts as a contract between users and LPs. Quotes consist of:
+
+    Quote {
+        bytes20 fedBtcAddress;                  // the BTC address of the Powpeg
+        address lbcAddress;                     // the address of the LBC
+        address liquidityProviderRskAddress;    // the RSK address of the LP
+        bytes btcRefundAddress;                 // a user BTC refund address
+        address rskRefundAddress;               // a user RSK refund address 
+        bytes liquidityProviderBtcAddress;      // the BTC address of the LP
+        uint callFee;                           // the fee charged by the LP
+        uint penaltyFee;                        // the penalty that the LP pays if it fails to deliver the service
+        address contractAddress;                // the destination address of the peg-in
+        bytes data;                             // the arguments to send in the call
+        uint gasLimit;                          // the gas limit
+        uint nonce;                             // a nonce that uniquely identifies this quote
+        uint value;                             // the value to transfer in the call
+        uint agreementTimestamp;                // the timestamp of the agreement
+        uint timeForDeposit;                    // the time (in seconds) that the user has to achieve one confirmation on the BTC deposit
+        uint callTime;                          // the time (in seconds) that the LP has to perform the call on behalf of the user after the deposit achieves the number of confirmations
+        uint depositConfirmations;              // the number of confirmations that the LP requires before making the call
+    }
+
+## ABI Signature
+
+### callForUser
+
+    function callForUser(
+        Quote quote
+    ) returns bool success
+
+This method performs a call on behalf of a user.
+
+### registerPegIn
+
+    function registerPegIn(
+		Quote quote,
+        bytes signature,            // LP's signature of the quote
+        bytes btcRawTransaction,    // raw deposit transaction
+        bytes partialMerkleTree,    // PMT that proves the inclusion of the deposit in a block
+        uint256 height              // block number that contains the deposit tx
 	) returns int executionStatus
 
-This method will, first of all, obtain the derivation hash to verify if this transaction belongs to an outstanding registered operation.
-
-### Hashing
-
-The derivation arguments are hashed in two steps. First a part of the parameters is hashed using using sha3, and then this hash and the rest of the derivation arguments are once again hashed to obtained the derivation hash (as stated in the [RSKIP-176](https://github.com/rsksmart/RSKIPs/blob/fast-bridge-alternative/IPs/RSKIP176.md#bridge) => `Keccak256(derivationArgumentsHash, userRefundAddress, LBCAddress, LPBtcAddress)`).
-
-#### First hash
-
-Perform a keccak256 of:
-- fedBtcAddress
-- LiquidityProviderRskAddres
-- callContract
-- callContractArguments
-- penaltyFee
-- successFee
-- gasLimit
-- nonce
-- valueToTransfer
-
-Store this value in a variable (e.g. derivationPreHash).
-
-#### Second hash
-
-Perform a keccak256 of:
-- derivationPreHash
-- userBtcRefundAddress
-- LBCAddress: This value is THIS contract address
-- LiquidityProviderBtcAddres
-
-This value should also be stored as it will be used for the verifications.
-
-### Verifications
-
-The contract will implement a validation method to ensure the obtained derivation hash corresponds to a registered operation.
-From this method's execution, registerFastBridgeBtcTransaction will determine how to interact with the Bridge to register the BTC transaction.
-
-### Bridge interaction
-
-Once registerFastBridgeBtcTransaction verified the operation, will call the Bridge indicating how to proceed.
-Bridge exposes this method:
-```
-registerFastBridgeBtcTransaction(
-    bytes btcTxSerialized, 
-    uint256 height, 
-    bytes pmtSerialized, 
-    bytes32 derivationArgumentsHash, 
-    bytes userRefundBtcAddress, 
-    address LiquidityBridgeContractAddress, 
-    bytes LiquidityProviderBtcAddress, 
-    bool shouldTransferToContract
-) returns int
-```
-- derivationArgumentsHash: obtained from the Hashing step.
-- The other arguments are exactly the same received by the contract.
-
-The response from the Bride indicates indicates the status of the operation.
-If the Bridge returns a negative value it means something went wrong. This contract should handle this situation and return a corresponding value to the caller. Error codes are stated on [RSKIP-176](https://github.com/rsksmart/RSKIPs/blob/fast-bridge-alternative/IPs/RSKIP176.md#error-codes).
-If the value is bigger than zero, the value indicates how many Weis were transferred back to this contract. The contract should use this response to substract it from the operation. (e.g. if the operation consists of 1 rbtc, and the response is 0.5 rbtc, the contract should register that there is a remainder of 0.5 rbtc).
+This method requests the Bridge contract on RSK a refund for the service. This method returns the amount transferred to the contract or an [error code](https://github.com/rsksmart/RSKIPs/blob/fast-bridge-alternative/IPs/RSKIP176.md#error-codes).
