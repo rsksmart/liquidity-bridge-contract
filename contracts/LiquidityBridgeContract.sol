@@ -265,7 +265,7 @@ contract LiquidityBridgeContract {
 
 		// SDL: Because a bug in the bridge, only the Low significant 4 bytes
 		// in height are considered. To protect from unintended vulns,
-		// we should require that height < 2^64.
+		// we should require that height < 2^32.
 		
 		// SDL: rename transferredAmount to transferredAmountOrErrorCode
 		// Too many future checks depends on this variable being an error code
@@ -487,7 +487,7 @@ contract LiquidityBridgeContract {
 			x := mload(add(bs, add(0x20, start)))
 		}
 		return uint32(x);
-		//return (uint32) (x & (1<<64-1));
+		//return (uint32) (x & (1<<32-1));
 	}
 
     /**

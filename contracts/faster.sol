@@ -34,7 +34,7 @@ contract Slice {
 			x := mload(add(bs, add(0x20, start)))
 		}
 		return uint32(x);
-		//return (uint32) (x & (1<<64-1));
+		//return (uint32) (x & (1<<32-1));
 	}
 
     /**
