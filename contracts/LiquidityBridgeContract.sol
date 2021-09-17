@@ -280,10 +280,10 @@ contract LiquidityBridgeContract {
 		
         int256 transferredAmountOrErrorCode = registerBridge(quote, btcRawTransaction, partialMerkleTree, height, quoteHash);
 
-        require(transferredAmountOrErrorCode != BRIDGE_UNPROCESSABLE_TX_VALIDATIONS_ERROR, "Failed to validate BTC transaction");
-        require(transferredAmountOrErrorCode != BRIDGE_UNPROCESSABLE_TX_ALREADY_PROCESSED_ERROR_CODE, "Transaction already processed");
-        require(transferredAmountOrErrorCode != BRIDGE_UNPROCESSABLE_TX_VALUE_ZERO_ERROR, "Transaction value is zero");
-        require(transferredAmountOrErrorCode != BRIDGE_GENERIC_ERROR, "Bridge error");
+        require(transferredAmountOrErrorCode != BRIDGE_UNPROCESSABLE_TX_VALIDATIONS_ERROR, "Error -303: Failed to validate BTC transaction");
+        require(transferredAmountOrErrorCode != BRIDGE_UNPROCESSABLE_TX_ALREADY_PROCESSED_ERROR_CODE, "Error -302: Transaction already processed");
+        require(transferredAmountOrErrorCode != BRIDGE_UNPROCESSABLE_TX_VALUE_ZERO_ERROR, "Error -304: Transaction value is zero");
+        require(transferredAmountOrErrorCode != BRIDGE_GENERIC_ERROR, "Error -900: Bridge error");
         require(transferredAmountOrErrorCode > 0 || transferredAmountOrErrorCode == BRIDGE_REFUNDED_LP_ERROR_CODE || transferredAmountOrErrorCode == BRIDGE_REFUNDED_USER_ERROR_CODE, "Unknown Bridge error");
 		
         if (shouldPenalizeLP(quote, transferredAmountOrErrorCode, callRegistry[quoteHash].timestamp, height)) {
