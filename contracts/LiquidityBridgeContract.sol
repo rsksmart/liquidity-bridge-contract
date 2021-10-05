@@ -39,7 +39,7 @@ contract LiquidityBridgeContract {
         uint64 penaltyFee; 
         address contractAddress;
         bytes data;        
-        uint32 gasLimit; 
+        uint64 gasLimit; 
         int64 nonce; 
         uint64 value;
         uint32 agreementTimestamp; 
@@ -66,7 +66,7 @@ contract LiquidityBridgeContract {
     event BalanceIncrease(address dest, uint amount);
     event BalanceDecrease(address dest, uint amount);
     event BridgeError(bytes32 quoteHash, int256 errorCode);
-    event Refund(address dest, int256 amount, bytes32 quoteHash);
+    event Refund(address dest, uint256 amount, bytes32 quoteHash);
 
     Bridge bridge;
     mapping(address => uint256) private balances;
@@ -312,24 +312,24 @@ contract LiquidityBridgeContract {
                 refundAmount = min(uint(transferredAmountOrErrorCode), quote.callFee);
             }
             increaseBalance(quote.liquidityProviderRskAddress, refundAmount);
-            int256 remainingAmount = transferredAmountOrErrorCode - int(refundAmount);
+            uint256 remainingAmount = uint256(transferredAmountOrErrorCode) - refundAmount;
             
-            if (remainingAmount > dust) {
+            if (remainingAmount > uint256(dust)) {
                 quote.rskRefundAddress.transfer(uint(remainingAmount));
                 emit Refund(quote.rskRefundAddress, remainingAmount, quoteHash);
             }            
         } else {
-            int256 refundAmount = transferredAmountOrErrorCode;
+            uint256 refundAmount = uint256(transferredAmountOrErrorCode);
 
-            if (quote.callOnRegister && refundAmount >= int64(quote.value)) {
+            if (quote.callOnRegister && refundAmount >= quote.value) {
                 (bool callSuccess, ) = quote.contractAddress.call{gas:quote.gasLimit, value: quote.value}(quote.data);
                 emit CallForUser(msg.sender, quote.contractAddress, quote.gasLimit, quote.value, quote.data, callSuccess, quoteHash);
 
                 if (callSuccess) {
-                    refundAmount -= int64(quote.value);
+                    refundAmount -= quote.value;
                 }
             }
-            if (refundAmount > dust) {
+            if (refundAmount > uint256(dust)) {
                 quote.rskRefundAddress.transfer(uint256(refundAmount));
                 emit Refund(quote.rskRefundAddress, refundAmount, quoteHash);
             }
