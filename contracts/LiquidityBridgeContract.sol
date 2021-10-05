@@ -77,7 +77,7 @@ contract LiquidityBridgeContract {
     uint64 private minCollateral;        
     uint32 private rewardP;     
     uint32 private resignDelayInBlocks;  
-    int256 private dust;
+    uint private dust;
 
     bool private locked;
 
@@ -102,7 +102,7 @@ contract LiquidityBridgeContract {
         @param resignDelayBlocks The number of block confirmations that a liquidity provider needs to wait before it can withdraw its collateral
         @param dustThreshold Amount that is considered dust
      */
-    constructor(address bridgeAddress, uint64 minimumCollateral, uint32 rewardPercentage, uint32 resignDelayBlocks, int256 dustThreshold) {
+    constructor(address bridgeAddress, uint64 minimumCollateral, uint32 rewardPercentage, uint32 resignDelayBlocks, uint dustThreshold) {
         bridge = Bridge(bridgeAddress);
         minCollateral = minimumCollateral;
         rewardP = rewardPercentage;
@@ -130,7 +130,7 @@ contract LiquidityBridgeContract {
         return resignDelayInBlocks;
     }    
 
-    function getDustThreshold() external view returns (int256) {
+    function getDustThreshold() external view returns (uint) {
         return dust;
     }
 
