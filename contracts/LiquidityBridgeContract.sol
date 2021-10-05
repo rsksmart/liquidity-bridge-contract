@@ -39,7 +39,7 @@ contract LiquidityBridgeContract {
         uint64 penaltyFee; 
         address contractAddress;
         bytes data;        
-        uint64 gasLimit; 
+        uint32 gasLimit; 
         int64 nonce; 
         uint64 value;
         uint32 agreementTimestamp; 
@@ -66,7 +66,7 @@ contract LiquidityBridgeContract {
     event BalanceIncrease(address dest, uint amount);
     event BalanceDecrease(address dest, uint amount);
     event BridgeError(bytes32 quoteHash, int256 errorCode);
-    event Refund(address dest, uint256 amount, bytes32 quoteHash);
+    event Refund(address dest, uint amount, bytes32 quoteHash);
 
     Bridge bridge;
     mapping(address => uint256) private balances;
@@ -301,25 +301,28 @@ contract LiquidityBridgeContract {
             delete callRegistry[quoteHash];
             emit BridgeCapExceeded(quoteHash, transferredAmountOrErrorCode);
             return transferredAmountOrErrorCode;
-        }        
+        }
+
+        // the amount is safely assumed positive because it's already been validated in lines 287/298 there's no (negative) error code being returned by the bridge.
+        uint transferredAmount = uint(transferredAmountOrErrorCode);        
 	
         if (callRegistry[quoteHash].timestamp > 0) {
             uint refundAmount;
 
             if (callRegistry[quoteHash].success) {
-                refundAmount = min(uint(transferredAmountOrErrorCode), quote.value + quote.callFee);
+                refundAmount = min(transferredAmount, quote.value + quote.callFee);
             } else {
-                refundAmount = min(uint(transferredAmountOrErrorCode), quote.callFee);
+                refundAmount = min(transferredAmount, quote.callFee);
             }
             increaseBalance(quote.liquidityProviderRskAddress, refundAmount);
-            uint256 remainingAmount = uint256(transferredAmountOrErrorCode) - refundAmount;
+            uint remainingAmount = transferredAmount - refundAmount;
             
-            if (remainingAmount > uint256(dust)) {
+            if (remainingAmount > uint(dust)) {
                 quote.rskRefundAddress.transfer(uint(remainingAmount));
                 emit Refund(quote.rskRefundAddress, remainingAmount, quoteHash);
             }            
         } else {
-            uint256 refundAmount = uint256(transferredAmountOrErrorCode);
+            uint refundAmount = transferredAmount;
 
             if (quote.callOnRegister && refundAmount >= quote.value) {
                 (bool callSuccess, ) = quote.contractAddress.call{gas:quote.gasLimit, value: quote.value}(quote.data);
@@ -329,7 +332,7 @@ contract LiquidityBridgeContract {
                     refundAmount -= quote.value;
                 }
             }
-            if (refundAmount > uint256(dust)) {
+            if (refundAmount > uint(dust)) {
                 quote.rskRefundAddress.transfer(uint256(refundAmount));
                 emit Refund(quote.rskRefundAddress, refundAmount, quoteHash);
             }
