@@ -66,7 +66,7 @@ contract LiquidityBridgeContract {
     event BalanceIncrease(address dest, uint amount);
     event BalanceDecrease(address dest, uint amount);
     event BridgeError(bytes32 quoteHash, int256 errorCode);
-    event Refund(address dest, int256 amount, bytes32 quoteHash);
+    event Refund(address dest, uint amount, bytes32 quoteHash);
 
     Bridge bridge;
     mapping(address => uint256) private balances;
@@ -77,7 +77,7 @@ contract LiquidityBridgeContract {
     uint64 private minCollateral;        
     uint32 private rewardP;     
     uint32 private resignDelayInBlocks;  
-    int256 private dust;
+    uint private dust;
 
     bool private locked;
 
@@ -102,7 +102,7 @@ contract LiquidityBridgeContract {
         @param resignDelayBlocks The number of block confirmations that a liquidity provider needs to wait before it can withdraw its collateral
         @param dustThreshold Amount that is considered dust
      */
-    constructor(address bridgeAddress, uint64 minimumCollateral, uint32 rewardPercentage, uint32 resignDelayBlocks, int256 dustThreshold) {
+    constructor(address bridgeAddress, uint64 minimumCollateral, uint32 rewardPercentage, uint32 resignDelayBlocks, uint dustThreshold) {
         bridge = Bridge(bridgeAddress);
         minCollateral = minimumCollateral;
         rewardP = rewardPercentage;
@@ -130,7 +130,7 @@ contract LiquidityBridgeContract {
         return resignDelayInBlocks;
     }    
 
-    function getDustThreshold() external view returns (int256) {
+    function getDustThreshold() external view returns (uint) {
         return dust;
     }
 
@@ -301,32 +301,35 @@ contract LiquidityBridgeContract {
             delete callRegistry[quoteHash];
             emit BridgeCapExceeded(quoteHash, transferredAmountOrErrorCode);
             return transferredAmountOrErrorCode;
-        }        
+        }
+
+        // the amount is safely assumed positive because it's already been validated in lines 287/298 there's no (negative) error code being returned by the bridge.
+        uint transferredAmount = uint(transferredAmountOrErrorCode);        
 	
         if (callRegistry[quoteHash].timestamp > 0) {
             uint refundAmount;
 
             if (callRegistry[quoteHash].success) {
-                refundAmount = min(uint(transferredAmountOrErrorCode), quote.value + quote.callFee);
+                refundAmount = min(transferredAmount, quote.value + quote.callFee);
             } else {
-                refundAmount = min(uint(transferredAmountOrErrorCode), quote.callFee);
+                refundAmount = min(transferredAmount, quote.callFee);
             }
             increaseBalance(quote.liquidityProviderRskAddress, refundAmount);
-            int256 remainingAmount = transferredAmountOrErrorCode - int(refundAmount);
+            uint remainingAmount = transferredAmount - refundAmount;
             
             if (remainingAmount > dust) {
                 quote.rskRefundAddress.transfer(uint(remainingAmount));
                 emit Refund(quote.rskRefundAddress, remainingAmount, quoteHash);
             }            
         } else {
-            int256 refundAmount = transferredAmountOrErrorCode;
+            uint refundAmount = transferredAmount;
 
-            if (quote.callOnRegister && refundAmount >= int64(quote.value)) {
+            if (quote.callOnRegister && refundAmount >= quote.value) {
                 (bool callSuccess, ) = quote.contractAddress.call{gas:quote.gasLimit, value: quote.value}(quote.data);
                 emit CallForUser(msg.sender, quote.contractAddress, quote.gasLimit, quote.value, quote.data, callSuccess, quoteHash);
 
                 if (callSuccess) {
-                    refundAmount -= int64(quote.value);
+                    refundAmount -= quote.value;
                 }
             }
             if (refundAmount > dust) {
