@@ -48,13 +48,10 @@ contract('LiquidityBridgeContract', async accounts => {
         // is in control of the attacker
         let initialAttackerBalance = await web3.eth.getBalance(attackerDestAddress);
         let initialLBCBalance = await web3.eth.getBalance(instance.address);
-        console.log(`initial lbc balance: ${initialLBCBalance}`);
-        console.log(`initial attacker balance: ${initialAttackerBalance}`);
+
         // Add funds from an innocent liquidity provider, note again this could be
         // done by an attacker
-        
         // The quote value in wei should be bigger than 2**63-1. 10 RBTC is a good approximation.
-        
         let quoteValue = web3.utils.numberToHex(web3.utils.toWei("10"));
         // Let's create the evil quote.
         let btcRawTransaction = '0x101';
@@ -77,24 +74,24 @@ contract('LiquidityBridgeContract', async accounts => {
         let penaltyFee = 0;
         let callOnRegister = true;
         let quote = [
-        fedBtcAddress,
-        lbcAddress,
-        liquidityProviderRskAddress,
-        userBtcRefundAddress,
-        rskRefundAddress,
-        liquidityProviderBtcAddress,
-        callFee,
-        penaltyFee,
-        attackerDestAddress,
-        data,
-        gasLimit,
-        nonce,
-        quoteValue,
-        agreementTime,
-        timeForDeposit,
-        callTime,
-        depositConfirmations,
-        callOnRegister
+            fedBtcAddress,
+            lbcAddress,
+            liquidityProviderRskAddress,
+            userBtcRefundAddress,
+            rskRefundAddress,
+            liquidityProviderBtcAddress,
+            callFee,
+            penaltyFee,
+            attackerDestAddress,
+            data,
+            gasLimit,
+            nonce,
+            quoteValue,
+            agreementTime,
+            timeForDeposit,
+            callTime,
+            depositConfirmations,
+            callOnRegister
         ];
         // Let's now register our quote in the bridge... note that the
         // value is only a hundred wei
@@ -122,10 +119,10 @@ contract('LiquidityBridgeContract', async accounts => {
         // They don't even get their 100 back, as it is not enough to surpass dust.
         let finalAttackerBalance = await web3.eth.getBalance(attackerDestAddress);
         let lbcFinalBalance = await web3.eth.getBalance(lbcAddress);
-        console.log(`final lbc balance: ${lbcFinalBalance}`);
-        console.log(`final attacker balance: ${finalAttackerBalance}`);
+
         assert.equal(initialAttackerBalance, finalAttackerBalance);
         assert.notEqual(lbcFinalBalance, 0)
+        assert.equal(initialLBCBalance, lbcFinalBalance)
                 
     });
 
