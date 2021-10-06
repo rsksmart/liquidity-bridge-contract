@@ -25,7 +25,111 @@ contract('LiquidityBridgeContract', async accounts => {
         assert.equal(val, registered);
     });
 
-   it ('should transfer value for user', async () => {
+    it ('should not allow attacker to steal funds', async () => {
+        // The attacker controls a liquidity provider and also a destination address
+        // Note that these could be the same address, separated for clarity
+        let attackingLP = web3.eth.currentProvider.addresses[7];
+        let attackerCollateral = web3.utils.toWei("10");
+        await instance.register.call({
+                value: attackerCollateral, 
+                from: attackingLP
+            });
+
+
+        let goodLP = web3.eth.currentProvider.addresses[8];
+        let goodProviderCollateral = web3.utils.toWei("30");
+        await instance.register.call({
+            value: goodProviderCollateral, 
+            from: goodLP
+        });
+
+        let attackerDestAddress = web3.eth.currentProvider.addresses[9];
+        // Let's record how much money is there in the LBC and how much
+        // is in control of the attacker
+        let initialAttackerBalance = await web3.eth.getBalance(attackerDestAddress);
+        let initialLBCBalance = await web3.eth.getBalance(instance.address);
+        console.log(`initial lbc balance: ${initialLBCBalance}`);
+        console.log(`initial attacker balance: ${initialAttackerBalance}`);
+        // Add funds from an innocent liquidity provider, note again this could be
+        // done by an attacker
+        
+        // The quote value in wei should be bigger than 2**63-1. 10 RBTC is a good approximation.
+        
+        let quoteValue = web3.utils.numberToHex(web3.utils.toWei("10"));
+        // Let's create the evil quote.
+        let btcRawTransaction = '0x101';
+        let partialMerkleTree = '0x202';
+        let height = 10;
+        let userBtcRefundAddress = '0x000000000000000000000000000000000000000000';
+        let liquidityProviderBtcAddress = '0x000000000000000000000000000000000000000000';
+        let rskRefundAddress = attackerDestAddress;
+        let fedBtcAddress = '0x0000000000000000000000000000000000000000';
+        let liquidityProviderRskAddress = attackingLP;
+        let data = '0x00';
+        let callFee = 1;        
+        let gasLimit = 30000;
+        let nonce = 1;
+        let lbcAddress = instance.address;
+        let agreementTime = Math.round(Date.now() / 1000);
+        let timeForDeposit = 600;
+        let callTime = 600;
+        let depositConfirmations = 10;
+        let penaltyFee = 0;
+        let callOnRegister = true;
+        let quote = [
+        fedBtcAddress,
+        lbcAddress,
+        liquidityProviderRskAddress,
+        userBtcRefundAddress,
+        rskRefundAddress,
+        liquidityProviderBtcAddress,
+        callFee,
+        penaltyFee,
+        attackerDestAddress,
+        data,
+        gasLimit,
+        nonce,
+        quoteValue,
+        agreementTime,
+        timeForDeposit,
+        callTime,
+        depositConfirmations,
+        callOnRegister
+        ];
+        // Let's now register our quote in the bridge... note that the
+        // value is only a hundred wei
+        let transferedInBTC = 100;
+        let quoteHash = await instance.hashQuote(quote);
+        let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
+        let firstConfirmationTime = web3.utils.toHex(agreementTime + 300).slice(2, 12);
+        let nConfirmationTime = web3.utils.toHex(agreementTime + 600).slice(2, 12);
+        let firstHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + firstConfirmationTime + '0000000000000000';
+        
+        let nHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + nConfirmationTime + '0000000000000000';
+        await bridgeMockInstance.setHeader(height, firstHeader);
+        await bridgeMockInstance.setHeader(height + depositConfirmations - 1, nHeader);
+        await bridgeMockInstance.setPegin(quoteHash, {value : transferedInBTC});
+        // Register the peg in with the evil quote
+        amount = await instance.registerPegIn(
+            quote,
+            signature,
+            btcRawTransaction,
+            partialMerkleTree,
+            height
+        );
+        // The user will _not_ get their money back, as their deposit
+        // of only 100 wei was not enough to cover the quoteValue of more 20 wei
+        // They don't even get their 100 back, as it is not enough to surpass dust.
+        let finalAttackerBalance = await web3.eth.getBalance(attackerDestAddress);
+        let lbcFinalBalance = await web3.eth.getBalance(lbcAddress);
+        console.log(`final lbc balance: ${lbcFinalBalance}`);
+        console.log(`final attacker balance: ${finalAttackerBalance}`);
+        assert.equal(initialAttackerBalance, finalAttackerBalance);
+        assert.notEqual(lbcFinalBalance, 0)
+                
+    });
+
+    it ('should transfer value for user', async () => {
         let val = 10;
         let btcRawTransaction = '0x101';
         let partialMerkleTree = '0x202';
@@ -92,7 +196,7 @@ contract('LiquidityBridgeContract', async accounts => {
 
         assert.equal(currentLPBalance.toNumber(), initialLPBalance.toNumber());
 
-        amount = await instance.registerPegIn.call(
+        amount = await instance.registerPegIn(
             quote,
             signature,
             btcRawTransaction,
