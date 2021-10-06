@@ -317,7 +317,7 @@ contract LiquidityBridgeContract {
             increaseBalance(quote.liquidityProviderRskAddress, refundAmount);
             uint remainingAmount = transferredAmount - refundAmount;
             
-            if (remainingAmount > uint(dust)) {
+            if (remainingAmount > dust) {
                 quote.rskRefundAddress.transfer(uint(remainingAmount));
                 emit Refund(quote.rskRefundAddress, remainingAmount, quoteHash);
             }            
@@ -332,7 +332,7 @@ contract LiquidityBridgeContract {
                     refundAmount -= quote.value;
                 }
             }
-            if (refundAmount > uint(dust)) {
+            if (refundAmount > dust) {
                 quote.rskRefundAddress.transfer(uint256(refundAmount));
                 emit Refund(quote.rskRefundAddress, refundAmount, quoteHash);
             }

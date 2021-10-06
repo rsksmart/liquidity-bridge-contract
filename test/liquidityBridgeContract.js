@@ -17,7 +17,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let currAddr = web3.eth.currentProvider.getAddress();
         let existing = await instance.getCollateral(currAddr); 
 
-        await instance.register({value : val, from: web3.eth.currentProvider.addresses[0]});
+        await instance.register({value : val});
 
         let current = await instance.getCollateral(currAddr);
         let registered = current.toNumber() - existing.toNumber();
@@ -191,7 +191,7 @@ contract('LiquidityBridgeContract', async accounts => {
 
         assert.equal(currentLPBalance.toNumber(), initialLPBalance.toNumber());
 
-        amount = await instance.registerPegIn(
+        amount = await instance.registerPegIn.call(
             quote,
             signature,
             btcRawTransaction,
