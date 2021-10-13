@@ -24,12 +24,12 @@ module.exports = {
   networks: {
     development: {
          host: "127.0.0.1",     // Localhost (default: none)
-         port: 4444,            // Standard Ethereum port (default: none)
+         port: 7777,            // Standard Ethereum port (default: none)
          network_id: "*",       // Any network (default: none)
         },
 
     testnet: {
-      provider: () => new HDWalletProvider(mnemonic, 'http://localhost:4444'),
+      provider: () => new HDWalletProvider(mnemonic, 'http://localhost:7777'),
       network_id: "*",
       gasPrice: Math.floor(gasPriceTestnet * 1.1),
       networkCheckTimeout: 1e9
