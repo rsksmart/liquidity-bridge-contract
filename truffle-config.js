@@ -19,7 +19,6 @@ module.exports = {
     enableTimeouts: false,
     timeout: 1000000
   },
-  plugins: [ "bignumber.js" ],
 
   networks: {
     development: {
