@@ -292,7 +292,7 @@ contract LiquidityBridgeContract {
         if (shouldPenalizeLP(quote, transferredAmountOrErrorCode, callRegistry[quoteHash].timestamp, height)) {
             uint penalizationAmount = max(quote.penaltyFee, collateral[quote.liquidityProviderRskAddress]); // prevent undeflow when collateral is less than penalty fee.
             collateral[quote.liquidityProviderRskAddress] -= penalizationAmount;
-            emit Penalized(quote.liquidityProviderRskAddress, quote.penaltyFee, quoteHash);
+            emit Penalized(quote.liquidityProviderRskAddress, penalizationAmount, quoteHash);
             
             // pay reward to sender
             uint256 punisherReward = quote.penaltyFee * rewardP / 100;    

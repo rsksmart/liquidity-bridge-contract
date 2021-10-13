@@ -13,19 +13,6 @@ contract('LiquidityBridgeContract', async accounts => {
         mock = await Mock.deployed();
     });
 
-    // it ('should return max uint on overflow', async () => {
-    //     let val = BigNumber(115792089237316195423570985008687907853269984665640564039457584007913129639935);
-    //     let result = BigNumber(await instance.add(val, val));
-    //     console.log(result.toString());
-    //     assert.notEqual(result.toString(), "0");
-    // });
-    
-    beforeEach(async () => {
-        instance = await LiquidityBridgeContract.deployed();
-        bridgeMockInstance = await BridgeMock.deployed();
-        mock = await Mock.deployed()
-    });
-
     it ('should register liquidity provider', async () => {
         let val = 100;
         let currAddr = web3.eth.currentProvider.getAddress();
@@ -92,7 +79,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let nHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + nConfirmationTime + '0000000000000000';
         let initialLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
         let reward = Math.floor(penaltyFee / 10);
-
+        
         await bridgeMockInstance.setPegin(quoteHash, {value : peginAmount});
         await bridgeMockInstance.setHeader(height, firstHeader);
         await bridgeMockInstance.setHeader(height + depositConfirmations - 1, nHeader);
