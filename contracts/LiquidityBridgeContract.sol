@@ -290,7 +290,7 @@ contract LiquidityBridgeContract {
         require(transferredAmountOrErrorCode > 0 || transferredAmountOrErrorCode == BRIDGE_REFUNDED_LP_ERROR_CODE || transferredAmountOrErrorCode == BRIDGE_REFUNDED_USER_ERROR_CODE, "Unknown Bridge error");
 		
         if (shouldPenalizeLP(quote, transferredAmountOrErrorCode, callRegistry[quoteHash].timestamp, height)) {
-            uint penalizationAmount = max(quote.penaltyFee, collateral[quote.liquidityProviderRskAddress]); // prevent undeflow when collateral is less than penalty fee.
+            uint penalizationAmount = min(quote.penaltyFee, collateral[quote.liquidityProviderRskAddress]); // prevent undeflow when collateral is less than penalty fee.
             collateral[quote.liquidityProviderRskAddress] -= penalizationAmount;
             emit Penalized(quote.liquidityProviderRskAddress, penalizationAmount, quoteHash);
             
