@@ -3,11 +3,13 @@ pragma solidity ^0.8.3;
 pragma experimental ABIEncoderV2;
 
 import './Bridge.sol';
-
+import './SafeMath.sol';
 /**
     @title Contract that assists with the Flyover protocol
  */
 contract LiquidityBridgeContract {
+    using SafeMath for uint;
+    using SafeMath for uint32;
 
     uint16 constant MAX_CALL_GAS_COST = 35000;
 
@@ -26,6 +28,7 @@ contract LiquidityBridgeContract {
     int16 constant BRIDGE_UNPROCESSABLE_TX_VALIDATIONS_ERROR = -303;
     int16 constant BRIDGE_UNPROCESSABLE_TX_VALUE_ZERO_ERROR = -304;
     int16 constant BRIDGE_GENERIC_ERROR = -900;
+    uint constant MAX_UINT = 2**256 - 1;
 
     struct Quote {
  
@@ -287,8 +290,9 @@ contract LiquidityBridgeContract {
         require(transferredAmountOrErrorCode > 0 || transferredAmountOrErrorCode == BRIDGE_REFUNDED_LP_ERROR_CODE || transferredAmountOrErrorCode == BRIDGE_REFUNDED_USER_ERROR_CODE, "Unknown Bridge error");
 		
         if (shouldPenalizeLP(quote, transferredAmountOrErrorCode, callRegistry[quoteHash].timestamp, height)) {
-            collateral[quote.liquidityProviderRskAddress] -= quote.penaltyFee;
-            emit Penalized(quote.liquidityProviderRskAddress, quote.penaltyFee, quoteHash);
+            uint penalizationAmount = min(quote.penaltyFee, collateral[quote.liquidityProviderRskAddress]); // prevent undeflow when collateral is less than penalty fee.
+            collateral[quote.liquidityProviderRskAddress] -= penalizationAmount;
+            emit Penalized(quote.liquidityProviderRskAddress, penalizationAmount, quoteHash);
             
             // pay reward to sender
             uint256 punisherReward = quote.penaltyFee * rewardP / 100;    
@@ -418,7 +422,8 @@ contract LiquidityBridgeContract {
         uint256 firstConfirmationTimestamp = getBtcBlockTimestamp(firstConfirmationHeader);        
 
         // do not penalize if deposit was not made on time
-        if (firstConfirmationTimestamp > quote.agreementTimestamp + quote.timeForDeposit) {
+        uint timeLimit = quote.agreementTimestamp.tryAdd(quote.timeForDeposit); // prevent overflow when collateral is less than penalty fee.
+        if (firstConfirmationTimestamp > timeLimit) {
             return false;
         }
 
@@ -433,7 +438,7 @@ contract LiquidityBridgeContract {
         uint256 nConfirmationsTimestamp = getBtcBlockTimestamp(nConfirmationsHeader);
 
         // penalize if the call was not made on time
-        if (callTimestamp > nConfirmationsTimestamp + quote.callTime) {
+        if (callTimestamp > nConfirmationsTimestamp.tryAdd(quote.callTime)) {
             return true;
         }
         return false;
