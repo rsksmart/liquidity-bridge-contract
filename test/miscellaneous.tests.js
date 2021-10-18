@@ -2,6 +2,13 @@ const LiquidityBridgeContract = artifacts.require('LiquidityBridgeContract');
 const BridgeMock = artifacts.require("BridgeMock");
 const Mock = artifacts.require('Mock')
 const truffleAssert = require('truffle-assertions');
+var chai = require("chai");
+
+const BN = web3.utils.BN;
+const chaiBN = require('chai-bn')(BN);
+chai.use(chaiBN);
+
+const expect = chai.expect;
 
 contract('LiquidityBridgeContract', async accounts => {
     let instance;
@@ -14,16 +21,16 @@ contract('LiquidityBridgeContract', async accounts => {
     });
 
     it ('should register liquidity provider', async () => {
-        let val = 100;
+        let val = new BN(100);
         let currAddr = accounts[0];
         let existing = await instance.getCollateral(currAddr); 
 
         await instance.register({value : val});
 
         let current = await instance.getCollateral(currAddr);
-        let registered = current.toNumber() - existing.toNumber();
+        let registered = current.sub(existing);
 
-        assert.equal(val, registered);
+        expect(val).to.be.a.bignumber.eq(registered);
     });
 
     it ('should not allow attacker to steal funds', async () => {
@@ -121,8 +128,8 @@ contract('LiquidityBridgeContract', async accounts => {
         let finalAttackerBalance = await web3.eth.getBalance(attackerDestAddress);
         let lbcFinalBalance = await web3.eth.getBalance(lbcAddress);
 
-        assert.equal(initialAttackerBalance, finalAttackerBalance);
-        assert.notEqual(lbcFinalBalance, 0)                
+        expect(initialAttackerBalance).to.be.a.bignumber.eq(finalAttackerBalance);
+        expect(new BN(0)).not.to.be.a.bignumber.eq(lbcFinalBalance);
     });
 
     it ('should pay with insufficient deposit', async () => {
@@ -192,7 +199,7 @@ contract('LiquidityBridgeContract', async accounts => {
 
         currentLPBalance = await instance.getBalance(liquidityProviderRskAddress);
 
-        assert.equal(currentLPBalance.toNumber(), initialLPBalance.toNumber());
+        expect(currentLPBalance).to.be.a.bignumber.eq(initialLPBalance);
 
         amount = await instance.registerPegIn.call(
             quote,
@@ -218,10 +225,10 @@ contract('LiquidityBridgeContract', async accounts => {
         let usrBal = web3.utils.toBN(finalUserBalance).sub(web3.utils.toBN(initialUserBalance));
         let lbcBal = web3.utils.toBN(finalLBCBalance).sub(web3.utils.toBN(initialLBCBalance));
         let lpBal = web3.utils.toBN(finalLPBalance).sub(web3.utils.toBN(initialLPBalance));
-        expect(peginAmount.toNumber()).to.eql(amount.toNumber());
-        expect(usrBal.toNumber()).to.eq(val.toNumber());
-        expect(lbcBal.toNumber()).to.eql(peginAmount.toNumber());
-        expect(lpBal.toNumber()).to.eql(peginAmount.toNumber());
-        expect(finalLPDeposit).to.eql(initialLPDeposit);
+        expect(peginAmount).to.be.a.bignumber.eq(amount);
+        expect(usrBal).to.be.a.bignumber.eq(val);
+        expect(lbcBal).to.be.a.bignumber.eq(peginAmount);
+        expect(lpBal).to.be.a.bignumber.eq(peginAmount);
+        expect(finalLPDeposit).to.be.a.bignumber.eq(initialLPDeposit);
     });
 });

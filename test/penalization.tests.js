@@ -8,9 +8,6 @@ const BN = web3.utils.BN;
 const chaiBN = require('chai-bn')(BN);
 chai.use(chaiBN);
 
-var chaiAsPromised = require("chai-as-promised");
-chai.use(chaiAsPromised);
-
 const expect = chai.expect;
 
 contract('LiquidityBridgeContract', async accounts => {
@@ -24,21 +21,21 @@ contract('LiquidityBridgeContract', async accounts => {
     });
 
     it ('should register liquidity provider', async () => {
-        let val = 100;
+        let val = new BN(100);
         let currAddr = accounts[0];
         let existing = await instance.getCollateral(currAddr); 
 
         await instance.register({value : val});
 
         let current = await instance.getCollateral(currAddr);
-        let registered = current.toNumber() - existing.toNumber();
+        let registered = current.sub(existing);
 
-        assert.equal(val, registered);
+        expect(val).to.be.a.bignumber.eq(registered);
     });
 
 
     it ('should not penalize with late deposit', async () => {
-        let val = 1000000000000;
+        let val = web3.utils.toBN(1000000000000);
         let btcRawTransaction = '0x101';
         let partialMerkleTree = '0x202';
         let height = 10;
@@ -48,11 +45,11 @@ contract('LiquidityBridgeContract', async accounts => {
         let fedBtcAddress = '0x0000000000000000000000000000000000000000';
         let liquidityProviderRskAddress = accounts[0];
         let rskRefundAddress = accounts[2];
-        let callFee = 1;
+        let callFee = web3.utils.toBN(1);
         let gasLimit = 150000;
         let nonce = 0;
         let data = web3.eth.abi.encodeFunctionCall(mock.abi[2], []);
-        let peginAmount = web3.utils.toBN(val).add(web3.utils.toBN((callFee)));
+        let peginAmount = val.add(callFee);
         let lbcAddress = instance.address;
         let agreementTime = Math.round(Date.now() / 1000);
         let timeForDeposit = 1;
@@ -104,8 +101,8 @@ contract('LiquidityBridgeContract', async accounts => {
         finalUserBalance = await web3.eth.getBalance(rskRefundAddress);
         finalLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
         let usrBal = web3.utils.toBN(finalUserBalance).sub(web3.utils.toBN(initialUserBalance));
-        expect(usrBal.toNumber()).to.eq(peginAmount.toNumber());
-        expect(finalLPDeposit).to.eql(initialLPDeposit);
+        expect(usrBal).to.be.a.bignumber.eq(peginAmount);
+        expect(finalLPDeposit).to.be.a.bignumber.eq(initialLPDeposit);
     });
 
     it ('should not penalize with insufficient deposit', async () => {
@@ -203,7 +200,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let timeForDeposit = 600;
         let callTime = 1;
         let depositConfirmations = 10;
-        let penaltyFee = 10;
+        let penaltyFee = web3.utils.toBN(10);
         let callOnRegister = false;
         let quote = [
             fedBtcAddress, 
@@ -244,7 +241,7 @@ contract('LiquidityBridgeContract', async accounts => {
         );
 
         currentLPBalance = await instance.getBalance(liquidityProviderRskAddress);
-        assert.equal(currentLPBalance.toNumber(), initialLPBalance.toNumber());
+        expect(currentLPBalance).to.be.a.bignumber.eq(initialLPBalance);
 
         await instance.registerPegIn(
             quote,
@@ -260,8 +257,8 @@ contract('LiquidityBridgeContract', async accounts => {
         let usrBal = web3.utils.toBN(finalUserBalance).sub(web3.utils.toBN(initialUserBalance));
         let lpCol = web3.utils.toBN(initialLPDeposit).sub(web3.utils.toBN(finalLPDeposit));
         let lpBal = web3.utils.toBN(finalLPBalance).sub(web3.utils.toBN(initialLPBalance));
-        expect(usrBal.toNumber()).to.eql(val.toNumber());
-        expect(lpCol.toNumber()).to.eql(penaltyFee);
+        expect(usrBal).to.be.a.bignumber.eq(val);
+        expect(lpCol).to.be.a.bignumber.eq(penaltyFee);
         expect(lpBal).to.eql(web3.utils.toBN(reward).add(peginAmount));
     });
 
@@ -274,7 +271,6 @@ contract('LiquidityBridgeContract', async accounts => {
         let liquidityProviderBtcAddress = '0x000000000000000000000000000000000000000000';
         let rskRefundAddress = accounts[2];
         let destAddr = accounts[1];
-        let initialUserBalance = await web3.eth.getBalance(destAddr);
         let fedBtcAddress = '0x0000000000000000000000000000000000000000';
         let liquidityProviderRskAddress = accounts[0];
         let initialLPBalance = await instance.getBalance(liquidityProviderRskAddress);
@@ -329,7 +325,7 @@ contract('LiquidityBridgeContract', async accounts => {
         );
 
         currentLPBalance = await instance.getBalance(liquidityProviderRskAddress);
-        assert.equal(currentLPBalance.toNumber(), initialLPBalance.toNumber());
+        expect(currentLPBalance).to.be.a.bignumber.eq(initialLPBalance);
 
         let tx = await instance.registerPegIn(
             quote,
@@ -344,8 +340,8 @@ contract('LiquidityBridgeContract', async accounts => {
         finalLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
         
         let lpBal = web3.utils.toBN(finalLPBalance).sub(web3.utils.toBN(initialLPBalance));
-        truffleAssert.eventEmitted(tx, "Penalized");
-        assert.equal(0, finalLPDeposit.toNumber());
+        truffleAssert.eventEmitted(tx, "Penalized");        
+        expect(new BN(0)).to.be.a.bignumber.eq(finalLPDeposit);
         expect(lpBal).to.eql(web3.utils.toBN(reward).add(peginAmount));
     });
 });

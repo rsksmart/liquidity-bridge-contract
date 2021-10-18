@@ -2,6 +2,13 @@ const LiquidityBridgeContract = artifacts.require('LiquidityBridgeContract');
 const BridgeMock = artifacts.require("BridgeMock");
 const Mock = artifacts.require('Mock')
 const truffleAssert = require('truffle-assertions');
+var chai = require("chai");
+
+const BN = web3.utils.BN;
+const chaiBN = require('chai-bn')(BN);
+chai.use(chaiBN);
+
+const expect = chai.expect;
 
 contract('LiquidityBridgeContract', async accounts => {
     let instance;
@@ -14,20 +21,20 @@ contract('LiquidityBridgeContract', async accounts => {
     });
 
     it ('should register liquidity provider', async () => {
-        let val = 100;
+        let val = new BN(100);
         let currAddr = accounts[0];
         let existing = await instance.getCollateral(currAddr); 
 
         await instance.register({value : val});
 
         let current = await instance.getCollateral(currAddr);
-        let registered = current.toNumber() - existing.toNumber();
+        let registered = current.sub(existing);
 
-        assert.equal(val, registered);
+        expect(val).to.be.a.bignumber.eq(registered);
     });
 
     it ('should transfer value and refund remaining', async () => {
-        let val = web3.utils.toBN(10);
+        let val = new BN(10);
         let btcRawTransaction = '0x101';
         let partialMerkleTree = '0x202';
         let height = 10;
@@ -42,11 +49,11 @@ contract('LiquidityBridgeContract', async accounts => {
         let initialLBCBalance = await web3.eth.getBalance(instance.address);
         let initialRefundBalance = await web3.eth.getBalance(rskRefundAddress);
         let data = '0x00';
-        let callFee = web3.utils.toBN(1);
+        let callFee = new BN(1);
         let gasLimit = 150000;
         let nonce = 0;
         let additionalFunds = web3.utils.toBN(1000000000000);
-        let peginAmount = web3.utils.toBN(val).add(web3.utils.toBN(callFee)).add(web3.utils.toBN(additionalFunds));
+        let peginAmount = val.add(callFee).add(web3.utils.toBN(additionalFunds));
         let lbcAddress = instance.address;
         let agreementTime = Math.round(Date.now() / 1000);
         let timeForDeposit = 600;
@@ -94,7 +101,7 @@ contract('LiquidityBridgeContract', async accounts => {
 
         currentLPBalance = await instance.getBalance(liquidityProviderRskAddress);
 
-        assert.equal(currentLPBalance.toNumber(), initialLPBalance.toNumber());
+        expect(currentLPBalance).to.be.a.bignumber.eq(initialLPBalance);
 
         amount = await instance.registerPegIn.call(
             quote,
@@ -123,12 +130,12 @@ contract('LiquidityBridgeContract', async accounts => {
         let lpBal = web3.utils.toBN(finalLPBalance).sub(web3.utils.toBN(initialLPBalance));
         let refBal = web3.utils.toBN(finalRefundBalance).sub(web3.utils.toBN(initialRefundBalance));
         truffleAssert.eventEmitted(tx, "Refund");
-        expect(peginAmount.toNumber()).to.eql(amount.toNumber());
-        expect(usrBal.toNumber()).to.eq(val.toNumber());
-        expect(lbcBal.toNumber()).to.eql(peginAmount.sub(additionalFunds).toNumber());
-        expect(lpBal.toNumber()).to.eql(peginAmount.sub(additionalFunds).toNumber());
-        expect(refBal.toNumber()).to.eql(additionalFunds.toNumber());
-        expect(finalLPDeposit).to.eql(initialLPDeposit);
+        expect(peginAmount).to.be.a.bignumber.eq(amount);
+        expect(usrBal).to.be.a.bignumber.eq(val);
+        expect(lbcBal).to.be.a.bignumber.eq(peginAmount.sub(additionalFunds));
+        expect(lpBal).to.be.a.bignumber.eq(peginAmount.sub(additionalFunds));
+        expect(refBal).to.be.a.bignumber.eq(additionalFunds);
+        expect(finalLPDeposit).to.be.a.bignumber.eq(initialLPDeposit);
     });
 
     it ('should refund user on failed call', async () => {
@@ -142,12 +149,12 @@ contract('LiquidityBridgeContract', async accounts => {
         let fedBtcAddress = '0x0000000000000000000000000000000000000000';
         let liquidityProviderRskAddress = accounts[0];
         let rskRefundAddress = accounts[2];
-        let callFee = 1;
+        let callFee = web3.utils.toBN(1);
         let gasLimit = 150000;
         let nonce = 0;
         let data = web3.eth.abi.encodeFunctionCall(mock.abi[2], []);
         let initialLPBalance = await instance.getBalance(liquidityProviderRskAddress);
-        let peginAmount = web3.utils.toBN(val).add(web3.utils.toBN(callFee));
+        let peginAmount = web3.utils.toBN(val).add(callFee);
         let lbcAddress = instance.address;
         let agreementTime = Math.round(Date.now() / 1000);
         let timeForDeposit = 600;
@@ -197,7 +204,7 @@ contract('LiquidityBridgeContract', async accounts => {
 
         currentLPBalance = await instance.getBalance(liquidityProviderRskAddress);
 
-        assert.equal(val, parseInt(currentLPBalance) - parseInt(initialLPBalance));
+        expect(val).to.be.a.bignumber.eq(currentLPBalance.sub(initialLPBalance));
 
         let tx = await instance.registerPegIn(
             quote,
@@ -214,9 +221,9 @@ contract('LiquidityBridgeContract', async accounts => {
         let lpBal = web3.utils.toBN(finalLPBalance).sub(web3.utils.toBN(initialLPBalance));
         let usrBal = web3.utils.toBN(finalUserBalance).sub(web3.utils.toBN(initialUserBalance));
         truffleAssert.eventEmitted(tx, "Refund");
-        expect(lpBal).to.eql(val.add(web3.utils.toBN(callFee)));
-        expect(usrBal.toNumber()).to.eq(peginAmount.sub(web3.utils.toBN(callFee)).toNumber());
-        expect(finalLPDeposit).to.eql(initialLPDeposit);
+        expect(lpBal).to.be.a.bignumber.eq(val.add(callFee));
+        expect(usrBal).to.be.a.bignumber.eq(peginAmount.sub(callFee));
+        expect(finalLPDeposit).to.be.a.bignumber.eq(initialLPDeposit);
     });
 
     it ('should refund user on missed call', async () => {
@@ -292,12 +299,12 @@ contract('LiquidityBridgeContract', async accounts => {
         finalLbcBalance = await web3.eth.getBalance(instance.address);
 
         let usrBal = web3.utils.toBN(finalUserBalance).sub(web3.utils.toBN(initialUserBalance));
-        let lpBal = web3.utils.toBN(finalAltBalance).sub(web3.utils.toBN(initialAltBalance));
+        let altBal = web3.utils.toBN(finalAltBalance).sub(web3.utils.toBN(initialAltBalance));
         let lpCol = web3.utils.toBN(initialLPDeposit).sub(web3.utils.toBN(finalLPDeposit));
         truffleAssert.eventEmitted(tx, "Refund");
-        expect(usrBal.toNumber()).to.eq(peginAmount.toNumber());
-        expect(lpBal.toNumber()).to.eql(reward.toNumber());
-        expect(lpCol.toNumber()).to.eql(penaltyFee.toNumber());
-        expect(finalLbcBalance).to.eql(initialLbcBalance);
+        expect(usrBal).to.be.a.bignumber.eq(peginAmount);
+        expect(altBal).to.be.a.bignumber.eq(reward);
+        expect(lpCol).to.be.a.bignumber.eq(penaltyFee);
+        expect(finalLbcBalance).to.be.a.bignumber.eq(initialLbcBalance);
     });
 });
