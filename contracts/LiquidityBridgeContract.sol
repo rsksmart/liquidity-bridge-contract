@@ -354,10 +354,6 @@ contract LiquidityBridgeContract {
         return a < b ? a : b;
     }
 
-    function max(uint a, uint b) private pure returns (uint) {
-        return a > b ? a : b;
-    }
-
     // IMPORTANT: These methods should remain private at all costs
     function increaseBalance(address dest, uint amount) private {
         balances[dest] += amount;
