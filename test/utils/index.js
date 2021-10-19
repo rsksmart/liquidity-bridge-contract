@@ -38,11 +38,26 @@ function getTestQuote(lbcAddress, destAddr, callData, liquidityProviderRskAddres
     return quote;
 }
 
+async function ensureLiquidityProviderAvailable(instance, liquidityProviderRskAddress, amount) {
+    let lpIsAvailable = await instance.isOperational(liquidityProviderRskAddress);
+    if(!lpIsAvailable){
+        return await instance.register({
+            from: liquidityProviderRskAddress,
+            value : amount
+        });
+    }
+    return null;
+}
+
 function asArray(obj){
     return Object.values(obj);
 }
 
+const LP_COLLATERAL = web3.utils.toBN(100);
+
 module.exports = {
     getTestQuote,
-    asArray
+    asArray,
+    ensureLiquidityProviderAvailable,
+    LP_COLLATERAL
   };

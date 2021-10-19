@@ -14,19 +14,23 @@ const expect = chai.expect;
 contract('LiquidityBridgeContract', async accounts => {
     let instance;
     let bridgeMockInstance;
-    
+    const liquidityProviderRskAddress = accounts[0];
+
     before(async () => {
         instance = await LiquidityBridgeContract.deployed();
         bridgeMockInstance = await BridgeMock.deployed();
-        mock = await Mock.deployed()
+        mock = await Mock.deployed();
+    });
+
+    beforeEach(async () => {
+        await utils.ensureLiquidityProviderAvailable(instance, liquidityProviderRskAddress, utils.LP_COLLATERAL);
     });
 
     it ('should register liquidity provider', async () => {
-        let val = new BN(100);
-        let currAddr = accounts[0];
+        let currAddr = accounts[9];
         let existing = await instance.getCollateral(currAddr); 
 
-        let tx = await instance.register({value : val});
+        let tx = await instance.register({from: currAddr, value : utils.LP_COLLATERAL});
 
         let current = await instance.getCollateral(currAddr);
         let registered = current.sub(existing);
@@ -34,11 +38,10 @@ contract('LiquidityBridgeContract', async accounts => {
         truffleAssertions.eventEmitted(tx, "Register", { 
             from: currAddr
         });
-        expect(val).to.be.a.bignumber.eq(registered);
+        expect(utils.LP_COLLATERAL).to.be.a.bignumber.eq(registered);
     });
 
     it ('should call contract for user', async () => {
-        let liquidityProviderRskAddress = accounts[0];
         let rskRefundAddress = accounts[2];
         let destAddr = mock.address;
         let data = web3.eth.abi.encodeFunctionCall(mock.abi[0], ['12']);
@@ -118,7 +121,6 @@ contract('LiquidityBridgeContract', async accounts => {
     it ('should transfer value for user', async () => {
         let rskRefundAddress = accounts[2];
         let destAddr = accounts[1];
-        let liquidityProviderRskAddress = accounts[0];
         let lbcAddress = instance.address;
         let quote = utils.getTestQuote(
             lbcAddress, 
@@ -194,8 +196,7 @@ contract('LiquidityBridgeContract', async accounts => {
         expect(finalLPDeposit).to.be.a.bignumber.eq(initialLPDeposit);
     });
 
-    it ('should resign', async () => {
-        let liquidityProviderRskAddress = accounts[0];
+    it ('should resign', async () => { 
         let lbcAddress = instance.address;
         let initialLPBalance = await instance.getBalance(liquidityProviderRskAddress);
         let initialLBCBalance = await web3.eth.getBalance(lbcAddress);
