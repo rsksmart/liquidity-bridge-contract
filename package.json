@@ -4,9 +4,9 @@
   "description": "## registerFastBridgeBtcTransaction",
   "main": "index.js",
   "scripts": {
-    "coverage": "truffle run coverage",
+    "test-regtest": "truffle test --network rskRegtest",
     "test": "truffle test"
-  },
+ },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rsksmart/liquidity-bridge-contract.git"
