@@ -4,8 +4,11 @@
   "description": "## registerFastBridgeBtcTransaction",
   "main": "index.js",
   "scripts": {
-    "test-regtest": "truffle test --network rskRegtest",
-    "test": "truffle test"
+    "compile": "npx truffle compile --all",
+    "test": "npm run compile && npx truffle test",
+    "test-regtest": "npm truffle test --network rskRegtest",
+    "coverage": "npx truffle run coverage",
+    "lint": "npx prettier --list-different 'contracts/**/*.sol' 'test/**/*.js' 'migrations/**/*.js'"
   },
   "repository": {
     "type": "git",
