@@ -115,7 +115,7 @@ contract('LiquidityBridgeContract', async accounts => {
             quoteHash: quoteHash
         });
         finalValue = await mock.check();
-        expect(new BN(12)).to.be.a.bignumber.eq(finalValue);
+        expect(web3.utils.toBN(12)).to.be.a.bignumber.eq(finalValue);
     });
 
     it ('should transfer value for user', async () => {
@@ -210,7 +210,7 @@ contract('LiquidityBridgeContract', async accounts => {
 
         let lbcCurrBal = web3.utils.toBN(initialLBCBalance).sub(web3.utils.toBN(currentLBCBalance))
         expect(initialLPBalance).to.be.a.bignumber.eq(lbcCurrBal);
-        expect(finalLPBalance).to.be.a.bignumber.eq(new BN(0));
+        expect(finalLPBalance).to.be.a.bignumber.eq(web3.utils.toBN(0));
 
         let withdrawCollateralTx = await instance.withdrawCollateral();
 
@@ -229,6 +229,6 @@ contract('LiquidityBridgeContract', async accounts => {
             amount: initialLPCol
         });
         expect(lbcBal).to.be.a.bignumber.eq(initialLPCol);
-        expect(new BN(0)).to.be.a.bignumber.eq(finalLPCol);
+        expect(web3.utils.toBN(0)).to.be.a.bignumber.eq(finalLPCol);
     });
 });

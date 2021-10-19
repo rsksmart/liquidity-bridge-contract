@@ -15,7 +15,7 @@ contract('LiquidityBridgeContract', async accounts => {
     let instance;
     let bridgeMockInstance;
     const liquidityProviderRskAddress = accounts[0];
-    
+
     before(async () => {
         instance = await LiquidityBridgeContract.deployed();
         bridgeMockInstance = await BridgeMock.deployed();
@@ -30,7 +30,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let destAddr = accounts[1];
         let rskRefundAddress = accounts[2];
         let data = '0x00';
-        let val = new BN(10);
+        let val = web3.utils.toBN(10);
         let quote = utils.getTestQuote(
             instance.address, 
             destAddr,
@@ -195,7 +195,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let initialAltBalance = await instance.getBalance(liquidityProviderRskAddress);
         let initialUserBalance = await web3.eth.getBalance(rskRefundAddress);
         let initialLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
-        let reward = web3.utils.toBN(Math.floor(quote.penaltyFee.div(new BN(10))));
+        let reward = Math.floor(quote.penaltyFee.div(web3.utils.toBN(10)));
         let initialLbcBalance = await web3.eth.getBalance(instance.address);
         let peginAmount = quote.val.add(quote.callFee);
         
@@ -230,7 +230,7 @@ contract('LiquidityBridgeContract', async accounts => {
             dest: rskRefundAddress
         });
         expect(usrBal).to.be.a.bignumber.eq(peginAmount);
-        expect(altBal).to.be.a.bignumber.eq(reward);
+        expect(altBal).to.be.a.bignumber.eq(web3.utils.toBN(reward));
         expect(lpCol).to.be.a.bignumber.eq(quote.penaltyFee);
         expect(finalLbcBalance).to.be.a.bignumber.eq(initialLbcBalance);
     });

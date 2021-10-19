@@ -21,7 +21,7 @@ contract('LiquidityBridgeContract', async accounts => {
     });
 
     it ('should register liquidity provider', async () => {
-        let val = new BN(100);
+        let val = web3.utils.toBN(100);
         let currAddr = accounts[0];
         let existing = await instance.getCollateral(currAddr); 
 
@@ -129,7 +129,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let lbcFinalBalance = await web3.eth.getBalance(lbcAddress);
 
         expect(initialAttackerBalance).to.be.a.bignumber.eq(finalAttackerBalance);
-        expect(new BN(0)).not.to.be.a.bignumber.eq(lbcFinalBalance);
+        expect(web3.utils.toBN(0)).not.to.be.a.bignumber.eq(lbcFinalBalance);
     });
 
     it ('should pay with insufficient deposit', async () => {
