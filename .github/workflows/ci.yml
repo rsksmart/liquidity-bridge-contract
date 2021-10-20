@@ -38,9 +38,9 @@ jobs:
         run: npm test
       # - name: Coverage report
       #   run: npm run coverage
-      - name: Coveralls
-        uses: coverallsapp/github-action@master
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Reproduce build
-        run: npm publish --dry-run
+      # - name: Coveralls
+      #   uses: coverallsapp/github-action@master
+      #   with:
+      #     github-token: ${{ secrets.GITHUB_TOKEN }}
+      # - name: Reproduce build
+      #   run: npm publish --dry-run
