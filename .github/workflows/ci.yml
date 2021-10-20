@@ -32,11 +32,12 @@ jobs:
 
       - name: Install dependencies
         run: npm i
-      # TODO: re-add lint step
+      # - name: Lint source and tests
+      #   run: npm run lint
       - name: Unit test smart contracts
         run: npm test
-      - name: Coverage report
-        run: npm run coverage
+      # - name: Coverage report
+      #   run: npm run coverage
       - name: Coveralls
         uses: coverallsapp/github-action@master
         with:
