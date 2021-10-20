@@ -161,6 +161,8 @@ contract('LiquidityBridgeContract', async accounts => {
         await bridgeMockInstance.setPegin(quoteHash, {value : peginAmount});
         await bridgeMockInstance.setHeader(height, firstHeader);
         await bridgeMockInstance.setHeader(height + quote.depositConfirmations - 1, nHeader);
+    
+        await utils.timeout(5000);
 
         await instance.callForUser(
             utils.asArray(quote),
@@ -226,6 +228,8 @@ contract('LiquidityBridgeContract', async accounts => {
         await bridgeMockInstance.setPegin(quoteHash, {value : peginAmount});
         await bridgeMockInstance.setHeader(height, firstHeader);
         await bridgeMockInstance.setHeader(height + quote.depositConfirmations - 1, nHeader);
+
+        await utils.timeout(5000);
 
         await instance.callForUser(
             utils.asArray(quote),

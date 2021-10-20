@@ -53,11 +53,16 @@ function asArray(obj){
     return Object.values(obj);
 }
 
+function timeout(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 const LP_COLLATERAL = web3.utils.toBN(100);
 
 module.exports = {
     getTestQuote,
     asArray,
     ensureLiquidityProviderAvailable,
-    LP_COLLATERAL
+    LP_COLLATERAL,
+    timeout
   };

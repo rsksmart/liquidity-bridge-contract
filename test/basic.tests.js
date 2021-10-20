@@ -43,7 +43,7 @@ contract('LiquidityBridgeContract', async accounts => {
         expect(utils.LP_COLLATERAL).to.be.a.bignumber.eq(registered);
     });
 
-    it('ecrecover result matches address', async () => {
+    it('should match lp address with address retrieved from ecrecover', async () => {
         let quote = utils.getTestQuote(
             instance.address, 
             accounts[1],
