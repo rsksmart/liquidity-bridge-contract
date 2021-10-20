@@ -1,25 +1,27 @@
 const LiquidityBridgeContract = artifacts.require('LiquidityBridgeContract');
 const BridgeMock = artifacts.require("BridgeMock");
-const Mock = artifacts.require('Mock')
+const Mock = artifacts.require('Mock');
+const SignatureValidatorMock = artifacts.require('SignatureValidatorMock');
+
 var chai = require("chai");
 const truffleAssertions = require("truffle-assertions");
 const utils = require('../test/utils/index');
-
 const BN = web3.utils.BN;
 const chaiBN = require('chai-bn')(BN);
 chai.use(chaiBN);
-
 const expect = chai.expect;
 
 contract('LiquidityBridgeContract', async accounts => {
     let instance;
     let bridgeMockInstance;
+    let signatureValidatorInstance;
     const liquidityProviderRskAddress = accounts[0];
 
     before(async () => {
         instance = await LiquidityBridgeContract.deployed();
         bridgeMockInstance = await BridgeMock.deployed();
         mock = await Mock.deployed();
+        signatureValidatorInstance = await SignatureValidatorMock.deployed();
     });
 
     beforeEach(async () => {
@@ -41,6 +43,28 @@ contract('LiquidityBridgeContract', async accounts => {
         expect(utils.LP_COLLATERAL).to.be.a.bignumber.eq(registered);
     });
 
+    it('ecrecover result matches address', async () => {
+        let quote = utils.getTestQuote(
+            instance.address, 
+            accounts[1],
+            '0x00', 
+            liquidityProviderRskAddress, 
+            accounts[2]);
+
+        let quoteHash = await instance.hashQuote(utils.asArray(quote));
+        let sig = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
+        var signer = web3.eth.accounts.recover(quoteHash, sig);
+
+        expect(liquidityProviderRskAddress).to.be.equal(signer);
+
+        await signatureValidatorInstance.verify(liquidityProviderRskAddress, quoteHash, sig);
+        let sameSigner = await signatureValidatorInstance.verify.call(liquidityProviderRskAddress, quoteHash, sig);
+
+        if(!sameSigner){
+            assert.fail('ecrecover signer does not match with the quoteHash signer.');
+        }
+	});
+
     it ('should call contract for user', async () => {
         let rskRefundAddress = accounts[2];
         let destAddr = mock.address;
@@ -60,6 +84,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let initialLBCBalance = await web3.eth.getBalance(instance.address);
         let quoteHash = await instance.hashQuote(utils.asArray(quote));
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
+
         let firstConfirmationTime = web3.utils.toHex(quote.agreementTime + 300).slice(2, 12);
         let nConfirmationTime = web3.utils.toHex(quote.agreementTime + 600).slice(2, 12);
         let firstHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + firstConfirmationTime + '0000000000000000';

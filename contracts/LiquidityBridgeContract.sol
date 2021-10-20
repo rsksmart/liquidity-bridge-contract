@@ -4,6 +4,8 @@ pragma experimental ABIEncoderV2;
 
 import './Bridge.sol';
 import './SafeMath.sol';
+import './SignatureValidator.sol';
+
 /**
     @title Contract that assists with the Flyover protocol
  */
@@ -72,6 +74,7 @@ contract LiquidityBridgeContract {
     event Refund(address dest, uint amount, bytes32 quoteHash);
 
     Bridge bridge;
+    SignatureValidator signatureValidator;
     mapping(address => uint256) private balances;
     mapping(address => uint256) private collateral;
     mapping(bytes32 => Registry) private callRegistry;  
@@ -105,8 +108,9 @@ contract LiquidityBridgeContract {
         @param resignDelayBlocks The number of block confirmations that a liquidity provider needs to wait before it can withdraw its collateral
         @param dustThreshold Amount that is considered dust
      */
-    constructor(address bridgeAddress, uint64 minimumCollateral, uint32 rewardPercentage, uint32 resignDelayBlocks, uint dustThreshold) {
+    constructor(address bridgeAddress, uint64 minimumCollateral, uint32 rewardPercentage, uint32 resignDelayBlocks, uint dustThreshold, address signatureValidatorAddress) {
         bridge = Bridge(bridgeAddress);
+        signatureValidator = SignatureValidator(signatureValidatorAddress);
         minCollateral = minimumCollateral;
         rewardP = rewardPercentage;
         resignDelayInBlocks = resignDelayBlocks;
@@ -278,7 +282,7 @@ contract LiquidityBridgeContract {
 
         // TODO: allow multiple registerPegIns for the same quote with different transactions
         require(processedQuotes[quoteHash] <= CALL_DONE_CODE, "Quote already registered");
-        require(verify(quote.liquidityProviderRskAddress, quoteHash, signature), "Invalid signature");
+        require(signatureValidator.verify(quote.liquidityProviderRskAddress, quoteHash, signature), "Invalid signature");
         require(height < uint256(MAX_INT32), "Height must be lower than 2^31");
 		
         int256 transferredAmountOrErrorCode = registerBridge(quote, btcRawTransaction, partialMerkleTree, height, quoteHash);
@@ -469,30 +473,6 @@ contract LiquidityBridgeContract {
 		return uint32(x);
 		//return (uint32) (x & (1<<32-1));
 	}
-    
-    /**
-        @dev Verfies signature against address
-        @param addr The signing address
-        @param hash The hash of the signed data
-        @param signature The signature containing v, r and s
-        @return True if the signature is valid, false otherwise.
-     */
-    function verify(address addr, bytes32 hash, bytes memory signature) private pure returns (bool) {
-        bytes32 r;
-        bytes32 s;
-        uint8 v;
-     
-        assembly {
-            r := mload(add(signature, 0x20))
-            s := mload(add(signature, 0x40))
-            v := byte(0, mload(add(signature, 0x60)))
-        }
-	
-        // TODO use EIP712 compatible format instead
-        bytes memory prefix = "\x19Ethereum Signed Message:\n32";
-        bytes32 prefixedHash = keccak256(abi.encodePacked(prefix, hash));
-        return ecrecover(prefixedHash, v, r, s) == addr;
-    }
 
     function encodeQuote(Quote memory quote) private pure returns (bytes memory) {
         // Encode in two parts because abi.encode cannot take more than 12 parameters due to stack depth limits.

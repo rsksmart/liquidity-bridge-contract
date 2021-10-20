@@ -9,14 +9,14 @@ contract BridgeMock is Bridge {
     mapping(uint256 => bytes) private headers;
 
     function registerFastBridgeBtcTransaction(
-        bytes memory btcTxSerialized, 
-        uint256 height, 
-        bytes memory pmtSerialized, 
+        bytes memory , 
+        uint256 , 
+        bytes memory, 
         bytes32 derivationArgumentsHash, 
-        bytes memory userRefundBtcAddress, 
+        bytes memory, 
         address payable liquidityBridgeContractAddress,
-        bytes memory liquidityProviderBtcAddress, 
-        bool shouldTransferToContract
+        bytes memory , 
+        bool 
     ) external override returns (int256) {
         uint256 amount = amounts[derivationArgumentsHash];
         amounts[derivationArgumentsHash] = 0;
