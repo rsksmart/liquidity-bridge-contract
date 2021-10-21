@@ -2,18 +2,19 @@ const LiquidityBridgeContract = artifacts.require('LiquidityBridgeContract');
 const BridgeMock = artifacts.require("BridgeMock");
 const Mock = artifacts.require('Mock')
 const truffleAssert = require('truffle-assertions');
-var chai = require("chai");
+const utils = require('../test/utils/index');
 
+var chai = require("chai");
 const BN = web3.utils.BN;
 const chaiBN = require('chai-bn')(BN);
 chai.use(chaiBN);
-
 const expect = chai.expect;
 
 contract('LiquidityBridgeContract', async accounts => {
     let instance;
     let bridgeMockInstance;
-    
+    const liquidityProviderRskAddress = accounts[0];
+
     before(async () => {
         instance = await LiquidityBridgeContract.deployed();
         bridgeMockInstance = await BridgeMock.deployed();
@@ -22,19 +23,6 @@ contract('LiquidityBridgeContract', async accounts => {
 
     beforeEach(async () => {
         await utils.ensureLiquidityProviderAvailable(instance, liquidityProviderRskAddress, utils.LP_COLLATERAL);
-    });
-
-    it ('should register liquidity provider', async () => {
-        let val = web3.utils.toBN(100);
-        let currAddr = accounts[0];
-        let existing = await instance.getCollateral(currAddr); 
-
-        await instance.register({value : val});
-
-        let current = await instance.getCollateral(currAddr);
-        let registered = current.sub(existing);
-
-        expect(val).to.be.a.bignumber.eq(registered);
     });
 
     it ('should not allow attacker to steal funds', async () => {
