@@ -12,10 +12,20 @@ module.exports = async function(deployer, network) {
 
     if (network == 'rskTestnet' || network == 'rskMainnet') {   // deploy to actual networks so don't use mocks and use existing bridge.   
         const validatorInstance = await SignatureValidator.deployed();
+        await deployer.deploy(SignatureValidatorMock);
 
         await deployer.deploy(LiquidityBridgeContract, '0x0000000000000000000000000000000001000006', 1, 10, 1, 2300 * 65164000, validatorInstance.address);
+    }
+    else if (network == 'rskRegtest') { // test with real validator but yet the bridge is mocked.
+        await deployer.deploy(BridgeMock);
+        const bridgeMockInstance = await BridgeMock.deployed();
 
-    } else { // test with mocks;
+        await deployer.deploy(SignatureValidatorMock);
+        const validatorInstance = await SignatureValidator.deployed();
+
+        await deployer.deploy(LiquidityBridgeContract, bridgeMockInstance.address, 1, 10, 1, 2300 * 65164000, validatorInstance.address);
+    }  
+    else { // test with mocks;
         await deployer.deploy(BridgeMock);
         const bridgeMockInstance = await BridgeMock.deployed();
 
@@ -23,6 +33,6 @@ module.exports = async function(deployer, network) {
         const validatorInstance = await SignatureValidatorMock.deployed();
 
         await deployer.deploy(LiquidityBridgeContract, bridgeMockInstance.address, 1, 10, 1, 2300 * 65164000, validatorInstance.address);
-        await deployer.deploy(Mock);
     }    
+    await deployer.deploy(Mock);
 };

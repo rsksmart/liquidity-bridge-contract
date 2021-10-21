@@ -20,6 +20,10 @@ contract('LiquidityBridgeContract', async accounts => {
         mock = await Mock.deployed()
     });
 
+    beforeEach(async () => {
+        await utils.ensureLiquidityProviderAvailable(instance, liquidityProviderRskAddress, utils.LP_COLLATERAL);
+    });
+
     it ('should register liquidity provider', async () => {
         let val = web3.utils.toBN(100);
         let currAddr = accounts[0];
