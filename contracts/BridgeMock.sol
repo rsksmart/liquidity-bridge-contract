@@ -43,7 +43,7 @@ contract BridgeMock is Bridge {
     function getBtcBlockchainBlockHashAtDepth ( int256 ) external pure override returns (bytes memory) {bytes memory b; return b;}
     function getBtcTxHashProcessedHeight ( string calldata ) external pure override returns (int64) {return int64(0);}
     function isBtcTxHashAlreadyProcessed ( string calldata ) external pure override returns (bool) {return false;}
-    function getFederationAddress (  ) external pure override returns (string memory) {return "";}
+    function getFederationAddress (  ) external pure override returns (string memory) {return "2N5muMepJizJE1gR7FbHJU6CD18V3BpNF9p";} // regtest genesis fed addr
     function registerBtcTransaction ( bytes calldata atx, int256 height, bytes calldata pmt ) external override {}
     function addSignature ( bytes calldata pubkey, bytes[] calldata signatures, bytes calldata txhash ) external override {}
     function receiveHeaders ( bytes[] calldata blocks ) external override {}
