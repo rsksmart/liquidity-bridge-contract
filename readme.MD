@@ -31,7 +31,7 @@ The quote structure defines the conditions of a service, and acts as a contract 
         uint timeForDeposit;                    // the time (in seconds) that the user has to achieve one confirmation on the BTC deposit
         uint callTime;                          // the time (in seconds) that the LP has to perform the call on behalf of the user after the deposit achieves the number of confirmations
         uint depositConfirmations;              // the number of confirmations that the LP requires before making the call
-	bool callOnRegister:                   // a boolean value indicating whether the callForUser can be called on registerPegIn.
+        bool callOnRegister:                    // a boolean value indicating whether the callForUser can be called on registerPegIn.
     }
 
 ## ABI Signature
