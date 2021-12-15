@@ -1,38 +1,40 @@
-var LiquidityBridgeContract = artifacts.require('LiquidityBridgeContract');
-var Mock = artifacts.require('Mock')
-var BridgeMock = artifacts.require('BridgeMock');
-var SafeMath = artifacts.require('SafeMath');
-var SignatureValidator = artifacts.require('SignatureValidator');
-var SignatureValidatorMock = artifacts.require('SignatureValidatorMock');
+const LiquidityBridgeContract = artifacts.require('LiquidityBridgeContract');
+const Mock = artifacts.require('Mock')
+const BridgeMock = artifacts.require('BridgeMock');
+const SafeMath = artifacts.require('SafeMath');
+const SignatureValidator = artifacts.require('SignatureValidator');
+const SignatureValidatorMock = artifacts.require('SignatureValidatorMock');
+
+const RSK_NETWORKS = ['rskMainnet', 'rskTestnet', 'rskRegtest'];
+const RSK_BRIDGE_ADDRESS = '0x0000000000000000000000000000000001000006';
+
+const MINIMUM_COLLATERAL = 1;
+const REWARD_PERCENTAGE = 10;
+const RESIGN_DELAY_BLOCKS = 1;
+const DUST_THRESHOLD = 2300 * 65164000;
 
 module.exports = async function(deployer, network) {
     await deployer.deploy(SafeMath);
     await deployer.link(SafeMath, LiquidityBridgeContract);
     await deployer.deploy(SignatureValidator);
 
-    if (network == 'rskTestnet' || network == 'rskMainnet') {   // deploy to actual networks so don't use mocks and use existing bridge.   
+    let bridgeAddress, validatorAddress;
+    if (RSK_NETWORKS.includes(network)) { // deploy to actual networks so don't use mocks and use existing bridge.
+        bridgeAddress = RSK_BRIDGE_ADDRESS;
+        
         const validatorInstance = await SignatureValidator.deployed();
-        await deployer.deploy(SignatureValidatorMock);
-
-        await deployer.deploy(LiquidityBridgeContract, '0x0000000000000000000000000000000001000006', 1, 10, 1, 2300 * 65164000, validatorInstance.address);
-    }
-    else if (network == 'rskRegtest') { // test with real validator but yet the bridge is mocked.
+        validatorAddress = validatorInstance.address;
+    } else { // test with mocks;
+        await deployer.deploy(Mock);
+        
         await deployer.deploy(BridgeMock);
         const bridgeMockInstance = await BridgeMock.deployed();
-
-        await deployer.deploy(SignatureValidatorMock);
-        const validatorInstance = await SignatureValidator.deployed();
-
-        await deployer.deploy(LiquidityBridgeContract, bridgeMockInstance.address, 1, 10, 1, 2300 * 65164000, validatorInstance.address);
-    }  
-    else { // test with mocks;
-        await deployer.deploy(BridgeMock);
-        const bridgeMockInstance = await BridgeMock.deployed();
+        bridgeAddress = bridgeMockInstance.address;
 
         await deployer.deploy(SignatureValidatorMock);
         const validatorInstance = await SignatureValidatorMock.deployed();
-
-        await deployer.deploy(LiquidityBridgeContract, bridgeMockInstance.address, 1, 10, 1, 2300 * 65164000, validatorInstance.address);
-    }    
-    await deployer.deploy(Mock);
+        validatorAddress = validatorInstance.address;
+    }
+    
+    await deployer.deploy(LiquidityBridgeContract, bridgeAddress, MINIMUM_COLLATERAL, REWARD_PERCENTAGE, RESIGN_DELAY_BLOCKS, DUST_THRESHOLD, validatorAddress);
 };

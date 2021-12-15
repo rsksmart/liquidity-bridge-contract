@@ -37,7 +37,12 @@ module.exports = {
       }),
       network_id: 30,
       gasPrice: 60000000,
-    }
+    },
+    testRegtest: {
+      host: '127.0.0.1',
+      port: 4444,
+      network_id: 33,
+    },
   },
   compilers: {
     solc: {
