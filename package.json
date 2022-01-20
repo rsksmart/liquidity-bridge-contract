@@ -6,9 +6,10 @@
   "scripts": {
     "compile": "npx truffle compile --all",
     "test": "npm run compile && npx truffle test",
-    "test-regtest": "npm run compile && npx truffle test --network rskRegtest",
+    "test-regtest": "npm run compile && npx truffle test --network testRegtest",
     "coverage": "npx truffle run coverage",
-    "lint": "npx prettier --list-different 'contracts/**/*.sol' 'test/**/*.js' 'migrations/**/*.js'"
+    "lint": "npx prettier --list-different 'contracts/**/*.sol' 'test/**/*.js' 'migrations/**/*.js'",
+    "deploy-regtest": "npx truffle deploy --network rskRegtest"
   },
   "repository": {
     "type": "git",
