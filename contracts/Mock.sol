@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.3;
 
+import './LiquidityBridgeContract.sol';
+
 contract Mock {
 
     int private status;
@@ -16,5 +18,10 @@ contract Mock {
 
     function fail() external pure {
         require(false, "error");
+    }
+
+    function callRegister(address payable lbcAddress) external payable {
+        LiquidityBridgeContract lbc = LiquidityBridgeContract(lbcAddress);
+        lbc.register{value : msg.value}();
     }
 }
