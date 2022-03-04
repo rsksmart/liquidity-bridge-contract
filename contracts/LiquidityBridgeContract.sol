@@ -77,14 +77,16 @@ contract LiquidityBridgeContract {
     SignatureValidator signatureValidator;
     mapping(address => uint256) private balances;
     mapping(address => uint256) private collateral;
-    mapping(bytes32 => Registry) private callRegistry;  
+    mapping(bytes32 => Registry) private callRegistry;
     mapping(address => uint256) private resignationBlockNum;
 
-    uint64 private minCollateral;        
-    uint32 private rewardP;     
-    uint32 private resignDelayInBlocks;  
+    uint64 private immutable minCollateral;
+    uint64 private immutable minPegIn;
+    
+    uint32 private rewardP;
+    uint32 private resignDelayInBlocks;
     uint private dust;
-
+    
     bool private locked;
 
     mapping(bytes32 => uint8) private processedQuotes;
@@ -108,10 +110,11 @@ contract LiquidityBridgeContract {
         @param resignDelayBlocks The number of block confirmations that a liquidity provider needs to wait before it can withdraw its collateral
         @param dustThreshold Amount that is considered dust
      */
-    constructor(address bridgeAddress, uint64 minimumCollateral, uint32 rewardPercentage, uint32 resignDelayBlocks, uint dustThreshold, address signatureValidatorAddress) {
+    constructor(address bridgeAddress, uint64 minimumCollateral, uint64 minimumPegIn, uint32 rewardPercentage, uint32 resignDelayBlocks, uint dustThreshold, address signatureValidatorAddress) {
         bridge = Bridge(bridgeAddress);
         signatureValidator = SignatureValidator(signatureValidatorAddress);
         minCollateral = minimumCollateral;
+        minPegIn = minimumPegIn;
         rewardP = rewardPercentage;
         resignDelayInBlocks = resignDelayBlocks;
         dust = dustThreshold;
@@ -127,6 +130,10 @@ contract LiquidityBridgeContract {
 
     function getMinCollateral() external view returns (uint) {
         return minCollateral;
+    }
+
+    function getMinPegIn() external view returns (uint) {
+        return minPegIn;
     }
 
     function getRewardPercentage() external view returns (uint) {
@@ -240,6 +247,8 @@ contract LiquidityBridgeContract {
 
         bytes32 quoteHash = hashQuote(quote);
         require(processedQuotes[quoteHash] == UNPROCESSED_QUOTE_CODE, "Quote already processed");
+        
+        require(quote.value + quote.callFee >= minPegIn, "Too low transferred amount");
 
         increaseBalance(quote.liquidityProviderRskAddress, msg.value);
 
@@ -284,6 +293,8 @@ contract LiquidityBridgeContract {
         require(processedQuotes[quoteHash] <= CALL_DONE_CODE, "Quote already registered");
         require(signatureValidator.verify(quote.liquidityProviderRskAddress, quoteHash, signature), "Invalid signature");
         require(height < uint256(MAX_INT32), "Height must be lower than 2^31");
+        
+        require(quote.value + quote.callFee >= minPegIn, "Too low transferred amount");
 		
         int256 transferredAmountOrErrorCode = registerBridge(quote, btcRawTransaction, partialMerkleTree, height, quoteHash);
 
