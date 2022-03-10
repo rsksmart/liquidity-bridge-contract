@@ -80,7 +80,8 @@ contract('LiquidityBridgeContract', async accounts => {
             destAddr,
             data, 
             liquidityProviderRskAddress, 
-            rskRefundAddress);
+            rskRefundAddress,
+            web3.utils.toBN(1));
 
         let btcRawTransaction = '0x101';
         let partialMerkleTree = '0x202';
@@ -147,6 +148,24 @@ contract('LiquidityBridgeContract', async accounts => {
         });
         finalValue = await mock.check();
         expect(web3.utils.toBN(12)).to.be.a.bignumber.eq(finalValue);
+    });
+
+    it ('should fail to call contract for user due to quote amount being below min peg-in', async () => {
+        let rskRefundAddress = accounts[2];
+        let destAddr = mock.address;
+        let data = web3.eth.abi.encodeFunctionCall(mock.abi[0], ['12']);
+        let quote = utils.getTestQuote(
+            instance.address,
+            destAddr,
+            data,
+            liquidityProviderRskAddress,
+            rskRefundAddress,
+            web3.utils.toBN(0));
+
+        await truffleAssertions.reverts(instance.callForUser(
+            utils.asArray(quote),
+            {value: quote.val}
+        ), "Too low transferred amount");
     });
 
     it ('should transfer value for user', async () => {
