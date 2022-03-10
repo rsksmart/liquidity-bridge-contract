@@ -101,6 +101,11 @@ contract LiquidityBridgeContract {
         locked = false;
     }
 
+    modifier onlyEoa() {
+        require(tx.origin == msg.sender, "Not EOA");
+        _;
+    }
+
     /**
         @param bridgeAddress The address of the bridge contract
         @param minimumCollateral The minimum required collateral for liquidity providers
@@ -152,7 +157,7 @@ contract LiquidityBridgeContract {
     /**
         @dev Registers msg.sender as a liquidity provider with msg.value as collateral
      */
-    function register() external payable {
+    function register() external payable onlyEoa {
         require(collateral[msg.sender] == 0, "Already registered");
         require(msg.value >= minCollateral, "Not enough collateral");
         require(resignationBlockNum[msg.sender] == 0, "Withdraw collateral first");

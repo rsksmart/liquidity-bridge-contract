@@ -29,7 +29,7 @@ contract('LiquidityBridgeContract', async accounts => {
     });
 
     it ('should register liquidity provider', async () => {
-        let currAddr = accounts[9];
+        let currAddr = accounts[8];
         let existing = await instance.getCollateral(currAddr); 
 
         let tx = await instance.register({from: currAddr, value : utils.LP_COLLATERAL});
@@ -41,6 +41,12 @@ contract('LiquidityBridgeContract', async accounts => {
             from: currAddr
         });
         expect(utils.LP_COLLATERAL).to.be.a.bignumber.eq(registered);
+    });
+
+    it ('should fail to register liquidity provider from a contract', async () => {
+        let currAddr = accounts[9];
+
+        await truffleAssertions.reverts(mock.callRegister(instance.address, {from : currAddr, value : utils.LP_COLLATERAL}), "Not EOA");
     });
 
     it('should match lp address with address retrieved from ecrecover', async () => {
