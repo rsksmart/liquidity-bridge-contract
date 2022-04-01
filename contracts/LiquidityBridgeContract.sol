@@ -80,8 +80,8 @@ contract LiquidityBridgeContract {
     mapping(bytes32 => Registry) private callRegistry;
     mapping(address => uint256) private resignationBlockNum;
 
-    uint64 private immutable minCollateral;
-    uint64 private immutable minPegIn;
+    uint256 private immutable minCollateral;
+    uint256 private immutable minPegIn;
     
     uint32 private rewardP;
     uint32 private resignDelayInBlocks;
@@ -115,7 +115,7 @@ contract LiquidityBridgeContract {
         @param resignDelayBlocks The number of block confirmations that a liquidity provider needs to wait before it can withdraw its collateral
         @param dustThreshold Amount that is considered dust
      */
-    constructor(address bridgeAddress, uint64 minimumCollateral, uint64 minimumPegIn, uint32 rewardPercentage, uint32 resignDelayBlocks, uint dustThreshold, address signatureValidatorAddress) {
+    constructor(address bridgeAddress, uint256 minimumCollateral, uint256 minimumPegIn, uint32 rewardPercentage, uint32 resignDelayBlocks, uint dustThreshold, address signatureValidatorAddress) {
         bridge = Bridge(bridgeAddress);
         signatureValidator = SignatureValidator(signatureValidatorAddress);
         minCollateral = minimumCollateral;
