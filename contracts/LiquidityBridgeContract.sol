@@ -33,20 +33,19 @@ contract LiquidityBridgeContract {
     uint constant MAX_UINT = 2**256 - 1;
 
     struct Quote {
- 
         bytes20 fedBtcAddress;
         address lbcAddress;
         address liquidityProviderRskAddress;
         bytes btcRefundAddress;
         address payable rskRefundAddress;
         bytes liquidityProviderBtcAddress;
-        uint64 callFee; 
-        uint64 penaltyFee; 
+        uint256 callFee;
+        uint256 penaltyFee;
         address contractAddress;
         bytes data;        
         uint32 gasLimit; 
         int64 nonce; 
-        uint64 value;
+        uint256 value;
         uint32 agreementTimestamp; 
         uint32 timeForDeposit;
         uint32 callTime; 
@@ -80,8 +79,8 @@ contract LiquidityBridgeContract {
     mapping(bytes32 => Registry) private callRegistry;
     mapping(address => uint256) private resignationBlockNum;
 
-    uint64 private immutable minCollateral;
-    uint64 private immutable minPegIn;
+    uint256 private immutable minCollateral;
+    uint256 private immutable minPegIn;
     
     uint32 private rewardP;
     uint32 private resignDelayInBlocks;
@@ -115,7 +114,7 @@ contract LiquidityBridgeContract {
         @param resignDelayBlocks The number of block confirmations that a liquidity provider needs to wait before it can withdraw its collateral
         @param dustThreshold Amount that is considered dust
      */
-    constructor(address bridgeAddress, uint64 minimumCollateral, uint64 minimumPegIn, uint32 rewardPercentage, uint32 resignDelayBlocks, uint dustThreshold, address signatureValidatorAddress) {
+    constructor(address bridgeAddress, uint256 minimumCollateral, uint256 minimumPegIn, uint32 rewardPercentage, uint32 resignDelayBlocks, uint dustThreshold, address signatureValidatorAddress) {
         bridge = Bridge(bridgeAddress);
         signatureValidator = SignatureValidator(signatureValidatorAddress);
         minCollateral = minimumCollateral;
@@ -432,7 +431,7 @@ contract LiquidityBridgeContract {
     function shouldPenalizeLP(Quote memory quote, int256 amount, uint256 callTimestamp, uint256 height) private view returns (bool) {
 
         // do not penalize if deposit amount is insufficient
-        if (amount > 0 && amount < int64(quote.value + quote.callFee)) {
+        if (amount > 0 && uint256(amount) < quote.value + quote.callFee) {
             return false;
         }
 		

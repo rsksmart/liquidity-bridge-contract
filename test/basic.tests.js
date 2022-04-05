@@ -81,7 +81,8 @@ contract('LiquidityBridgeContract', async accounts => {
             data, 
             liquidityProviderRskAddress, 
             rskRefundAddress,
-            web3.utils.toBN(1));
+            web3.utils.toBN("20000000000000000000") // 20 RBTCs
+        );
 
         let btcRawTransaction = '0x101';
         let partialMerkleTree = '0x202';
