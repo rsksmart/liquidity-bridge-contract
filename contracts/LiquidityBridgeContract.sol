@@ -29,6 +29,7 @@ contract LiquidityBridgeContract {
     int16 constant BRIDGE_UNPROCESSABLE_TX_ALREADY_PROCESSED_ERROR_CODE = -302;
     int16 constant BRIDGE_UNPROCESSABLE_TX_VALIDATIONS_ERROR = -303;
     int16 constant BRIDGE_UNPROCESSABLE_TX_VALUE_ZERO_ERROR = -304;
+    int16 constant BRIDGE_UNPROCESSABLE_TX_UTXO_AMOUNT_SENT_BELOW_MINIMUM_ERROR = -305;
     int16 constant BRIDGE_GENERIC_ERROR = -900;
     uint constant MAX_UINT = 2**256 - 1;
 
@@ -305,6 +306,7 @@ contract LiquidityBridgeContract {
         require(transferredAmountOrErrorCode != BRIDGE_UNPROCESSABLE_TX_VALIDATIONS_ERROR, "Error -303: Failed to validate BTC transaction");
         require(transferredAmountOrErrorCode != BRIDGE_UNPROCESSABLE_TX_ALREADY_PROCESSED_ERROR_CODE, "Error -302: Transaction already processed");
         require(transferredAmountOrErrorCode != BRIDGE_UNPROCESSABLE_TX_VALUE_ZERO_ERROR, "Error -304: Transaction value is zero");
+        require(transferredAmountOrErrorCode != BRIDGE_UNPROCESSABLE_TX_UTXO_AMOUNT_SENT_BELOW_MINIMUM_ERROR, "Error -305: Transaction UTXO value is below the minimum");
         require(transferredAmountOrErrorCode != BRIDGE_GENERIC_ERROR, "Error -900: Bridge error");
         require(transferredAmountOrErrorCode > 0 || transferredAmountOrErrorCode == BRIDGE_REFUNDED_LP_ERROR_CODE || transferredAmountOrErrorCode == BRIDGE_REFUNDED_USER_ERROR_CODE, "Unknown Bridge error");
 		
