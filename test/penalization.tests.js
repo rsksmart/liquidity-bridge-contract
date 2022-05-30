@@ -196,7 +196,7 @@ contract('LiquidityBridgeContract', async accounts => {
         expect(lpBal).to.eql(web3.utils.toBN(reward).add(peginAmount));
     });
 
-    it ('should not undeflow when penalty is higher than collateral', async () => {
+    it ('should not underflow when penalty is higher than collateral', async () => {
         let val = web3.utils.toBN(10);
         let rskRefundAddress = accounts[2];
         let destAddr = accounts[1];
@@ -217,6 +217,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let initialLPBalance = await instance.getBalance(liquidityProviderRskAddress);
         let peginAmount = quote.val.add(quote.callFee);
         let initialLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
+        let rewardPercentage = await instance.getRewardPercentage();
         let quoteHash = await instance.hashQuote(utils.asArray(quote));
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
         let firstConfirmationTime = web3.utils.toHex(quote.agreementTime + 300).slice(2, 12);
@@ -224,21 +225,21 @@ contract('LiquidityBridgeContract', async accounts => {
         let firstHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + firstConfirmationTime + '0000000000000000';
         let nHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + nConfirmationTime + '0000000000000000';
         
-        let reward = Math.floor(quote.penaltyFee.div(web3.utils.toBN(10)));
+        let reward = Math.floor(Math.min(initialLPDeposit, quote.penaltyFee) * rewardPercentage / 100);
         await bridgeMockInstance.setPegin(quoteHash, {value : peginAmount});
         await bridgeMockInstance.setHeader(height, firstHeader);
         await bridgeMockInstance.setHeader(height + quote.depositConfirmations - 1, nHeader);
-
+        
         await utils.timeout(5000);
-
+        
         await instance.callForUser(
             utils.asArray(quote),
             {value : quote.val}
         );
-
+        
         currentLPBalance = await instance.getBalance(liquidityProviderRskAddress);
         expect(currentLPBalance).to.be.a.bignumber.eq(initialLPBalance);
-
+        
         let tx = await instance.registerPegIn(
             utils.asArray(quote),
             signature,
@@ -246,7 +247,7 @@ contract('LiquidityBridgeContract', async accounts => {
             partialMerkleTree,
             height
         );
-
+        
         finalUserBalance = await web3.eth.getBalance(destAddr);
         finalLPBalance = await instance.getBalance(liquidityProviderRskAddress);
         finalLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
@@ -256,7 +257,7 @@ contract('LiquidityBridgeContract', async accounts => {
             liquidityProvider: liquidityProviderRskAddress,
             penalty: initialLPDeposit,
             quoteHash: quoteHash
-        });        
+        });
         expect(web3.utils.toBN(0)).to.be.a.bignumber.eq(finalLPDeposit);
         expect(lpBal).to.eql(web3.utils.toBN(reward).add(peginAmount));
     });
