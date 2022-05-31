@@ -111,11 +111,15 @@ contract LiquidityBridgeContract {
     /**
         @param bridgeAddress The address of the bridge contract
         @param minimumCollateral The minimum required collateral for liquidity providers
+        @param minimumPegIn The minimum peg-in amount
         @param rewardPercentage The percentage of the penalty fee that an honest party receives when calling registerPegIn in case of a liquidity provider misbehaving
         @param resignDelayBlocks The number of block confirmations that a liquidity provider needs to wait before it can withdraw its collateral
         @param dustThreshold Amount that is considered dust
+        @param signatureValidatorAddress Address of signature validation contract
      */
     constructor(address bridgeAddress, uint256 minimumCollateral, uint256 minimumPegIn, uint32 rewardPercentage, uint32 resignDelayBlocks, uint dustThreshold, address signatureValidatorAddress) {
+        require(rewardPercentage <= 100, "Invalid reward percentage");
+        
         bridge = Bridge(bridgeAddress);
         signatureValidator = SignatureValidator(signatureValidatorAddress);
         minCollateral = minimumCollateral;
@@ -247,8 +251,8 @@ contract LiquidityBridgeContract {
      */
     function callForUser(Quote memory quote) external payable onlyRegistered noReentrancy returns (bool) {
         require(msg.sender == quote.liquidityProviderRskAddress, "Unauthorized");
-        require(balances[quote.liquidityProviderRskAddress] + msg.value >= quote.value, "Insufficient funds");   
-        require(address(this) == quote.lbcAddress, "Wrong LBC address");  
+        require(balances[quote.liquidityProviderRskAddress] + msg.value >= quote.value, "Insufficient funds");
+        require(address(this) == quote.lbcAddress, "Wrong LBC address");
 
         bytes32 quoteHash = hashQuote(quote);
         require(processedQuotes[quoteHash] == UNPROCESSED_QUOTE_CODE, "Quote already processed");
@@ -311,15 +315,15 @@ contract LiquidityBridgeContract {
         require(transferredAmountOrErrorCode > 0 || transferredAmountOrErrorCode == BRIDGE_REFUNDED_LP_ERROR_CODE || transferredAmountOrErrorCode == BRIDGE_REFUNDED_USER_ERROR_CODE, "Unknown Bridge error");
 		
         if (shouldPenalizeLP(quote, transferredAmountOrErrorCode, callRegistry[quoteHash].timestamp, height)) {
-            uint penalizationAmount = min(quote.penaltyFee, collateral[quote.liquidityProviderRskAddress]); // prevent undeflow when collateral is less than penalty fee.
+            uint penalizationAmount = min(quote.penaltyFee, collateral[quote.liquidityProviderRskAddress]); // prevent underflow when collateral is less than penalty fee.
             collateral[quote.liquidityProviderRskAddress] -= penalizationAmount;
             emit Penalized(quote.liquidityProviderRskAddress, penalizationAmount, quoteHash);
             
             // pay reward to sender
-            uint256 punisherReward = quote.penaltyFee * rewardP / 100;    
-            increaseBalance(msg.sender, punisherReward);           
+            uint256 punisherReward = penalizationAmount * rewardP / 100;
+            increaseBalance(msg.sender, punisherReward);
         }
-				
+        
         if (transferredAmountOrErrorCode == BRIDGE_REFUNDED_LP_ERROR_CODE || transferredAmountOrErrorCode == BRIDGE_REFUNDED_USER_ERROR_CODE) {
             // Bridge cap exceeded
             processedQuotes[quoteHash] = PROCESSED_QUOTE_CODE;
@@ -327,10 +331,10 @@ contract LiquidityBridgeContract {
             emit BridgeCapExceeded(quoteHash, transferredAmountOrErrorCode);
             return transferredAmountOrErrorCode;
         }
-
+        
         // the amount is safely assumed positive because it's already been validated in lines 287/298 there's no (negative) error code being returned by the bridge.
-        uint transferredAmount = uint(transferredAmountOrErrorCode);        
-	
+        uint transferredAmount = uint(transferredAmountOrErrorCode);
+        
         if (callRegistry[quoteHash].timestamp > 0) {
             uint refundAmount;
 
@@ -431,7 +435,6 @@ contract LiquidityBridgeContract {
         @return Boolean indicating whether the penalty applies
      */
     function shouldPenalizeLP(Quote memory quote, int256 amount, uint256 callTimestamp, uint256 height) private view returns (bool) {
-
         // do not penalize if deposit amount is insufficient
         if (amount > 0 && uint256(amount) < quote.value + quote.callFee) {
             return false;
