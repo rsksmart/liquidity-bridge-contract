@@ -346,10 +346,15 @@ contract LiquidityBridgeContract {
             increaseBalance(quote.liquidityProviderRskAddress, refundAmount);
             uint remainingAmount = transferredAmount - refundAmount;
             
-            if (remainingAmount > dust) {
-                quote.rskRefundAddress.transfer(uint(remainingAmount));
-                emit Refund(quote.rskRefundAddress, remainingAmount, quoteHash);
-            }            
+            if (remainingAmount > dust) { // refund rskRefundAddress, if remaining amount greater than dust
+                (bool success, ) = quote.rskRefundAddress.call{value : remainingAmount}("");
+                if (success) {
+                    emit Refund(quote.rskRefundAddress, remainingAmount, quoteHash);
+                } else { // refund LP instead, if for some reason transfer to rskRefundAddress was unsuccessful
+                    increaseBalance(quote.liquidityProviderRskAddress, remainingAmount);
+                    emit Refund(quote.liquidityProviderRskAddress, remainingAmount, quoteHash);
+                }
+            }
         } else {
             uint refundAmount = transferredAmount;
 
@@ -361,11 +366,12 @@ contract LiquidityBridgeContract {
                     refundAmount -= quote.value;
                 }
             }
-            if (refundAmount > dust) {
-                quote.rskRefundAddress.transfer(uint256(refundAmount));
+            if (refundAmount > dust) { // refund rskRefundAddress, if refund amount greater than dust
+                (bool success, ) = quote.rskRefundAddress.call{value : refundAmount}("");
+                require(success, "Refund failed");
                 emit Refund(quote.rskRefundAddress, refundAmount, quoteHash);
             }
-        } 
+        }
         processedQuotes[quoteHash] = PROCESSED_QUOTE_CODE;
         delete callRegistry[quoteHash];
         return transferredAmountOrErrorCode;
