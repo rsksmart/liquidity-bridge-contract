@@ -59,16 +59,12 @@ contract('LiquidityBridgeContract', async accounts => {
 
         let quoteHash = await instance.hashQuote(utils.asArray(quote));
         let sig = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
-        var signer = web3.eth.accounts.recover(quoteHash, sig);
+        let signer = web3.eth.accounts.recover(quoteHash, sig);
 
         expect(liquidityProviderRskAddress).to.be.equal(signer);
-
-        await signatureValidatorInstance.verify(liquidityProviderRskAddress, quoteHash, sig);
-        let sameSigner = await signatureValidatorInstance.verify.call(liquidityProviderRskAddress, quoteHash, sig);
-
-        if(!sameSigner){
-            assert.fail('ecrecover signer does not match with the quoteHash signer.');
-        }
+        
+        let sameSigner = await signatureValidatorInstance.verify(liquidityProviderRskAddress, quoteHash, sig);
+        expect(sameSigner).to.be.true;
 	});
 
     it ('should call contract for user', async () => {

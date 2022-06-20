@@ -23,15 +23,14 @@ const DUST_THRESHOLD = 2300 * 65164000;
 module.exports = async function(deployer, network) {
     await deployer.deploy(SafeMath);
     await deployer.link(SafeMath, LiquidityBridgeContract);
-    await deployer.deploy(SignatureValidator);
-    
-    let minimumPegIn, bridgeAddress, validatorAddress;
+
+    let minimumPegIn, bridgeAddress;
     if (RSK_NETWORKS.includes(network)) { // deploy to actual networks so don't use mocks and use existing bridge.
         bridgeAddress = RSK_BRIDGE_ADDRESS;
-        
-        const validatorInstance = await SignatureValidator.deployed();
-        validatorAddress = validatorInstance.address;
-        
+
+        await deployer.deploy(SignatureValidator);
+        await deployer.link(SignatureValidator, LiquidityBridgeContract);
+
         if (network === RSK_NETWORK_REGTEST) {
             minimumPegIn = MINIMUM_PEG_IN_REGTEST;
         } else {
@@ -39,17 +38,17 @@ module.exports = async function(deployer, network) {
         }
     } else { // test with mocks;
         await deployer.deploy(Mock);
-        
+
         await deployer.deploy(BridgeMock);
         const bridgeMockInstance = await BridgeMock.deployed();
         bridgeAddress = bridgeMockInstance.address;
 
         await deployer.deploy(SignatureValidatorMock);
-        const validatorInstance = await SignatureValidatorMock.deployed();
-        validatorAddress = validatorInstance.address;
+        const signatureValidatorMockInstance = await SignatureValidatorMock.deployed();
+        await LiquidityBridgeContract.link('SignatureValidator', signatureValidatorMockInstance.address);
 
         minimumPegIn = 2;
     }
-    
-    await deployer.deploy(LiquidityBridgeContract, bridgeAddress, MINIMUM_COLLATERAL, minimumPegIn, REWARD_PERCENTAGE, RESIGN_DELAY_BLOCKS, DUST_THRESHOLD, validatorAddress);
+
+    await deployer.deploy(LiquidityBridgeContract, bridgeAddress, MINIMUM_COLLATERAL, minimumPegIn, REWARD_PERCENTAGE, RESIGN_DELAY_BLOCKS, DUST_THRESHOLD);
 };

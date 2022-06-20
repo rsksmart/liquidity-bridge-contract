@@ -74,7 +74,6 @@ contract LiquidityBridgeContract {
     event Refund(address dest, uint amount, bytes32 quoteHash);
 
     Bridge bridge;
-    SignatureValidator signatureValidator;
     mapping(address => uint256) private balances;
     mapping(address => uint256) private collateral;
     mapping(bytes32 => Registry) private callRegistry;
@@ -115,13 +114,11 @@ contract LiquidityBridgeContract {
         @param rewardPercentage The percentage of the penalty fee that an honest party receives when calling registerPegIn in case of a liquidity provider misbehaving
         @param resignDelayBlocks The number of block confirmations that a liquidity provider needs to wait before it can withdraw its collateral
         @param dustThreshold Amount that is considered dust
-        @param signatureValidatorAddress Address of signature validation contract
      */
-    constructor(address bridgeAddress, uint256 minimumCollateral, uint256 minimumPegIn, uint32 rewardPercentage, uint32 resignDelayBlocks, uint dustThreshold, address signatureValidatorAddress) {
+    constructor(address bridgeAddress, uint256 minimumCollateral, uint256 minimumPegIn, uint32 rewardPercentage, uint32 resignDelayBlocks, uint dustThreshold) {
         require(rewardPercentage <= 100, "Invalid reward percentage");
         
         bridge = Bridge(bridgeAddress);
-        signatureValidator = SignatureValidator(signatureValidatorAddress);
         minCollateral = minimumCollateral;
         minPegIn = minimumPegIn;
         rewardP = rewardPercentage;
@@ -300,7 +297,7 @@ contract LiquidityBridgeContract {
 
         // TODO: allow multiple registerPegIns for the same quote with different transactions
         require(processedQuotes[quoteHash] <= CALL_DONE_CODE, "Quote already registered");
-        require(signatureValidator.verify(quote.liquidityProviderRskAddress, quoteHash, signature), "Invalid signature");
+        require(SignatureValidator.verify(quote.liquidityProviderRskAddress, quoteHash, signature), "Invalid signature");
         require(height < uint256(MAX_INT32), "Height must be lower than 2^31");
         
         require(quote.value + quote.callFee >= minPegIn, "Too low transferred amount");
