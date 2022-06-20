@@ -230,10 +230,6 @@ contract('LiquidityBridgeContract', async accounts => {
         await LiquidityBridgeContract.new(bridgeMockInstance.address, 1, 1, 99, 1, 1);
         await LiquidityBridgeContract.new(bridgeMockInstance.address, 1, 1, 100, 1, 1);
 
-        await truffleAssert.fails(
-            LiquidityBridgeContract.new(bridgeMockInstance.address, 1, 1, 101, 1, 1),
-            undefined,
-            'Invalid reward percentage'
-        );
+        await truffleAssert.fails(LiquidityBridgeContract.new(bridgeMockInstance.address, 1, 1, 101, 1, 1));
     });
 });

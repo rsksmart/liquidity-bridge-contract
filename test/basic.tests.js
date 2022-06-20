@@ -46,7 +46,7 @@ contract('LiquidityBridgeContract', async accounts => {
     it ('should fail to register liquidity provider from a contract', async () => {
         let currAddr = accounts[9];
 
-        await truffleAssertions.reverts(mock.callRegister(instance.address, {from : currAddr, value : utils.LP_COLLATERAL}), "Not EOA");
+        await truffleAssertions.fails(mock.callRegister(instance.address, {from : currAddr, value : utils.LP_COLLATERAL}));
     });
 
     it('should match lp address with address retrieved from ecrecover', async () => {
@@ -159,10 +159,10 @@ contract('LiquidityBridgeContract', async accounts => {
             rskRefundAddress,
             web3.utils.toBN(0));
 
-        await truffleAssertions.reverts(instance.callForUser(
+        await truffleAssertions.fails(instance.callForUser(
             utils.asArray(quote),
             {value: quote.val}
-        ), "Too low transferred amount");
+        ));
     });
 
     it ('should transfer value for user', async () => {
