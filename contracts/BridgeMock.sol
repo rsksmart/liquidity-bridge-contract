@@ -20,9 +20,10 @@ contract BridgeMock is Bridge {
     ) external override returns (int256) {
         uint256 amount = amounts[derivationArgumentsHash];
         amounts[derivationArgumentsHash] = 0;
-        liquidityBridgeContractAddress.call{value: amount}("");
+        (bool success, ) = liquidityBridgeContractAddress.call{value: amount}("");
+        require(success, "Sending funds failed");
         return int(amount);
-    }    
+    }
 
     function getBtcBlockchainBlockHeaderByHeight(uint256 height) external view override returns (bytes memory) {
         return headers[height];

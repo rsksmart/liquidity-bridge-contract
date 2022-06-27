@@ -14,6 +14,7 @@ contract LiquidityBridgeContract {
     using SafeMath for uint32;
 
     uint16 constant MAX_CALL_GAS_COST = 35000;
+    uint16 constant MAX_REFUND_GAS_LIMIT = 2300;
 
     uint8 constant UNPROCESSED_QUOTE_CODE = 0;
     uint8 constant CALL_DONE_CODE = 1;
@@ -71,7 +72,7 @@ contract LiquidityBridgeContract {
     event BalanceIncrease(address dest, uint amount);
     event BalanceDecrease(address dest, uint amount);
     event BridgeError(bytes32 quoteHash, int256 errorCode);
-    event Refund(address dest, uint amount, bytes32 quoteHash);
+    event Refund(address dest, uint amount, bool success, bytes32 quoteHash);
 
     Bridge bridge;
     mapping(address => uint256) private balances;
@@ -343,26 +344,30 @@ contract LiquidityBridgeContract {
             increaseBalance(quote.liquidityProviderRskAddress, refundAmount);
             uint remainingAmount = transferredAmount - refundAmount;
             
-            if (remainingAmount > dust) {
-                quote.rskRefundAddress.transfer(uint(remainingAmount));
-                emit Refund(quote.rskRefundAddress, remainingAmount, quoteHash);
-            }            
+            if (remainingAmount > dust) { // refund rskRefundAddress, if remaining amount greater than dust
+                (bool success, ) = quote.rskRefundAddress.call{gas: MAX_REFUND_GAS_LIMIT, value: remainingAmount}("");
+                emit Refund(quote.rskRefundAddress, remainingAmount, success, quoteHash);
+                
+                if (!success) { // transfer funds to LP instead, if for some reason transfer to rskRefundAddress was unsuccessful
+                    increaseBalance(quote.liquidityProviderRskAddress, remainingAmount);
+                }
+            }
         } else {
             uint refundAmount = transferredAmount;
 
             if (quote.callOnRegister && refundAmount >= quote.value) {
-                (bool callSuccess, ) = quote.contractAddress.call{gas:quote.gasLimit, value: quote.value}(quote.data);
+                (bool callSuccess, ) = quote.contractAddress.call{gas: quote.gasLimit, value: quote.value}(quote.data);
                 emit CallForUser(msg.sender, quote.contractAddress, quote.gasLimit, quote.value, quote.data, callSuccess, quoteHash);
 
                 if (callSuccess) {
                     refundAmount -= quote.value;
                 }
             }
-            if (refundAmount > dust) {
-                quote.rskRefundAddress.transfer(uint256(refundAmount));
-                emit Refund(quote.rskRefundAddress, refundAmount, quoteHash);
+            if (refundAmount > dust) { // refund rskRefundAddress, if refund amount greater than dust
+                (bool success, ) = quote.rskRefundAddress.call{gas: MAX_REFUND_GAS_LIMIT, value: refundAmount}("");
+                emit Refund(quote.rskRefundAddress, refundAmount, success, quoteHash);
             }
-        } 
+        }
         processedQuotes[quoteHash] = PROCESSED_QUOTE_CODE;
         delete callRegistry[quoteHash];
         return transferredAmountOrErrorCode;
