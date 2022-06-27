@@ -1,6 +1,5 @@
 const LiquidityBridgeContract = artifacts.require('LiquidityBridgeContract');
 const BridgeMock = artifacts.require("BridgeMock");
-const SignatureValidator = artifacts.require('SignatureValidator');
 const Mock = artifacts.require('Mock')
 const truffleAssert = require('truffle-assertions');
 const utils = require('../test/utils/index');
@@ -14,13 +13,11 @@ const expect = chai.expect;
 contract('LiquidityBridgeContract', async accounts => {
     let instance;
     let bridgeMockInstance;
-    let validatorInstance;
     const liquidityProviderRskAddress = accounts[0];
 
     before(async () => {
         instance = await LiquidityBridgeContract.deployed();
         bridgeMockInstance = await BridgeMock.deployed();
-        validatorInstance = await SignatureValidator.deployed();
         mock = await Mock.deployed()
     });
 
@@ -228,15 +225,11 @@ contract('LiquidityBridgeContract', async accounts => {
     });
 
     it ('should validate reward percentage arg in ctor', async () => {
-        await LiquidityBridgeContract.new(bridgeMockInstance.address, 1, 1, 0, 1, 1, validatorInstance.address);
-        await LiquidityBridgeContract.new(bridgeMockInstance.address, 1, 1, 1, 1, 1, validatorInstance.address);
-        await LiquidityBridgeContract.new(bridgeMockInstance.address, 1, 1, 99, 1, 1, validatorInstance.address);
-        await LiquidityBridgeContract.new(bridgeMockInstance.address, 1, 1, 100, 1, 1, validatorInstance.address);
+        await LiquidityBridgeContract.new(bridgeMockInstance.address, 1, 1, 0, 1, 1);
+        await LiquidityBridgeContract.new(bridgeMockInstance.address, 1, 1, 1, 1, 1);
+        await LiquidityBridgeContract.new(bridgeMockInstance.address, 1, 1, 99, 1, 1);
+        await LiquidityBridgeContract.new(bridgeMockInstance.address, 1, 1, 100, 1, 1);
 
-        await truffleAssert.fails(
-            LiquidityBridgeContract.new(bridgeMockInstance.address, 1, 1, 101, 1, 1, validatorInstance.address),
-            undefined,
-            'Invalid reward percentage'
-        );
+        await truffleAssert.fails(LiquidityBridgeContract.new(bridgeMockInstance.address, 1, 1, 101, 1, 1));
     });
 });

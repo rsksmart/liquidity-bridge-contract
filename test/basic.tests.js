@@ -46,7 +46,7 @@ contract('LiquidityBridgeContract', async accounts => {
     it ('should fail to register liquidity provider from a contract', async () => {
         let currAddr = accounts[9];
 
-        await truffleAssertions.reverts(mock.callRegister(instance.address, {from : currAddr, value : utils.LP_COLLATERAL}), "Not EOA");
+        await truffleAssertions.fails(mock.callRegister(instance.address, {from : currAddr, value : utils.LP_COLLATERAL}));
     });
 
     it('should match lp address with address retrieved from ecrecover', async () => {
@@ -59,16 +59,12 @@ contract('LiquidityBridgeContract', async accounts => {
 
         let quoteHash = await instance.hashQuote(utils.asArray(quote));
         let sig = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
-        var signer = web3.eth.accounts.recover(quoteHash, sig);
+        let signer = web3.eth.accounts.recover(quoteHash, sig);
 
         expect(liquidityProviderRskAddress).to.be.equal(signer);
-
-        await signatureValidatorInstance.verify(liquidityProviderRskAddress, quoteHash, sig);
-        let sameSigner = await signatureValidatorInstance.verify.call(liquidityProviderRskAddress, quoteHash, sig);
-
-        if(!sameSigner){
-            assert.fail('ecrecover signer does not match with the quoteHash signer.');
-        }
+        
+        let sameSigner = await signatureValidatorInstance.verify(liquidityProviderRskAddress, quoteHash, sig);
+        expect(sameSigner).to.be.true;
 	});
 
     it ('should call contract for user', async () => {
@@ -163,10 +159,10 @@ contract('LiquidityBridgeContract', async accounts => {
             rskRefundAddress,
             web3.utils.toBN(0));
 
-        await truffleAssertions.reverts(instance.callForUser(
+        await truffleAssertions.fails(instance.callForUser(
             utils.asArray(quote),
             {value: quote.val}
-        ), "Too low transferred amount");
+        ));
     });
 
     it ('should transfer value for user', async () => {

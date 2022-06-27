@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.3;
 
-contract SignatureValidator {
+library SignatureValidator {
     /**
         @dev Verfies signature against address
         @param addr The signing address
@@ -9,7 +9,7 @@ contract SignatureValidator {
         @param signature The signature containing v, r and s
         @return True if the signature is valid, false otherwise.
      */
-    function verify(address addr, bytes32 quoteHash, bytes memory signature) public pure virtual returns (bool) {
+    function verify(address addr, bytes32 quoteHash, bytes memory signature) public pure returns (bool) {
         bytes32 r;
         bytes32 s;
         uint8 v;
