@@ -251,7 +251,7 @@ contract LiquidityBridgeContract {
         require(msg.sender == quote.liquidityProviderRskAddress, "Unauthorized");
         require(balances[quote.liquidityProviderRskAddress] + msg.value >= quote.value, "Insufficient funds");
 
-        bytes32 quoteHash = hashQuote(quote);
+        bytes32 quoteHash = validateAndHashQuote(quote);
         require(processedQuotes[quoteHash] == UNPROCESSED_QUOTE_CODE, "Quote already processed");
 
         increaseBalance(quote.liquidityProviderRskAddress, msg.value);
@@ -288,7 +288,7 @@ contract LiquidityBridgeContract {
         bytes memory partialMerkleTree, 
         uint256 height
     ) public noReentrancy returns (int256) {
-        bytes32 quoteHash = hashQuote(quote);
+        bytes32 quoteHash = validateAndHashQuote(quote);
 
         // TODO: allow multiple registerPegIns for the same quote with different transactions
         require(processedQuotes[quoteHash] <= CALL_DONE_CODE, "Quote already registered");
@@ -366,13 +366,22 @@ contract LiquidityBridgeContract {
         delete callRegistry[quoteHash];
         return transferredAmountOrErrorCode;
     }
-    
+
+    /**
+        @dev Calculates hash of a quote. Note: besides calculation this function also validates the quote.
+        @param quote The quote of the service
+        @return The hash of a quote
+     */
     function hashQuote(Quote memory quote) public view returns (bytes32) {
+        return validateAndHashQuote(quote);
+    }
+
+    function validateAndHashQuote(Quote memory quote) private view returns (bytes32) {
         require(address(this) == quote.lbcAddress, "Wrong LBC address");
         require(quote.btcRefundAddress.length == 21, "BTC refund address must be 21 bytes long");
         require(quote.liquidityProviderBtcAddress.length == 21, "BTC LP address must be 21 bytes long");
         require(quote.value + quote.callFee >= minPegIn, "Too low agreed amount");
-        
+
         return keccak256(encodeQuote(quote));
     }
     
