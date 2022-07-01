@@ -250,12 +250,9 @@ contract LiquidityBridgeContract {
     function callForUser(Quote memory quote) external payable onlyRegistered noReentrancy returns (bool) {
         require(msg.sender == quote.liquidityProviderRskAddress, "Unauthorized");
         require(balances[quote.liquidityProviderRskAddress] + msg.value >= quote.value, "Insufficient funds");
-        require(address(this) == quote.lbcAddress, "Wrong LBC address");
 
         bytes32 quoteHash = hashQuote(quote);
         require(processedQuotes[quoteHash] == UNPROCESSED_QUOTE_CODE, "Quote already processed");
-        
-        require(quote.value + quote.callFee >= minPegIn, "Too low transferred amount");
 
         increaseBalance(quote.liquidityProviderRskAddress, msg.value);
 
@@ -293,15 +290,10 @@ contract LiquidityBridgeContract {
     ) public noReentrancy returns (int256) {
         bytes32 quoteHash = hashQuote(quote);
 
-        require(quote.btcRefundAddress.length == 21, "BTC refund address must be 21 bytes long");
-        require(quote.liquidityProviderBtcAddress.length == 21, "BTC LP address must be 21 bytes long");
-
         // TODO: allow multiple registerPegIns for the same quote with different transactions
         require(processedQuotes[quoteHash] <= CALL_DONE_CODE, "Quote already registered");
         require(SignatureValidator.verify(quote.liquidityProviderRskAddress, quoteHash, signature), "Invalid signature");
         require(height < uint256(MAX_INT32), "Height must be lower than 2^31");
-        
-        require(quote.value + quote.callFee >= minPegIn, "Too low transferred amount");
 		
         int256 transferredAmountOrErrorCode = registerBridge(quote, btcRawTransaction, partialMerkleTree, height, quoteHash);
 
@@ -332,6 +324,8 @@ contract LiquidityBridgeContract {
         
         // the amount is safely assumed positive because it's already been validated in lines 287/298 there's no (negative) error code being returned by the bridge.
         uint transferredAmount = uint(transferredAmountOrErrorCode);
+
+        checkAgreedAmount(quote, transferredAmount);
         
         if (callRegistry[quoteHash].timestamp > 0) {
             uint refundAmount;
@@ -372,11 +366,23 @@ contract LiquidityBridgeContract {
         delete callRegistry[quoteHash];
         return transferredAmountOrErrorCode;
     }
-
-    function hashQuote(Quote memory quote) public pure returns (bytes32) { 
-        return keccak256(encodeQuote(quote));        
+    
+    function hashQuote(Quote memory quote) public view returns (bytes32) {
+        require(address(this) == quote.lbcAddress, "Wrong LBC address");
+        require(quote.btcRefundAddress.length == 21, "BTC refund address must be 21 bytes long");
+        require(quote.liquidityProviderBtcAddress.length == 21, "BTC LP address must be 21 bytes long");
+        require(quote.value + quote.callFee >= minPegIn, "Too low agreed amount");
+        
+        return keccak256(encodeQuote(quote));
     }
-
+    
+    function checkAgreedAmount(Quote memory quote, uint transferredAmount) private pure {
+        uint agreedAmount = quote.value + quote.callFee;
+        uint delta = agreedAmount / 10000;
+        // transferred amount should not be lower than (agreed amount - delta), where delta is intended to tackle rounding problems
+        require(transferredAmount >= agreedAmount - delta, "Too low transferred amount");
+    }
+    
     function min(uint a, uint b) private pure returns (uint) {
         return a < b ? a : b;
     }

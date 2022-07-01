@@ -55,7 +55,8 @@ contract('LiquidityBridgeContract', async accounts => {
             accounts[1],
             '0x00', 
             liquidityProviderRskAddress, 
-            accounts[2]);
+            accounts[2],
+            web3.utils.toBN(1));
 
         let quoteHash = await instance.hashQuote(utils.asArray(quote));
         let sig = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
@@ -99,17 +100,17 @@ contract('LiquidityBridgeContract', async accounts => {
         await bridgeMockInstance.setHeader(height + quote.depositConfirmations - 1, nHeader);
         await mock.set(0);
 
-        initialLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
+        let initialLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
         var cfuTx = await instance.callForUser(
             utils.asArray(quote),
             {value: quote.val}
         );
 
-        currentLPBalance = await instance.getBalance(liquidityProviderRskAddress);        
+        let currentLPBalance = await instance.getBalance(liquidityProviderRskAddress);        
 
         expect(currentLPBalance).to.be.a.bignumber.eq(initialLPBalance);
-            
-        amount = await instance.registerPegIn.call(
+
+        let amount = await instance.registerPegIn.call(
             utils.asArray(quote),
             signature,
             btcRawTransaction,
@@ -125,9 +126,9 @@ contract('LiquidityBridgeContract', async accounts => {
             height
         );
 
-        finalLPBalance = await instance.getBalance(liquidityProviderRskAddress);
-        finalLBCBalance = await web3.eth.getBalance(instance.address);
-        finalLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
+        let finalLPBalance = await instance.getBalance(liquidityProviderRskAddress);
+        let finalLBCBalance = await web3.eth.getBalance(instance.address);
+        let finalLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
 
         let lpBal = web3.utils.toBN(finalLPBalance).sub(web3.utils.toBN(initialLPBalance));
         let lbcBal = web3.utils.toBN(finalLBCBalance).sub(web3.utils.toBN(initialLBCBalance));
@@ -143,14 +144,89 @@ contract('LiquidityBridgeContract', async accounts => {
             success: true,
             quoteHash: quoteHash
         });
-        finalValue = await mock.check();
+        let finalValue = await mock.check();
         expect(web3.utils.toBN(12)).to.be.a.bignumber.eq(finalValue);
     });
 
-    it ('should fail to call contract for user due to quote amount being below min peg-in', async () => {
+    it ('should fail on contract call due to invalid lbc address', async () => {
         let rskRefundAddress = accounts[2];
         let destAddr = mock.address;
         let data = web3.eth.abi.encodeFunctionCall(mock.abi[0], ['12']);
+        let signature = '0x00';
+        let btcRawTransaction = '0x101';
+        let partialMerkleTree = '0x202';
+        let height = 10;
+        let quote = utils.getTestQuote(
+            accounts[0], // non-LBC address
+            destAddr,
+            data,
+            liquidityProviderRskAddress,
+            rskRefundAddress,
+            web3.utils.toBN(0));
+
+        await truffleAssertions.reverts(instance.hashQuote.call(
+            utils.asArray(quote)
+        ), 'Wrong LBC address');
+
+        await truffleAssertions.reverts(instance.callForUser.call(
+            utils.asArray(quote),
+            {value: quote.val}
+        ), 'Wrong LBC address');
+
+        await truffleAssertions.reverts(instance.registerPegIn.call(
+            utils.asArray(quote),
+            signature,
+            btcRawTransaction,
+            partialMerkleTree,
+            height
+        ), 'Wrong LBC address');
+    });
+
+    it ('should fail on contract call due to invalid user btc refund address', async () => {
+        let rskRefundAddress = accounts[2];
+        let destAddr = mock.address;
+        let data = web3.eth.abi.encodeFunctionCall(mock.abi[0], ['12']);
+        let signature = '0x00';
+        let btcRawTransaction = '0x101';
+        let partialMerkleTree = '0x202';
+        let height = 10;
+        let quote = utils.getTestQuote(
+            instance.address,
+            destAddr,
+            data,
+            liquidityProviderRskAddress,
+            rskRefundAddress,
+            web3.utils.toBN(0));
+        for (let addr of ['0x0000000000000000000000000000000000000012' /* 20 bytes */, '0x00000000000000000000000000000000000000000012' /* 22 bytes */]) {
+            quote.userBtcRefundAddress = addr;
+
+            await truffleAssertions.reverts(instance.hashQuote.call(
+                utils.asArray(quote)
+            ), 'BTC refund address must be 21 bytes long');
+
+            await truffleAssertions.reverts(instance.callForUser.call(
+                utils.asArray(quote),
+                {value: quote.val}
+            ), 'BTC refund address must be 21 bytes long');
+
+            await truffleAssertions.reverts(instance.registerPegIn.call(
+                utils.asArray(quote),
+                signature,
+                btcRawTransaction,
+                partialMerkleTree,
+                height
+            ), 'BTC refund address must be 21 bytes long');
+        }
+    });
+
+    it ('should fail on contract call due to invalid lp btc address', async () => {
+        let rskRefundAddress = accounts[2];
+        let destAddr = mock.address;
+        let data = web3.eth.abi.encodeFunctionCall(mock.abi[0], ['12']);
+        let signature = '0x00';
+        let btcRawTransaction = '0x101';
+        let partialMerkleTree = '0x202';
+        let height = 10;
         let quote = utils.getTestQuote(
             instance.address,
             destAddr,
@@ -159,10 +235,60 @@ contract('LiquidityBridgeContract', async accounts => {
             rskRefundAddress,
             web3.utils.toBN(0));
 
-        await truffleAssertions.fails(instance.callForUser(
+        for (let addr of ['0x0000000000000000000000000000000000000012' /* 20 bytes */, '0x00000000000000000000000000000000000000000012' /* 22 bytes */]) {
+            quote.liquidityProviderBtcAddress = addr;
+
+            await truffleAssertions.reverts(instance.hashQuote.call(
+                utils.asArray(quote)
+            ), 'BTC LP address must be 21 bytes long');
+
+            await truffleAssertions.reverts(instance.callForUser.call(
+                utils.asArray(quote),
+                {value: quote.val}
+            ), 'BTC LP address must be 21 bytes long');
+
+            await truffleAssertions.reverts(instance.registerPegIn.call(
+                utils.asArray(quote),
+                signature,
+                btcRawTransaction,
+                partialMerkleTree,
+                height
+            ), 'BTC LP address must be 21 bytes long');
+        }
+    });
+
+    it ('should fail on contract call due to quote value+fee being below min peg-in', async () => {
+        let rskRefundAddress = accounts[2];
+        let destAddr = mock.address;
+        let data = web3.eth.abi.encodeFunctionCall(mock.abi[0], ['12']);
+        let signature = '0x00';
+        let btcRawTransaction = '0x101';
+        let partialMerkleTree = '0x202';
+        let height = 10;
+        let quote = utils.getTestQuote(
+            instance.address,
+            destAddr,
+            data,
+            liquidityProviderRskAddress,
+            rskRefundAddress,
+            web3.utils.toBN(0));
+
+        await truffleAssertions.reverts(instance.hashQuote.call(
+            utils.asArray(quote)
+        ), 'Too low agreed amount');
+
+        await truffleAssertions.reverts(instance.callForUser.call(
             utils.asArray(quote),
             {value: quote.val}
-        ));
+        ), 'Too low agreed amount');
+
+        await truffleAssertions.reverts(instance.registerPegIn.call(
+            utils.asArray(quote),
+            signature,
+            btcRawTransaction,
+            partialMerkleTree,
+            height
+        ), 'Too low agreed amount');
     });
 
     it ('should transfer value for user', async () => {
@@ -194,17 +320,17 @@ contract('LiquidityBridgeContract', async accounts => {
         await bridgeMockInstance.setPegin(quoteHash, {value : peginAmount});
         await bridgeMockInstance.setHeader(height, firstHeader);
         await bridgeMockInstance.setHeader(height + quote.depositConfirmations - 1, nHeader);
-        initialLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
+        let initialLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
 
         let cfuTx = await instance.callForUser(
             utils.asArray(quote),
             {value : quote.val}
         );
 
-        currentLPBalance = await instance.getBalance(liquidityProviderRskAddress);
+        let currentLPBalance = await instance.getBalance(liquidityProviderRskAddress);
         expect(currentLPBalance).to.be.a.bignumber.eq(initialLPBalance);
 
-        amount = await instance.registerPegIn.call(
+        let amount = await instance.registerPegIn.call(
             utils.asArray(quote),
             signature,
             btcRawTransaction,
@@ -220,10 +346,10 @@ contract('LiquidityBridgeContract', async accounts => {
             height
         );
 
-        finalLPBalance = await instance.getBalance(liquidityProviderRskAddress);
-        finalLBCBalance = await web3.eth.getBalance(instance.address);
-        finalUserBalance = await web3.eth.getBalance(destAddr);
-        finalLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
+        let finalLPBalance = await instance.getBalance(liquidityProviderRskAddress);
+        let finalLBCBalance = await web3.eth.getBalance(instance.address);
+        let finalUserBalance = await web3.eth.getBalance(destAddr);
+        let finalLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
 
         let lbcBal = web3.utils.toBN(finalLBCBalance).sub(web3.utils.toBN(initialLBCBalance));
         let lpBal = web3.utils.toBN(finalLPBalance).sub(web3.utils.toBN(initialLPBalance));
