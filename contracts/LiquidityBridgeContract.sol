@@ -296,8 +296,6 @@ contract LiquidityBridgeContract {
         require(quote.btcRefundAddress.length == 21, "BTC refund address must be 21 bytes long");
         require(quote.liquidityProviderBtcAddress.length == 21, "BTC LP address must be 21 bytes long");
 
-        // TODO: allow multiple registerPegIns for the same quote with different transactions
-        require(processedQuotes[quoteHash] <= CALL_DONE_CODE, "Quote already registered");
         require(SignatureValidator.verify(quote.liquidityProviderRskAddress, quoteHash, signature), "Invalid signature");
         require(height < uint256(MAX_INT32), "Height must be lower than 2^31");
         
