@@ -148,6 +148,39 @@ contract('LiquidityBridgeContract', async accounts => {
         expect(web3.utils.toBN(12)).to.be.a.bignumber.eq(finalValue);
     });
 
+    it ('should fail when withdraw amount greater than of sender balance', async () => {        
+        await instance.deposit({value: web3.utils.toBN("100000000")});
+        await truffleAssertions.reverts(instance.withdraw(web3.utils.toBN("99999999999999999999")
+        ), 'Insufficient funds');
+        await instance.withdraw(web3.utils.toBN("100000000"));
+    });
+
+    it ('should fail when liquidityProdvider try to withdraw collateral without resign postion as liquidity provider before', async () => {        
+        await instance.addCollateral({value: web3.utils.toBN("100000000")});
+        await truffleAssertions.reverts(instance.withdrawCollateral()
+        , 'Need to resign first');
+        await instance.resign();
+        await instance.withdrawCollateral();
+    });
+
+    it ('should fail when liquidityProdvider resign two times', async () => {        
+        await instance.resign();
+        await truffleAssertions.reverts(instance.resign()
+        , 'Not registered');
+        await instance.withdrawCollateral();
+    });
+
+
+    it ('should deposit a value to increase balance of liquidity provider', async () => {   
+        const value = web3.utils.toBN("100000000");     
+        const tx = await instance.deposit({value});
+        truffleAssertions.eventEmitted(tx, "BalanceIncrease", { 
+            dest: liquidityProviderRskAddress,
+            amount: value
+        });
+    });
+
+
     it ('should fail on contract call due to invalid lbc address', async () => {
         let rskRefundAddress = accounts[2];
         let destAddr = mock.address;
@@ -181,6 +214,7 @@ contract('LiquidityBridgeContract', async accounts => {
             height
         ), 'Wrong LBC address');
     });
+
 
     it ('should fail on contract call due to invalid user btc refund address', async () => {
         let rskRefundAddress = accounts[2];
