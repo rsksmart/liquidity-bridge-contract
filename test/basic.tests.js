@@ -180,7 +180,6 @@ contract('LiquidityBridgeContract', async accounts => {
         });
     });
 
-
     it ('should fail on contract call due to invalid lbc address', async () => {
         let rskRefundAddress = accounts[2];
         let destAddr = mock.address;
@@ -215,6 +214,39 @@ contract('LiquidityBridgeContract', async accounts => {
         ), 'Wrong LBC address');
     });
 
+    it ('should fail on contract call due to invalid contract address', async () => {
+        let rskRefundAddress = accounts[2];
+        let destAddr = bridgeMockInstance.address
+        let data = web3.eth.abi.encodeFunctionCall(mock.abi[0], ['12']);
+        let signature = '0x00';
+        let btcRawTransaction = '0x101';
+        let partialMerkleTree = '0x202';
+        let height = 10;
+        let quote = utils.getTestQuote(
+            instance.address,
+            destAddr,
+            data,
+            liquidityProviderRskAddress,
+            rskRefundAddress,
+            web3.utils.toBN(0));
+
+        await truffleAssertions.reverts(instance.hashQuote.call(
+            utils.asArray(quote)
+        ), 'Wrong contract address');
+
+        await truffleAssertions.reverts(instance.callForUser.call(
+            utils.asArray(quote),
+            {value: quote.val}
+        ), 'Wrong contract address');
+
+        await truffleAssertions.reverts(instance.registerPegIn.call(
+            utils.asArray(quote),
+            signature,
+            btcRawTransaction,
+            partialMerkleTree,
+            height
+        ), 'Wrong contract address');
+    });
 
     it ('should fail on contract call due to invalid user btc refund address', async () => {
         let rskRefundAddress = accounts[2];
