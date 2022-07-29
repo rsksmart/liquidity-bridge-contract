@@ -232,12 +232,12 @@ contract('LiquidityBridgeContract', async accounts => {
 
         await truffleAssertions.reverts(instance.hashQuote.call(
             utils.asArray(quote)
-        ), 'Wrong contract address');
+        ), 'Bridge is not an accepted contract address');
 
         await truffleAssertions.reverts(instance.callForUser.call(
             utils.asArray(quote),
             {value: quote.val}
-        ), 'Wrong contract address');
+        ), 'Bridge is not an accepted contract address');
 
         await truffleAssertions.reverts(instance.registerPegIn.call(
             utils.asArray(quote),
@@ -245,7 +245,7 @@ contract('LiquidityBridgeContract', async accounts => {
             btcRawTransaction,
             partialMerkleTree,
             height
-        ), 'Wrong contract address');
+        ), 'Bridge is not an accepted contract address');
     });
 
     it ('should fail on contract call due to invalid user btc refund address', async () => {

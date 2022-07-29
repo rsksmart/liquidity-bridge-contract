@@ -378,7 +378,7 @@ contract LiquidityBridgeContract {
 
     function validateAndHashQuote(Quote memory quote) private view returns (bytes32) {
         require(address(this) == quote.lbcAddress, "Wrong LBC address");
-        require(address(bridge) != quote.contractAddress, "Wrong contract address");
+        require(address(bridge) != quote.contractAddress, "Bridge is not an accepted contract address");
         require(quote.btcRefundAddress.length == 21, "BTC refund address must be 21 bytes long");
         require(quote.liquidityProviderBtcAddress.length == 21, "BTC LP address must be 21 bytes long");
         require(quote.value + quote.callFee >= minPegIn, "Too low agreed amount");
