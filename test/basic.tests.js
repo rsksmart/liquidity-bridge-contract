@@ -42,6 +42,47 @@ contract('LiquidityBridgeContract', async accounts => {
         });
         expect(utils.LP_COLLATERAL).to.be.a.bignumber.eq(registered);
     });
+    
+    it('Should fail on register if is already registered', async () => {
+        let currAddr = accounts[7];
+
+        let tx = await instance.register({from: currAddr, value : utils.LP_COLLATERAL});
+        
+        truffleAssertions.eventEmitted(tx, "Register", { 
+            from: currAddr
+        });
+        
+        await truffleAssertions.reverts(
+            instance.register({from: currAddr, value : utils.LP_COLLATERAL}),
+            "Already registered"
+        );
+    });
+
+    it('Should fail on register if not deposit the minimum collateral', async () => {
+        let currAddr = accounts[5];
+
+        await truffleAssertions.reverts(
+            instance.register({from: currAddr, value : web3.utils.toBN(0)}),
+            "Not enough collateral"
+        );
+    });
+
+    it('Should fail on register if where resigned but not withdrawn', async () => {
+        let currAddr = accounts[6];
+
+        const tx = await instance.register({from: currAddr, value : utils.LP_COLLATERAL});
+        truffleAssertions.eventEmitted(tx, "Register", { 
+            from: currAddr
+        });
+        const resignTx = await instance.resign({ from: currAddr });
+        truffleAssertions.eventEmitted(resignTx, "Resigned", { 
+            from: currAddr
+        });
+        await truffleAssertions.reverts(
+            instance.register({from: currAddr, value : utils.LP_COLLATERAL}),
+            "Already registered"
+        );
+    });
 
     it ('should fail to register liquidity provider from a contract', async () => {
         let currAddr = accounts[9];
