@@ -58,11 +58,13 @@ function timeout(ms) {
 }
 
 const LP_COLLATERAL = web3.utils.toBN(100);
+const ONE_COLLATERAL = web3.utils.toBN(1);
 
 module.exports = {
     getTestQuote,
     asArray,
     ensureLiquidityProviderAvailable,
     LP_COLLATERAL,
+    ONE_COLLATERAL,
     timeout
   };
