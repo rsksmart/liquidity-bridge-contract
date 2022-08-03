@@ -43,6 +43,18 @@ contract('LiquidityBridgeContract', async accounts => {
         expect(utils.LP_COLLATERAL).to.be.a.bignumber.eq(registered);
     });
 
+    it('should not register lp again', async () => {
+        const dupAddr = accounts[8];
+        await truffleAssertions.reverts(instance.register({from: dupAddr, value : utils.LP_COLLATERAL}), 'Already registered')
+    })
+
+    it('should not register lp with not enough collateral', async () => {
+        const minCollateral = await instance.getMinCollateral();
+
+        const lessThanMinimum = minCollateral.sub(utils.ONE_COLLATERAL)
+        await truffleAssertions.reverts(instance.register({from: accounts[1], value : lessThanMinimum}), 'Not enough collateral')
+    })
+
     it ('should fail to register liquidity provider from a contract', async () => {
         let currAddr = accounts[9];
 
