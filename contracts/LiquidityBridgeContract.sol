@@ -491,25 +491,21 @@ contract LiquidityBridgeContract {
         @param header The block header
         @return The timestamp of the block header
      */
-    function getBtcBlockTimestamp(bytes memory header) private pure returns (uint256) {
-        // bitcoin header is 80 bytes and timestamp is 4 bytes from byte 68 to byte 71 (both inclusive) 
+    function getBtcBlockTimestamp(bytes memory header) public pure returns (uint256) {
+        // bitcoin header is 80 bytes and timestamp is 4 bytes from byte 68 to byte 71 (both inclusive)
+        require(header.length == 80, "invalid header length");
+
         return sliceUint32FromLSB(header, 68);
     }
 
 	// bytes must have at least 28 bytes before the uint32
-	function sliceUint32FromLSB(bytes memory bs, uint start)
+	function sliceUint32FromLSB(bytes memory bs, uint offset)
     internal pure
     returns (uint32)
 	{
-		require(bs.length >= start + 4, "slicing out of range");
-		require(bs.length >= 32, "slicing out of range");
-		start -=28;
-		uint x;
-		assembly {
-			x := mload(add(bs, add(0x20, start)))
-		}
-		return uint32(x);
-		//return (uint32) (x & (1<<32-1));
+        require(bs.length >= offset + 4, "slicing out of range");
+
+        return uint32(uint8(bs[offset])) | uint32(uint8(bs[offset + 1])) << 8 | uint32(uint8(bs[offset + 2])) << 16 | uint32(uint8(bs[offset + 3])) << 24;
 	}
 
     function encodeQuote(Quote memory quote) private pure returns (bytes memory) {
