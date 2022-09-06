@@ -73,6 +73,7 @@ contract LiquidityBridgeContract {
     event BalanceDecrease(address dest, uint amount);
     event BridgeError(bytes32 quoteHash, int256 errorCode);
     event Refund(address dest, uint amount, bool success, bytes32 quoteHash);
+    event PegOut(address from, uint256 amount, bytes32 quotehash, uint processed);
 
     Bridge bridge;
     mapping(address => uint256) private balances;
@@ -365,6 +366,34 @@ contract LiquidityBridgeContract {
         processedQuotes[quoteHash] = PROCESSED_QUOTE_CODE;
         delete callRegistry[quoteHash];
         return transferredAmountOrErrorCode;
+    }
+
+    function registerPegOut(
+        Quote memory quote,
+        bytes memory signature,
+//        bytes memory btcRawTransaction,
+//        bytes memory partialMerkleTree,
+        uint256 height
+    ) public noReentrancy returns (int256) {
+
+        // check quote.lbcAddress if its valid
+        //todo: should it be validateAndHashQuoteis enough or require(address(this) == quote.lbcAddress, "Wrong LBC address"); ?
+        bytes32 quoteHash = validateAndHashQuote(quote);
+
+        // check if signature is valid
+        require(SignatureValidator.verify(quote.liquidityProviderRskAddress, quoteHash, signature), "Invalid signature");
+
+        // quote.depositHeightLimit is less or equal to the current height
+        require(height <= block.number, "Block height overflown");
+
+        // todo: do we need to registerBridge?
+
+        require(processedQuotes[quoteHash] == 0, "Quote already processed");
+        processedQuotes[quoteHash] = PROCESSED_QUOTE_CODE;
+
+        emit PegOut(msg.sender, quote.value, quoteHash, processedQuotes[quoteHash]);
+
+    return 0;
     }
 
     /**
