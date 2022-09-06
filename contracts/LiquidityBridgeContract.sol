@@ -371,8 +371,6 @@ contract LiquidityBridgeContract {
     function registerPegOut(
         Quote memory quote,
         bytes memory signature,
-//        bytes memory btcRawTransaction,
-//        bytes memory partialMerkleTree,
         uint256 height
     ) public noReentrancy returns (int256) {
 
@@ -388,7 +386,7 @@ contract LiquidityBridgeContract {
 
         // todo: do we need to registerBridge?
 
-        require(processedQuotes[quoteHash] == 0, "Quote already processed");
+        require(processedQuotes[quoteHash] == 1, "Quote already pegged out");
         processedQuotes[quoteHash] = PROCESSED_QUOTE_CODE;
 
         emit PegOut(msg.sender, quote.value, quoteHash, processedQuotes[quoteHash]);

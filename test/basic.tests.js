@@ -650,6 +650,6 @@ contract('LiquidityBridgeContract', async accounts => {
 
         const pegOutCall = instance.registerPegOut.call(utils.asArray(quote), signature, height);
 
-        await truffleAssertions.reverts(pegOutCall, "Quote already registered")
+        await truffleAssertions.reverts(pegOutCall, "Quote already pegged out")
     })
 });
