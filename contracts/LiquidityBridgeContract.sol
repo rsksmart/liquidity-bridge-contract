@@ -381,12 +381,20 @@ contract LiquidityBridgeContract {
         require(SignatureValidator.verify(quote.liquidityProviderRskAddress, quoteHash, signature), "LBC: Invalid signature");
 
         // quote.depositHeightLimit is less or equal to the current height
-        require(height <= block.number, "LBC: Block height overflown");
+        require(quote.timeForDeposit <= block.timestamp, "LBC: Block height overflown");
 
-        // todo: do we need to registerBridge?
-
-        require(processedQuotes[quoteHash] == 1, "LBC: Quote already pegged out");
+//        require(processedQuotes[quoteHash] == 1, "LBC: Quote already pegged out");
         processedQuotes[quoteHash] = PROCESSED_QUOTE_CODE;
+
+        uint256 valueToTransfer = quote.value + quote.callFee;
+        // todo: verify if valueToTransfer is available
+
+        // transfer  quote.valueToTransfer + quote.fee
+        payable(this).send(valueToTransfer); // todo: check if payable fails?
+//        (bool success, ) = send{value : valueToTransfer}("");
+
+        increaseBalance(msg.sender, valueToTransfer);
+        callRegistry[quoteHash].timestamp = uint32(block.timestamp);
 
         emit PegOut(msg.sender, quote.value, quoteHash, processedQuotes[quoteHash]);
 

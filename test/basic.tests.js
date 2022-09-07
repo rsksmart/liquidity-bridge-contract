@@ -610,6 +610,8 @@ contract('LiquidityBridgeContract', async accounts => {
         const height = 10;
         const callData = web3.eth.abi.encodeFunctionCall(mock.abi[0], ['99'])
 
+        const userBalanceBefore = await instance.getBalance("0xf2af87AEB573cdD4B83d543588F85C5280d1cCB5");
+
         let quote = utils.getTestQuote(
             instance.address, //lbc address
             "0xf2af87AEB573cdD4B83d543588F85C5280d1cCB5",
@@ -625,7 +627,12 @@ contract('LiquidityBridgeContract', async accounts => {
 
         const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
 
-        const pegOut = await instance.registerPegOut.call(utils.asArray(quote), signature, height);
+        const pegOut = await instance.registerPegOut.call(utils.asArray(quote), signature);
+
+        const userBalanceAfter = await instance.getBalance("0xf2af87AEB573cdD4B83d543588F85C5280d1cCB5");
+
+        truffleAssertions.eventEmitted(pegOut, "PegOut");
+        expect(userBalanceBefore.toString() === userBalanceAfter.toString()).to.be.false;
     })
 
     it('should fail because quote has already been processed', async () => {
