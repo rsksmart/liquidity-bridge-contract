@@ -370,8 +370,7 @@ contract LiquidityBridgeContract {
 
     function registerPegOut(
         Quote memory quote,
-        bytes memory signature,
-        uint256 height
+        bytes memory signature
     ) public noReentrancy returns (int256) {
 
         // check quote.lbcAddress if its valid
@@ -379,14 +378,14 @@ contract LiquidityBridgeContract {
         bytes32 quoteHash = validateAndHashQuote(quote);
 
         // check if signature is valid
-        require(SignatureValidator.verify(quote.liquidityProviderRskAddress, quoteHash, signature), "Invalid signature");
+        require(SignatureValidator.verify(quote.liquidityProviderRskAddress, quoteHash, signature), "LBC: Invalid signature");
 
         // quote.depositHeightLimit is less or equal to the current height
-        require(height <= block.number, "Block height overflown");
+        require(height <= block.number, "LBC: Block height overflown");
 
         // todo: do we need to registerBridge?
 
-        require(processedQuotes[quoteHash] == 1, "Quote already pegged out");
+        require(processedQuotes[quoteHash] == 1, "LBC: Quote already pegged out");
         processedQuotes[quoteHash] = PROCESSED_QUOTE_CODE;
 
         emit PegOut(msg.sender, quote.value, quoteHash, processedQuotes[quoteHash]);

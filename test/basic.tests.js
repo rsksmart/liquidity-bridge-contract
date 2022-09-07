@@ -602,7 +602,7 @@ contract('LiquidityBridgeContract', async accounts => {
         const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
 
         const pegOutCall = instance.registerPegOut.call(utils.asArray(quote), signature, height);
-        await truffleAssertions.reverts(pegOutCall, "Block height overflown")
+        await truffleAssertions.reverts(pegOutCall, "LBC: Block height overflown")
     });
 
     let processedQuoteHash = "";
@@ -650,6 +650,6 @@ contract('LiquidityBridgeContract', async accounts => {
 
         const pegOutCall = instance.registerPegOut.call(utils.asArray(quote), signature, height);
 
-        await truffleAssertions.reverts(pegOutCall, "Quote already pegged out")
+        await truffleAssertions.reverts(pegOutCall, "LBC: Quote already pegged out")
     })
 });
