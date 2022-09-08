@@ -371,7 +371,7 @@ contract LiquidityBridgeContract {
     function registerPegOut(
         Quote memory quote,
         bytes memory signature
-    ) public noReentrancy returns (int256) {
+    ) public noReentrancy {
 
         // check quote.lbcAddress if its valid
         //todo: should it be validateAndHashQuoteis enough or require(address(this) == quote.lbcAddress, "Wrong LBC address"); ?
@@ -383,22 +383,20 @@ contract LiquidityBridgeContract {
         // quote.depositHeightLimit is less or equal to the current height
         require(quote.timeForDeposit <= block.timestamp, "LBC: Block height overflown");
 
-//        require(processedQuotes[quoteHash] == 1, "LBC: Quote already pegged out");
+        // require(processedQuotes[quoteHash] == 1, "LBC: Quote already pegged out");
         processedQuotes[quoteHash] = PROCESSED_QUOTE_CODE;
 
         uint256 valueToTransfer = quote.value + quote.callFee;
         // todo: verify if valueToTransfer is available
 
         // transfer  quote.valueToTransfer + quote.fee
-        payable(this).send(valueToTransfer); // todo: check if payable fails?
-//        (bool success, ) = send{value : valueToTransfer}("");
+        payable(this).transfer(valueToTransfer); // todo: check if payable fails?
+        // (bool success, ) = send{value : valueToTransfer}("");
 
         increaseBalance(msg.sender, valueToTransfer);
         callRegistry[quoteHash].timestamp = uint32(block.timestamp);
 
         emit PegOut(msg.sender, quote.value, quoteHash, processedQuotes[quoteHash]);
-
-    return 0;
     }
 
     /**
