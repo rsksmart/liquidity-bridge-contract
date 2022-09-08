@@ -524,7 +524,36 @@ contract('LiquidityBridgeContract', async accounts => {
         expect(web3.utils.toBN(0)).to.be.a.bignumber.eq(finalLPCol);
     });
 
-    it('should verify signature for pegout and fail hash because of Wrong lBC Address', async () => {
+    it.only('should process pegout', async () => {
+        const callData = web3.eth.abi.encodeFunctionCall(mock.abi[0], ['99'])
+
+        const userBalanceBefore = await instance.getBalance("0xf2af87AEB573cdD4B83d543588F85C5280d1cCB5");
+        expect(userBalanceBefore.toString()).to.be.eq('0');
+
+        let quote = utils.getTestQuote(
+            instance.address, //lbc address
+            "0xf2af87AEB573cdD4B83d543588F85C5280d1cCB5",
+            callData,
+            liquidityProviderRskAddress,
+            // accounts[2],
+            "0xf2af87AEB573cdD4B83d543588F85C5280d1cCB5",
+            web3.utils.toBN(1)
+        );
+
+        const quoteHash = await instance.hashQuote(utils.asArray(quote));
+        
+        const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
+        
+        const pegOut = await instance.registerPegOut(utils.asArray(quote), signature);
+        console.log(pegOut);
+
+        // const userBalanceAfter = await instance.getBalance("0xf2af87AEB573cdD4B83d543588F85C5280d1cCB5");
+
+        // truffleAssertions.eventEmitted(pegOut, "PegOut");
+        // expect(userBalanceBefore.toString() === userBalanceAfter.toString()).to.be.false;
+    })
+
+    it('should fail on a false signature', async () => {
         let height = 5;
 
         let quote = utils.getTestQuote(
@@ -536,12 +565,11 @@ contract('LiquidityBridgeContract', async accounts => {
             accounts[2],
             web3.utils.toBN(2));
 
-        let quoteHash = instance.hashQuote(utils.asArray(quote));
-        await truffleAssertions.reverts(quoteHash, "Wrong LBC address")
+        await truffleAssertions.reverts(instance.hashQuote(utils.asArray(quote)), "Wrong LBC address")
 
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
 
-        const pegOutCall = instance.registerPegOut.call(utils.asArray(quote), signature, height);
+        const pegOutCall = instance.registerPegOut(utils.asArray(quote), signature, height);
         await truffleAssertions.reverts(pegOutCall, "Wrong LBC address")
     });
 
@@ -604,36 +632,6 @@ contract('LiquidityBridgeContract', async accounts => {
         const pegOutCall = instance.registerPegOut.call(utils.asArray(quote), signature, height);
         await truffleAssertions.reverts(pegOutCall, "LBC: Block height overflown")
     });
-
-    let processedQuoteHash = "";
-    it('should process pegout', async () => {
-        const height = 10;
-        const callData = web3.eth.abi.encodeFunctionCall(mock.abi[0], ['99'])
-
-        const userBalanceBefore = await instance.getBalance("0xf2af87AEB573cdD4B83d543588F85C5280d1cCB5");
-
-        let quote = utils.getTestQuote(
-            instance.address, //lbc address
-            "0xf2af87AEB573cdD4B83d543588F85C5280d1cCB5",
-            callData,
-            liquidityProviderRskAddress,
-            // accounts[2],
-            "0xf2af87AEB573cdD4B83d543588F85C5280d1cCB5",
-            web3.utils.toBN(1));
-
-        const quoteHash = await instance.hashQuote(utils.asArray(quote));
-        console.log('quotehash', quoteHash)
-        processedQuoteHash = quoteHash;
-
-        const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
-
-        const pegOut = await instance.registerPegOut.call(utils.asArray(quote), signature);
-
-        const userBalanceAfter = await instance.getBalance("0xf2af87AEB573cdD4B83d543588F85C5280d1cCB5");
-
-        truffleAssertions.eventEmitted(pegOut, "PegOut");
-        expect(userBalanceBefore.toString() === userBalanceAfter.toString()).to.be.false;
-    })
 
     it('should fail because quote has already been processed', async () => {
         let height = 10;

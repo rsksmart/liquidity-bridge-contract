@@ -390,7 +390,7 @@ contract LiquidityBridgeContract {
         // todo: verify if valueToTransfer is available
 
         // transfer  quote.valueToTransfer + quote.fee
-        payable(this).transfer(valueToTransfer); // todo: check if payable fails?
+        //payable(this).transfer(valueToTransfer); // todo: check if payable fails?
         // (bool success, ) = send{value : valueToTransfer}("");
 
         increaseBalance(msg.sender, valueToTransfer);
