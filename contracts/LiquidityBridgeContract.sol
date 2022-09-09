@@ -382,11 +382,15 @@ contract LiquidityBridgeContract {
         uint256 valueToTransfer = quote.value + quote.callFee;
         // todo: verify if valueToTransfer is available
 
+        // todo: verify how to make the payment
+        // todo: where to store the data, hashs, balances etc??
         // transfer  quote.valueToTransfer + quote.fee
         //payable(this).transfer(valueToTransfer); // todo: check if payable fails?
-        // (bool success, ) = send{value : valueToTransfer}("");
+        //(bool success, ) = send{value : valueToTransfer}("");
 
-        increaseBalance(msg.sender, valueToTransfer);
+        increaseBalance(quote.rskRefundAddress, valueToTransfer);
+        
+        // todo: is callRegistry needed?
         callRegistry[quoteHash].timestamp = uint32(block.timestamp);
 
         emit PegOut(msg.sender, quote.value, quoteHash, processedQuotes[quoteHash]);
