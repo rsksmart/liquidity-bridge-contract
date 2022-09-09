@@ -526,7 +526,6 @@ contract('LiquidityBridgeContract', async accounts => {
     });
 
     it('should process pegout', async () => {
-        // TODO: find a way to validate that the user balance was changed as it should
         const callData = web3.eth.abi.encodeFunctionCall(mock.abi[0], ['99'])
 
         const userBalanceBefore = await instance.getBalance("0xf2af87AEB573cdD4B83d543588F85C5280d1cCB5");
@@ -547,11 +546,10 @@ contract('LiquidityBridgeContract', async accounts => {
         const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
         
         const pegOut = await instance.registerPegOut(utils.asArray(quote), signature);
+        truffleAssertions.eventEmitted(pegOut, "PegOut");
 
-        // const userBalanceAfter = await instance.getBalance("0xf2af87AEB573cdD4B83d543588F85C5280d1cCB5");
-
-        // truffleAssertions.eventEmitted(pegOut, "PegOut");
-        // expect(userBalanceBefore.toString() === userBalanceAfter.toString()).to.be.false;
+        const userBalanceAfter = await instance.getBalance("0xf2af87AEB573cdD4B83d543588F85C5280d1cCB5");
+        expect(userBalanceBefore.toString() === userBalanceAfter.toString()).to.be.false;
     })
 
     it('should fail on a false signature', async () => {
