@@ -372,18 +372,11 @@ contract LiquidityBridgeContract {
         Quote memory quote,
         bytes memory signature
     ) public noReentrancy {
-
-        // check quote.lbcAddress if its valid
-        //todo: should it be validateAndHashQuoteis enough or require(address(this) == quote.lbcAddress, "Wrong LBC address"); ?
         bytes32 quoteHash = validateAndHashQuote(quote);
 
-        // check if signature is valid
         require(SignatureValidator.verify(quote.liquidityProviderRskAddress, quoteHash, signature), "LBC: Invalid signature");
-
-        // quote.depositHeightLimit is less or equal to the current height
-        require(quote.timeForDeposit <= block.timestamp, "LBC: Block height overflown");
-
-        // require(processedQuotes[quoteHash] == 1, "LBC: Quote already pegged out");
+        require(quote.timeForDeposit < block.timestamp, "LBC: Block height overflown");
+        require(processedQuotes[quoteHash] != 2, "LBC: Quote already pegged out");
         processedQuotes[quoteHash] = PROCESSED_QUOTE_CODE;
 
         uint256 valueToTransfer = quote.value + quote.callFee;
