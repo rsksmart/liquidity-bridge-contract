@@ -526,10 +526,10 @@ contract('LiquidityBridgeContract', async accounts => {
     });
 
     it('should register pegout', async () => {
-        const callData = web3.eth.abi.encodeFunctionCall(mock.abi[0], ['99'])
+        const callData = web3.eth.abi.encodeFunctionCall(mock.abi[0], ['99']);
         const getBalances = () => Promise.all([
-            instance.getBalance("0xf2af87AEB573cdD4B83d543588F85C5280d1cCB5"),
-            instance.getPegOutBalance("0xf2af87AEB573cdD4B83d543588F85C5280d1cCB5"),
+            instance.getBalance(accounts[2]),
+            instance.getPegOutBalance(accounts[2]),
             web3.eth.getBalance(instance.address)
         ]);
 
@@ -541,10 +541,10 @@ contract('LiquidityBridgeContract', async accounts => {
 
         let quote = utils.getTestQuote(
             instance.address, //lbc address
-            "0xf2af87AEB573cdD4B83d543588F85C5280d1cCB5",
+            accounts[2],
             callData,
             liquidityProviderRskAddress,
-            "0xf2af87AEB573cdD4B83d543588F85C5280d1cCB5",
+            accounts[2],
             web3.utils.toBN(1)
         );
         const msgValue = quote.val.add(quote.callFee);
@@ -560,9 +560,13 @@ contract('LiquidityBridgeContract', async accounts => {
             contractBalanceAfter
         ] = await getBalances();
 
+        console.log('contract valance before', contractBalanceBefore)
+        console.log('contract valance after', contractBalanceAfter)
+        console.log('contract valance sums', contractBalanceBefore + msgValue.toNumber())
+        console.log('msg value', msgValue.toNumber())
         expect(userPegInBalanceBefore.toString()).to.be.eq(userPegInBalanceAfter.toString());
-        expect(userPegOutBalanceBefore.toString()).to.not.be.eq(userPegOutBalanceAfter.toString());
-        expect(contractBalanceBefore).to.not.be.eq(contractBalanceAfter);
+        expect(userPegOutBalanceAfter.toString()).to.be.eq(userPegOutBalanceBefore.add(msgValue).toString());
+        expect(+contractBalanceAfter).to.be.eq(+contractBalanceBefore + +msgValue);
     })
 
     it('should fail on a false signature', async () => {
@@ -652,10 +656,10 @@ contract('LiquidityBridgeContract', async accounts => {
 
         let quote = utils.getTestQuote(
             instance.address, //lbc address
-            "0xf2af87AEB573cdD4B83d543588F85C5280d1cCB5",
+            accounts[1],
             callData,
             liquidityProviderRskAddress,
-            "0xf2af87AEB573cdD4B83d543588F85C5280d1cCB5",
+            accounts[1],
             web3.utils.toBN(1)
         );
         const msgValue = quote.val.add(quote.callFee);
@@ -676,10 +680,10 @@ contract('LiquidityBridgeContract', async accounts => {
 
         let quote = utils.getTestQuote(
             instance.address, //lbc address
-            "0xf2af87AEB573cdD4B83d543588F85C5280d1cCB5",
+            accounts[1],
             callData,
             liquidityProviderRskAddress,
-            "0xf2af87AEB573cdD4B83d543588F85C5280d1cCB5",
+            accounts[1],
             web3.utils.toBN(1)
         );
 
