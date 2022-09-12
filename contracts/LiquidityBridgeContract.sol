@@ -73,9 +73,13 @@ contract LiquidityBridgeContract {
     event BalanceDecrease(address dest, uint amount);
     event BridgeError(bytes32 quoteHash, int256 errorCode);
     event Refund(address dest, uint amount, bool success, bytes32 quoteHash);
+    event PegOut(address from, uint256 amount, bytes32 quotehash, uint processed);
+    event PegOutBalanceIncrease(address dest, uint amount);
+    event PegOutBalanceDecrease(address dest, uint amount);
 
     Bridge bridge;
     mapping(address => uint256) private balances;
+    mapping(address => uint256) private pegOutBalances;
     mapping(address => uint256) private collateral;
     mapping(bytes32 => Registry) private callRegistry;
     mapping(address => uint256) private resignationBlockNum;
@@ -243,6 +247,15 @@ contract LiquidityBridgeContract {
     }
 
     /**
+        @dev Returns the amount of funds that a user has locked on the contract
+        @param addr The address of the user
+        @return The balance of the user
+     */
+    function getPegOutBalance(address addr) external view returns (uint256) {
+        return pegOutBalances[addr];
+    }
+
+    /**
         @dev Performs a call on behalf of a user
         @param quote The quote that identifies the service
         @return Boolean indicating whether the call was successful
@@ -367,6 +380,26 @@ contract LiquidityBridgeContract {
         return transferredAmountOrErrorCode;
     }
 
+    function registerPegOut(
+        Quote memory quote,
+        bytes memory signature
+    ) public noReentrancy payable {
+        bytes32 quoteHash = validateAndHashQuote(quote);
+
+        require(SignatureValidator.verify(quote.liquidityProviderRskAddress, quoteHash, signature), "LBC: Invalid signature");
+        require(quote.timeForDeposit < block.timestamp, "LBC: Block height overflown");
+        require(processedQuotes[quoteHash] != 2, "LBC: Quote already pegged out");
+        processedQuotes[quoteHash] = PROCESSED_QUOTE_CODE;
+
+        uint256 valueToTransfer = quote.value + quote.callFee;
+        require(msg.value == valueToTransfer, "LBC: msg value doesnt match quote");
+        require(address(this).balance >= valueToTransfer, "LBC: Not enough funds");
+
+        increasePegOutBalance(quote.rskRefundAddress, valueToTransfer);
+
+        emit PegOut(msg.sender, quote.value, quoteHash, processedQuotes[quoteHash]);
+    }
+
     /**
         @dev Calculates hash of a quote. Note: besides calculation this function also validates the quote.
         @param quote The quote of the service
@@ -403,9 +436,19 @@ contract LiquidityBridgeContract {
         emit BalanceIncrease(dest, amount);
     }
 
+    function increasePegOutBalance(address dest, uint amount) private {
+        pegOutBalances[dest] += amount;
+        emit PegOutBalanceIncrease(dest, amount);
+    }
+
     function decreaseBalance(address dest, uint amount) private {
         balances[dest] -= amount;
         emit BalanceDecrease(dest, amount);
+    }
+
+    function decreasePegOutBalance(address dest, uint amount) private {
+        pegOutBalances[dest] -= amount;
+        emit PegOutBalanceDecrease(dest, amount);
     }
 
     /**
