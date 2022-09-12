@@ -400,6 +400,19 @@ contract LiquidityBridgeContract {
         emit PegOut(msg.sender, quote.value, quoteHash, processedQuotes[quoteHash]);
     }
 
+    function refundPegOut(Quote memory quote) public noReentrancy {
+        bytes32 quoteHash = validateAndHashQuote(quote);
+        require(processedQuotes[quoteHash] == 2, "LBC: Quote not processed");
+        // TODO: The LBC validates that the quote hash corresponds to the stored quote.derivationAddress
+        require(block.timestamp <= quote.expireDate, "LBC: Quote expired");
+        // TODO: The LBC verifies that the number of blocks since the user deposit are less or equal to quote.expiryBlocks
+        // TODO: The LBC validates that the sender corresponds to quote.lpAddress
+        // TODO: The LBC validates that the BTC transaction has at least quote.transferConfirmations with the Bridge by calling getBtcTransactionConfirmations(btcTxHash, btcBlockHash, partialMerkleTree)
+        // TODO: The LBC parses the BTC transaction to ensure that it has an output paying quote.valueToTransfer to derivationAddress 
+        // TODO: The LBC releases valueToTransfer + fee RBTC to the LP
+        // TODO: The LBC can finally remove any reference to the quote or quote hash from its storage
+    }
+
     /**
         @dev Calculates hash of a quote. Note: besides calculation this function also validates the quote.
         @param quote The quote of the service
