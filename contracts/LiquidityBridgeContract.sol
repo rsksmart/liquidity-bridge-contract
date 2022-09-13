@@ -400,17 +400,22 @@ contract LiquidityBridgeContract {
         emit PegOut(msg.sender, quote.value, quoteHash, processedQuotes[quoteHash]);
     }
 
-    function refundPegOut(Quote memory quote) public noReentrancy {
+    function refundPegOut(
+        Quote memory quote,
+        bytes32 btcTxHash,
+        bytes32 btcBlockHeaderHash,
+        bytes32 partialMerkleTree
+    ) public noReentrancy {
         bytes32 quoteHash = validateAndHashQuote(quote);
         require(processedQuotes[quoteHash] == 2, "LBC: Quote not processed");
-        // TODO: The LBC validates that the quote hash corresponds to the stored quote.derivationAddress
+        require(quoteHash == quote.btcRefundAddress, "LBC: Invalid quote hash");
         require(block.timestamp <= quote.expireDate, "LBC: Quote expired");
-        // TODO: The LBC verifies that the number of blocks since the user deposit are less or equal to quote.expiryBlocks
-        // TODO: The LBC validates that the sender corresponds to quote.lpAddress
-        // TODO: The LBC validates that the BTC transaction has at least quote.transferConfirmations with the Bridge by calling getBtcTransactionConfirmations(btcTxHash, btcBlockHash, partialMerkleTree)
-        // TODO: The LBC parses the BTC transaction to ensure that it has an output paying quote.valueToTransfer to derivationAddress 
-        // TODO: The LBC releases valueToTransfer + fee RBTC to the LP
-        // TODO: The LBC can finally remove any reference to the quote or quote hash from its storage
+        require(block.number <= quote.expireBlocks, "LBC: Quote expired");
+        require(msg.sender == quote.lpAddress, "LBC: Wrong sender");
+        require(bridge.getBtcTransactionConfirmations(btcTxHash, btcBlockHeaderHash, partialMerkleTree) >= quote.transferConfirmations, "LBC: Don't have required confirmations");
+        payable(address(quote.btcRefundAddress)).transfer(quote.valueToTransfer);
+        decreasePegOutBalance(quote.rskRefundAddress, quote.valueToTransfer);
+        delete processedQuotes[quoteHash];
     }
 
     /**

@@ -696,4 +696,47 @@ contract('LiquidityBridgeContract', async accounts => {
         const balanceAfter = await web3.eth.getBalance(instance.address);
         expect(balanceBefore).to.be.eq(balanceAfter);
     })
+    it.only('Should refundPegOut', async () => {
+        const callData = web3.eth.abi.encodeFunctionCall(mock.abi[0], ['99']);
+        const getBalances = () => Promise.all([
+            instance.getBalance(accounts[2]),
+            instance.getPegOutBalance(accounts[2]),
+            web3.eth.getBalance(instance.address)
+        ]);
+
+        const [
+            userPegInBalanceBefore,
+            userPegOutBalanceBefore,
+            contractBalanceBefore
+        ] = await getBalances();
+
+        let quote = utils.getTestQuote(
+            instance.address, //lbc address
+            accounts[2],
+            callData,
+            liquidityProviderRskAddress,
+            accounts[2],
+            web3.utils.toBN(1)
+        );
+        const msgValue = quote.val.add(quote.callFee);
+
+        const quoteHash = await instance.hashQuote(utils.asArray(quote));
+        const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
+        const pegOut = await instance.registerPegOut(utils.asArray(quote), signature, {value: msgValue});
+        truffleAssertions.eventEmitted(pegOut, "PegOut");
+
+        const [
+            userPegInBalanceAfter,
+            userPegOutBalanceAfter,
+            contractBalanceAfter
+        ] = await getBalances();
+
+        expect(userPegInBalanceBefore.toString()).to.be.eq(userPegInBalanceAfter.toString());
+        expect(userPegOutBalanceAfter.toString()).to.be.eq(userPegOutBalanceBefore.add(msgValue).toString());
+        expect(+contractBalanceAfter).to.be.eq(+contractBalanceBefore + +msgValue);
+
+        const balanceBefore = await web3.eth.getBalance(instance.address);
+
+        console.log(balanceBefore);
+    });
 });
