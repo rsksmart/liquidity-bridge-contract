@@ -60,6 +60,7 @@ contract LiquidityBridgeContract {
         address lpAddress;
         address liquidityProviderRskAddress;
         address rskRefundAddress;
+        bytes32 derivationAddress;
         uint64 fee;
         uint64 penaltyFee;
         int64 nonce;
@@ -424,17 +425,15 @@ contract LiquidityBridgeContract {
         bytes32 btcTxHash,
         bytes32 btcBlockHeaderHash,
         uint256 partialMerkleTree,
-        bytes32[] memory merkleBranchHashes,
-        bytes32 derivationAddress
+        bytes32[] memory merkleBranchHashes
     ) public noReentrancy {
         bytes32 quoteHash = validateAndHashPegOutQuote(quote);
         require(processedPegOutQuotes[quoteHash] == 2, "LBC: Quote not processed");
-        require(quoteHash == derivationAddress, "LBC: Invalid quote hash");
-        require(block.timestamp <= quote.expireDate, "LBC: Quote expired");
-        require(block.number <= quote.expireBlocks, "LBC: Quote expired");
-        require(msg.sender == quote.lpAddress, "LBC: Wrong sender");
+        require(block.timestamp <= quote.expireDate, "LBC: Quote expired by date");
+        require(block.number <= quote.expireBlocks, "LBC: Quote expired by blocks");
+        //require(msg.sender == quote.lpAddress, "LBC: Wrong sender");
         require(bridge.getBtcTransactionConfirmations(btcTxHash, btcBlockHeaderHash, partialMerkleTree, merkleBranchHashes) >= quote.transferConfirmations, "LBC: Don't have required confirmations");
-        payable(address(uint160(uint256(derivationAddress)))).transfer(quote.valueToTransfer);
+        payable(address(uint160(uint256(quote.derivationAddress)))).transfer(quote.valueToTransfer);
         decreasePegOutBalance(quote.rskRefundAddress, quote.valueToTransfer);
         delete processedPegOutQuotes[quoteHash];
     }
@@ -641,7 +640,8 @@ contract LiquidityBridgeContract {
             quote.lbcAddress, 
             quote.lpAddress,
             quote.liquidityProviderRskAddress,
-            quote.rskRefundAddress,    
+            quote.rskRefundAddress,   
+            quote.derivationAddress, 
             quote.fee,
             quote.penaltyFee,
             quote.nonce,
