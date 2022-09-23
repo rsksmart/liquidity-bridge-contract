@@ -644,7 +644,7 @@ contract('LiquidityBridgeContract', async accounts => {
         expect(balanceBefore).to.be.eq(balanceAfter);
     })
 
-    it('Should refundPegOut', async () => {
+    it.only('Should refundPegOut', async () => {
         const btcTxHash = '0xa0cad11b688340cfbb8515d4deb7d37a8c67ea70a938578295f28b6cd8b5aade';
         const blockHeaderHash = '0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326';
         const partialMerkleTree = '0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb426';
@@ -688,7 +688,9 @@ contract('LiquidityBridgeContract', async accounts => {
         expect(userPegOutBalanceAfter.toString()).to.be.eq(userPegOutBalanceBefore.add(msgValue).toString());
         expect(+contractBalanceAfter).to.be.eq(+contractBalanceBefore + +msgValue);
 
-        const refund = await instance.refundPegOut(utils.asArray(quote), btcTxHash, blockHeaderHash, partialMerkleTree, merkleBranchHashes);
+        const refund = await instance.refundPegOut(utils.asArray(quote), btcTxHash, blockHeaderHash, partialMerkleTree, merkleBranchHashes, {
+            from: quote.lpAddress
+        });
         
         truffleAssertions.eventEmitted(refund, "PegOutBalanceDecrease");
     });
