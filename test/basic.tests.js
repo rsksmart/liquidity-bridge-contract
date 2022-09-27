@@ -669,6 +669,7 @@ contract('LiquidityBridgeContract', async accounts => {
             web3.utils.toBN(1)
         );
         quote.transferConfirmations = 0;
+        quote.lpAddress = accounts[9];
         const msgValue = quote.valueToTransfer.add(quote.fee);
 
         const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
@@ -687,10 +688,17 @@ contract('LiquidityBridgeContract', async accounts => {
         expect(userPegInBalanceBefore.toString()).to.be.eq(userPegInBalanceAfter.toString());
         expect(userPegOutBalanceAfter.toString()).to.be.eq(userPegOutBalanceBefore.add(msgValue).toString());
         expect(+contractBalanceAfter).to.be.eq(+contractBalanceBefore + +msgValue);
-
-        const refund = await instance.refundPegOut(utils.asArray(quote), btcTxHash, blockHeaderHash, partialMerkleTree, merkleBranchHashes, {
-            from: quote.lpAddress
-        });
+        
+        const refund = await instance.refundPegOut(
+            utils.asArray(quote), 
+            btcTxHash,
+            blockHeaderHash,
+            partialMerkleTree,
+            merkleBranchHashes,
+            {
+                from: quote.lpAddress
+            }
+        );
         
         truffleAssertions.eventEmitted(refund, "PegOutBalanceDecrease");
     });
