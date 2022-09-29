@@ -526,7 +526,6 @@ contract('LiquidityBridgeContract', async accounts => {
     });
 
     it('should register pegout', async () => {
-        const callData = web3.eth.abi.encodeFunctionCall(mock.abi[0], ['99']);
         const getBalances = () => Promise.all([
             instance.getBalance(accounts[2]),
             instance.getPegOutBalance(accounts[2]),
@@ -539,17 +538,15 @@ contract('LiquidityBridgeContract', async accounts => {
             contractBalanceBefore
         ] = await getBalances();
 
-        let quote = utils.getTestQuote(
+        let quote = utils.getTestPegOutQuote(
             instance.address, //lbc address
-            accounts[2],
-            callData,
             liquidityProviderRskAddress,
             accounts[2],
             web3.utils.toBN(1)
         );
-        const msgValue = quote.val.add(quote.callFee);
+        const msgValue = quote.valueToTransfer.add(quote.fee);
 
-        const quoteHash = await instance.hashQuote(utils.asArray(quote));
+        const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
         const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
         const pegOut = await instance.registerPegOut(utils.asArray(quote), signature, {value: msgValue});
         truffleAssertions.eventEmitted(pegOut, "PegOut");
@@ -570,17 +567,15 @@ contract('LiquidityBridgeContract', async accounts => {
     })
 
     it('should fail on a false signature', async () => {
-        const quote = utils.getTestQuote(
+        const quote = utils.getTestPegOutQuote(
             accounts[1],
-            bridgeMockInstance.address,
-            '0x00',
             liquidityProviderRskAddress,
             accounts[2],
             web3.utils.toBN(2)
         );
         const contractBalanceBefore = await web3.eth.getBalance(instance.address);
 
-        const quoteHash = instance.hashQuote(utils.asArray(quote))
+        const quoteHash = instance.hashPegoutQuote(utils.asArray(quote))
         await truffleAssertions.reverts(quoteHash, "Wrong LBC address")
 
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
@@ -592,59 +587,15 @@ contract('LiquidityBridgeContract', async accounts => {
         expect(contractBalanceBefore.toString()).to.be.eq(contractBalanceAfter.toString());
     });
 
-    it('should verify signature for pegout and fail hash because Bridge address is not valid as destination', async () => {
-        const quote = utils.getTestQuote(
-            instance.address, //lbc address
-            bridgeMockInstance.address,
-            '0x00',
-            liquidityProviderRskAddress,
-            accounts[2],
-            web3.utils.toBN(2)
-        );
-        const contractBalanceBefore = await web3.eth.getBalance(instance.address);
-
-        let quoteHash = instance.hashQuote(utils.asArray(quote));
-        await truffleAssertions.reverts(quoteHash, "Bridge is not an accepted contract address")
-
-        let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
-
-        const pegOutCall = instance.registerPegOut.call(utils.asArray(quote), signature);
-        await truffleAssertions.reverts(pegOutCall, "Bridge is not an accepted contract address");
-
-        const contractBalanceAfter = await web3.eth.getBalance(instance.address);
-        expect(contractBalanceBefore.toString()).to.be.eq(contractBalanceAfter.toString());
-    });
-
-    it('should verify signature for pegout and fail hash because amount is too low', async () => {
-        let quote = utils.getTestQuote(
-            instance.address, //lbc address
-            accounts[1],
-            '0x00',
-            liquidityProviderRskAddress,
-            accounts[2],
-            web3.utils.toBN(0));
-
-        let quoteHash = instance.hashQuote(utils.asArray(quote));
-        await truffleAssertions.reverts(quoteHash, "Too low agreed amount")
-
-        let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
-
-        const pegOutCall = instance.registerPegOut.call(utils.asArray(quote), signature);
-        await truffleAssertions.reverts(pegOutCall, "Too low agreed amount")
-    });
-
     it('should fail pegout because block current height is too high', async () => {
-        let quote = utils.getTestQuote(
+        let quote = utils.getTestPegOutQuote(
             instance.address, //lbc address
-            accounts[1],
-            // '0x00',
-            web3.eth.abi.encodeFunctionCall(mock.abi[0], ['99']),
             liquidityProviderRskAddress,
             accounts[2],
             web3.utils.toBN(2));
-        quote.timeForDeposit = MAX_UINT32
+        quote.depositDateLimit = MAX_UINT32
 
-        const quoteHash = await instance.hashQuote(utils.asArray(quote));
+        const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
         const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
 
         const pegOutCall = instance.registerPegOut.call(utils.asArray(quote), signature);
@@ -652,19 +603,15 @@ contract('LiquidityBridgeContract', async accounts => {
     });
 
     it('should fail because quote has already been processed', async () => {
-        const callData = web3.eth.abi.encodeFunctionCall(mock.abi[0], ['100001'])
-
-        let quote = utils.getTestQuote(
+        let quote = utils.getTestPegOutQuote(
             instance.address, //lbc address
-            accounts[1],
-            callData,
             liquidityProviderRskAddress,
             accounts[1],
             web3.utils.toBN(1)
         );
-        const msgValue = quote.val.add(quote.callFee);
+        const msgValue = quote.valueToTransfer.add(quote.fee);
 
-        const quoteHash = await instance.hashQuote(utils.asArray(quote));
+        const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
         const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
 
         const pegoutTx = await instance.registerPegOut(utils.asArray(quote), signature, {value: msgValue});
@@ -675,25 +622,203 @@ contract('LiquidityBridgeContract', async accounts => {
     })
 
     it('should fail because msg value doesnt match quote amount', async () => {
-        const callData = web3.eth.abi.encodeFunctionCall(mock.abi[0], ['1100110001']);
         const balanceBefore = await web3.eth.getBalance(instance.address);
 
-        let quote = utils.getTestQuote(
+        let quote = utils.getTestPegOutQuote(
             instance.address, //lbc address
-            accounts[1],
-            callData,
             liquidityProviderRskAddress,
             accounts[1],
             web3.utils.toBN(1)
         );
 
-        const quoteHash = await instance.hashQuote(utils.asArray(quote));
+        console.log('Value:', quote.valueToTransfer.toString());
+        console.log('Fee:', quote.fee.toString());
+
+        const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
         const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
 
-        const pegoutCall = instance.registerPegOut.call(utils.asArray(quote), signature, {value: quote.val}); // needs to add call fee as well
+        const pegoutCall = instance.registerPegOut.call(utils.asArray(quote), signature, {value: web3.utils.toBN(10)}); // needs to add call fee as well
         await truffleAssertions.reverts(pegoutCall, "LBC: msg value doesnt match quote");
 
         const balanceAfter = await web3.eth.getBalance(instance.address);
         expect(balanceBefore).to.be.eq(balanceAfter);
     })
+
+    it.only('Should refundPegOut', async () => {
+        const btcTxHash = '0xa0cad11b688340cfbb8515d4deb7d37a8c67ea70a938578295f28b6cd8b5aade';
+        const blockHeaderHash = '0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326';
+        const partialMerkleTree = '0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb426';
+        const merkleBranchHashes = ['0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326'];
+
+        const getBalances = () => Promise.all([
+            instance.getBalance(accounts[2]),
+            instance.getPegOutBalance(accounts[2]),
+            web3.eth.getBalance(instance.address)
+        ]);
+
+        const [
+            userPegInBalanceBefore,
+            userPegOutBalanceBefore,
+            contractBalanceBefore
+        ] = await getBalances();
+
+        let quote = utils.getTestPegOutQuote(
+            instance.address, //lbc address
+            liquidityProviderRskAddress,
+            accounts[2],
+            web3.utils.toBN(1)
+        );
+        quote.transferConfirmations = 0;
+        quote.lpAddress = accounts[9];
+        const msgValue = quote.valueToTransfer.add(quote.fee);
+
+        const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
+        const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
+        const pegOut = await instance.registerPegOut(utils.asArray(quote), signature, {
+            value: msgValue
+        });
+        truffleAssertions.eventEmitted(pegOut, "PegOut");
+
+        const [
+            userPegInBalanceAfter,
+            userPegOutBalanceAfter,
+            contractBalanceAfter
+        ] = await getBalances();
+
+        expect(userPegInBalanceBefore.toString()).to.be.eq(userPegInBalanceAfter.toString());
+        expect(userPegOutBalanceAfter.toString()).to.be.eq(userPegOutBalanceBefore.add(msgValue).toString());
+        expect(+contractBalanceAfter).to.be.eq(+contractBalanceBefore + +msgValue);
+        
+        const refund = await instance.refundPegOut(
+            utils.asArray(quote), 
+            btcTxHash,
+            blockHeaderHash,
+            partialMerkleTree,
+            merkleBranchHashes,
+            {
+                from: quote.lpAddress
+            }
+        );
+        
+        truffleAssertions.eventEmitted(refund, "PegOutBalanceDecrease");
+    });
+
+    it('Should validate that the quote was processed on refundPegOut', async () => {
+        const btcTxHash = '0xa0cad11b688340cfbb8515d4deb7d37a8c67ea70a938578295f28b6cd8b5aade';
+        const blockHeaderHash = '0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326';
+        const partialMerkleTree = '0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb426';
+        const merkleBranchHashes = ['0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326'];
+
+        let quote = utils.getTestPegOutQuote(
+            instance.address,
+            liquidityProviderRskAddress,
+            accounts[2],
+            web3.utils.toBN(1)
+        );
+        quote.transferConfirmations = 0;
+
+        const refund = instance.refundPegOut(utils.asArray(quote), btcTxHash, blockHeaderHash, partialMerkleTree, merkleBranchHashes);
+        await truffleAssertions.reverts(refund, "LBC: Quote not processed");
+    });
+
+    it('Should validate if the quote is expired date on refundPegOut', async () => {
+        const btcTxHash = '0xa0cad11b688340cfbb8515d4deb7d37a8c67ea70a938578295f28b6cd8b5aade';
+        const blockHeaderHash = '0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326';
+        const partialMerkleTree = '0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb426';
+        const merkleBranchHashes = ['0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326'];
+
+        const getBalances = () => Promise.all([
+            instance.getBalance(accounts[2]),
+            instance.getPegOutBalance(accounts[2]),
+            web3.eth.getBalance(instance.address)
+        ]);
+
+        const [
+            userPegInBalanceBefore,
+            userPegOutBalanceBefore,
+            contractBalanceBefore
+        ] = await getBalances();
+
+        let quote = utils.getTestPegOutQuote(
+            instance.address, //lbc address
+            liquidityProviderRskAddress,
+            accounts[2],
+            web3.utils.toBN(1)
+        );
+        quote.transferConfirmations = 0;
+        quote.expireDate = parseInt((new Date().getTime()) / 1000) - 1000;
+        const msgValue = quote.valueToTransfer.add(quote.fee);
+
+        const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
+        const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
+        const pegOut = await instance.registerPegOut(utils.asArray(quote), signature, {
+            value: msgValue
+        });
+        truffleAssertions.eventEmitted(pegOut, "PegOut");
+
+        const [
+            userPegInBalanceAfter,
+            userPegOutBalanceAfter,
+            contractBalanceAfter
+        ] = await getBalances();
+
+        expect(userPegInBalanceBefore.toString()).to.be.eq(userPegInBalanceAfter.toString());
+        expect(userPegOutBalanceAfter.toString()).to.be.eq(userPegOutBalanceBefore.add(msgValue).toString());
+        expect(+contractBalanceAfter).to.be.eq(+contractBalanceBefore + +msgValue);
+
+        const refund = instance.refundPegOut(utils.asArray(quote), btcTxHash, blockHeaderHash, partialMerkleTree, merkleBranchHashes);
+        
+        await truffleAssertions.reverts(refund, "LBC: Quote expired by date");
+    });
+
+
+    it('Should validate if the quote is expired blocks on refundPegOut', async () => {
+        const btcTxHash = '0xa0cad11b688340cfbb8515d4deb7d37a8c67ea70a938578295f28b6cd8b5aade';
+        const blockHeaderHash = '0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326';
+        const partialMerkleTree = '0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb426';
+        const merkleBranchHashes = ['0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326'];
+
+        const getBalances = () => Promise.all([
+            instance.getBalance(accounts[2]),
+            instance.getPegOutBalance(accounts[2]),
+            web3.eth.getBalance(instance.address)
+        ]);
+
+        const [
+            userPegInBalanceBefore,
+            userPegOutBalanceBefore,
+            contractBalanceBefore
+        ] = await getBalances();
+
+        let quote = utils.getTestPegOutQuote(
+            instance.address, //lbc address
+            liquidityProviderRskAddress,
+            accounts[2],
+            web3.utils.toBN(1)
+        );
+        quote.transferConfirmations = 0;
+        quote.expireBlocks = 0;
+        const msgValue = quote.valueToTransfer.add(quote.fee);
+
+        const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
+        const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
+        const pegOut = await instance.registerPegOut(utils.asArray(quote), signature, {
+            value: msgValue
+        });
+        truffleAssertions.eventEmitted(pegOut, "PegOut");
+
+        const [
+            userPegInBalanceAfter,
+            userPegOutBalanceAfter,
+            contractBalanceAfter
+        ] = await getBalances();
+
+        expect(userPegInBalanceBefore.toString()).to.be.eq(userPegInBalanceAfter.toString());
+        expect(userPegOutBalanceAfter.toString()).to.be.eq(userPegOutBalanceBefore.add(msgValue).toString());
+        expect(+contractBalanceAfter).to.be.eq(+contractBalanceBefore + +msgValue);
+
+        const refund = instance.refundPegOut(utils.asArray(quote), btcTxHash, blockHeaderHash, partialMerkleTree, merkleBranchHashes);
+        
+        await truffleAssertions.reverts(refund, "LBC: Quote expired by blocks");
+    });
 });

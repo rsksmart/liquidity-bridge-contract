@@ -55,6 +55,25 @@ contract LiquidityBridgeContract {
         bool callOnRegister;
     }
 
+    struct PegOutQuote {
+        address lbcAddress;
+        address lpAddress;
+        address liquidityProviderRskAddress;
+        address rskRefundAddress;
+        bytes32 derivationAddress;
+        uint64 fee;
+        uint64 penaltyFee;
+        int64 nonce;
+        uint64 valueToTransfer;
+        uint32 agreementTimestamp;
+        uint32 depositDateLimit;
+        uint16 depositConfirmations;
+        int256 transferConfirmations;
+        uint32 transferTime;
+        uint32 expireDate;
+        uint32 expireBlocks;
+    }
+
     struct Registry {
         uint32 timestamp;  
         bool success;
@@ -94,6 +113,7 @@ contract LiquidityBridgeContract {
     bool private locked;
 
     mapping(bytes32 => uint8) private processedQuotes;
+    mapping(bytes32 => uint8) private processedPegOutQuotes;
 
     modifier onlyRegistered() {
         require(isRegistered(msg.sender), "Not registered");
@@ -381,23 +401,41 @@ contract LiquidityBridgeContract {
     }
 
     function registerPegOut(
-        Quote memory quote,
+        PegOutQuote memory quote,
         bytes memory signature
     ) public noReentrancy payable {
-        bytes32 quoteHash = validateAndHashQuote(quote);
+        bytes32 quoteHash = validateAndHashPegOutQuote(quote);
 
         require(SignatureValidator.verify(quote.liquidityProviderRskAddress, quoteHash, signature), "LBC: Invalid signature");
-        require(quote.timeForDeposit < block.timestamp, "LBC: Block height overflown");
-        require(processedQuotes[quoteHash] != 2, "LBC: Quote already pegged out");
-        processedQuotes[quoteHash] = PROCESSED_QUOTE_CODE;
+        require(quote.depositDateLimit < block.timestamp, "LBC: Block height overflown");
+        require(processedPegOutQuotes[quoteHash] != 2, "LBC: Quote already pegged out");
+        processedPegOutQuotes[quoteHash] = PROCESSED_QUOTE_CODE;
 
-        uint256 valueToTransfer = quote.value + quote.callFee;
+        uint256 valueToTransfer = quote.valueToTransfer + quote.fee;
         require(msg.value == valueToTransfer, "LBC: msg value doesnt match quote");
         require(address(this).balance >= valueToTransfer, "LBC: Not enough funds");
 
         increasePegOutBalance(quote.rskRefundAddress, valueToTransfer);
 
-        emit PegOut(msg.sender, quote.value, quoteHash, processedQuotes[quoteHash]);
+        emit PegOut(msg.sender, quote.valueToTransfer, quoteHash, processedPegOutQuotes[quoteHash]);
+    }
+
+    function refundPegOut(
+        PegOutQuote memory quote,
+        bytes32 btcTxHash,
+        bytes32 btcBlockHeaderHash,
+        uint256 partialMerkleTree,
+        bytes32[] memory merkleBranchHashes
+    ) public noReentrancy {
+        bytes32 quoteHash = validateAndHashPegOutQuote(quote);
+        require(processedPegOutQuotes[quoteHash] == 2, "LBC: Quote not processed");
+        require(block.timestamp <= quote.expireDate, "LBC: Quote expired by date");
+        require(block.number <= quote.expireBlocks, "LBC: Quote expired by blocks");
+        require(msg.sender == quote.lpAddress, "LBC: Wrong sender");
+        require(bridge.getBtcTransactionConfirmations(btcTxHash, btcBlockHeaderHash, partialMerkleTree, merkleBranchHashes) >= quote.transferConfirmations, "LBC: Don't have required confirmations");
+        payable(address(uint160(uint256(quote.derivationAddress)))).transfer(quote.valueToTransfer);
+        decreasePegOutBalance(quote.rskRefundAddress, quote.valueToTransfer);
+        delete processedPegOutQuotes[quoteHash];
     }
 
     /**
@@ -409,6 +447,10 @@ contract LiquidityBridgeContract {
         return validateAndHashQuote(quote);
     }
 
+    function hashPegoutQuote(PegOutQuote memory quote) public view returns (bytes32) {
+        return validateAndHashPegOutQuote(quote);
+    }
+
     function validateAndHashQuote(Quote memory quote) private view returns (bytes32) {
         require(address(this) == quote.lbcAddress, "Wrong LBC address");
         require(address(bridge) != quote.contractAddress, "Bridge is not an accepted contract address");
@@ -417,6 +459,12 @@ contract LiquidityBridgeContract {
         require(quote.value + quote.callFee >= minPegIn, "Too low agreed amount");
 
         return keccak256(encodeQuote(quote));
+    }
+
+    function validateAndHashPegOutQuote(PegOutQuote memory quote) private view returns (bytes32) {
+        require(address(this) == quote.lbcAddress, "Wrong LBC address");
+
+        return keccak256(encodePegOutQuote(quote));
     }
     
     function checkAgreedAmount(Quote memory quote, uint transferredAmount) private pure {
@@ -556,6 +604,11 @@ contract LiquidityBridgeContract {
         return abi.encode(encodePart1(quote), encodePart2(quote));
     }
 
+    function encodePegOutQuote(PegOutQuote memory quote) private pure returns (bytes memory) {
+        // Encode in two parts because abi.encode cannot take more than 12 parameters due to stack depth limits.
+        return abi.encode(encodePegOutPart1(quote), encodePegOutPart2(quote));
+    }
+
     function encodePart1(Quote memory quote) private pure returns (bytes memory) {
         return abi.encode(
             quote.fedBtcAddress, 
@@ -580,5 +633,29 @@ contract LiquidityBridgeContract {
             quote.callTime,
             quote.depositConfirmations,
             quote.callOnRegister);
+    }
+
+    function encodePegOutPart1(PegOutQuote memory quote) private pure returns (bytes memory) {
+        return abi.encode(
+            quote.lbcAddress, 
+            quote.lpAddress,
+            quote.liquidityProviderRskAddress,
+            quote.rskRefundAddress,   
+            quote.derivationAddress, 
+            quote.fee,
+            quote.penaltyFee,
+            quote.nonce,
+            quote.valueToTransfer);
+    }
+
+    function encodePegOutPart2(PegOutQuote memory quote) private pure returns (bytes memory) {
+        return abi.encode(
+            quote.agreementTimestamp,
+            quote.depositDateLimit, 
+            quote.depositConfirmations,            
+            quote.transferConfirmations,
+            quote.transferTime,
+            quote.expireDate,
+            quote.expireBlocks);
     }
 }
