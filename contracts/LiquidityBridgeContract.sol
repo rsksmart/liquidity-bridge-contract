@@ -434,6 +434,14 @@ contract LiquidityBridgeContract {
         require(msg.sender == quote.liquidityProviderRskAddress, "LBC: Wrong sender");
         require(bridge.getBtcTransactionConfirmations(btcTxHash, btcBlockHeaderHash, partialMerkleTree, merkleBranchHashes) >= int(uint256(quote.transferConfirmations)), "LBC: Don't have required confirmations");
         payable(quote.liquidityProviderRskAddress).transfer(quote.valueToTransfer + quote.fee);
+
+        if (shouldPenalizeLP(quote, quote.penaltyFee, callRegistry[quoteHash].timestamp, block.timestamp)) {
+            uint penalty = min(quote.penaltyFee, collateral[quote.liquidityProviderRskAddress]);
+            collateral[quote.liquidityProviderRskAddress] -= penalty;
+
+            increaseBalance(msg.sender, penalty * rewardP / 100);
+        }
+
         decreasePegOutBalance(quote.rskRefundAddress, quote.valueToTransfer);
         delete processedPegOutQuotes[quoteHash];
     }
