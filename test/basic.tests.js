@@ -557,10 +557,6 @@ contract('LiquidityBridgeContract', async accounts => {
             contractBalanceAfter
         ] = await getBalances();
 
-        console.log('contract valance before', contractBalanceBefore)
-        console.log('contract valance after', contractBalanceAfter)
-        console.log('contract valance sums', contractBalanceBefore + msgValue.toNumber())
-        console.log('msg value', msgValue.toNumber())
         expect(userPegInBalanceBefore.toString()).to.be.eq(userPegInBalanceAfter.toString());
         expect(userPegOutBalanceAfter.toString()).to.be.eq(userPegOutBalanceBefore.add(msgValue).toString());
         expect(+contractBalanceAfter).to.be.eq(+contractBalanceBefore + +msgValue);
@@ -631,9 +627,6 @@ contract('LiquidityBridgeContract', async accounts => {
             web3.utils.toBN(1)
         );
 
-        console.log('Value:', quote.valueToTransfer.toString());
-        console.log('Fee:', quote.fee.toString());
-
         const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
         const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
 
@@ -644,7 +637,7 @@ contract('LiquidityBridgeContract', async accounts => {
         expect(balanceBefore).to.be.eq(balanceAfter);
     })
 
-    it.only('Should refundPegOut', async () => {
+    it('Should refundPegOut', async () => {
         const btcTxHash = '0xa0cad11b688340cfbb8515d4deb7d37a8c67ea70a938578295f28b6cd8b5aade';
         const blockHeaderHash = '0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326';
         const partialMerkleTree = '0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb426';
