@@ -624,7 +624,7 @@ contract('LiquidityBridgeContract', async accounts => {
             instance.address, //lbc address
             liquidityProviderRskAddress,
             accounts[1],
-            web3.utils.toBN(1)
+            web3.utils.toBN(3)
         );
 
         const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
