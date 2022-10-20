@@ -57,7 +57,6 @@ contract LiquidityBridgeContract {
 
     struct PegOutQuote {
         address lbcAddress;
-        address lpAddress;
         address liquidityProviderRskAddress;
         address rskRefundAddress;
         bytes32 derivationAddress;
@@ -79,6 +78,7 @@ contract LiquidityBridgeContract {
         bool success;
     }
 
+    event Test(address send);
     event Register(address from, uint256 amount);
     event Deposit(address from, uint256 amount);
     event CollateralIncrease(address from, uint256 amount);
