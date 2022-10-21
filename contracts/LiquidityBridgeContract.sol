@@ -57,7 +57,6 @@ contract LiquidityBridgeContract {
 
     struct PegOutQuote {
         address lbcAddress;
-        address lpAddress;
         address liquidityProviderRskAddress;
         address rskRefundAddress;
         bytes32 derivationAddress;
@@ -68,7 +67,7 @@ contract LiquidityBridgeContract {
         uint32 agreementTimestamp;
         uint32 depositDateLimit;
         uint16 depositConfirmations;
-        int256 transferConfirmations;
+        uint16 transferConfirmations;
         uint32 transferTime;
         uint32 expireDate;
         uint32 expireBlocks;
@@ -79,6 +78,7 @@ contract LiquidityBridgeContract {
         bool success;
     }
 
+    event Test(address send);
     event Register(address from, uint256 amount);
     event Deposit(address from, uint256 amount);
     event CollateralIncrease(address from, uint256 amount);
@@ -431,9 +431,9 @@ contract LiquidityBridgeContract {
         require(processedPegOutQuotes[quoteHash] == 2, "LBC: Quote not processed");
         require(block.timestamp <= quote.expireDate, "LBC: Quote expired by date");
         require(block.number <= quote.expireBlocks, "LBC: Quote expired by blocks");
-        require(msg.sender == quote.lpAddress, "LBC: Wrong sender");
-        require(bridge.getBtcTransactionConfirmations(btcTxHash, btcBlockHeaderHash, partialMerkleTree, merkleBranchHashes) >= quote.transferConfirmations, "LBC: Don't have required confirmations");
-        payable(quote.lpAddress).transfer(quote.valueToTransfer + quote.fee);
+        require(msg.sender == quote.liquidityProviderRskAddress, "LBC: Wrong sender");
+        require(bridge.getBtcTransactionConfirmations(btcTxHash, btcBlockHeaderHash, partialMerkleTree, merkleBranchHashes) >= int(uint256(quote.transferConfirmations)), "LBC: Don't have required confirmations");
+        payable(quote.liquidityProviderRskAddress).transfer(quote.valueToTransfer + quote.fee);
         decreasePegOutBalance(quote.rskRefundAddress, quote.valueToTransfer);
         delete processedPegOutQuotes[quoteHash];
     }
@@ -638,7 +638,6 @@ contract LiquidityBridgeContract {
     function encodePegOutPart1(PegOutQuote memory quote) private pure returns (bytes memory) {
         return abi.encode(
             quote.lbcAddress, 
-            quote.lpAddress,
             quote.liquidityProviderRskAddress,
             quote.rskRefundAddress,   
             quote.derivationAddress, 
