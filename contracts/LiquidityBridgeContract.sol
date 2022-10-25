@@ -59,7 +59,6 @@ contract LiquidityBridgeContract {
         address lbcAddress;
         address liquidityProviderRskAddress;
         address rskRefundAddress;
-        bytes32 derivationAddress;
         uint64 fee;
         uint64 penaltyFee;
         int64 nonce;
@@ -113,7 +112,7 @@ contract LiquidityBridgeContract {
     bool private locked;
 
     mapping(bytes32 => uint8) private processedQuotes;
-    mapping(bytes32 => uint8) private processedPegOutQuotes;
+    mapping(bytes32 => uint8) public processedPegOutQuotes;
 
     modifier onlyRegistered() {
         require(isRegistered(msg.sender), "Not registered");
@@ -640,7 +639,6 @@ contract LiquidityBridgeContract {
             quote.lbcAddress, 
             quote.liquidityProviderRskAddress,
             quote.rskRefundAddress,   
-            quote.derivationAddress, 
             quote.fee,
             quote.penaltyFee,
             quote.nonce,
