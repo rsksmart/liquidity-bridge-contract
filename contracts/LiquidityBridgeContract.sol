@@ -112,7 +112,7 @@ contract LiquidityBridgeContract {
     bool private locked;
 
     mapping(bytes32 => uint8) private processedQuotes;
-    mapping(bytes32 => uint8) public processedPegOutQuotes;
+    mapping(bytes32 => uint8) private processedPegOutQuotes;
 
     modifier onlyRegistered() {
         require(isRegistered(msg.sender), "Not registered");
@@ -176,6 +176,10 @@ contract LiquidityBridgeContract {
 
     function getDustThreshold() external view returns (uint) {
         return dust;
+    }
+
+    function getProcessedQuote(bytes32 key) external view returns (uint8) {
+        return processedPegOutQuotes[key];
     }
 
     /**
