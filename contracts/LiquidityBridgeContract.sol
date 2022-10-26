@@ -435,6 +435,7 @@ contract LiquidityBridgeContract {
         require(bridge.getBtcTransactionConfirmations(btcTxHash, btcBlockHeaderHash, partialMerkleTree, merkleBranchHashes) >= int(uint256(quote.transferConfirmations)), "LBC: Don't have required confirmations");
         payable(quote.liquidityProviderRskAddress).transfer(quote.valueToTransfer + quote.fee);
 
+        // TODO: check penalty fee here, what should be the transferred amount? or should it be a diff function?
         if (shouldPenalizeLP(quote, quote.penaltyFee, callRegistry[quoteHash].timestamp, block.timestamp)) {
             uint penalty = min(quote.penaltyFee, collateral[quote.liquidityProviderRskAddress]);
             collateral[quote.liquidityProviderRskAddress] -= penalty;
