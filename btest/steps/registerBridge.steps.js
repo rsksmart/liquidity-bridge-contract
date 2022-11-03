@@ -4,7 +4,6 @@ const { abi, bytecode } = require('../../build/contracts/LiquidityBridgeContract
 const ganache = require('ganache-cli'); // Mockup of eth network
 const web3 = new (require('web3'))(ganache.provider());
 const { estimateGas } = require('../helpers/basics');
-const utils = require("../test/utils/index");
 
 // const state = {
 //     error: undefined,
@@ -24,7 +23,7 @@ When (/User register as LP for the first time$/, async function () {
     const accounts = await web3.eth.getAccounts()
 
     try {
-        const deploy = new web3.eth.Contract(JSON.parse(abi))
+        const deploy = new web3.eth.Contract(abi)
             .deploy({
                 data: bytecode,
                 arguments: [bridgeAddress, MINIMUM_COLLATERAL, MINIMUM_PEG_IN, REWARD_PERCENTAGE, RESIGN_DELAY_BLOCKS, DUST_THRESHOLD]
