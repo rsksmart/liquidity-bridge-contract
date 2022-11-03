@@ -51,6 +51,6 @@ When (/User register as LP for the first time$/, async function () {
 })
 
 
-Then (/User is registered$/, async function () {
-
+Then (/User is registered as LP$/, async function () {
+    console.log('then: ', 1)
 })
