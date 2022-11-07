@@ -23,26 +23,31 @@ When (/User register as LP for the first time$/, async function () {
     const accounts = await web3.eth.getAccounts()
 
     try {
-        const deploy = new web3.eth.Contract(abi)
+        instance = new web3.eth.Contract(abi)
             .deploy({
                 data: bytecode,
                 arguments: [bridgeAddress, MINIMUM_COLLATERAL, MINIMUM_PEG_IN, REWARD_PERCENTAGE, RESIGN_DELAY_BLOCKS, DUST_THRESHOLD]
             })
-        const gas = await estimateGas(deploy)
+        console.log('deploy: ', instance)
 
-        instance = await deploy.send({
-            from: accounts[0],
-            gas
-        })
+        // const gas = await estimateGas(deploy)
+        const gas = 5000000
+
+        console.log('gas', gas)
+        console.log('accounts[0]', accounts[0])
+        // instance = await deploy.send({
+        //     from: accounts[0],
+        //     gas
+        // })
 
         // {from: currAddr, value : utils.LP_COLLATERAL}
-        const registerMethod = instance.methods.register({from: accounts[1], value: web3.utils.toBN(100)});
+        // console.log('instance methods: ', instance._parent.methods)
+        const registerMethod = instance._parent.methods.register();
+        console.log('register method', registerMethod)
         const methodGas = await estimateGas(registerMethod);
+        console.log('register method gas', methodGas)
 
-        const tx = await registerMethod.send({
-            from: accounts[1],
-            gas: methodGas
-        })
+        const tx = await registerMethod.send({from: accounts[1], value: web3.utils.toBN(100)})
         console.log('transaction: ', tx)
     } catch (e) {
         console.error("err: ", e)
