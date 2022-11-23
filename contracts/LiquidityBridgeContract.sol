@@ -436,7 +436,7 @@ contract LiquidityBridgeContract {
         payable(quote.liquidityProviderRskAddress).transfer(quote.valueToTransfer + quote.fee);
 
         // TODO: check penalty fee here, what should be the transferred amount? or should it be a diff function?
-        if (shouldPenalizeLP(quote, quote.penaltyFee, callRegistry[quoteHash].timestamp, block.timestamp)) {
+        if (shouldPenalizePegOutLP(quote, quote.penaltyFee, callRegistry[quoteHash].timestamp, block.timestamp)) {
             uint penalty = min(quote.penaltyFee, collateral[quote.liquidityProviderRskAddress]);
             collateral[quote.liquidityProviderRskAddress] -= penalty;
 
@@ -583,6 +583,37 @@ contract LiquidityBridgeContract {
         if (callTimestamp > nConfirmationsTimestamp.tryAdd(quote.callTime)) {
             return true;
         }
+        return false;
+    }
+
+    function shouldPenalizePegOutLP(PegOutQuote memory quote, uint64 penaltyFee, uint256 callTimestamp, uint256 height) private view returns (bool) {
+
+        bytes memory firstConfirmationHeader = bridge.getBtcBlockchainBlockHeaderByHeight(height);
+        require(firstConfirmationHeader.length > 0, "Invalid block height");
+
+        uint256 firstConfirmationTimestamp = getBtcBlockTimestamp(firstConfirmationHeader);
+
+        // do not penalize if deposit was not made on time
+        uint timeLimit = quote.agreementTimestamp.tryAdd(quote.depositDateLimit);
+        if (firstConfirmationTimestamp > timeLimit) {
+            return false;
+        }
+
+        // penalize if call was not made
+        if (callTimestamp == 0) {
+            return true;
+        }
+
+        bytes memory nConfirmationsHeader = bridge.getBtcBlockchainBlockHeaderByHeight(height + quote.depositConfirmations - 1);
+        require(nConfirmationsHeader.length > 0, "Invalid block height");
+
+        uint256 nConfirmationsTimestamp = getBtcBlockTimestamp(nConfirmationsHeader);
+
+        // penalize if the call was not made on time
+        if (callTimestamp > nConfirmationsTimestamp.tryAdd(quote.transferTime)) {
+            return true;
+        }
+
         return false;
     }
     
