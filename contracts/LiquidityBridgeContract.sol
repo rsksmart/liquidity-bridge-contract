@@ -588,8 +588,13 @@ contract LiquidityBridgeContract {
 
     function shouldPenalizePegOutLP(PegOutQuote memory quote, uint64 penaltyFee, uint256 callTimestamp, uint256 height) private view returns (bool) {
 
+        // do not penalize if deposit amount is insufficient
+        if (penaltyFee > 0 && uint256(penaltyFee) < quote.valueToTransfer) {
+            return false;
+        }
+
         bytes memory firstConfirmationHeader = bridge.getBtcBlockchainBlockHeaderByHeight(height);
-        require(firstConfirmationHeader.length > 0, "Invalid block height");
+        require(firstConfirmationHeader.length > 0, "1st block height invalid");
 
         uint256 firstConfirmationTimestamp = getBtcBlockTimestamp(firstConfirmationHeader);
 
@@ -605,7 +610,7 @@ contract LiquidityBridgeContract {
         }
 
         bytes memory nConfirmationsHeader = bridge.getBtcBlockchainBlockHeaderByHeight(height + quote.depositConfirmations - 1);
-        require(nConfirmationsHeader.length > 0, "Invalid block height");
+        require(nConfirmationsHeader.length > 0, "N block height invalid");
 
         uint256 nConfirmationsTimestamp = getBtcBlockTimestamp(nConfirmationsHeader);
 
