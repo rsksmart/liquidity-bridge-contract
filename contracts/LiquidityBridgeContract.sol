@@ -60,6 +60,11 @@ contract LiquidityBridgeContract {
         bool success;
     }
 
+    struct Provider {
+        uint id;
+        address provider;
+    }
+
     event Register(address from, uint256 amount);
     event Deposit(address from, uint256 amount);
     event CollateralIncrease(address from, uint256 amount);
@@ -77,6 +82,7 @@ contract LiquidityBridgeContract {
     Bridge bridge;
     mapping(address => uint256) private balances;
     mapping(address => uint256) private collateral;
+    mapping(uint => Provider) private providers;
     mapping(bytes32 => Registry) private callRegistry;
     mapping(address => uint256) private resignationBlockNum;
 
@@ -86,6 +92,7 @@ contract LiquidityBridgeContract {
     uint32 private rewardP;
     uint32 private resignDelayInBlocks;
     uint private dust;
+    uint providerId;
     
     bool private locked;
 
@@ -171,7 +178,19 @@ contract LiquidityBridgeContract {
         require(msg.value >= minCollateral, "Not enough collateral");
         require(resignationBlockNum[msg.sender] == 0, "Withdraw collateral first");
         collateral[msg.sender] = msg.value;
+        providerId++;
+        providers[providerId] = Provider(providerId, msg.sender);
         emit Register(msg.sender, msg.value);
+    }
+
+    function getProviders() external view returns(Provider[] memory) {
+        Provider[] memory providersToReturn;
+
+        for(uint i = 0; i < providerId; i++) {
+            providersToReturn[i] = providers[i];
+        }
+
+        return providersToReturn;
     }
 
     /**
