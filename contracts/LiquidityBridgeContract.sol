@@ -65,7 +65,7 @@ contract LiquidityBridgeContract {
         address provider;
     }
 
-    event Register(address from, uint256 amount);
+    event Register(uint id, address from, uint256 amount);
     event Deposit(address from, uint256 amount);
     event CollateralIncrease(address from, uint256 amount);
     event Withdrawal(address from, uint256 amount);
@@ -180,17 +180,21 @@ contract LiquidityBridgeContract {
         collateral[msg.sender] = msg.value;
         providerId++;
         providers[providerId] = Provider(providerId, msg.sender);
-        emit Register(msg.sender, msg.value);
+        emit Register(providerId, msg.sender, msg.value);
     }
 
     function getProviders() external view returns(Provider[] memory) {
-        Provider[] memory providersToReturn;
+        Provider[] memory providersToReturn = new Provider[](providerId);
+        uint count = 0;
 
-        for(uint i = 0; i < providerId; i++) {
-            providersToReturn[i] = providers[i];
+        for(uint i = 0; i <= providerId; i++) {
+            if(providers[i].id != 0) {
+                providersToReturn[count] = providers[i];
+                count++;
+            }
         }
 
-        return providersToReturn;
+        return (providersToReturn);
     }
 
     /**
