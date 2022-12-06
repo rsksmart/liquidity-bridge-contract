@@ -37,8 +37,9 @@ contract('LiquidityBridgeContract', async accounts => {
         let current = await instance.getCollateral(currAddr);
         let registered = current.sub(existing);
 
-        truffleAssertions.eventEmitted(tx, "Register", { 
-            from: currAddr
+        truffleAssertions.eventEmitted(tx, "Register", {
+            from: currAddr,
+            amount: utils.LP_COLLATERAL
         });
         expect(utils.LP_COLLATERAL).to.be.a.bignumber.eq(registered);
     });
@@ -100,6 +101,19 @@ contract('LiquidityBridgeContract', async accounts => {
         let currAddr = accounts[9];
 
         await truffleAssertions.fails(mock.callRegister(instance.address, {from : currAddr, value : utils.LP_COLLATERAL}));
+    });
+
+    it ('should get registered liquidity providers', async () => {
+        let currAddr = accounts[1];
+        
+        let tx = await instance.register({from: currAddr, value : utils.LP_COLLATERAL});
+
+        truffleAssertions.eventEmitted(tx, "Register", {
+            from: currAddr,
+            amount: utils.LP_COLLATERAL
+        });
+        let providers = await instance.getProviders();
+        expect(providers.length).to.be.greaterThan(0)
     });
 
     it('should match lp address with address retrieved from ecrecover', async () => {
