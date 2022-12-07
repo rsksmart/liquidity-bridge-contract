@@ -1,4 +1,6 @@
 const LiquidityBridgeContract = artifacts.require('LiquidityBridgeContract');
+const LiquidityBridgeContractProxy = artifacts.require('LiquidityBridgeContractProxy');
+const LiquidityBridgeContractAdmin = artifacts.require('LiquidityBridgeContractAdmin');
 const Mock = artifacts.require('Mock')
 const BridgeMock = artifacts.require('BridgeMock');
 const SafeMath = artifacts.require('SafeMath');
@@ -50,5 +52,21 @@ module.exports = async function(deployer, network) {
         minimumPegIn = 2;
     }
 
-    await deployer.deploy(LiquidityBridgeContract, bridgeAddress, MINIMUM_COLLATERAL, minimumPegIn, REWARD_PERCENTAGE, RESIGN_DELAY_BLOCKS, DUST_THRESHOLD);
+    const lbcAdmin = await deployer.deploy(LiquidityBridgeContractAdmin);
+    const liquidityBridgeContractInstance = await deployer.deploy(LiquidityBridgeContract);
+
+    const lbcLogic = new web3.eth.Contract(liquidityBridgeContractInstance.abi, liquidityBridgeContractInstance.address);
+
+    const methodCall =  await lbcLogic.methods.initialize(
+        bridgeAddress,
+        MINIMUM_COLLATERAL,
+        minimumPegIn,
+        REWARD_PERCENTAGE,
+        RESIGN_DELAY_BLOCKS,
+        DUST_THRESHOLD
+    );
+    
+    methodCall.call({from: deployer.address});
+
+    await deployer.deploy(LiquidityBridgeContractProxy, liquidityBridgeContractInstance.address, lbcAdmin.address, methodCall.encodeABI());
 };
