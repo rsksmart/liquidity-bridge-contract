@@ -7,6 +7,8 @@ const toHex = hash => {
     return b;
 };
 
+const toBuffer = (value) => Buffer.from()
+
 const toHex20 = hash => {
     const b = bs58.decode(hash);
     return b.slice(1, b.length-4);
@@ -19,26 +21,26 @@ const toHex21 = hash => {
 var web3Provider = new Web3.providers.HttpProvider('http://localhost:4444');
 
 var web3 = new Web3(web3Provider);
-
+web3.eth.handleRevert = true
 const json = require("./build/contracts/LiquidityBridgeContract.json");
 
-const contract = new web3.eth.Contract(json.abi, "0xcb189e1F1cc730B4458D64fd7f0f68DcC60cbced");
+const contract = new web3.eth.Contract(json.abi, "0xd8B57e141b7194fB857874ab185BC99675A2332F");
 
 const quotePegOutRegister = {
-	"lbcAddress": "0xcb189e1F1cc730B4458D64fd7f0f68DcC60cbced",
+	"lbcAddress": "0xd8B57e141b7194fB857874ab185BC99675A2332F",
 	"liquidityProviderRskAddress": "0x9D93929A9099be4355fC2389FbF253982F9dF47c",
 	"rskRefundAddress": "0xa554d96413FF72E93437C4072438302C38350EE3",
-	"fee": "1000",
+	"fee": "0",
 	"penaltyFee": "1000000",
-	"nonce": "4862760736690061306",
-	"valueToTransfer": "600000000000000000",
-	"agreementTimestamp": "1666724140",
-	"depositDateLimit": 3600,
-	"depositConfirmations": 10,
-	"transferConfirmations": 0,
-	"transferTime": 0,
-	"expireDate": 0,
-	"expireBlocks": 0
+	"nonce": "4838926104160593202",
+	"valueToTransfer": "200",
+	"agreementTimestamp": "1669989762",
+	"depositDateLimit": "7200",
+	"depositConfirmations": "2",
+	"transferConfirmations": "0",
+	"transferTime": "0",
+	"expireDate": 1669996962,
+	"expireBlocks": 43219
 }
 
 function getAccounts(web3) {
@@ -51,9 +53,11 @@ function hashPegout(contract, quotePegOutRegister) {
 	contract.methods.hashPegoutQuote(quotePegOutRegister).call().then(console.log)
 }
 
-const sig = Web3.utils.hexToBytes("0x"+"31405ed3c5dab19912badd558896c4565c3376fd9bb5d945114b1e03f199e7a118ec1f590ae6e0b638fcdd187507272e5ceacd4254ca538f73cb4640da57c8561b");
+const sig = Web3.utils.hexToBytes("0x"+"227f40d739f18ce8545972056fd100a51ade084bb2076dc5128966a2683ec85578e8710d4f3c08d854b68a9aace055644928d2045173ae24329f5c55428e26c11b");
 
 
-contract.methods.registerPegOut(quotePegOutRegister, Buffer.from(sig)).send({from: "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826",value: "600000000000001000", gas: "900000"}).then(console.log)
+contract.methods.registerPegOut(quotePegOutRegister, Buffer.from(sig)).send({from: "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826",value: "200", gas: "900000"}).then(console.log)
 
+// contract.methods.hashPegoutQuote(quotePegOutRegister).call().then(console.log)
 
+// afe0a4b398ef603a533b7f4751d7eb9a0ba3fdb01e71c3774383d423f944b580
