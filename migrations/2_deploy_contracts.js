@@ -23,6 +23,8 @@ const RESIGN_DELAY_BLOCKS = 1;
 const DUST_THRESHOLD = 2300 * 65164000;
 
 module.exports = async function(deployer, network) {
+    const networkData = deployer.networks[network];
+    
     await deployer.deploy(SafeMath);
     await deployer.link(SafeMath, LiquidityBridgeContract);
 
@@ -52,7 +54,13 @@ module.exports = async function(deployer, network) {
         minimumPegIn = 2;
     }
 
-    const lbcAdmin = await deployer.deploy(LiquidityBridgeContractAdmin);
+
+    if(!networkData.lbcAdminAddress) {
+        const lbcAdmin = await deployer.deploy(LiquidityBridgeContractAdmin);
+        networkData.lbcAdminAddress = lbcAdmin.address;
+        console.log(`lbcAdminAddress: ${networkData.lbcAdminAddress} for ${network} network, please replace this data in truffle-config.js for your network unless you are running unit.`);
+    }
+
     const liquidityBridgeContractInstance = await deployer.deploy(LiquidityBridgeContract);
 
     const lbcLogic = new web3.eth.Contract(liquidityBridgeContractInstance.abi, liquidityBridgeContractInstance.address);
@@ -68,5 +76,8 @@ module.exports = async function(deployer, network) {
     
     methodCall.call({from: deployer.address});
 
-    await deployer.deploy(LiquidityBridgeContractProxy, liquidityBridgeContractInstance.address, lbcAdmin.address, methodCall.encodeABI());
+    if(!networkData.lbcProxyAddress) {
+        networkData.lbcProxyAddress = (await deployer.deploy(LiquidityBridgeContractProxy, liquidityBridgeContractInstance.address, networkData.lbcAdminAddress, methodCall.encodeABI())).address;
+        console.log(`lbcProxyAddress: ${networkData.lbcProxyAddress} for ${network} network, please replace this data in truffle-config.js for your network unless you are running unit.`);
+    }
 };
