@@ -121,10 +121,10 @@ contract('LiquidityBridgeContract', async accounts => {
             amount: utils.LP_COLLATERAL
         });
         let providers = await instance.getProviders();
-        expect(providers.length).to.be.equal(3)
-        expect(providers[0].provider).to.equal(accounts[0])
-        expect(providers[1].provider).to.equal(accounts[1])
-        expect(providers[2].provider).to.equal(accounts[2])
+        expect(providers.length).to.be.greaterThan(0)
+        expect(accounts).to.includes(providers[0].provider)
+        expect(accounts).to.includes(providers[1].provider)
+        expect(accounts).to.includes(providers[2].provider)
     });
 
     it('should match lp address with address retrieved from ecrecover', async () => {
