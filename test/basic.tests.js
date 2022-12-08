@@ -112,8 +112,19 @@ contract('LiquidityBridgeContract', async accounts => {
             from: currAddr,
             amount: utils.LP_COLLATERAL
         });
+        let currAddr2 = accounts[2];
+        
+        let tx2 = await instance.register({from: currAddr2, value : utils.LP_COLLATERAL});
+
+        truffleAssertions.eventEmitted(tx2, "Register", {
+            from: currAddr2,
+            amount: utils.LP_COLLATERAL
+        });
         let providers = await instance.getProviders();
-        expect(providers.length).to.be.greaterThan(0)
+        expect(providers.length).to.be.equal(3)
+        expect(providers[0].provider).to.equal(accounts[0])
+        expect(providers[1].provider).to.equal(accounts[1])
+        expect(providers[2].provider).to.equal(accounts[2])
     });
 
     it('should match lp address with address retrieved from ecrecover', async () => {

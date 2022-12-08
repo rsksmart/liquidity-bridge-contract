@@ -188,7 +188,7 @@ contract LiquidityBridgeContract {
         uint count = 0;
 
         for(uint i = 0; i <= providerId; i++) {
-            if(providers[i].id != 0) {
+            if(isRegistered(providers[i].provider)) {
                 providersToReturn[count] = providers[i];
                 count++;
             }
