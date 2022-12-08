@@ -24,19 +24,23 @@ module.exports = {
       provider: () => new HDWalletProvider({
         mnemonic,
         providerOrUrl: `https://public-node.testnet.rsk.co`,
-        derivationPath: "m/44'/37310'/0'/0/"
+        derivationPath: "m/44'/37310'/0'/0/",
+        pollingInterval: 30000,
       }),
       network_id: 31,
-      gasPrice: 6000000000,
+      gasPrice: 65164000,
+      deploymentPollingInterval: 30000,
     },
     rskMainnet: {
       provider: () => new HDWalletProvider({
         mnemonic,
         providerOrUrl: `https://public-node.rsk.co`,
-        derivationPath: "m/44'/137'/0'/0/"
+        derivationPath: "m/44'/137'/0'/0/",
+        pollingInterval: 30000,
       }),
       network_id: 30,
-      gasPrice: 60000000,
+      gasPrice: 65164000,
+      deploymentPollingInterval: 30000,
     },
     testRegtest: {
       host: '127.0.0.1',

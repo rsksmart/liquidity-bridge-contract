@@ -8,7 +8,7 @@ function getTestQuote(lbcAddress, destAddr, callData, liquidityProviderRskAddres
     let gasLimit = 150000;
     let nonce = 0;
     let data = callData || '0x00';
-    let agreementTime = Math.round(Date.now() / 1000);
+    let agreementTime = 1661788988;
     let timeForDeposit = 600;
     let callTime = 600;
     let depositConfirmations = 10;
@@ -57,12 +57,24 @@ function timeout(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function reverseHexBytes(hexStr) {
+    let arr = [];
+    for (let i = 0; i < hexStr.length / 2; i++) {
+        let pos = hexStr.length - i*2;
+        arr.push(hexStr.substring(pos - 2, pos))
+    }
+    return arr.join("");
+}
+
 const LP_COLLATERAL = web3.utils.toBN(100);
+const ONE_COLLATERAL = web3.utils.toBN(1);
 
 module.exports = {
     getTestQuote,
     asArray,
     ensureLiquidityProviderAvailable,
     LP_COLLATERAL,
-    timeout
-  };
+    ONE_COLLATERAL,
+    timeout,
+    reverseHexBytes,
+};

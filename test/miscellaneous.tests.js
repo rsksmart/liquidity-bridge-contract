@@ -65,7 +65,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let gasLimit = 30000;
         let nonce = 1;
         let lbcAddress = instance.address;
-        let agreementTime = Math.round(Date.now() / 1000);
+        let agreementTime = 1661788988;
         let timeForDeposit = 600;
         let callTime = 600;
         let depositConfirmations = 10;
@@ -96,11 +96,11 @@ contract('LiquidityBridgeContract', async accounts => {
         let transferredInBTC = 100;
         let quoteHash = await instance.hashQuote(quote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
-        let firstConfirmationTime = web3.utils.toHex(agreementTime + 300).slice(2, 12);
-        let nConfirmationTime = web3.utils.toHex(agreementTime + 600).slice(2, 12);
+        let firstConfirmationTime = utils.reverseHexBytes(web3.utils.toHex(agreementTime + 300).substring(2));
+        let nConfirmationTime = utils.reverseHexBytes(web3.utils.toHex(agreementTime + 600).substring(2));
         let firstHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + firstConfirmationTime + '0000000000000000';
-        
-        let nHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + nConfirmationTime + '0000000000000000';
+        let nHeader =     '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + nConfirmationTime +     '0000000000000000';
+
         await bridgeMockInstance.setHeader(height, firstHeader);
         await bridgeMockInstance.setHeader(height + depositConfirmations - 1, nHeader);
         await bridgeMockInstance.setPegin(quoteHash, {value : transferredInBTC});
@@ -136,7 +136,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let delta = web3.utils.toBN(val).add(web3.utils.toBN(callFee)).div(web3.utils.toBN(10000));
         let peginAmount = web3.utils.toBN(val).add(web3.utils.toBN(callFee)).sub(delta);
         let lbcAddress = instance.address;
-        let agreementTime = Math.round(Date.now() / 1000);
+        let agreementTime = 1661788988;
         let timeForDeposit = 600;
         let callTime = 600;
         let depositConfirmations = 10;
@@ -164,10 +164,10 @@ contract('LiquidityBridgeContract', async accounts => {
         ];
         let quoteHash = await instance.hashQuote(quote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
-        let firstConfirmationTime = web3.utils.toHex(agreementTime + 300).slice(2, 12);
-        let nConfirmationTime = web3.utils.toHex(agreementTime + 600).slice(2, 12);
+        let firstConfirmationTime = utils.reverseHexBytes(web3.utils.toHex(agreementTime + 300).substring(2));
+        let nConfirmationTime = utils.reverseHexBytes(web3.utils.toHex(agreementTime + 600).substring(2));
         let firstHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + firstConfirmationTime + '0000000000000000';
-        let nHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + nConfirmationTime + '0000000000000000';
+        let nHeader =     '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + nConfirmationTime +     '0000000000000000';
 
         await bridgeMockInstance.setPegin(quoteHash, {value : peginAmount});
         await bridgeMockInstance.setHeader(height, firstHeader);
@@ -229,11 +229,11 @@ contract('LiquidityBridgeContract', async accounts => {
         let data = '0x00';
         let callFee = 1;
         let gasLimit = 150000;
-        let nonce = 0;
+        let nonce = 1;
         let delta = web3.utils.toBN(val).add(web3.utils.toBN(callFee)).div(web3.utils.toBN(10000));
         let peginAmount = web3.utils.toBN(val).add(web3.utils.toBN(callFee)).sub(delta).sub(web3.utils.toBN(1));
         let lbcAddress = instance.address;
-        let agreementTime = Math.round(Date.now() / 1000);
+        let agreementTime = 1661788988;
         let timeForDeposit = 600;
         let callTime = 600;
         let depositConfirmations = 10;
@@ -261,10 +261,10 @@ contract('LiquidityBridgeContract', async accounts => {
         ];
         let quoteHash = await instance.hashQuote(quote);
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
-        let firstConfirmationTime = web3.utils.toHex(agreementTime + 300).slice(2, 12);
-        let nConfirmationTime = web3.utils.toHex(agreementTime + 600).slice(2, 12);
+        let firstConfirmationTime = utils.reverseHexBytes(web3.utils.toHex(agreementTime + 300).substring(2));
+        let nConfirmationTime = utils.reverseHexBytes(web3.utils.toHex(agreementTime + 600).substring(2));
         let firstHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + firstConfirmationTime + '0000000000000000';
-        let nHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + nConfirmationTime + '0000000000000000';
+        let nHeader =     '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + nConfirmationTime +     '0000000000000000';
 
         await bridgeMockInstance.setPegin(quoteHash, {value : peginAmount});
         await bridgeMockInstance.setHeader(height, firstHeader);
@@ -293,5 +293,27 @@ contract('LiquidityBridgeContract', async accounts => {
         await truffleAssert.fails(instance.initialize(bridgeMockInstance.address, 1, 1, 100, 1, 1));
         instance = await LiquidityBridgeContract.new();
         await truffleAssert.fails(instance.initialize(bridgeMockInstance.address, 1, 1, 101, 1, 1));
+    });
+
+    it ('should extract timestamp from btc block header', async () => {
+        const btcHeader = '0x0080cf2a0857bdec9d66f5feb52d00d5061ff02a904112d9b0cd1ac401000000000000003d2d2b5733c820a1f07ce6e0acd2ea47f27016b49ccb405b1e3e5786f8ae962e3ce30c63bc292d1919856362';
+
+        let timestamp = await instance.getBtcBlockTimestamp(btcHeader);
+        expect(timestamp).to.be.a.bignumber.eq(web3.utils.toBN(1661788988));
+
+        const btcHeader2 = '0x' + '00'.repeat(68) + '12345678' + '00'.repeat(8);
+
+        let timestamp2 = await instance.getBtcBlockTimestamp(btcHeader2);
+        expect(timestamp2).to.be.a.bignumber.eq(web3.utils.toBN('0x78563412'));
+    });
+
+    it ('should fail to extract timestamp from btc block header with invalid length', async () => {
+        const btcHeaderEmpty = '0x';
+        const btcHeader79 = '0x' + '00'.repeat(79);
+        const btcHeader81 = '0x' + '00'.repeat(81);
+
+        await truffleAssertions.reverts(instance.getBtcBlockTimestamp(btcHeaderEmpty), 'invalid header length');
+        await truffleAssertions.reverts(instance.getBtcBlockTimestamp(btcHeader79), 'invalid header length');
+        await truffleAssertions.reverts(instance.getBtcBlockTimestamp(btcHeader81), 'invalid header length');
     });
 });

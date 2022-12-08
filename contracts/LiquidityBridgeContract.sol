@@ -62,7 +62,12 @@ contract LiquidityBridgeContract is Initializable {
         bool success;
     }
 
-    event Register(address from, uint256 amount);
+    struct Provider {
+        uint id;
+        address provider;
+    }
+
+    event Register(uint id, address from, uint256 amount);
     event Deposit(address from, uint256 amount);
     event CollateralIncrease(address from, uint256 amount);
     event Withdrawal(address from, uint256 amount);
@@ -79,6 +84,7 @@ contract LiquidityBridgeContract is Initializable {
     Bridge bridge;
     mapping(address => uint256) private balances;
     mapping(address => uint256) private collateral;
+    mapping(uint => Provider) private providers;
     mapping(bytes32 => Registry) private callRegistry;
     mapping(address => uint256) private resignationBlockNum;
 
@@ -88,6 +94,7 @@ contract LiquidityBridgeContract is Initializable {
     uint32 private rewardP;
     uint32 private resignDelayInBlocks;
     uint private dust;
+    uint providerId;
     
     bool private locked;
 
@@ -173,7 +180,23 @@ contract LiquidityBridgeContract is Initializable {
         require(msg.value >= minCollateral, "Not enough collateral");
         require(resignationBlockNum[msg.sender] == 0, "Withdraw collateral first");
         collateral[msg.sender] = msg.value;
-        emit Register(msg.sender, msg.value);
+        providerId++;
+        providers[providerId] = Provider(providerId, msg.sender);
+        emit Register(providerId, msg.sender, msg.value);
+    }
+
+    function getProviders() external view returns(Provider[] memory) {
+        Provider[] memory providersToReturn = new Provider[](providerId);
+        uint count = 0;
+
+        for(uint i = 0; i <= providerId; i++) {
+            if(providers[i].id != 0) {
+                providersToReturn[count] = providers[i];
+                count++;
+            }
+        }
+
+        return (providersToReturn);
     }
 
     /**
@@ -381,6 +404,7 @@ contract LiquidityBridgeContract is Initializable {
 
     function validateAndHashQuote(Quote memory quote) private view returns (bytes32) {
         require(address(this) == quote.lbcAddress, "Wrong LBC address");
+        require(address(bridge) != quote.contractAddress, "Bridge is not an accepted contract address");
         require(quote.btcRefundAddress.length == 21, "BTC refund address must be 21 bytes long");
         require(quote.liquidityProviderBtcAddress.length == 21, "BTC LP address must be 21 bytes long");
         require(quote.value + quote.callFee >= minPegIn, "Too low agreed amount");
@@ -493,25 +517,21 @@ contract LiquidityBridgeContract is Initializable {
         @param header The block header
         @return The timestamp of the block header
      */
-    function getBtcBlockTimestamp(bytes memory header) private pure returns (uint256) {
-        // bitcoin header is 80 bytes and timestamp is 4 bytes from byte 68 to byte 71 (both inclusive) 
+    function getBtcBlockTimestamp(bytes memory header) public pure returns (uint256) {
+        // bitcoin header is 80 bytes and timestamp is 4 bytes from byte 68 to byte 71 (both inclusive)
+        require(header.length == 80, "invalid header length");
+
         return sliceUint32FromLSB(header, 68);
     }
 
 	// bytes must have at least 28 bytes before the uint32
-	function sliceUint32FromLSB(bytes memory bs, uint start)
+	function sliceUint32FromLSB(bytes memory bs, uint offset)
     internal pure
     returns (uint32)
 	{
-		require(bs.length >= start + 4, "slicing out of range");
-		require(bs.length >= 32, "slicing out of range");
-		start -=28;
-		uint x;
-		assembly {
-			x := mload(add(bs, add(0x20, start)))
-		}
-		return uint32(x);
-		//return (uint32) (x & (1<<32-1));
+        require(bs.length >= offset + 4, "slicing out of range");
+
+        return uint32(uint8(bs[offset])) | uint32(uint8(bs[offset + 1])) << 8 | uint32(uint8(bs[offset + 2])) << 16 | uint32(uint8(bs[offset + 3])) << 24;
 	}
 
     function encodeQuote(Quote memory quote) private pure returns (bytes memory) {

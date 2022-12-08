@@ -55,10 +55,10 @@ contract('LiquidityBridgeContract', async accounts => {
        
         let quoteHash = await instance.hashQuote(utils.asArray(quote));
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
-        let firstConfirmationTime = web3.utils.toHex(quote.agreementTime + 300).slice(2, 12);
-        let nConfirmationTime = web3.utils.toHex(quote.agreementTime + 600).slice(2, 12);
+        let firstConfirmationTime = utils.reverseHexBytes(web3.utils.toHex(quote.agreementTime + 300).substring(2));
+        let nConfirmationTime = utils.reverseHexBytes(web3.utils.toHex(quote.agreementTime + 600).substring(2));
         let firstHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + firstConfirmationTime + '0000000000000000';
-        let nHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + nConfirmationTime + '0000000000000000';
+        let nHeader =     '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + nConfirmationTime +     '0000000000000000';
 
         await bridgeMockInstance.setPegin(quoteHash, {value : peginAmount});
         await bridgeMockInstance.setHeader(height, firstHeader);
@@ -141,10 +141,10 @@ contract('LiquidityBridgeContract', async accounts => {
 
         let quoteHash = await instance.hashQuote(utils.asArray(quote));
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
-        let firstConfirmationTime = web3.utils.toHex(quote.agreementTime + 300).slice(2, 12);
-        let nConfirmationTime = web3.utils.toHex(quote.agreementTime + 600).slice(2, 12);
+        let firstConfirmationTime = utils.reverseHexBytes(web3.utils.toHex(quote.agreementTime + 300).substring(2));
+        let nConfirmationTime = utils.reverseHexBytes(web3.utils.toHex(quote.agreementTime + 600).substring(2));
         let firstHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + firstConfirmationTime + '0000000000000000';
-        let nHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + nConfirmationTime + '0000000000000000';
+        let nHeader =     '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + nConfirmationTime +     '0000000000000000';
 
         await bridgeMockInstance.setPegin(quoteHash, {value : peginAmount});
         await bridgeMockInstance.setHeader(height, firstHeader);
@@ -224,10 +224,10 @@ contract('LiquidityBridgeContract', async accounts => {
         
         let quoteHash = await instance.hashQuote(utils.asArray(quote));
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
-        let firstConfirmationTime = web3.utils.toHex(quote.agreementTime + 300).slice(2, 12);
-        let nConfirmationTime = web3.utils.toHex(quote.agreementTime + 600).slice(2, 12);
+        let firstConfirmationTime = utils.reverseHexBytes(web3.utils.toHex(quote.agreementTime + 300).substring(2));
+        let nConfirmationTime = utils.reverseHexBytes(web3.utils.toHex(quote.agreementTime + 600).substring(2));
         let firstHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + firstConfirmationTime + '0000000000000000';
-        let nHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + nConfirmationTime + '0000000000000000';
+        let nHeader =     '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + nConfirmationTime +     '0000000000000000';
 
         let initialUserBalance = await web3.eth.getBalance(rskRefundAddress);
 
@@ -296,10 +296,10 @@ contract('LiquidityBridgeContract', async accounts => {
         
         let quoteHash = await instance.hashQuote(utils.asArray(quote));
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
-        let firstConfirmationTime = web3.utils.toHex(quote.agreementTime + 300).slice(2, 12);
-        let nConfirmationTime = web3.utils.toHex(quote.agreementTime + 600).slice(2, 12);
+        let firstConfirmationTime = utils.reverseHexBytes(web3.utils.toHex(quote.agreementTime + 300).substring(2));
+        let nConfirmationTime = utils.reverseHexBytes(web3.utils.toHex(quote.agreementTime + 600).substring(2));
         let firstHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + firstConfirmationTime + '0000000000000000';
-        let nHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + nConfirmationTime + '0000000000000000';
+        let nHeader =     '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + nConfirmationTime +     '0000000000000000';
 
         await bridgeMockInstance.setPegin(quoteHash, {value : peginAmount});
         await bridgeMockInstance.setHeader(height, firstHeader);
@@ -359,10 +359,10 @@ contract('LiquidityBridgeContract', async accounts => {
         let quoteHash = await instance.hashQuote(utils.asArray(quote));
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
         let reward = Math.floor(quote.penaltyFee.div(web3.utils.toBN(10)));
-        let firstConfirmationTime = web3.utils.toHex(quote.agreementTime + 300).slice(2, 12);
-        let nConfirmationTime = web3.utils.toHex(quote.agreementTime + 600).slice(2, 12);
+        let firstConfirmationTime = utils.reverseHexBytes(web3.utils.toHex(quote.agreementTime + 300).substring(2));
+        let nConfirmationTime = utils.reverseHexBytes(web3.utils.toHex(quote.agreementTime + 600).substring(2));
         let firstHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + firstConfirmationTime + '0000000000000000';
-        let nHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + nConfirmationTime + '0000000000000000';
+        let nHeader =     '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + nConfirmationTime +     '0000000000000000';
 
         await bridgeMockInstance.setPegin(quoteHash, {value : peginAmount});
         await bridgeMockInstance.setHeader(height, firstHeader);
