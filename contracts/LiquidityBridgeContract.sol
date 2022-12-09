@@ -5,11 +5,13 @@ pragma experimental ABIEncoderV2;
 import './Bridge.sol';
 import './SafeMath.sol';
 import './SignatureValidator.sol';
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 /**
     @title Contract that assists with the Flyover protocol
  */
-contract LiquidityBridgeContract {
+
+contract LiquidityBridgeContract is Initializable {
     using SafeMath for uint;
     using SafeMath for uint32;
 
@@ -86,8 +88,8 @@ contract LiquidityBridgeContract {
     mapping(bytes32 => Registry) private callRegistry;
     mapping(address => uint256) private resignationBlockNum;
 
-    uint256 private immutable minCollateral;
-    uint256 private immutable minPegIn;
+    uint256 private minCollateral;
+    uint256 private minPegIn;
     
     uint32 private rewardP;
     uint32 private resignDelayInBlocks;
@@ -115,23 +117,23 @@ contract LiquidityBridgeContract {
         _;
     }
 
+
     /**
-        @param bridgeAddress The address of the bridge contract
-        @param minimumCollateral The minimum required collateral for liquidity providers
-        @param minimumPegIn The minimum peg-in amount
-        @param rewardPercentage The percentage of the penalty fee that an honest party receives when calling registerPegIn in case of a liquidity provider misbehaving
-        @param resignDelayBlocks The number of block confirmations that a liquidity provider needs to wait before it can withdraw its collateral
-        @param dustThreshold Amount that is considered dust
+        @param _bridgeAddress The address of the bridge contract
+        @param _minimumCollateral The minimum required collateral for liquidity providers
+        @param _minimumPegIn The minimum peg-in amount
+        @param _rewardPercentage The percentage of the penalty fee that an honest party receives when calling registerPegIn in case of a liquidity provider misbehaving
+        @param _resignDelayBlocks The number of block confirmations that a liquidity provider needs to wait before it can withdraw its collateral
+        @param _dustThreshold Amount that is considered dust
      */
-    constructor(address bridgeAddress, uint256 minimumCollateral, uint256 minimumPegIn, uint32 rewardPercentage, uint32 resignDelayBlocks, uint dustThreshold) {
-        require(rewardPercentage <= 100, "Invalid reward percentage");
-        
-        bridge = Bridge(bridgeAddress);
-        minCollateral = minimumCollateral;
-        minPegIn = minimumPegIn;
-        rewardP = rewardPercentage;
-        resignDelayInBlocks = resignDelayBlocks;
-        dust = dustThreshold;
+    function initialize(address _bridgeAddress, uint256 _minimumCollateral, uint256 _minimumPegIn, uint32 _rewardPercentage, uint32 _resignDelayBlocks, uint _dustThreshold) initializer external {
+        require(_rewardPercentage <= 100, "Invalid reward percentage");
+        bridge = Bridge(_bridgeAddress);
+        minCollateral = _minimumCollateral;
+        minPegIn = _minimumPegIn;
+        rewardP = _rewardPercentage;
+        resignDelayInBlocks = _resignDelayBlocks;
+        dust = _dustThreshold;
     }
 
     receive() external payable { 
@@ -344,7 +346,8 @@ contract LiquidityBridgeContract {
             emit BridgeCapExceeded(quoteHash, transferredAmountOrErrorCode);
             return transferredAmountOrErrorCode;
         }
-        
+    
+
         // the amount is safely assumed positive because it's already been validated in lines 287/298 there's no (negative) error code being returned by the bridge.
         uint transferredAmount = uint(transferredAmountOrErrorCode);
 

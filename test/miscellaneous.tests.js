@@ -1,4 +1,5 @@
 const LiquidityBridgeContract = artifacts.require('LiquidityBridgeContract');
+const LiquidityBridgeContractProxy = artifacts.require('LiquidityBridgeContractProxy');
 const BridgeMock = artifacts.require("BridgeMock");
 const Mock = artifacts.require('Mock')
 const truffleAssert = require('truffle-assertions');
@@ -17,7 +18,8 @@ contract('LiquidityBridgeContract', async accounts => {
     const liquidityProviderRskAddress = accounts[0];
 
     before(async () => {
-        instance = await LiquidityBridgeContract.deployed();
+        const proxy = await LiquidityBridgeContractProxy.deployed();
+        instance = await LiquidityBridgeContract.at(proxy.address);
         bridgeMockInstance = await BridgeMock.deployed();
         mock = await Mock.deployed()
     });
@@ -277,13 +279,20 @@ contract('LiquidityBridgeContract', async accounts => {
         ), 'Too low transferred amount');
     });
 
-    it ('should validate reward percentage arg in ctor', async () => {
-        await LiquidityBridgeContract.new(bridgeMockInstance.address, 1, 1, 0, 1, 1);
-        await LiquidityBridgeContract.new(bridgeMockInstance.address, 1, 1, 1, 1, 1);
-        await LiquidityBridgeContract.new(bridgeMockInstance.address, 1, 1, 99, 1, 1);
-        await LiquidityBridgeContract.new(bridgeMockInstance.address, 1, 1, 100, 1, 1);
-
-        await truffleAssert.fails(LiquidityBridgeContract.new(bridgeMockInstance.address, 1, 1, 101, 1, 1));
+    it ('should validate reward percentage arg in initialize', async () => {
+        let instance = await LiquidityBridgeContract.new();
+        await instance.initialize(bridgeMockInstance.address, 1, 1, 0, 1, 1);
+        instance = await LiquidityBridgeContract.new();
+        await instance.initialize(bridgeMockInstance.address, 1, 1, 0, 1, 1);
+        instance = await LiquidityBridgeContract.new();
+        await instance.initialize(bridgeMockInstance.address, 1, 1, 1, 1, 1);
+        instance = await LiquidityBridgeContract.new();
+        await instance.initialize(bridgeMockInstance.address, 1, 1, 99, 1, 1);
+        instance = await LiquidityBridgeContract.new();
+        await instance.initialize(bridgeMockInstance.address, 1, 1, 100, 1, 1);
+        await truffleAssert.fails(instance.initialize(bridgeMockInstance.address, 1, 1, 100, 1, 1));
+        instance = await LiquidityBridgeContract.new();
+        await truffleAssert.fails(instance.initialize(bridgeMockInstance.address, 1, 1, 101, 1, 1));
     });
 
     it ('should extract timestamp from btc block header', async () => {

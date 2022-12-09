@@ -1,4 +1,6 @@
 const LiquidityBridgeContract = artifacts.require('LiquidityBridgeContract');
+const LiquidityBridgeContractProxy = artifacts.require('LiquidityBridgeContractProxy');
+const LiquidityBridgeContractAdmin = artifacts.require('LiquidityBridgeContractAdmin');
 const Mock = artifacts.require('Mock')
 const BridgeMock = artifacts.require('BridgeMock');
 const SafeMath = artifacts.require('SafeMath');
@@ -21,6 +23,8 @@ const RESIGN_DELAY_BLOCKS = 1;
 const DUST_THRESHOLD = 2300 * 65164000;
 
 module.exports = async function(deployer, network) {
+    const networkData = deployer.networks[network];
+    
     await deployer.deploy(SafeMath);
     await deployer.link(SafeMath, LiquidityBridgeContract);
 
@@ -50,5 +54,30 @@ module.exports = async function(deployer, network) {
         minimumPegIn = 2;
     }
 
-    await deployer.deploy(LiquidityBridgeContract, bridgeAddress, MINIMUM_COLLATERAL, minimumPegIn, REWARD_PERCENTAGE, RESIGN_DELAY_BLOCKS, DUST_THRESHOLD);
+
+    if(!networkData.lbcAdminAddress) {
+        const lbcAdmin = await deployer.deploy(LiquidityBridgeContractAdmin);
+        networkData.lbcAdminAddress = lbcAdmin.address;
+        console.log(`lbcAdminAddress: ${networkData.lbcAdminAddress} for ${network} network, please replace this data in truffle-config.js for your network unless you are running unit.`);
+    }
+
+    const liquidityBridgeContractInstance = await deployer.deploy(LiquidityBridgeContract);
+
+    const lbcLogic = new web3.eth.Contract(liquidityBridgeContractInstance.abi, liquidityBridgeContractInstance.address);
+
+    const methodCall =  await lbcLogic.methods.initialize(
+        bridgeAddress,
+        MINIMUM_COLLATERAL,
+        minimumPegIn,
+        REWARD_PERCENTAGE,
+        RESIGN_DELAY_BLOCKS,
+        DUST_THRESHOLD
+    );
+    
+    methodCall.call({from: deployer.address});
+
+    if(!networkData.lbcProxyAddress) {
+        networkData.lbcProxyAddress = (await deployer.deploy(LiquidityBridgeContractProxy, liquidityBridgeContractInstance.address, networkData.lbcAdminAddress, methodCall.encodeABI())).address;
+        console.log(`lbcProxyAddress: ${networkData.lbcProxyAddress} for ${network} network, please replace this data in truffle-config.js for your network unless you are running unit.`);
+    }
 };
