@@ -315,8 +315,6 @@ contract LiquidityBridgeContract is Initializable {
     ) public noReentrancy returns (int256) {
         bytes32 quoteHash = validateAndHashQuote(quote);
 
-        // TODO: allow multiple registerPegIns for the same quote with different transactions
-        require(processedQuotes[quoteHash] <= CALL_DONE_CODE, "Quote already registered");
         require(SignatureValidator.verify(quote.liquidityProviderRskAddress, quoteHash, signature), "Invalid signature");
         require(height < uint256(MAX_INT32), "Height must be lower than 2^31");
 		
