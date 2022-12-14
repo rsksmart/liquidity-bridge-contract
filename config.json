@@ -1,0 +1,24 @@
+{
+  "rskTestnet": {
+    "SafeMath": {
+      "address": "0x343714bf746AcaF55BC1BAF93D2C47E42A762eC1",
+      "deployed": true
+    },
+    "SignatureValidator": {
+      "address": "0xEE0e4fb6b967D3eAC2E2Af188eDAE5E319C0CD74",
+      "deployed": true
+    },
+    "LiquidityBridgeContractAdmin": {
+      "address": "0x0Cf562069E64aB810963F017F560c021F298aa40",
+      "deployed": true
+    },
+    "LiquidityBridgeContract": {
+      "address": "0x6C69D66AF194b5b7c484E86765a95F6160b8b767",
+      "deployed": true
+    },
+    "LiquidityBridgeContractProxy": {
+      "address": "0x1007D87b2Ee25768bC9A58b4A0B564e12Be554bF",
+      "deployed": true
+    }
+  }
+}
