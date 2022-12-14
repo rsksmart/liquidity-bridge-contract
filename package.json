@@ -9,7 +9,8 @@
     "test-regtest": "npm run compile && npx truffle test --network testRegtest",
     "coverage": "npx truffle run coverage",
     "lint": "npx prettier --list-different 'contracts/**/*.sol' 'test/**/*.js' 'migrations/**/*.js'",
-    "deploy-regtest": "npx truffle deploy --network rskRegtest"
+    "deploy-regtest": "npx truffle deploy --network rskRegtest",
+    "deploy-rskTestnet": "npx truffle deploy --network rskTestnet"
   },
   "repository": {
     "type": "git",

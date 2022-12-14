@@ -24,7 +24,7 @@ module.exports = {
       provider: () => new HDWalletProvider({
         mnemonic,
         providerOrUrl: `https://public-node.testnet.rsk.co`,
-        derivationPath: "m/44'/37310'/0'/0/",
+        derivationPath: "m/44'/60'/0'/0/",
         pollingInterval: 30000,
       }),
       network_id: 31,
