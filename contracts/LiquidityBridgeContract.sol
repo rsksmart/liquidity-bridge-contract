@@ -434,6 +434,15 @@ contract LiquidityBridgeContract {
         require(msg.sender == quote.liquidityProviderRskAddress, "LBC: Wrong sender");
         require(bridge.getBtcTransactionConfirmations(btcTxHash, btcBlockHeaderHash, partialMerkleTree, merkleBranchHashes) >= int(uint256(quote.transferConfirmations)), "LBC: Don't have required confirmations");
         payable(quote.liquidityProviderRskAddress).transfer(quote.valueToTransfer + quote.fee);
+
+        // TODO: check penalty fee here, what should be the transferred amount? or should it be a diff function?
+        if (shouldPenalizePegOutLP(quote, quote.penaltyFee, callRegistry[quoteHash].timestamp, block.timestamp)) {
+            uint penalty = min(quote.penaltyFee, collateral[quote.liquidityProviderRskAddress]);
+            collateral[quote.liquidityProviderRskAddress] -= penalty;
+
+            increaseBalance(msg.sender, penalty * rewardP / 100);
+        }
+
         decreasePegOutBalance(quote.rskRefundAddress, quote.valueToTransfer);
         delete processedPegOutQuotes[quoteHash];
     }
@@ -574,6 +583,42 @@ contract LiquidityBridgeContract {
         if (callTimestamp > nConfirmationsTimestamp.tryAdd(quote.callTime)) {
             return true;
         }
+        return false;
+    }
+
+    function shouldPenalizePegOutLP(PegOutQuote memory quote, uint64 penaltyFee, uint256 callTimestamp, uint256 height) private view returns (bool) {
+
+        // do not penalize if deposit amount is insufficient
+        if (penaltyFee > 0 && uint256(penaltyFee) < quote.valueToTransfer) {
+            return false;
+        }
+
+        bytes memory firstConfirmationHeader = bridge.getBtcBlockchainBlockHeaderByHeight(height);
+        require(firstConfirmationHeader.length > 0, "1st block height invalid");
+
+        uint256 firstConfirmationTimestamp = getBtcBlockTimestamp(firstConfirmationHeader);
+
+        // do not penalize if deposit was not made on time
+        uint timeLimit = quote.agreementTimestamp.tryAdd(quote.depositDateLimit);
+        if (firstConfirmationTimestamp > timeLimit) {
+            return false;
+        }
+
+        // penalize if call was not made
+        if (callTimestamp == 0) {
+            return true;
+        }
+
+        bytes memory nConfirmationsHeader = bridge.getBtcBlockchainBlockHeaderByHeight(height + quote.depositConfirmations - 1);
+        require(nConfirmationsHeader.length > 0, "N block height invalid");
+
+        uint256 nConfirmationsTimestamp = getBtcBlockTimestamp(nConfirmationsHeader);
+
+        // penalize if the call was not made on time
+        if (callTimestamp > nConfirmationsTimestamp.tryAdd(quote.transferTime)) {
+            return true;
+        }
+
         return false;
     }
     

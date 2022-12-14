@@ -664,6 +664,15 @@ contract('LiquidityBridgeContract', async accounts => {
         quote.transferConfirmations = 0;
         const msgValue = quote.valueToTransfer.add(quote.fee);
 
+        // configure mocked block on mockBridge
+        const block = await web3.eth.getBlock('latest')
+        const firstConfirmationTime = utils.reverseHexBytes(web3.utils.toHex(quote.agreementTimestamp + 300).substring(2));
+        const nConfirmationTime = utils.reverseHexBytes(web3.utils.toHex(quote.agreementTimestamp + 600).substring(2));
+        const firstHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + firstConfirmationTime + '0000000000000000';
+        const nHeader =     '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + nConfirmationTime +     '0000000000000000';
+        await bridgeMockInstance.setHeader(block.timestamp ,firstHeader);
+        await bridgeMockInstance.setHeader(block.timestamp + quote.depositConfirmations - 1, nHeader);
+
         const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
         const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
         const pegOut = await instance.registerPegOut(utils.asArray(quote), signature, {
