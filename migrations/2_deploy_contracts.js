@@ -3,7 +3,6 @@ const LiquidityBridgeContractProxy = artifacts.require('LiquidityBridgeContractP
 const LiquidityBridgeContractAdmin = artifacts.require('LiquidityBridgeContractAdmin');
 const Mock = artifacts.require('Mock')
 const BridgeMock = artifacts.require('BridgeMock');
-const SafeMath = artifacts.require('SafeMath');
 const SignatureValidator = artifacts.require('SignatureValidator');
 const SignatureValidatorMock = artifacts.require('SignatureValidatorMock');
 
