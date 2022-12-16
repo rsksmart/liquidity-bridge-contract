@@ -25,13 +25,6 @@ const { deploy, read } = require('../config');
 
 module.exports = async function (deployer, network) {
 
-    await deploy('SafeMath', network, async (state) => {
-        await deployer.deploy(SafeMath);
-        await deployer.link(SafeMath, LiquidityBridgeContract);
-        const response = await SafeMath.deployed();
-        state.address = response.address;
-    })
-
     let minimumPegIn, bridgeAddress;
     if (RSK_NETWORKS.includes(network)) { // deploy to actual networks so don't use mocks and use existing bridge.
         bridgeAddress = RSK_BRIDGE_ADDRESS;
@@ -75,9 +68,7 @@ module.exports = async function (deployer, network) {
     let config = read();
     config = await deploy('LiquidityBridgeContract', network, async (state) => {
         const signatureValidatorLib = await SignatureValidator.at(config[network]['SignatureValidator'].address);
-        const safeMathLib = await SafeMath.at(config[network]['SafeMath'].address);
         await deployer.link(signatureValidatorLib, LiquidityBridgeContract);
-        await deployer.link(safeMathLib, LiquidityBridgeContract);
         await deployer.deploy(LiquidityBridgeContract);
         const response = await LiquidityBridgeContract.deployed();
         state.address = response.address;

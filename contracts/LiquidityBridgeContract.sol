@@ -3,7 +3,6 @@ pragma solidity ^0.8.3;
 pragma experimental ABIEncoderV2;
 
 import './Bridge.sol';
-import './SafeMath.sol';
 import './SignatureValidator.sol';
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
@@ -12,8 +11,6 @@ import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
  */
 
 contract LiquidityBridgeContract is Initializable {
-    using SafeMath for uint;
-    using SafeMath for uint32;
 
     uint16 constant MAX_CALL_GAS_COST = 35000;
     uint16 constant MAX_REFUND_GAS_LIMIT = 2300;
@@ -488,7 +485,7 @@ contract LiquidityBridgeContract is Initializable {
         uint256 firstConfirmationTimestamp = getBtcBlockTimestamp(firstConfirmationHeader);        
 
         // do not penalize if deposit was not made on time
-        uint timeLimit = quote.agreementTimestamp.tryAdd(quote.timeForDeposit); // prevent overflow when collateral is less than penalty fee.
+        uint timeLimit = quote.agreementTimestamp + quote.timeForDeposit; // prevent overflow when collateral is less than penalty fee.
         if (firstConfirmationTimestamp > timeLimit) {
             return false;
         }
@@ -504,7 +501,7 @@ contract LiquidityBridgeContract is Initializable {
         uint256 nConfirmationsTimestamp = getBtcBlockTimestamp(nConfirmationsHeader);
 
         // penalize if the call was not made on time
-        if (callTimestamp > nConfirmationsTimestamp.tryAdd(quote.callTime)) {
+        if (callTimestamp > nConfirmationsTimestamp + quote.callTime) {
             return true;
         }
         return false;
