@@ -435,7 +435,7 @@ contract LiquidityBridgeContract {
         require(block.timestamp <= quote.expireDate, "LBC: Quote expired by date");
         require(block.number <= quote.expireBlocks, "LBC: Quote expired by blocks");
         require(msg.sender == quote.liquidityProviderRskAddress, "LBC: Wrong sender");
-        // require(bridge.getBtcTransactionConfirmations(btcTxHash, btcBlockHeaderHash, partialMerkleTree, merkleBranchHashes) >= int(uint256(quote.transferConfirmations)), "LBC: Don't have required confirmations");
+        require(bridge.getBtcTransactionConfirmations(btcTxHash, btcBlockHeaderHash, partialMerkleTree, merkleBranchHashes) >= int(uint256(quote.transferConfirmations)), "LBC: Don't have required confirmations");
         payable(quote.liquidityProviderRskAddress).transfer(quote.valueToTransfer + quote.fee);
         decreasePegOutBalance(quote.rskRefundAddress, quote.valueToTransfer);
         delete processedPegOutQuotes[quoteHash];

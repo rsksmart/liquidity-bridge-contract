@@ -5,51 +5,46 @@ var web3 = new Web3(web3Provider);
 web3.eth.handleRevert = true;
 const json = require("./build/contracts/LiquidityBridgeContract.json");
 
-const contract = new web3.eth.Contract(json.abi, "0xd8B57e141b7194fB857874ab185BC99675A2332F");
-
-const bridge = new web3.eth.Contract(require("./build/contracts/Bridge.json").abi, "0x0000000000000000000000000000000001000006");
+const contract = new web3.eth.Contract(json.abi, "0x1Af2844A588759D0DE58abD568ADD96BB8B3B6D8");
 
 const quotePegOutRegister = {
-	"lbcAddress": "0xd8B57e141b7194fB857874ab185BC99675A2332F",
+	"lbcAddress": "0x1Af2844A588759D0DE58abD568ADD96BB8B3B6D8",
 	"liquidityProviderRskAddress": "0x9D93929A9099be4355fC2389FbF253982F9dF47c",
 	"rskRefundAddress": "0xa554d96413FF72E93437C4072438302C38350EE3",
-	"fee": "0",
-	"penaltyFee": "1000000",
-	"nonce": "4838926104160593202",
-	"valueToTransfer": "200",
-	"agreementTimestamp": "1669989762",
-	"depositDateLimit": "7200",
-	"depositConfirmations": "2",
-	"transferConfirmations": "0",
-	"transferTime": "0",
-	"expireDate": 1669996962,
-	"expireBlocks": 43219
+	"fee": 1000,
+	"penaltyFee": 1000000,
+	"nonce": "8572757636462532616",
+	"valueToTransfer": 200,
+	"agreementTimestamp": 1671742578,
+	"depositDateLimit": 3600,
+	"depositConfirmations": 2,
+	"transferConfirmations": 0,
+	"transferTime": 0,
+	"expireDate": 1671746178,
+	"expireBlocks": 5495
 }
 
-const bh ="0x" + "5785abce97f3007378cc882d7b544d3e726c88e0fc7046f05a848b4399eb4958";
+
+const bh ="0x" + "440fd85092e1f422507b8b307e0773bb95725cfddd81d51b485d9fee11aab4c4";
 
 
-const tx = "0x" + "f100947c8967de84bd289850ccc90eb4a28d4b80bd06d2f64de87487a8a90212";
+const tx = "0x" + "82e2cb89e23b4cafb1a91a882db842e77da275fa6c6b4f9ca6ef0ee29caa345d";
 
 
-const pmt = "0x" + "1a104a3619fa369a235e353a93ee8f94d4e3dc89b66c7bc94b2953a69fedc73d";
-
-
+const pmt = "1";
 
 const mtb = [
-	"0x" + "7fe02f7ff9565daedfe043ca6e1cb094f7b8e330671446aa94e8faa956edb737",
-    "0x" + "73b1dbc56a5a2c7a2e61b6079ccb0e21ade6ae4690d5998a42835c02f220b707"
+	"0x" + "ac30ca450d5782c2523a450d077943b2d8916eeeb100ada79b7f4e9c945c2dd0",
 ];
 
-
-// contract.methods.refundPegOut(quotePegOutRegister, tx, bh, pmt, mtb).send({from: "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826", gas: "900000"})
-// .then(t => {
-// 	console.log('success')
-// 	console.log(t)
+contract.methods.refundPegOut(quotePegOutRegister, tx, bh, pmt, mtb).send({from: "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826", gas: "900000"})
+.then(t => {
+	console.log('success')
+	console.log(t)
 	
-// });
-// contract.methods.getProcessedQuote(Buffer.from(Web3.utils.hexToBytes("0x" + "8089169d67d7c6730f7fb8db0cfdf946f91c30ab8001d27370a6e4efc5e03179"))).call().then(console.log)
-// contract.methods.getPegOutBalance("0xa554d96413FF72E93437C4072438302C38350EE3").call().then(console.log);
+});
+contract.methods.getProcessedQuote(Buffer.from(Web3.utils.hexToBytes("0x" + "8089169d67d7c6730f7fb8db0cfdf946f91c30ab8001d27370a6e4efc5e03179"))).call().then(console.log)
+contract.methods.getPegOutBalance("0xa554d96413FF72E93437C4072438302C38350EE3").call().then(console.log);
 
 
 
@@ -69,25 +64,16 @@ const mtb = [
 // console.log(web3.eth.accounts.decrypt({"address":"9d93929a9099be4355fc2389fbf253982f9df47c","crypto":{"cipher":"aes-128-ctr","ciphertext":"2f6b816b46ea7e9917acad870e4acb8fae1ac57535d20d9f7f5bbd6fc9ceea6f","cipherparams":{"iv":"5d57f07627bfab8e840fea6b7cbeb123"},"kdf":"scrypt","kdfparams":{"dklen":32,"n":262144,"p":1,"r":8,"salt":"5272e0072f0fb5d53171d250729979777abc65f4bd946a995397c26eef33ef92"},"mac":"f7ccbf7492edf922f11d67b5ff864d7d5b5df845586b0669af563626ba1ddad8"},"id":"f344d854-cea8-479c-93ff-0f496e9a4df3","version":3}, "test"))
 
 async function main() {
-	// const bestHeight = await bridge.methods.getBtcBlockchainBestChainHeight().call();
-	// console.log("🚀 ~ file: testRefundPegout.js ~ line 73 ~ main ~ bestHeight", bestHeight)
 	// // console.log(Web3.utils.hexToBytes("0x"))
 	// const txHeight = await bridge.methods.getBtcTxHashProcessedHeight("4ad9e96e6cb5387d20e0819e28e74cf5ec2eeea59126bc6a3231b1e215bae52e").call();
 	// console.log("🚀 ~ file: testRefundPegout.js ~ line 75 ~ main ~ txHeight", txHeight)
 	// const response = bestHeight - txHeight + 1;
 	// console.log("🚀 ~ file: testRefundPegout.js ~ line 75 ~ main ~ response", response)
+	// await web3.eth.sendTransaction({ from: "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826", to: "0x9D93929A9099be4355fC2389FbF253982F9dF47c", value: "9000000" });
 
 	await web3.eth.accounts.wallet.add("0x87ce4239eef3d02cf31223490cd686f6a3d2d338af58646ea36be24c04a926b2");
-	const response = await contract.methods.refundPegOut(quotePegOutRegister, tx, bh, pmt, mtb).send({from: "0x9D93929A9099be4355fC2389FbF253982F9dF47c", gas: "900000"});
-	console.log("🚀 ~ file: testRefundPegout.js ~ line 82 ~ main ~ response", response)
-
-	// contract.methods.getPegOutBalance(quotePegOutRegister.rskRefundAddress).call().then(console.log)
-	// const pegoutBalance = await contract.methods.getPegOutBalance("0xa554d96413FF72E93437C4072438302C38350EE3").call();
-	// console.log("🚀 ~ file: testRefundPegout.js ~ line 84 ~ main ~ pegoutBalance", pegoutBalance)
-	// contract.methods.getProcessedQuote(Buffer.from(Web3.utils.hexToBytes("0x" + "a1c6b89e2159e80f6660e1cd97d9b11b86d5e3e0e64e8c059210b96a4fdbb000"))).call().then(console.log)
-
-	
-
+	const response = await contract.methods.refundPegOut(quotePegOutRegister, tx, bh, pmt, mtb).send({from: "0x9D93929A9099be4355fC2389FbF253982F9dF47c", gas: "6800000"})
+	console.log(response);
 }
 
 main();
