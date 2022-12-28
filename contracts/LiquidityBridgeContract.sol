@@ -622,7 +622,7 @@ contract LiquidityBridgeContract is Initializable {
         uint256 firstConfirmationTimestamp = getBtcBlockTimestamp(firstConfirmationHeader);
 
         // do not penalize if deposit was not made on time
-        uint timeLimit = quote.agreementTimestamp.tryAdd(quote.depositDateLimit);
+        uint timeLimit = quote.agreementTimestamp + quote.depositDateLimit;
         if (firstConfirmationTimestamp > timeLimit) {
             return false;
         }
@@ -638,7 +638,7 @@ contract LiquidityBridgeContract is Initializable {
         uint256 nConfirmationsTimestamp = getBtcBlockTimestamp(nConfirmationsHeader);
 
         // penalize if the call was not made on time
-        if (callTimestamp > nConfirmationsTimestamp.tryAdd(quote.transferTime)) {
+        if (callTimestamp > nConfirmationsTimestamp + quote.transferTime) {
             return true;
         }
 
