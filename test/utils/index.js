@@ -55,7 +55,6 @@ function getTestPegOutQuote(lbcAddress, liquidityProviderRskAddress, rskRefundAd
         lbcAddress,
         liquidityProviderRskAddress,
         rskRefundAddress,
-        derivationAddress,
         fee, 
         penaltyFee,
         nonce,
