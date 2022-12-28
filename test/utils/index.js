@@ -44,7 +44,7 @@ function getTestPegOutQuote(lbcAddress, liquidityProviderRskAddress, rskRefundAd
     let fee = web3.utils.toBN(1);
     let nonce = 0;
     let agreementTimestamp = 1661788988;
-    let expireDate = 1671788988;
+    let expireDate = Math.round(new Date().getTime() / 1000) + 3600;
     let expireBlocks = 4000;
     let transferTime = 1661788988;
     let depositDateLimit = 600;

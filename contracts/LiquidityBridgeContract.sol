@@ -4,7 +4,7 @@ pragma experimental ABIEncoderV2;
 
 import './Bridge.sol';
 import './SignatureValidator.sol';
-import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import '@openzeppelin/contracts/proxy/utils/Initializable.sol';
 
 /**
     @title Contract that assists with the Flyover protocol
@@ -103,11 +103,12 @@ contract LiquidityBridgeContract is Initializable {
     mapping(address => uint256) private balances;
     mapping(address => uint256) private pegOutBalances;
     mapping(address => uint256) private collateral;
+    mapping(uint => Provider) private providers;
     mapping(bytes32 => Registry) private callRegistry;
     mapping(address => uint256) private resignationBlockNum;
 
-    uint256 private immutable minCollateral;
-    uint256 private immutable minPegIn;
+    uint256 private minCollateral;
+    uint256 private minPegIn;
     
     uint32 private rewardP;
     uint32 private resignDelayInBlocks;
@@ -180,6 +181,10 @@ contract LiquidityBridgeContract is Initializable {
 
     function getDustThreshold() external view returns (uint) {
         return dust;
+    }
+
+    function getPegOutProcessedQuote(bytes32 quoteHash) external view returns (uint8) {
+        return processedPegOutQuotes[quoteHash];
     }
 
     /**
@@ -575,7 +580,7 @@ contract LiquidityBridgeContract is Initializable {
         uint256 firstConfirmationTimestamp = getBtcBlockTimestamp(firstConfirmationHeader);        
 
         // do not penalize if deposit was not made on time
-        uint timeLimit = quote.agreementTimestamp.tryAdd(quote.timeForDeposit); // prevent overflow when collateral is less than penalty fee.
+        uint timeLimit = quote.agreementTimestamp + quote.timeForDeposit; // prevent overflow when collateral is less than penalty fee.
         if (firstConfirmationTimestamp > timeLimit) {
             return false;
         }
@@ -591,7 +596,7 @@ contract LiquidityBridgeContract is Initializable {
         uint256 nConfirmationsTimestamp = getBtcBlockTimestamp(nConfirmationsHeader);
 
         // penalize if the call was not made on time
-        if (callTimestamp > nConfirmationsTimestamp.tryAdd(quote.callTime)) {
+        if (callTimestamp > nConfirmationsTimestamp + quote.callTime) {
             return true;
         }
         return false;
