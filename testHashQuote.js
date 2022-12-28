@@ -1,6 +1,6 @@
 const Web3 = require("web3");
 const bs58 = require("bs58");
-var BN = Web3.utils.BN;
+const BN = Web3.utils.BN;
 
 const toHex = hash => {
     const b = bs58.decode(hash);
@@ -18,9 +18,9 @@ const toHex21 = hash => {
     const b = bs58.decode(hash);
     return b.slice(0, b.length-4);
 };
-var web3Provider = new Web3.providers.HttpProvider('http://localhost:4444');
+const web3Provider = new Web3.providers.HttpProvider('http://localhost:4444');
 
-var web3 = new Web3(web3Provider);
+const web3 = new Web3(web3Provider);
 web3.eth.handleRevert = true
 const json = require("./build/contracts/LiquidityBridgeContract.json");
 

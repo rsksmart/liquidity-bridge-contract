@@ -1,7 +1,7 @@
 const Web3 = require("web3");
-var web3Provider = new Web3.providers.HttpProvider('http://localhost:4444');
+const web3Provider = new Web3.providers.HttpProvider('http://localhost:4444');
 
-var web3 = new Web3(web3Provider);
+const web3 = new Web3(web3Provider);
 web3.eth.handleRevert = true;
 
 const bridge = new web3.eth.Contract(require("./build/contracts/Bridge.json").abi, "0x0000000000000000000000000000000001000006");
