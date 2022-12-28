@@ -59,7 +59,6 @@ contract LiquidityBridgeContract {
         address lbcAddress;
         address liquidityProviderRskAddress;
         address rskRefundAddress;
-        bytes32 derivationAddress;
         uint64 fee;
         uint64 penaltyFee;
         int64 nonce;
@@ -177,6 +176,10 @@ contract LiquidityBridgeContract {
 
     function getDustThreshold() external view returns (uint) {
         return dust;
+    }
+
+    function getProcessedQuote(bytes32 key) external view returns (uint8) {
+        return processedPegOutQuotes[key];
     }
 
     /**
@@ -426,7 +429,7 @@ contract LiquidityBridgeContract {
         bytes32 btcBlockHeaderHash,
         uint256 partialMerkleTree,
         bytes32[] memory merkleBranchHashes
-    ) public noReentrancy {
+    ) public noReentrancy payable {
         bytes32 quoteHash = validateAndHashPegOutQuote(quote);
         require(processedPegOutQuotes[quoteHash] == 2, "LBC: Quote not processed");
         require(block.timestamp <= quote.expireDate, "LBC: Quote expired by date");
@@ -685,7 +688,6 @@ contract LiquidityBridgeContract {
             quote.lbcAddress, 
             quote.liquidityProviderRskAddress,
             quote.rskRefundAddress,   
-            quote.derivationAddress, 
             quote.fee,
             quote.penaltyFee,
             quote.nonce,
