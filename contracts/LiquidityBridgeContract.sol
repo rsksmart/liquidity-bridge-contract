@@ -4,7 +4,7 @@ pragma experimental ABIEncoderV2;
 
 import './Bridge.sol';
 import './SignatureValidator.sol';
-import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import '@openzeppelin/contracts/proxy/utils/Initializable.sol';
 
 /**
     @title Contract that assists with the Flyover protocol
@@ -54,6 +54,23 @@ contract LiquidityBridgeContract is Initializable {
         bool callOnRegister;
     }
 
+    struct PegOutQuote {
+        address lbcAddress;
+        address liquidityProviderRskAddress;
+        address rskRefundAddress;
+        uint64 fee;
+        uint64 penaltyFee;
+        int64 nonce;
+        uint64 valueToTransfer;
+        uint32 agreementTimestamp;
+        uint32 depositDateLimit;
+        uint16 depositConfirmations;
+        uint16 transferConfirmations;
+        uint32 transferTime;
+        uint32 expireDate;
+        uint32 expireBlocks;
+    }
+
     struct Registry {
         uint32 timestamp;  
         bool success;
@@ -77,9 +94,13 @@ contract LiquidityBridgeContract is Initializable {
     event BalanceDecrease(address dest, uint amount);
     event BridgeError(bytes32 quoteHash, int256 errorCode);
     event Refund(address dest, uint amount, bool success, bytes32 quoteHash);
+    event PegOut(address from, uint256 amount, bytes32 quotehash, uint processed);
+    event PegOutBalanceIncrease(address dest, uint amount);
+    event PegOutBalanceDecrease(address dest, uint amount);
 
     Bridge bridge;
     mapping(address => uint256) private balances;
+    mapping(address => uint256) private pegOutBalances;
     mapping(address => uint256) private collateral;
     mapping(uint => Provider) private providers;
     mapping(bytes32 => Registry) private callRegistry;
@@ -92,10 +113,11 @@ contract LiquidityBridgeContract is Initializable {
     uint32 private resignDelayInBlocks;
     uint private dust;
     uint providerId;
-    
+
     bool private locked;
 
     mapping(bytes32 => uint8) private processedQuotes;
+    mapping(bytes32 => uint8) private processedPegOutQuotes;
 
     modifier onlyRegistered() {
         require(isRegistered(msg.sender), "Not registered");
@@ -113,7 +135,6 @@ contract LiquidityBridgeContract is Initializable {
         require(tx.origin == msg.sender, "Not EOA");
         _;
     }
-
 
     /**
         @param _bridgeAddress The address of the bridge contract
@@ -159,6 +180,10 @@ contract LiquidityBridgeContract is Initializable {
 
     function getDustThreshold() external view returns (uint) {
         return dust;
+    }
+
+    function getPegOutProcessedQuote(bytes32 quoteHash) external view returns (uint8) {
+        return processedPegOutQuotes[quoteHash];
     }
 
     /**
@@ -265,6 +290,15 @@ contract LiquidityBridgeContract is Initializable {
     }
 
     /**
+        @dev Returns the amount of funds that a user has locked on the contract
+        @param addr The address of the user
+        @return The balance of the user
+     */
+    function getPegOutBalance(address addr) external view returns (uint256) {
+        return pegOutBalances[addr];
+    }
+
+    /**
         @dev Performs a call on behalf of a user
         @param quote The quote that identifies the service
         @return Boolean indicating whether the call was successful
@@ -312,6 +346,8 @@ contract LiquidityBridgeContract is Initializable {
     ) public noReentrancy returns (int256) {
         bytes32 quoteHash = validateAndHashQuote(quote);
 
+        // TODO: allow multiple registerPegIns for the same quote with different transactions
+        require(processedQuotes[quoteHash] <= CALL_DONE_CODE, "Quote already registered");
         require(SignatureValidator.verify(quote.liquidityProviderRskAddress, quoteHash, signature), "Invalid signature");
         require(height < uint256(MAX_INT32), "Height must be lower than 2^31");
 		
@@ -341,8 +377,7 @@ contract LiquidityBridgeContract is Initializable {
             emit BridgeCapExceeded(quoteHash, transferredAmountOrErrorCode);
             return transferredAmountOrErrorCode;
         }
-    
-
+        
         // the amount is safely assumed positive because it's already been validated in lines 287/298 there's no (negative) error code being returned by the bridge.
         uint transferredAmount = uint(transferredAmountOrErrorCode);
 
@@ -388,6 +423,52 @@ contract LiquidityBridgeContract is Initializable {
         return transferredAmountOrErrorCode;
     }
 
+    function registerPegOut(
+        PegOutQuote memory quote,
+        bytes memory signature
+    ) public noReentrancy payable {
+        bytes32 quoteHash = validateAndHashPegOutQuote(quote);
+
+        require(SignatureValidator.verify(quote.liquidityProviderRskAddress, quoteHash, signature), "LBC: Invalid signature");
+        require(quote.depositDateLimit < block.timestamp, "LBC: Block height overflown");
+        require(processedPegOutQuotes[quoteHash] != 2, "LBC: Quote already pegged out");
+        processedPegOutQuotes[quoteHash] = PROCESSED_QUOTE_CODE;
+
+        uint256 valueToTransfer = quote.valueToTransfer + quote.fee;
+        require(msg.value == valueToTransfer, "LBC: msg value doesnt match quote");
+        require(address(this).balance >= valueToTransfer, "LBC: Not enough funds");
+
+        increasePegOutBalance(quote.rskRefundAddress, valueToTransfer);
+
+        emit PegOut(msg.sender, quote.valueToTransfer, quoteHash, processedPegOutQuotes[quoteHash]);
+    }
+
+    function refundPegOut(
+        PegOutQuote memory quote,
+        bytes32 btcTxHash,
+        bytes32 btcBlockHeaderHash,
+        uint256 partialMerkleTree,
+        bytes32[] memory merkleBranchHashes
+    ) public noReentrancy payable {
+        bytes32 quoteHash = validateAndHashPegOutQuote(quote);
+        require(processedPegOutQuotes[quoteHash] == 2, "LBC: Quote not processed");
+        require(block.timestamp <= quote.expireDate, "LBC: Quote expired by date");
+        require(block.number <= quote.expireBlocks, "LBC: Quote expired by blocks");
+        require(msg.sender == quote.liquidityProviderRskAddress, "LBC: Wrong sender");
+        require(bridge.getBtcTransactionConfirmations(btcTxHash, btcBlockHeaderHash, partialMerkleTree, merkleBranchHashes) >= int(uint256(quote.transferConfirmations)), "LBC: Don't have required confirmations");
+        payable(quote.liquidityProviderRskAddress).transfer(quote.valueToTransfer + quote.fee);
+
+        if (shouldPenalizePegOutLP(quote, quote.penaltyFee, callRegistry[quoteHash].timestamp, block.timestamp)) {
+            uint penalty = min(quote.penaltyFee, collateral[quote.liquidityProviderRskAddress]);
+            collateral[quote.liquidityProviderRskAddress] -= penalty;
+
+            increaseBalance(msg.sender, penalty * rewardP / 100);
+        }
+
+        decreasePegOutBalance(quote.rskRefundAddress, quote.valueToTransfer);
+        delete processedPegOutQuotes[quoteHash];
+    }
+
     /**
         @dev Calculates hash of a quote. Note: besides calculation this function also validates the quote.
         @param quote The quote of the service
@@ -395,6 +476,10 @@ contract LiquidityBridgeContract is Initializable {
      */
     function hashQuote(Quote memory quote) public view returns (bytes32) {
         return validateAndHashQuote(quote);
+    }
+
+    function hashPegoutQuote(PegOutQuote memory quote) public view returns (bytes32) {
+        return validateAndHashPegOutQuote(quote);
     }
 
     function validateAndHashQuote(Quote memory quote) private view returns (bytes32) {
@@ -405,6 +490,12 @@ contract LiquidityBridgeContract is Initializable {
         require(quote.value + quote.callFee >= minPegIn, "Too low agreed amount");
 
         return keccak256(encodeQuote(quote));
+    }
+
+    function validateAndHashPegOutQuote(PegOutQuote memory quote) private view returns (bytes32) {
+        require(address(this) == quote.lbcAddress, "Wrong LBC address");
+
+        return keccak256(encodePegOutQuote(quote));
     }
     
     function checkAgreedAmount(Quote memory quote, uint transferredAmount) private pure {
@@ -424,9 +515,19 @@ contract LiquidityBridgeContract is Initializable {
         emit BalanceIncrease(dest, amount);
     }
 
+    function increasePegOutBalance(address dest, uint amount) private {
+        pegOutBalances[dest] += amount;
+        emit PegOutBalanceIncrease(dest, amount);
+    }
+
     function decreaseBalance(address dest, uint amount) private {
         balances[dest] -= amount;
         emit BalanceDecrease(dest, amount);
+    }
+
+    function decreasePegOutBalance(address dest, uint amount) private {
+        pegOutBalances[dest] -= amount;
+        emit PegOutBalanceDecrease(dest, amount);
     }
 
     /**
@@ -506,7 +607,43 @@ contract LiquidityBridgeContract is Initializable {
         }
         return false;
     }
-    
+
+    function shouldPenalizePegOutLP(PegOutQuote memory quote, uint64 penaltyFee, uint256 callTimestamp, uint256 height) private view returns (bool) {
+
+        // do not penalize if deposit amount is insufficient
+        if (penaltyFee > 0 && uint256(penaltyFee) < quote.valueToTransfer) {
+            return false;
+        }
+
+        bytes memory firstConfirmationHeader = bridge.getBtcBlockchainBlockHeaderByHeight(height);
+        require(firstConfirmationHeader.length > 0, "1st block height invalid");
+
+        uint256 firstConfirmationTimestamp = getBtcBlockTimestamp(firstConfirmationHeader);
+
+        // do not penalize if deposit was not made on time
+        uint timeLimit = quote.agreementTimestamp + quote.depositDateLimit;
+        if (firstConfirmationTimestamp > timeLimit) {
+            return false;
+        }
+
+        // penalize if call was not made
+        if (callTimestamp == 0) {
+            return true;
+        }
+
+        bytes memory nConfirmationsHeader = bridge.getBtcBlockchainBlockHeaderByHeight(height + quote.depositConfirmations - 1);
+        require(nConfirmationsHeader.length > 0, "N block height invalid");
+
+        uint256 nConfirmationsTimestamp = getBtcBlockTimestamp(nConfirmationsHeader);
+
+        // penalize if the call was not made on time
+        if (callTimestamp > nConfirmationsTimestamp + quote.transferTime) {
+            return true;
+        }
+
+        return false;
+    }
+
     /**
         @dev Gets the timestamp of a Bitcoin block header
         @param header The block header
@@ -534,6 +671,11 @@ contract LiquidityBridgeContract is Initializable {
         return abi.encode(encodePart1(quote), encodePart2(quote));
     }
 
+    function encodePegOutQuote(PegOutQuote memory quote) private pure returns (bytes memory) {
+        // Encode in two parts because abi.encode cannot take more than 12 parameters due to stack depth limits.
+        return abi.encode(encodePegOutPart1(quote), encodePegOutPart2(quote));
+    }
+
     function encodePart1(Quote memory quote) private pure returns (bytes memory) {
         return abi.encode(
             quote.fedBtcAddress, 
@@ -558,5 +700,27 @@ contract LiquidityBridgeContract is Initializable {
             quote.callTime,
             quote.depositConfirmations,
             quote.callOnRegister);
+    }
+
+    function encodePegOutPart1(PegOutQuote memory quote) private pure returns (bytes memory) {
+        return abi.encode(
+            quote.lbcAddress, 
+            quote.liquidityProviderRskAddress,
+            quote.rskRefundAddress,
+            quote.fee,
+            quote.penaltyFee,
+            quote.nonce,
+            quote.valueToTransfer);
+    }
+
+    function encodePegOutPart2(PegOutQuote memory quote) private pure returns (bytes memory) {
+        return abi.encode(
+            quote.agreementTimestamp,
+            quote.depositDateLimit, 
+            quote.depositConfirmations,            
+            quote.transferConfirmations,
+            quote.transferTime,
+            quote.expireDate,
+            quote.expireBlocks);
     }
 }

@@ -38,6 +38,39 @@ function getTestQuote(lbcAddress, destAddr, callData, liquidityProviderRskAddres
     return quote;
 }
 
+function getTestPegOutQuote(lbcAddress, liquidityProviderRskAddress, rskRefundAddress, value){
+    let valueToTransfer = value || web3.utils.toBN(0);
+    let derivationAddress = '0x7465737400000000000000000000000000000000000000000000000000000000';
+    let fee = web3.utils.toBN(1);
+    let nonce = 0;
+    let agreementTimestamp = 1661788988;
+    let expireDate = Math.round(new Date().getTime() / 1000) + 3600;
+    let expireBlocks = 4000;
+    let transferTime = 1661788988;
+    let depositDateLimit = 600;
+    let depositConfirmations = 10;
+    let transferConfirmations = 10;
+    let penaltyFee = web3.utils.toBN(0);
+    let quote = {
+        lbcAddress,
+        liquidityProviderRskAddress,
+        rskRefundAddress,
+        fee, 
+        penaltyFee,
+        nonce,
+        valueToTransfer,
+        agreementTimestamp, 
+        depositDateLimit,  
+        depositConfirmations,
+        transferConfirmations,
+        transferTime,
+        expireDate,
+        expireBlocks
+    };
+
+    return quote;
+}
+
 async function ensureLiquidityProviderAvailable(instance, liquidityProviderRskAddress, amount) {
     let lpIsAvailable = await instance.isOperational(liquidityProviderRskAddress);
     if(!lpIsAvailable){
@@ -71,6 +104,7 @@ const ONE_COLLATERAL = web3.utils.toBN(1);
 
 module.exports = {
     getTestQuote,
+    getTestPegOutQuote,
     asArray,
     ensureLiquidityProviderAvailable,
     LP_COLLATERAL,
