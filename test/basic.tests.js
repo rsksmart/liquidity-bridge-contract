@@ -716,7 +716,7 @@ contract('LiquidityBridgeContract', async accounts => {
         expect(userPegInBalanceBefore.toString()).to.be.eq(userPegInBalanceAfter.toString());
         expect(userPegOutBalanceAfter.toString()).to.be.eq(userPegOutBalanceBefore.add(msgValue).toString());
         expect(+contractBalanceAfter).to.be.eq(+contractBalanceBefore + +msgValue);
-        
+        await web3.eth.getBlock('latest')
         const refund = await instance.refundPegOut(
             utils.asArray(quote), 
             btcTxHash,
