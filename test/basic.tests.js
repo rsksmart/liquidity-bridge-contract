@@ -333,7 +333,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
     let initialLPDeposit = await instance.getCollateral(
       liquidityProviderRskAddress
     );
-    var cfuTx = await instance.callForUser(utils.asArray(quote), {
+    let cfuTx = await instance.callForUser(utils.asArray(quote), {
       value: quote.val,
     });
 

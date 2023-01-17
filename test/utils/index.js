@@ -52,8 +52,6 @@ function getTestPegOutQuote(
   value
 ) {
   let valueToTransfer = value || web3.utils.toBN(0);
-  let derivationAddress =
-    "0x7465737400000000000000000000000000000000000000000000000000000000";
   let fee = web3.utils.toBN(1);
   let nonce = 0;
   let agreementTimestamp = 1661788988;

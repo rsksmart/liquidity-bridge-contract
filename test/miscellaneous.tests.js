@@ -23,7 +23,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
     const proxy = await LiquidityBridgeContractProxy.deployed();
     instance = await LiquidityBridgeContract.at(proxy.address);
     bridgeMockInstance = await BridgeMock.deployed();
-    mock = await Mock.deployed();
+    const mock = await Mock.deployed();
   });
 
   beforeEach(async () => {
