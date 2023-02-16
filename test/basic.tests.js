@@ -20,7 +20,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
   let signatureValidatorInstance;
   const liquidityProviderRskAddress = accounts[0];
   const MAX_UINT32 = Math.pow(2, 32) - 1;
-
+  var providerList = [];
   before(async () => {
     const proxy = await LiquidityBridgeContractProxy.deployed();
     instance = await LiquidityBridgeContract.at(proxy.address);
@@ -52,6 +52,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       true,
       { from: currAddr, value: utils.LP_COLLATERAL }
     );
+    providerList.push(tx.logs[0].args.id.toNumber());
 
     let current = await instance.getCollateral(currAddr);
     let registered = current.sub(existing);
@@ -226,6 +227,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
         value: utils.LP_COLLATERAL,
       }
     );
+    providerList.push(tx.logs[0].args.id.toNumber());
 
     truffleAssertions.eventEmitted(tx, "Register", {
       from: currAddr,
@@ -247,16 +249,21 @@ contract("LiquidityBridgeContract", async (accounts) => {
         value: utils.LP_COLLATERAL,
       }
     );
+    providerList.push(tx2.logs[0].args.id.toNumber());
 
     truffleAssertions.eventEmitted(tx2, "Register", {
       from: currAddr2,
       amount: utils.LP_COLLATERAL,
     });
-    let providers = await instance.getProviders();
+    let providers = await instance.getProviders(providerList);
     expect(providers.length).to.be.greaterThan(0);
     expect(accounts).to.includes(providers[0].provider);
     expect(accounts).to.includes(providers[1].provider);
     expect(accounts).to.includes(providers[2].provider);
+  });
+  it("should get providerIds", async () => {
+    let providerId = await instance.getProviderIds();
+    expect(providerId.toNumber() == providerList.length);
   });
 
   it("should match lp address with address retrieved from ecrecover", async () => {

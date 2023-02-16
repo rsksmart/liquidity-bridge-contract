@@ -185,7 +185,9 @@ contract LiquidityBridgeContract is Initializable {
     receive() external payable {
         require(msg.sender == address(bridge), "Not allowed");
     }
-
+    function getProviderIds() external view returns (uint) {
+        return providerId;
+    }
     function getBridgeAddress() external view returns (address) {
         return address(bridge);
     }
@@ -236,7 +238,7 @@ contract LiquidityBridgeContract is Initializable {
         uint _maxTransactionValue,
         string memory _apiBaseUrl,
         bool _status
-    ) external payable onlyEoa {
+    ) external payable onlyEoa returns (uint) {
         require(collateral[msg.sender] == 0, "Already registered");
         require(msg.value >= minCollateral, "Not enough collateral");
         require(
@@ -258,22 +260,24 @@ contract LiquidityBridgeContract is Initializable {
             status: _status
         });
         emit Register(providerId, msg.sender, msg.value);
+        return (providerId);
     }
 
-    function getProviders() external view returns (LiquidityProvider[] memory) {
+
+    function getProviders(uint[] memory providerIds) external view returns (LiquidityProvider[] memory) {
         LiquidityProvider[] memory providersToReturn = new LiquidityProvider[](
-            providerId
+        providerIds.length
         );
         uint count = 0;
 
-        for (uint i = 0; i <= providerId; i++) {
-            if (isRegistered(liquidityProviders[i].provider)) {
-                providersToReturn[count] = liquidityProviders[i];
-                count++;
-            }
+        for (uint i = 0; i < providerIds.length; i++) {
+        uint id = providerIds[i];
+        if (isRegistered(liquidityProviders[id].provider)) {
+            providersToReturn[count] = liquidityProviders[id];
+            count++;
         }
-
-        return (providersToReturn);
+        }
+        return providersToReturn;
     }
 
     /**
