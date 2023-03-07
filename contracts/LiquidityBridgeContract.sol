@@ -239,7 +239,7 @@ contract LiquidityBridgeContract is Initializable {
         string memory _apiBaseUrl,
         bool _status
     ) external payable onlyEoa returns (uint) {
-        require(collateral[msg.sender] == 0, "Already registered");
+        //require(collateral[msg.sender] == 0, "Already registered");
         require(msg.value >= minCollateral, "Not enough collateral");
         require(
             resignationBlockNum[msg.sender] == 0,
