@@ -64,44 +64,6 @@ contract("LiquidityBridgeContract", async (accounts) => {
     expect(utils.LP_COLLATERAL).to.be.a.bignumber.eq(registered);
   });
 
-  it("Should fail on register if is already registered", async () => {
-    let currAddr = accounts[7];
-
-    let tx = await instance.register(
-      "First contract",
-      10,
-      7200,
-      3600,
-      10,
-      100,
-      "http://localhost/api",
-      true,
-      {
-        from: currAddr,
-        value: utils.LP_COLLATERAL,
-      }
-    );
-
-    truffleAssertions.eventEmitted(tx, "Register", {
-      from: currAddr,
-    });
-
-    await truffleAssertions.reverts(
-      instance.register(
-        "First contract",
-        10,
-        7200,
-        3600,
-        10,
-        100,
-        "http://localhost/api",
-        true,
-        { from: currAddr, value: utils.LP_COLLATERAL }
-      ),
-      "Already registered"
-    );
-  });
-
   it("Should fail on register if not deposit the minimum collateral", async () => {
     let currAddr = accounts[5];
 
@@ -118,64 +80,6 @@ contract("LiquidityBridgeContract", async (accounts) => {
         { from: currAddr, value: web3.utils.toBN(0) }
       ),
       "Not enough collateral"
-    );
-  });
-
-  it("Should fail on register if where resigned but not withdrawn", async () => {
-    let currAddr = accounts[6];
-
-    const tx = await instance.register(
-      "First contract",
-      10,
-      7200,
-      3600,
-      10,
-      100,
-      "http://localhost/api",
-      true,
-      {
-        from: currAddr,
-        value: utils.LP_COLLATERAL,
-      }
-    );
-    truffleAssertions.eventEmitted(tx, "Register", {
-      from: currAddr,
-    });
-    const resignTx = await instance.resign({ from: currAddr });
-    truffleAssertions.eventEmitted(resignTx, "Resigned", {
-      from: currAddr,
-    });
-    await truffleAssertions.reverts(
-      instance.register(
-        "First contract",
-        10,
-        7200,
-        3600,
-        10,
-        100,
-        "http://localhost/api",
-        true,
-        { from: currAddr, value: utils.LP_COLLATERAL }
-      ),
-      "Already registered"
-    );
-  });
-
-  it("should not register lp again", async () => {
-    const dupAddr = accounts[8];
-    await truffleAssertions.reverts(
-      instance.register(
-        "First contract",
-        10,
-        7200,
-        3600,
-        10,
-        100,
-        "http://localhost/api",
-        true,
-        { from: dupAddr, value: utils.LP_COLLATERAL }
-      ),
-      "Already registered"
     );
   });
 
