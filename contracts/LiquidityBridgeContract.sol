@@ -4,13 +4,13 @@ pragma experimental ABIEncoderV2;
 
 import "./Bridge.sol";
 import "./SignatureValidator.sol";
-import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 /**
     @title Contract that assists with the Flyover protocol
  */
 
-contract LiquidityBridgeContract is Initializable {
+contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     uint16 constant MAX_CALL_GAS_COST = 35000;
     uint16 constant MAX_REFUND_GAS_LIMIT = 2300;
 
@@ -174,6 +174,7 @@ contract LiquidityBridgeContract is Initializable {
         uint _dustThreshold
     ) external initializer {
         require(_rewardPercentage <= 100, "Invalid reward percentage");
+        __Ownable_init_unchained();
         bridge = Bridge(_bridgeAddress);
         minCollateral = _minimumCollateral;
         minPegIn = _minimumPegIn;
@@ -181,7 +182,17 @@ contract LiquidityBridgeContract is Initializable {
         resignDelayInBlocks = _resignDelayBlocks;
         dust = _dustThreshold;
     }
-
+    modifier onlyOwnerAndProvider(uint providerId) {
+        require(
+            msg.sender == owner() || msg.sender == liquidityProviders[providerId].provider,
+            "Not owner or provider"
+        );
+        _;
+    }
+    function setProviderStatus(uint providerId,bool status) public onlyOwnerAndProvider(providerId) {
+        require(status == true || status == false, "Invalid Status");
+        liquidityProviders[providerId].status = status;
+    }
     receive() external payable {
         require(msg.sender == address(bridge), "Not allowed");
     }
