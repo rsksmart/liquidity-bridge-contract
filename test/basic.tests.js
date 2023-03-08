@@ -169,7 +169,26 @@ contract("LiquidityBridgeContract", async (accounts) => {
     let providerId = await instance.getProviderIds();
     expect(providerId.toNumber() == providerList.length);
   });
-
+  it("should disable provider", async () => {
+    await instance.setProviderStatus(1, false, { from: accounts[0] });
+    let provider = await instance.getProviders([1]);
+    assert.equal(provider[0].status, false, "Provider status should be false");
+  });
+  it("should enable provider", async () => {
+    await instance.setProviderStatus(1, true, { from: accounts[0] });
+    let provider = await instance.getProviders([1]);
+    assert.equal(provider[0].status, true, "Provider status should be false");
+  });
+  it("should disable provider as provider owner", async () => {
+    await instance.setProviderStatus(1, false, { from: accounts[0] });
+    let provider = await instance.getProviders([1]);
+    assert.equal(provider[0].status, false, "Provider status should be false");
+  });
+  it("should fail disabling provider as non owners", async () => {
+    await truffleAssertions.reverts(
+      instance.setProviderStatus(1, false, { from: accounts[1] })
+    )
+  });
   it("should match lp address with address retrieved from ecrecover", async () => {
     let quote = utils.getTestQuote(
       instance.address,
