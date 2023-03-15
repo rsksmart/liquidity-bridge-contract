@@ -742,8 +742,9 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             "Bridge is not an accepted contract address"
         );
         require(
-            quote.btcRefundAddress.length == 21,
-            "BTC refund address must be 21 bytes long"
+            quote.btcRefundAddress.length == 21 ||
+            quote.btcRefundAddress.length == 33,
+            "BTC refund address must be 21 OR 33 bytes long"
         );
         require(
             quote.liquidityProviderBtcAddress.length == 21,
