@@ -2,22 +2,52 @@
   "rskTestnet": {
     "SafeMath": {
       "address": "0x343714bf746AcaF55BC1BAF93D2C47E42A762eC1",
-      "deployed": true
+      "deployed": false
     },
     "SignatureValidator": {
-      "address": "0xEE0e4fb6b967D3eAC2E2Af188eDAE5E319C0CD74",
+      "address": "0xC8629f3433122dbDA1F0F1a1778623c654CEA485",
       "deployed": true
     },
     "LiquidityBridgeContractAdmin": {
-      "address": "0x0Cf562069E64aB810963F017F560c021F298aa40",
+      "address": "0x1de4FF655DC7BC289cCa9D232755005265B4C94b",
       "deployed": true
     },
     "LiquidityBridgeContract": {
-      "address": "0x6C69D66AF194b5b7c484E86765a95F6160b8b767",
+      "address": "0xD2801B6c24821c118c39B29aCCDE9322491b0A37",
       "deployed": true
     },
     "LiquidityBridgeContractProxy": {
-      "address": "0x1007D87b2Ee25768bC9A58b4A0B564e12Be554bF",
+      "address": "0x81e0038E7b88496cf3CdDd684f74711e5451870B",
+      "deployed": true
+    },
+    "Migrations": {
+      "address": "0xb718538Ce5444ab77d7f31B7A84CA0719017c337",
+      "deployed": true
+    }
+  },
+  "rskRegtest": {
+    "Migrations": {
+      "address": "0xDA7Ce79725418F4F6E13Bf5F520C89Cec5f6A974",
+      "deployed": true
+    },
+    "SafeMath": {
+      "address": "",
+      "deployed": false
+    },
+    "SignatureValidator": {
+      "address": "0xE0825f57Dd05Ef62FF731c27222A86E104CC4Cad",
+      "deployed": true
+    },
+    "LiquidityBridgeContractAdmin": {
+      "address": "0x73ec81da0C72DD112e06c09A6ec03B5544d26F05",
+      "deployed": true
+    },
+    "LiquidityBridgeContract": {
+      "address": "0x03F23ae1917722d5A27a2Ea0Bcc98725a2a2a49a",
+      "deployed": true
+    },
+    "LiquidityBridgeContractProxy": {
+      "address": "0x1eD614cd3443EFd9c70F04b6d777aed947A4b0c4",
       "deployed": true
     }
   }

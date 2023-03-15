@@ -26,7 +26,7 @@ exports.deploy = async (name, network, act) => {
         return testConfig;
     }
 
-    if (!oldConfig[network][name].deployed) {
+    if (!oldConfig[network][name].deployed || network === "rskRegtest") {
         await act(oldConfig[network][name]);
         oldConfig[network][name].deployed = true;
         this.write(oldConfig)
