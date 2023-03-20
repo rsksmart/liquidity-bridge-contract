@@ -59,5 +59,5 @@ md#error-codes).
 
 ### Deploy and Upgrade
 
-After the first dploy we don't have to change anymore the LiquidityBridgeContract.sol instead we need to create a new version like LiquidityBridgeContractV2.sol and update the 3_upgrade_contracts.js script with the last version that will upgrade the contract.
+After the first dploy we don't have to change anymore the LiquidityBridgeContract.sol instead we need to create a new version like LiquidityBridgeContractV2.sol and uncomment and update the 3_upgrade_contracts.js script with the last version that will upgrade the contract.
 With that we can easily get back on any mistake and swicth version.
