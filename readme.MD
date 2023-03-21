@@ -54,4 +54,10 @@ This method performs a call on behalf of a user.
         uint256 height              // block number that contains the deposit tx
 	) returns int executionStatus
 
-This method requests the Bridge contract on RSK a refund for the service. This method returns the amount transferred to the contract or an [error code](https://github.com/rsksmart/RSKIPs/blob/fast-bridge-alternative/IPs/RSKIP176.md#error-codes).
+This method requests the Bridge contract on RSK a refund for the service. This method returns the amount transferred to the contract or an [error code](https://github.com/rsksmart/RSKIPs/blob/fast-bridge-alternative/IPs/RSKIP176.
+md#error-codes).
+
+### Deploy and Upgrade
+
+After the first dploy we don't have to change anymore the LiquidityBridgeContract.sol instead we need to create a new version like LiquidityBridgeContractV2.sol and uncomment and update the 3_upgrade_contracts.js script with the last version that will upgrade the contract.
+With that we can easily get back on any mistake and swicth version.
