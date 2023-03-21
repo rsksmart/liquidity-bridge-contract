@@ -2,7 +2,7 @@ const Web3 = require("web3");
 
 module.exports = function (callback) {
   const json = require("../build/contracts/LiquidityBridgeContract.json");
-  var accounts;
+  let accounts;
   // in web front-end, use an onload listener and similar to this manual flow ...
   web3.eth.getAccounts(function (err, res) {
     accounts = res;
