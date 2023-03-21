@@ -63,7 +63,17 @@ contract("LiquidityBridgeContract", async (accounts) => {
     });
     expect(utils.LP_COLLATERAL).to.be.a.bignumber.eq(registered);
   });
+  it("Should fail on register if bad parameters", async () => {
+    let currAddr = accounts[5];
 
+    await truffleAssertions.reverts(
+      instance.register("", 0, 0, 0, 10, 100, "", true, {
+        from: currAddr,
+        value: utils.LP_COLLATERAL,
+      }),
+      "Name must not be empty"
+    );
+  });
   it("Should fail on register if not deposit the minimum collateral", async () => {
     let currAddr = accounts[5];
 
@@ -187,7 +197,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
   it("should fail disabling provider as non owners", async () => {
     await truffleAssertions.reverts(
       instance.setProviderStatus(1, false, { from: accounts[1] })
-    )
+    );
   });
   it("should match lp address with address retrieved from ecrecover", async () => {
     let quote = utils.getTestQuote(
