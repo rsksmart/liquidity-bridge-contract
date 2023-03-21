@@ -251,6 +251,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         bool _status
     ) external payable onlyEoa returns (uint) {
         //require(collateral[msg.sender] == 0, "Already registered");
+        validateRegisterParameters(_name, _fee, _quoteExpiration, _acceptedQuoteExpiration, _minTransactionValue, _maxTransactionValue, _apiBaseUrl);
         require(msg.value >= minCollateral, "Not enough collateral");
         require(
             resignationBlockNum[msg.sender] == 0,
@@ -274,6 +275,26 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         return (providerId);
     }
 
+/**
+        @dev Validates input parameters for the register function
+     */
+    function validateRegisterParameters(
+        string memory _name,
+        uint _fee,
+        uint _quoteExpiration,
+        uint _acceptedQuoteExpiration,
+        uint _minTransactionValue,
+        uint _maxTransactionValue,
+        string memory _apiBaseUrl
+    ) internal pure {
+        require(bytes(_name).length > 0, "Name must not be empty");
+        require(_fee > 0, "Fee must be greater than 0");
+        require(_quoteExpiration > 0, "Quote expiration must be greater than 0");
+        require(_acceptedQuoteExpiration > 0, "Accepted quote expiration must be greater than 0");
+        require(_minTransactionValue > 0, "Min transaction value must be greater than 0");
+        require(_maxTransactionValue > _minTransactionValue, "Max transaction value must be greater than min transaction value");
+        require(bytes(_apiBaseUrl).length > 0, "API base URL must not be empty");
+    }
 
     function getProviders(uint[] memory providerIds) external view returns (LiquidityProvider[] memory) {
         LiquidityProvider[] memory providersToReturn = new LiquidityProvider[](
