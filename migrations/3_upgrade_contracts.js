@@ -1,4 +1,4 @@
-const { upgradeProxy } = require("@openzeppelin/truffle-upgrades");
+// const { upgradeProxy } = require("@openzeppelin/truffle-upgrades");
 
 // const version = "V2";
 
@@ -10,7 +10,7 @@ const { upgradeProxy } = require("@openzeppelin/truffle-upgrades");
 
 // const { deploy, read } = require("../config");
 
-// module.exports = async function (deployer, network) {
+module.exports = async function (deployer, network) {
 //   let config = read();
 //   config = await deploy("LiquidityBridgeContract", network, async (state) => {
 //     const signatureValidatorLib = await SignatureValidator.at(
@@ -27,4 +27,5 @@ const { upgradeProxy } = require("@openzeppelin/truffle-upgrades");
 //     console.log("Upgraded", response.address);
 //     state.address = response.address;
 //   });
-// };
+console.log("There is notting to upgrade");
+};
