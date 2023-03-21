@@ -21,7 +21,6 @@ module.exports = function (callback) {
     accounts = res;
   });
 
-  console.log
 
   const contract = new web3.eth.Contract(
     json.abi,
