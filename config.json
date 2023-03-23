@@ -27,7 +27,7 @@
   },
   "rskRegtest": {
     "Migrations": {
-      "address": "0x564686127C713Bd3497135a58efE779706fAe665",
+      "address": "0xbdd70Fc6395558B595b04Fc96636Aaf2D63caF7D",
       "deployed": true
     },
     "SafeMath": {
@@ -35,7 +35,7 @@
       "deployed": false
     },
     "SignatureValidator": {
-      "address": "0x216e580F35a813C19Bf265F0D71D9B7180169D21",
+      "address": "0x3ae8cc4dC900e409591D316091F8657aE1653fB1",
       "deployed": true
     },
     "LiquidityBridgeContractAdmin": {
@@ -43,7 +43,7 @@
       "deployed": true
     },
     "LiquidityBridgeContract": {
-      "address": "0xD1F0892ecce4f9f6f37D34634fF956A17BD647ed",
+      "address": "0x26eD623F6D42E4e2054Bb82AC336ae152A0CdCc9",
       "deployed": true
     },
     "LiquidityBridgeContractProxy": {

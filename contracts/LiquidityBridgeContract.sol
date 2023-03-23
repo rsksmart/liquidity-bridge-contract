@@ -56,19 +56,23 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
 
     struct PegOutQuote {
         address lbcAddress;
-        address liquidityProviderRskAddress;
+        address lpRskAddress;
+        bytes btcRefundAddress;
         address rskRefundAddress;
-        uint64 fee;
-        uint64 penaltyFee;
+        bytes lpBtcAddress;
+        uint256 callFee;
+        uint256 penaltyFee;
         int64 nonce;
-        uint64 valueToTransfer;
+        bytes deposityAddress;
+        uint32 gasLimit;
+        uint256 value;
         uint32 agreementTimestamp;
         uint32 depositDateLimit;
         uint16 depositConfirmations;
         uint16 transferConfirmations;
         uint32 transferTime;
         uint32 expireDate;
-        uint32 expireBlocks;
+        uint32 expireBlock;
     }
 
     struct Registry {
@@ -645,7 +649,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
 
         require(
             SignatureValidator.verify(
-                quote.liquidityProviderRskAddress,
+                quote.lpRskAddress,
                 quoteHash,
                 signature
             ),
@@ -661,7 +665,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         );
         processedPegOutQuotes[quoteHash] = PROCESSED_QUOTE_CODE;
 
-        uint256 valueToTransfer = quote.valueToTransfer + quote.fee;
+        uint256 valueToTransfer = quote.value + quote.callFee;
         require(
             msg.value == valueToTransfer,
             "LBC: msg value doesnt match quote"
@@ -675,7 +679,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
 
         emit PegOut(
             msg.sender,
-            quote.valueToTransfer,
+            quote.value,
             quoteHash,
             processedPegOutQuotes[quoteHash]
         );
@@ -698,11 +702,11 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             "LBC: Quote expired by date"
         );
         require(
-            block.number <= quote.expireBlocks,
+            block.number <= quote.expireBlock,
             "LBC: Quote expired by blocks"
         );
         require(
-            msg.sender == quote.liquidityProviderRskAddress,
+            msg.sender == quote.lpRskAddress,
             "LBC: Wrong sender"
         );
         require(
@@ -714,8 +718,8 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             ) >= int(uint256(quote.transferConfirmations)),
             "LBC: Don't have required confirmations"
         );
-        payable(quote.liquidityProviderRskAddress).transfer(
-            quote.valueToTransfer + quote.fee
+        payable(quote.lpRskAddress).transfer(
+            quote.value + quote.callFee
         );
 
         if (
@@ -728,14 +732,14 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         ) {
             uint penalty = min(
                 quote.penaltyFee,
-                collateral[quote.liquidityProviderRskAddress]
+                collateral[quote.lpRskAddress]
             );
-            collateral[quote.liquidityProviderRskAddress] -= penalty;
+            collateral[quote.lpRskAddress] -= penalty;
 
             increaseBalance(msg.sender, (penalty * rewardP) / 100);
         }
 
-        decreasePegOutBalance(quote.rskRefundAddress, quote.valueToTransfer);
+        decreasePegOutBalance(quote.rskRefundAddress, quote.value);
         delete processedPegOutQuotes[quoteHash];
     }
 
@@ -918,12 +922,12 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
 
     function shouldPenalizePegOutLP(
         PegOutQuote memory quote,
-        uint64 penaltyFee,
+        uint256 penaltyFee,
         uint256 callTimestamp,
         uint256 height
     ) private view returns (bool) {
         // do not penalize if deposit amount is insufficient
-        if (penaltyFee > 0 && uint256(penaltyFee) < quote.valueToTransfer) {
+        if (penaltyFee > 0 && uint256(penaltyFee) < quote.value) {
             return false;
         }
 
@@ -1046,12 +1050,14 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         return
             abi.encode(
                 quote.lbcAddress,
-                quote.liquidityProviderRskAddress,
+                quote.lpRskAddress,
+                quote.btcRefundAddress,
                 quote.rskRefundAddress,
-                quote.fee,
+                quote.lpBtcAddress,
+                quote.callFee,
                 quote.penaltyFee,
                 quote.nonce,
-                quote.valueToTransfer
+                quote.deposityAddress
             );
     }
 
@@ -1060,13 +1066,15 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     ) private pure returns (bytes memory) {
         return
             abi.encode(
+                quote.gasLimit,
+                quote.value,
                 quote.agreementTimestamp,
                 quote.depositDateLimit,
                 quote.depositConfirmations,
                 quote.transferConfirmations,
                 quote.transferTime,
                 quote.expireDate,
-                quote.expireBlocks
+                quote.expireBlock
             );
     }
 }

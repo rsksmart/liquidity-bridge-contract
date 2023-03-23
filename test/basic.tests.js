@@ -1,7 +1,4 @@
 const LiquidityBridgeContract = artifacts.require("LiquidityBridgeContract");
-const LiquidityBridgeContractProxy = artifacts.require(
-  "LiquidityBridgeContractProxy"
-);
 const BridgeMock = artifacts.require("BridgeMock");
 const Mock = artifacts.require("Mock");
 const SignatureValidatorMock = artifacts.require("SignatureValidatorMock");
@@ -22,7 +19,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
   const MAX_UINT32 = Math.pow(2, 32) - 1;
   var providerList = [];
   before(async () => {
-    const proxy = await LiquidityBridgeContractProxy.deployed();
+    const proxy = await LiquidityBridgeContract.deployed();
     instance = await LiquidityBridgeContract.at(proxy.address);
     bridgeMockInstance = await BridgeMock.deployed();
     mock = await Mock.deployed();
@@ -738,7 +735,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       accounts[2],
       web3.utils.toBN(1)
     );
-    const msgValue = quote.valueToTransfer.add(quote.fee);
+    const msgValue = quote.value.add(quote.callFee);
 
     const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
     const signature = await web3.eth.sign(
@@ -819,7 +816,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       accounts[1],
       web3.utils.toBN(1)
     );
-    const msgValue = quote.valueToTransfer.add(quote.fee);
+    const msgValue = quote.value.add(quote.callFee);
 
     const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
     const signature = await web3.eth.sign(
@@ -905,7 +902,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       web3.utils.toBN(1)
     );
     quote.transferConfirmations = 0;
-    const msgValue = quote.valueToTransfer.add(quote.fee);
+    const msgValue = quote.value.add(quote.callFee);
 
     // configure mocked block on mockBridge
     const block = await web3.eth.getBlock("latest");
@@ -1029,7 +1026,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
     );
     quote.transferConfirmations = 0;
     quote.expireDate = parseInt(new Date().getTime() / 1000) - 1000;
-    const msgValue = quote.valueToTransfer.add(quote.fee);
+    const msgValue = quote.value.add(quote.callFee);
 
     const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
     const signature = await web3.eth.sign(
@@ -1101,8 +1098,8 @@ contract("LiquidityBridgeContract", async (accounts) => {
       web3.utils.toBN(1)
     );
     quote.transferConfirmations = 0;
-    quote.expireBlocks = 0;
-    const msgValue = quote.valueToTransfer.add(quote.fee);
+    quote.expireBlock = 0;
+    const msgValue = quote.value.add(quote.callFee);
 
     const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
     const signature = await web3.eth.sign(
