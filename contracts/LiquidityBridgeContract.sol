@@ -60,12 +60,12 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         bytes btcRefundAddress;
         address rskRefundAddress;
         bytes lpBtcAddress;
-        uint64 callFee;
-        uint64 penaltyFee;
+        uint256 callFee;
+        uint256 penaltyFee;
         int64 nonce;
         bytes deposityAddress;
         uint32 gasLimit;
-        uint64 value;
+        uint256 value;
         uint32 agreementTimestamp;
         uint32 depositDateLimit;
         uint16 depositConfirmations;
@@ -922,7 +922,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
 
     function shouldPenalizePegOutLP(
         PegOutQuote memory quote,
-        uint64 penaltyFee,
+        uint256 penaltyFee,
         uint256 callTimestamp,
         uint256 height
     ) private view returns (bool) {

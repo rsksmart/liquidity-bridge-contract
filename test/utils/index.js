@@ -47,36 +47,41 @@ function getTestQuote(
 
 function getTestPegOutQuote(
   lbcAddress,
-  liquidityProviderRskAddress,
+  lpRskAddress,
   rskRefundAddress,
   value
 ) {
   let valueToTransfer = value || web3.utils.toBN(0);
-  let fee = web3.utils.toBN(1);
+  let callFee = web3.utils.toBN(1);
   let nonce = 0;
   let agreementTimestamp = 1661788988;
   let expireDate = Math.round(new Date().getTime() / 1000) + 3600;
-  let expireBlocks = 4000;
+  let expireBlock = 4000;
   let transferTime = 1661788988;
   let depositDateLimit = 600;
   let depositConfirmations = 10;
   let transferConfirmations = 10;
   let penaltyFee = web3.utils.toBN(0);
+
   let quote = {
     lbcAddress,
-    liquidityProviderRskAddress,
+    lpRskAddress,
+    btcRefundAddress: "0x000000000000000000000000000000000000000000",
     rskRefundAddress,
-    fee,
+    lpBtcAddress: "0x000000000000000000000000000000000000000000",
+    callFee,
     penaltyFee,
     nonce,
-    valueToTransfer,
+    deposityAddress: "0x000000000000000000000000000000000000000000",
+    gasLimit: 21000,
+    value: valueToTransfer,
     agreementTimestamp,
     depositDateLimit,
     depositConfirmations,
     transferConfirmations,
     transferTime,
     expireDate,
-    expireBlocks,
+    expireBlock,
   };
 
   return quote;
