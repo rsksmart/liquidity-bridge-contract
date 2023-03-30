@@ -3,6 +3,7 @@ pragma solidity ^0.8.3;
 
 interface Bridge {
 
+    receive() external payable;
     function getBtcBlockchainBestChainHeight (  ) external view returns ( int );
     function getStateForBtcReleaseClient (  ) external view returns ( bytes memory);
     function getStateForDebugging (  ) external view returns ( bytes memory  );
