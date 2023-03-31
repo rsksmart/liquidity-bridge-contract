@@ -170,7 +170,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         @param _dustThreshold Amount that is considered dust
      */
     function initialize(
-        address _bridgeAddress,
+        address payable _bridgeAddress,
         uint256 _minimumCollateral,
         uint256 _minimumPegIn,
         uint32 _rewardPercentage,
@@ -329,6 +329,14 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
      */
     function deposit() external payable onlyRegistered {
         increaseBalance(msg.sender, msg.value);
+    }
+
+    /**
+        @dev Increases the pegout balance of the sender
+    */
+    // TODO remove payable. We need to think another way to track pegout balance in contract
+    function depositForPegout() external payable onlyRegistered {
+        increasePegOutBalance(msg.sender, msg.value);
     }
 
     /**
@@ -663,8 +671,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             processedPegOutQuotes[quoteHash] != 2,
             "LBC: Quote already pegged out"
         );
-        processedPegOutQuotes[quoteHash] = PROCESSED_QUOTE_CODE;
-
+        
         uint256 valueToTransfer = quote.value + quote.callFee;
         require(
             msg.value == valueToTransfer,
@@ -674,12 +681,24 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             address(this).balance >= valueToTransfer,
             "LBC: Not enough funds"
         );
+        require(
+            pegOutBalances[quote.lpRskAddress] >= valueToTransfer,
+            "LBC: Provider doesn't have enough balance"
+        );
 
-        increasePegOutBalance(quote.rskRefundAddress, valueToTransfer);
+        processedPegOutQuotes[quoteHash] = PROCESSED_QUOTE_CODE;
+
+        decreasePegOutBalance(quote.lpRskAddress, valueToTransfer);
+
+        (bool success,) = address(bridge).call{ 
+            value: valueToTransfer,
+            gas: quote.gasLimit
+        }("");
+        require(success, "Error sending amount to the bridge");
 
         emit PegOut(
             msg.sender,
-            quote.value,
+            valueToTransfer,
             quoteHash,
             processedPegOutQuotes[quoteHash]
         );
@@ -691,7 +710,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         bytes32 btcBlockHeaderHash,
         uint256 partialMerkleTree,
         bytes32[] memory merkleBranchHashes
-    ) public payable noReentrancy {
+    ) public noReentrancy {
         bytes32 quoteHash = validateAndHashPegOutQuote(quote);
         require(
             processedPegOutQuotes[quoteHash] == 2,
@@ -718,9 +737,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             ) >= int(uint256(quote.transferConfirmations)),
             "LBC: Don't have required confirmations"
         );
-        payable(quote.lpRskAddress).transfer(
-            quote.value + quote.callFee
-        );
 
         if (
             shouldPenalizePegOutLP(
@@ -735,11 +751,9 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
                 collateral[quote.lpRskAddress]
             );
             collateral[quote.lpRskAddress] -= penalty;
-
-            increaseBalance(msg.sender, (penalty * rewardP) / 100);
         }
 
-        decreasePegOutBalance(quote.rskRefundAddress, quote.value);
+        increasePegOutBalance(quote.rskRefundAddress, quote.value);
         delete processedPegOutQuotes[quoteHash];
     }
 

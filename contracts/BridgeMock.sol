@@ -8,6 +8,7 @@ contract BridgeMock is Bridge {
     mapping(bytes32 => uint256) private amounts;
     mapping(uint256 => bytes) private headers;
 
+    receive() external payable override {}
     function registerFastBridgeBtcTransaction(
         bytes memory , 
         uint256 , 
