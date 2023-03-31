@@ -686,15 +686,15 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             "LBC: Provider doesn't have enough balance"
         );
 
+        processedPegOutQuotes[quoteHash] = PROCESSED_QUOTE_CODE;
+
+        decreasePegOutBalance(quote.lpRskAddress, valueToTransfer);
+
         (bool success,) = address(bridge).call{ 
             value: valueToTransfer,
             gas: quote.gasLimit
         }("");
         require(success, "Error sending amount to the bridge");
-
-        processedPegOutQuotes[quoteHash] = PROCESSED_QUOTE_CODE;
-
-        decreasePegOutBalance(quote.lpRskAddress, valueToTransfer);
 
         emit PegOut(
             msg.sender,
