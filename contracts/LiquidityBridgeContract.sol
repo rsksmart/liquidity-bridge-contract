@@ -118,7 +118,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         address from,
         uint256 amount,
         bytes32 quotehash,
-        uint processed
+        uint8 processed
     );
     event PegOutBalanceIncrease(address dest, uint amount);
     event PegOutBalanceDecrease(address dest, uint amount);
