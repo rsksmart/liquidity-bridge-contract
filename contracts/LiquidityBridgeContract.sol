@@ -680,13 +680,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         processedPegOutQuotes[quoteHash] = PROCESSED_QUOTE_CODE;
 
         decreasePegOutBalance(quote.lpRskAddress, valueToTransfer);
-
-        (bool success,) = address(bridge).call{ 
-            value: valueToTransfer,
-            gas: quote.gasLimit
-        }("");
-        require(success, "Error sending amount to the bridge");
-
         emit PegOut(
             msg.sender,
             valueToTransfer,
