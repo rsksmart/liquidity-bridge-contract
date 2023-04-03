@@ -654,7 +654,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         bytes memory signature
     ) public payable noReentrancy {
         bytes32 quoteHash = validateAndHashPegOutQuote(quote);
-
+        /*
         require(
             SignatureValidator.verify(
                 quote.lpRskAddress,
@@ -662,7 +662,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
                 signature
             ),
             "LBC: Invalid signature"
-        );
+        );*/
         require(
             quote.depositDateLimit < block.timestamp,
             "LBC: Block height overflown"
