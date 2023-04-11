@@ -96,8 +96,10 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     event Register(uint id, address from, uint256 amount);
     event Deposit(address from, uint256 amount);
     event CollateralIncrease(address from, uint256 amount);
+    event PegoutCollateralIncrease(address from, uint256 amount);
     event Withdrawal(address from, uint256 amount);
     event WithdrawCollateral(address from, uint256 amount);
+    event PegoutWithdrawCollateral(address from, uint256 amount);
     event Resigned(address from);
     event CallForUser(
         address from,
@@ -122,11 +124,12 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     );
     event PegOutBalanceIncrease(address dest, uint amount);
     event PegOutBalanceDecrease(address dest, uint amount);
+    event PegOutRefunded(bytes32 quoteHash);
 
     Bridge bridge;
     mapping(address => uint256) private balances;
-    mapping(address => uint256) private pegOutBalances;
     mapping(address => uint256) private collateral;
+    mapping(address => uint256) private pegoutCollateral;
     mapping(uint => LiquidityProvider) private liquidityProviders;
     mapping(bytes32 => Registry) private callRegistry;
     mapping(address => uint256) private resignationBlockNum;
@@ -146,6 +149,11 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
 
     modifier onlyRegistered() {
         require(isRegistered(msg.sender), "Not registered");
+        _;
+    }
+
+    modifier onlyRegisteredForPegout() {
+        require(isRegisteredForPegout(msg.sender), "Not registered");
         _;
     }
 
@@ -234,11 +242,19 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     }
 
     /**
-        @dev Checks whether a liquidity provider can deliver a service
+        @dev Checks whether a liquidity provider can deliver a pegin service
         @return Whether the liquidity provider is registered and has enough locked collateral
      */
     function isOperational(address addr) external view returns (bool) {
         return isRegistered(addr) && collateral[addr] >= minCollateral;
+    }
+
+    /**
+        @dev Checks whether a liquidity provider can deliver a pegout service
+        @return Whether the liquidity provider is registered and has enough locked collateral
+     */
+    function isOperationalForPegout(address addr) external view returns (bool) {
+        isRegisteredForPegout(addr) && pegoutCollateral[addr] >= minCollateral;
     }
 
     /**
@@ -324,19 +340,16 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         emit CollateralIncrease(msg.sender, msg.value);
     }
 
+    function addPegoutCollateral() external payable onlyRegistered {
+        pegoutCollateral[msg.sender] += msg.value;
+        emit PegoutCollateralIncrease(msg.sender, msg.value);
+    }
+
     /**
         @dev Increases the balance of the sender
      */
     function deposit() external payable onlyRegistered {
         increaseBalance(msg.sender, msg.value);
-    }
-
-    /**
-        @dev Increases the pegout balance of the sender
-    */
-    // TODO remove payable. We need to think another way to track pegout balance in contract
-    function depositForPegout() external payable onlyRegistered {
-        increasePegOutBalance(msg.sender, msg.value);
     }
 
     /**
@@ -369,6 +382,21 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         emit WithdrawCollateral(msg.sender, amount);
     }
 
+    function withdrawPegoutCollateral() external {
+        require(resignationBlockNum[msg.sender] > 0, "Need to resign first");
+        require(
+            block.number - resignationBlockNum[msg.sender] >=
+                resignDelayInBlocks,
+            "Not enough blocks"
+        );
+        uint amount = pegoutCollateral[msg.sender];
+        pegoutCollateral[msg.sender] = 0;
+        resignationBlockNum[msg.sender] = 0;
+        (bool success, ) = msg.sender.call{value: amount}("");
+        require(success, "Sending funds failed");
+        emit PegoutWithdrawCollateral(msg.sender, amount);
+    }
+
     /**
         @dev Used to resign as a liquidity provider
      */
@@ -387,6 +415,10 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         return collateral[addr];
     }
 
+    function getPegoutCollateral(address addr) external view returns (uint256) {
+        return pegoutCollateral[addr];
+    }
+
     /**
         @dev Returns the amount of funds of a liquidity provider
         @param addr The address of the liquidity provider
@@ -394,15 +426,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
      */
     function getBalance(address addr) external view returns (uint256) {
         return balances[addr];
-    }
-
-    /**
-        @dev Returns the amount of funds that a user has locked on the contract
-        @param addr The address of the user
-        @return The balance of the user
-     */
-    function getPegOutBalance(address addr) external view returns (uint256) {
-        return pegOutBalances[addr];
     }
 
     /**
@@ -652,7 +675,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     function registerPegOut(
         PegOutQuote memory quote,
         bytes memory signature
-    ) public payable noReentrancy {
+    ) public onlyRegisteredForPegout {
         bytes32 quoteHash = validateAndHashPegOutQuote(quote);
 
         require(
@@ -671,34 +694,12 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             processedPegOutQuotes[quoteHash] != 2,
             "LBC: Quote already pegged out"
         );
-        
-        uint256 valueToTransfer = quote.value + quote.callFee;
-        require(
-            msg.value == valueToTransfer,
-            "LBC: msg value doesnt match quote"
-        );
-        require(
-            address(this).balance >= valueToTransfer,
-            "LBC: Not enough funds"
-        );
-        require(
-            pegOutBalances[quote.lpRskAddress] >= valueToTransfer,
-            "LBC: Provider doesn't have enough balance"
-        );
 
         processedPegOutQuotes[quoteHash] = PROCESSED_QUOTE_CODE;
 
-        decreasePegOutBalance(quote.lpRskAddress, valueToTransfer);
-
-        (bool success,) = address(bridge).call{ 
-            value: valueToTransfer,
-            gas: quote.gasLimit
-        }("");
-        require(success, "Error sending amount to the bridge");
-
         emit PegOut(
             msg.sender,
-            valueToTransfer,
+            quote.value + quote.callFee,
             quoteHash,
             processedPegOutQuotes[quoteHash]
         );
@@ -710,7 +711,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         bytes32 btcBlockHeaderHash,
         uint256 partialMerkleTree,
         bytes32[] memory merkleBranchHashes
-    ) public noReentrancy {
+    ) public noReentrancy onlyRegisteredForPegout {
         bytes32 quoteHash = validateAndHashPegOutQuote(quote);
         require(
             processedPegOutQuotes[quoteHash] == 2,
@@ -748,13 +749,12 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         ) {
             uint penalty = min(
                 quote.penaltyFee,
-                collateral[quote.lpRskAddress]
+                pegoutCollateral[quote.lpRskAddress]
             );
-            collateral[quote.lpRskAddress] -= penalty;
+            pegoutCollateral[quote.lpRskAddress] -= penalty;
         }
-
-        increasePegOutBalance(quote.rskRefundAddress, quote.value);
         delete processedPegOutQuotes[quoteHash];
+        emit PegOutRefunded(quoteHash);
     }
 
     /**
@@ -827,19 +827,9 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         emit BalanceIncrease(dest, amount);
     }
 
-    function increasePegOutBalance(address dest, uint amount) private {
-        pegOutBalances[dest] += amount;
-        emit PegOutBalanceIncrease(dest, amount);
-    }
-
     function decreaseBalance(address dest, uint amount) private {
         balances[dest] -= amount;
         emit BalanceDecrease(dest, amount);
-    }
-
-    function decreasePegOutBalance(address dest, uint amount) private {
-        pegOutBalances[dest] -= amount;
-        emit PegOutBalanceDecrease(dest, amount);
     }
 
     /**
@@ -849,6 +839,10 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
      */
     function isRegistered(address addr) private view returns (bool) {
         return collateral[addr] > 0 && resignationBlockNum[addr] == 0;
+    }
+
+    function isRegisteredForPegout(address addr) private view returns (bool) {
+        return pegoutCollateral[addr] > 0 && resignationBlockNum[addr] == 0;
     }
 
     /**
