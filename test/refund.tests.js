@@ -1,5 +1,4 @@
 const LiquidityBridgeContract = artifacts.require('LiquidityBridgeContract');
-const LiquidityBridgeContractProxy = artifacts.require('LiquidityBridgeContractProxy');
 const BridgeMock = artifacts.require("BridgeMock");
 const Mock = artifacts.require('Mock');
 const WalletMock = artifacts.require('WalletMock');
@@ -20,7 +19,7 @@ contract('LiquidityBridgeContract', async accounts => {
     const liquidityProviderRskAddress = accounts[0];
 
     before(async () => {
-        const proxy = await LiquidityBridgeContractProxy.deployed();
+        const proxy = await LiquidityBridgeContract.deployed();
         instance = await LiquidityBridgeContract.at(proxy.address);
         bridgeMockInstance = await BridgeMock.deployed();
         mock = await Mock.deployed();
