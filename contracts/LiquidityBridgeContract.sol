@@ -272,12 +272,21 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     ) external payable onlyEoa returns (uint) {
         //require(collateral[msg.sender] == 0, "Already registered");
         validateRegisterParameters(_name, _fee, _quoteExpiration, _acceptedQuoteExpiration, _minTransactionValue, _maxTransactionValue, _apiBaseUrl);
-        require(msg.value >= minCollateral, "Not enough collateral");
+        // TODO multiplication by 2 is a temporal fix until we define solution with product team
+        require(msg.value >= minCollateral * 2, "Not enough collateral");
         require(
             resignationBlockNum[msg.sender] == 0,
             "Withdraw collateral first"
         );
-        collateral[msg.sender] = msg.value;
+        // TODO split 50/50 between pegin and pegout is a temporal fix until we define solution with product team
+        if (msg.value % 2 == 0) {
+            collateral[msg.sender] = msg.value / 2;
+            pegoutCollateral[msg.sender] = msg.value / 2;
+        } else {
+            collateral[msg.sender] = msg.value / 2 + 1;
+            pegoutCollateral[msg.sender] = msg.value / 2;
+        }
+        
         providerId++;
         liquidityProviders[providerId] = LiquidityProvider({
             id: providerId,

@@ -58,7 +58,8 @@ contract("LiquidityBridgeContract", async (accounts) => {
       from: currAddr,
       amount: utils.LP_COLLATERAL,
     });
-    expect(utils.LP_COLLATERAL).to.be.a.bignumber.eq(registered);
+    // TODO this multiplication by 2 is a temporal fix until we define solution with product team
+    expect(utils.LP_COLLATERAL).to.be.a.bignumber.eq(registered.mul(web3.utils.toBN(2)));
   });
   it("Should fail on register if bad parameters", async () => {
     let currAddr = accounts[5];
@@ -460,12 +461,12 @@ contract("LiquidityBridgeContract", async (accounts) => {
 
       await truffleAssertions.reverts(
         instance.hashQuote.call(utils.asArray(quote)),
-        "BTC refund address must be 21 bytes long"
+        "BTC refund address must be 21 or 33 bytes long"
       );
 
       await truffleAssertions.reverts(
         instance.callForUser.call(utils.asArray(quote), { value: quote.val }),
-        "BTC refund address must be 21 bytes long"
+        "BTC refund address must be 21 or 33 bytes long"
       );
 
       await truffleAssertions.reverts(
@@ -476,7 +477,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
           partialMerkleTree,
           height
         ),
-        "BTC refund address must be 21 bytes long"
+        "BTC refund address must be 21 or 33 bytes long"
       );
     }
   });
