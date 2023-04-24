@@ -713,7 +713,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             "LBC: Block height overflown"
         );
         require(
-            processedPegOutQuotes[quoteHash].statusCode != 2,
+            processedPegOutQuotes[quoteHash].statusCode != PROCESSED_QUOTE_CODE,
             "LBC: Quote already pegged out"
         );
 
