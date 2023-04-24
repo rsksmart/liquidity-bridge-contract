@@ -736,7 +736,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     ) public noReentrancy onlyRegisteredForPegout {
         bytes32 quoteHash = validateAndHashPegOutQuote(quote);
         require(
-            processedPegOutQuotes[quoteHash].statusCode == 2,
+            processedPegOutQuotes[quoteHash].statusCode == PROCESSED_QUOTE_CODE,
             "LBC: Quote not processed"
         );
         require(
