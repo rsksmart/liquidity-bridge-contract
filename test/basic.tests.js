@@ -870,7 +870,6 @@ contract("LiquidityBridgeContract", async (accounts) => {
       web3.utils.toBN(1)
     );
     quote.transferConfirmations = 0;
-    const msgValue = quote.value.add(quote.callFee);
 
     // configure mocked block on mockBridge
     const block = await web3.eth.getBlock("latest");
@@ -915,6 +914,8 @@ contract("LiquidityBridgeContract", async (accounts) => {
     );
     expect(+contractBalanceAfter).to.be.eq(+contractBalanceBefore);
     await web3.eth.getBlock("latest");
+
+    const lpBalanceBefore = await web3.eth.getBalance(liquidityProviderRskAddress);
     const refund = await instance.refundPegOut(
       utils.asArray(quote),
       btcTxHash,
@@ -922,7 +923,10 @@ contract("LiquidityBridgeContract", async (accounts) => {
       partialMerkleTree,
       merkleBranchHashes
     );
-
+    const lpBalanceAfter = await web3.eth.getBalance(liquidityProviderRskAddress);
+    const usedInGas = refund.receipt.gasUsed * refund.receipt.effectiveGasPrice;
+    const refundedAmount = +quote.value + +quote.callFee;
+    expect(+lpBalanceAfter).to.be.eq(+lpBalanceBefore + refundedAmount - usedInGas);
     truffleAssertions.eventEmitted(refund, "PegOutRefunded");
   });
 
@@ -1159,5 +1163,34 @@ contract("LiquidityBridgeContract", async (accounts) => {
       }
     );
     await truffleAssertions.reverts(refund, "Not registered.");
+  });
+
+  it("Should emit event when pegout is deposited", async () => {
+    const quoteHash = "0x9fbfd385b8b19b130ae787ba3f14a0ab53274be939cdcf66018c9ba3014a8284";
+    const tx = await instance.depositPegout(quoteHash, liquidityProviderRskAddress, { value: web3.utils.toBN("500") });
+    await truffleAssertions.eventEmitted(tx, "PegOutDeposit", {
+      quoteHash: quoteHash,
+      accumulatedAmount: web3.utils.toBN("500"),
+    });
+  });
+
+  it("Should update quote received amount when pegout is deposited", async () => {
+    const quoteHash = "0x9fbfd385b8b19b130ae787ba3f14a0ab53274be939cdcf66118c9ba3014a8284";
+    const firstTx = await instance.depositPegout(quoteHash, liquidityProviderRskAddress, { value: web3.utils.toBN("500") });
+    const secondTx = await instance.depositPegout(quoteHash, liquidityProviderRskAddress, { value: web3.utils.toBN("500") });
+    await truffleAssertions.eventEmitted(firstTx, "PegOutDeposit", {
+      quoteHash: quoteHash,
+      accumulatedAmount: web3.utils.toBN("500"),
+    });
+    await truffleAssertions.eventEmitted(secondTx, "PegOutDeposit", {
+      quoteHash: quoteHash,
+      accumulatedAmount: web3.utils.toBN("1000"),
+    });
+  });
+
+  it("Should fail if provider is not registered", async () => {
+    const quoteHash = "0x9fbfd385b8b19b130ae787ba3f14a0ab53274be939cdcf66118c9ba3014a8284";
+    const tx = instance.depositPegout(quoteHash, accounts[4], { value: web3.utils.toBN("500") });
+    await truffleAssertions.reverts(tx, "Provider not registered");
   });
 });
