@@ -75,6 +75,11 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         uint32 expireBlock;
     }
 
+    struct PegOutQuoteState {
+        uint256 receivedAmount;
+        uint8 statusCode;
+    }
+
     struct Registry {
         uint32 timestamp;
         bool success;
@@ -125,6 +130,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     event PegOutBalanceIncrease(address dest, uint amount);
     event PegOutBalanceDecrease(address dest, uint amount);
     event PegOutRefunded(bytes32 quoteHash);
+    event PegOutDeposit(bytes32 quoteHash, uint256 accumulatedAmount, uint256 timestamp);
 
     Bridge bridge;
     mapping(address => uint256) private balances;
@@ -145,7 +151,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     bool private locked;
 
     mapping(bytes32 => uint8) private processedQuotes;
-    mapping(bytes32 => uint8) private processedPegOutQuotes;
+    mapping(bytes32 => PegOutQuoteState) private processedPegOutQuotes;
 
     modifier onlyRegistered() {
         require(isRegistered(msg.sender), "Not registered");
@@ -237,7 +243,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
 
     function getPegOutProcessedQuote(
         bytes32 quoteHash
-    ) external view returns (uint8) {
+    ) external view returns (PegOutQuoteState memory) {
         return processedPegOutQuotes[quoteHash];
     }
 
@@ -681,6 +687,13 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         return transferredAmountOrErrorCode;
     }
 
+    function depositPegout(bytes32 quoteHash, address lpAddress) external payable {
+        require(isRegisteredForPegout(lpAddress), "Provider not registered");
+        PegOutQuoteState storage state = processedPegOutQuotes[quoteHash];
+        state.receivedAmount += msg.value;
+        emit PegOutDeposit(quoteHash, state.receivedAmount, block.timestamp);
+    }
+
     function registerPegOut(
         PegOutQuote memory quote,
         bytes memory signature
@@ -700,17 +713,17 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             "LBC: Block height overflown"
         );
         require(
-            processedPegOutQuotes[quoteHash] != 2,
+            processedPegOutQuotes[quoteHash].statusCode != PROCESSED_QUOTE_CODE,
             "LBC: Quote already pegged out"
         );
 
-        processedPegOutQuotes[quoteHash] = PROCESSED_QUOTE_CODE;
+        processedPegOutQuotes[quoteHash].statusCode = PROCESSED_QUOTE_CODE;
 
         emit PegOut(
             msg.sender,
             quote.value + quote.callFee,
             quoteHash,
-            processedPegOutQuotes[quoteHash]
+            processedPegOutQuotes[quoteHash].statusCode
         );
     }
 
@@ -723,7 +736,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     ) public noReentrancy onlyRegisteredForPegout {
         bytes32 quoteHash = validateAndHashPegOutQuote(quote);
         require(
-            processedPegOutQuotes[quoteHash] == 2,
+            processedPegOutQuotes[quoteHash].statusCode == PROCESSED_QUOTE_CODE,
             "LBC: Quote not processed"
         );
         require(
@@ -762,6 +775,10 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             );
             pegoutCollateral[quote.lpRskAddress] -= penalty;
         }
+
+        (bool sent,) = quote.lpRskAddress.call{value: quote.value + quote.callFee}("");
+        require(sent, "Failed to send refund to LP address");
+
         delete processedPegOutQuotes[quoteHash];
         emit PegOutRefunded(quoteHash);
     }
