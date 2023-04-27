@@ -29,7 +29,8 @@ contract Mock {
             10,
             100,
             "http://localhost/api",
-            true
+            true,
+            "both"
         );
     }
 }

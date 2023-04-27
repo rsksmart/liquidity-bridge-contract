@@ -8,7 +8,6 @@ module.exports = function (callback) {
     accounts = res;
   });
 
-
   const contract = new web3.eth.Contract(
     json.abi,
     "0xcdC617a31a5819dA29ebcf0Fa96352d62D354d18"
@@ -23,7 +22,8 @@ module.exports = function (callback) {
       10,
       100,
       "http://localhost/api",
-      true
+      true,
+      "both"
     )
     .call({
       // from: accounts[0],

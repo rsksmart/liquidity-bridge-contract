@@ -45,12 +45,7 @@ function getTestQuote(
   return quote;
 }
 
-function getTestPegOutQuote(
-  lbcAddress,
-  lpRskAddress,
-  rskRefundAddress,
-  value
-) {
+function getTestPegOutQuote(lbcAddress, lpRskAddress, rskRefundAddress, value) {
   let valueToTransfer = value || web3.utils.toBN(0);
   let callFee = web3.utils.toBN(1);
   let nonce = 0;
@@ -103,6 +98,7 @@ async function ensureLiquidityProviderAvailable(
       100,
       "http://localhost/api",
       true,
+      "both",
       {
         from: liquidityProviderRskAddress,
         value: amount,
