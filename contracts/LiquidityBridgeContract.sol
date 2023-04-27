@@ -137,7 +137,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         uint256 timestamp
     );
     event PegOutUserRefunded(bytes32 quoteHash, uint256 value, address userAddress);
-    event TestPegoutQuoteHash(bytes32 quoteHash);
 
     Bridge bridge;
     mapping(address => uint256) private balances;
@@ -159,7 +158,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
 
     mapping(bytes32 => uint8) private processedQuotes;
     mapping(bytes32 => PegOutQuoteState) private processedPegOutQuotes;
-    mapping(bytes32 => bool) private refundedPegoutQuotes;
 
     modifier onlyRegistered() {
         require(isRegistered(msg.sender), "Not registered");
@@ -735,6 +733,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     ) external payable {
         require(isRegisteredForPegout(lpAddress), "Provider not registered");
         PegOutQuoteState storage state = processedPegOutQuotes[quoteHash];
+        require(!state.refunded, "LBC: Quote already refunded");
         state.receivedAmount += msg.value;
         emit PegOutDeposit(quoteHash, state.receivedAmount, block.timestamp);
     }
@@ -773,11 +772,10 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         bytes memory signature
     ) public {
         bytes32 quoteHash = hashPegoutQuote(quote);
-        emit TestPegoutQuoteHash(quoteHash);
         PegOutQuoteState storage state = processedPegOutQuotes[quoteHash];
         
         require(state.receivedAmount >= quote.value, "LBC: Deposit not found");
-        require(!refundedPegoutQuotes[quoteHash], "Value refunded to user");
+        require(!state.refunded, "LBC: Quote already refunded");
         require(
             processedPegOutQuotes[quoteHash].statusCode == UNPROCESSED_QUOTE_CODE,
             "LBC: Quote already processed"
@@ -786,8 +784,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             SignatureValidator.verify(quote.lpRskAddress, quoteHash, signature),
             "LBC: Invalid signature"
         );
-
-        refundedPegoutQuotes[quoteHash] = true;
 
         uint valueToTransfer = state.receivedAmount;
         state.refunded = true;
