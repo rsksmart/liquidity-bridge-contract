@@ -78,6 +78,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     struct PegOutQuoteState {
         uint256 receivedAmount;
         uint8 statusCode;
+        bool refunded;
     }
 
     struct Registry {
@@ -130,7 +131,12 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     event PegOutBalanceIncrease(address dest, uint amount);
     event PegOutBalanceDecrease(address dest, uint amount);
     event PegOutRefunded(bytes32 quoteHash);
-    event PegOutDeposit(bytes32 quoteHash, uint256 accumulatedAmount, uint256 timestamp);
+    event PegOutDeposit(
+        bytes32 quoteHash,
+        uint256 accumulatedAmount,
+        uint256 timestamp
+    );
+    event PegOutUserRefunded(bytes32 quoteHash, uint256 value, address userAddress);
 
     Bridge bridge;
     mapping(address => uint256) private balances;
@@ -200,23 +206,32 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         resignDelayInBlocks = _resignDelayBlocks;
         dust = _dustThreshold;
     }
+
     modifier onlyOwnerAndProvider(uint providerId) {
         require(
-            msg.sender == owner() || msg.sender == liquidityProviders[providerId].provider,
+            msg.sender == owner() ||
+                msg.sender == liquidityProviders[providerId].provider,
             "Not owner or provider"
         );
         _;
     }
-    function setProviderStatus(uint providerId,bool status) public onlyOwnerAndProvider(providerId) {
+
+    function setProviderStatus(
+        uint providerId,
+        bool status
+    ) public onlyOwnerAndProvider(providerId) {
         require(status == true || status == false, "Invalid Status");
         liquidityProviders[providerId].status = status;
     }
+
     receive() external payable {
         require(msg.sender == address(bridge), "Not allowed");
     }
+
     function getProviderIds() external view returns (uint) {
         return providerId;
     }
+
     function getBridgeAddress() external view returns (address) {
         return address(bridge);
     }
@@ -277,7 +292,15 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         bool _status
     ) external payable onlyEoa returns (uint) {
         //require(collateral[msg.sender] == 0, "Already registered");
-        validateRegisterParameters(_name, _fee, _quoteExpiration, _acceptedQuoteExpiration, _minTransactionValue, _maxTransactionValue, _apiBaseUrl);
+        validateRegisterParameters(
+            _name,
+            _fee,
+            _quoteExpiration,
+            _acceptedQuoteExpiration,
+            _minTransactionValue,
+            _maxTransactionValue,
+            _apiBaseUrl
+        );
         // TODO multiplication by 2 is a temporal fix until we define solution with product team
         require(msg.value >= minCollateral * 2, "Not enough collateral");
         require(
@@ -292,7 +315,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             collateral[msg.sender] = msg.value / 2 + 1;
             pegoutCollateral[msg.sender] = msg.value / 2;
         }
-        
+
         providerId++;
         liquidityProviders[providerId] = LiquidityProvider({
             id: providerId,
@@ -310,7 +333,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         return (providerId);
     }
 
-/**
+    /**
         @dev Validates input parameters for the register function
      */
     function validateRegisterParameters(
@@ -324,25 +347,42 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     ) internal pure {
         require(bytes(_name).length > 0, "Name must not be empty");
         require(_fee > 0, "Fee must be greater than 0");
-        require(_quoteExpiration > 0, "Quote expiration must be greater than 0");
-        require(_acceptedQuoteExpiration > 0, "Accepted quote expiration must be greater than 0");
-        require(_minTransactionValue > 0, "Min transaction value must be greater than 0");
-        require(_maxTransactionValue > _minTransactionValue, "Max transaction value must be greater than min transaction value");
-        require(bytes(_apiBaseUrl).length > 0, "API base URL must not be empty");
+        require(
+            _quoteExpiration > 0,
+            "Quote expiration must be greater than 0"
+        );
+        require(
+            _acceptedQuoteExpiration > 0,
+            "Accepted quote expiration must be greater than 0"
+        );
+        require(
+            _minTransactionValue > 0,
+            "Min transaction value must be greater than 0"
+        );
+        require(
+            _maxTransactionValue > _minTransactionValue,
+            "Max transaction value must be greater than min transaction value"
+        );
+        require(
+            bytes(_apiBaseUrl).length > 0,
+            "API base URL must not be empty"
+        );
     }
 
-    function getProviders(uint[] memory providerIds) external view returns (LiquidityProvider[] memory) {
+    function getProviders(
+        uint[] memory providerIds
+    ) external view returns (LiquidityProvider[] memory) {
         LiquidityProvider[] memory providersToReturn = new LiquidityProvider[](
-        providerIds.length
+            providerIds.length
         );
         uint count = 0;
 
         for (uint i = 0; i < providerIds.length; i++) {
-        uint id = providerIds[i];
-        if (isRegistered(liquidityProviders[id].provider)) {
-            providersToReturn[count] = liquidityProviders[id];
-            count++;
-        }
+            uint id = providerIds[i];
+            if (isRegistered(liquidityProviders[id].provider)) {
+                providersToReturn[count] = liquidityProviders[id];
+                count++;
+            }
         }
         return providersToReturn;
     }
@@ -687,9 +727,13 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         return transferredAmountOrErrorCode;
     }
 
-    function depositPegout(bytes32 quoteHash, address lpAddress) external payable {
+    function depositPegout(
+        bytes32 quoteHash,
+        address lpAddress
+    ) external payable {
         require(isRegisteredForPegout(lpAddress), "Provider not registered");
         PegOutQuoteState storage state = processedPegOutQuotes[quoteHash];
+        require(!state.refunded, "LBC: Quote already refunded");
         state.receivedAmount += msg.value;
         emit PegOutDeposit(quoteHash, state.receivedAmount, block.timestamp);
     }
@@ -701,11 +745,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         bytes32 quoteHash = validateAndHashPegOutQuote(quote);
 
         require(
-            SignatureValidator.verify(
-                quote.lpRskAddress,
-                quoteHash,
-                signature
-            ),
+            SignatureValidator.verify(quote.lpRskAddress, quoteHash, signature),
             "LBC: Invalid signature"
         );
         require(
@@ -725,6 +765,37 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             quoteHash,
             processedPegOutQuotes[quoteHash].statusCode
         );
+    }
+
+    function refundUserPegOut(
+        PegOutQuote memory quote,
+        bytes memory signature
+    ) public {
+        bytes32 quoteHash = hashPegoutQuote(quote);
+        PegOutQuoteState storage state = processedPegOutQuotes[quoteHash];
+        
+        require(state.receivedAmount >= quote.value, "LBC: Deposit not found");
+        require(!state.refunded, "LBC: Quote already refunded");
+        require(
+            processedPegOutQuotes[quoteHash].statusCode == UNPROCESSED_QUOTE_CODE,
+            "LBC: Quote already processed"
+        );
+        require(
+            SignatureValidator.verify(quote.lpRskAddress, quoteHash, signature),
+            "LBC: Invalid signature"
+        );
+
+        uint valueToTransfer = state.receivedAmount;
+        state.refunded = true;
+        state.receivedAmount = 0;
+
+        (bool sent, ) = quote.rskRefundAddress.call{
+            value: valueToTransfer
+        }("");
+
+        require(sent, "LBC: Error on refund user");
+
+        emit PegOutUserRefunded(quoteHash, valueToTransfer, quote.rskRefundAddress);
     }
 
     function refundPegOut(
@@ -747,10 +818,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             block.number <= quote.expireBlock,
             "LBC: Quote expired by blocks"
         );
-        require(
-            msg.sender == quote.lpRskAddress,
-            "LBC: Wrong sender"
-        );
+        require(msg.sender == quote.lpRskAddress, "LBC: Wrong sender");
         require(
             bridge.getBtcTransactionConfirmations(
                 btcTxHash,
@@ -776,7 +844,9 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             pegoutCollateral[quote.lpRskAddress] -= penalty;
         }
 
-        (bool sent,) = quote.lpRskAddress.call{value: quote.value + quote.callFee}("");
+        (bool sent, ) = quote.lpRskAddress.call{
+            value: quote.value + quote.callFee
+        }("");
         require(sent, "Failed to send refund to LP address");
 
         delete processedPegOutQuotes[quoteHash];
@@ -808,7 +878,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         );
         require(
             quote.btcRefundAddress.length == 21 ||
-            quote.btcRefundAddress.length == 33,
+                quote.btcRefundAddress.length == 33,
             "BTC refund address must be 21 or 33 bytes long"
         );
         require(
