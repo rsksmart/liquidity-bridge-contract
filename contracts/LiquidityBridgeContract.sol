@@ -207,21 +207,21 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     dust = _dustThreshold;
   }
 
-  modifier onlyOwnerAndProvider(uint providerId) {
+  modifier onlyOwnerAndProvider(uint _providerId) {
     require(
       msg.sender == owner() ||
-        msg.sender == liquidityProviders[providerId].provider,
+        msg.sender == liquidityProviders[_providerId].provider,
       "Not owner or provider"
     );
     _;
   }
 
   function setProviderStatus(
-    uint providerId,
+    uint _providerId,
     bool status
-  ) public onlyOwnerAndProvider(providerId) {
+  ) public onlyOwnerAndProvider(_providerId) {
     require(status == true || status == false, "Invalid Status");
-    liquidityProviders[providerId].status = status;
+    liquidityProviders[_providerId].status = status;
   }
 
   receive() external payable {
@@ -275,7 +275,8 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         @return Whether the liquidity provider is registered and has enough locked collateral
      */
   function isOperationalForPegout(address addr) external view returns (bool) {
-    isRegisteredForPegout(addr) && pegoutCollateral[addr] >= minCollateral;
+    return
+      isRegisteredForPegout(addr) && pegoutCollateral[addr] >= minCollateral;
   }
 
   /**
@@ -300,7 +301,8 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
       _acceptedQuoteExpiration,
       _minTransactionValue,
       _maxTransactionValue,
-      _apiBaseUrl
+      _apiBaseUrl,
+      _providerType
     );
     // TODO multiplication by 2 is a temporal fix until we define solution with product team
     require(msg.value >= minCollateral * 2, "Not enough collateral");
@@ -334,7 +336,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
 
   /**
         @dev Validates input parameters for the register function
-     */
+  */
   function validateRegisterParameters(
     string memory _name,
     uint _fee,
@@ -342,7 +344,8 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     uint _acceptedQuoteExpiration,
     uint _minTransactionValue,
     uint _maxTransactionValue,
-    string memory _apiBaseUrl
+    string memory _apiBaseUrl,
+    string memory _providerType
   ) internal pure {
     require(bytes(_name).length > 0, "Name must not be empty");
     require(_fee > 0, "Fee must be greater than 0");
@@ -360,6 +363,17 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
       "Max transaction value must be greater than min transaction value"
     );
     require(bytes(_apiBaseUrl).length > 0, "API base URL must not be empty");
+
+    // Check if _providerType is one of the valid strings
+    require(
+      keccak256(abi.encodePacked(_providerType)) ==
+        keccak256(abi.encodePacked("pegin")) ||
+        keccak256(abi.encodePacked(_providerType)) ==
+        keccak256(abi.encodePacked("pegout")) ||
+        keccak256(abi.encodePacked(_providerType)) ==
+        keccak256(abi.encodePacked("both")),
+      "Invalid provider type"
+    );
   }
 
   function getProviders(
