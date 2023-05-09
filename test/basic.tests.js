@@ -47,6 +47,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       100,
       "http://localhost/api",
       true,
+      "both",
       { from: currAddr, value: utils.LP_COLLATERAL }
     );
     providerList.push(tx.logs[0].args.id.toNumber());
@@ -67,7 +68,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
     let currAddr = accounts[5];
 
     await truffleAssertions.reverts(
-      instance.register("", 0, 0, 0, 10, 100, "", true, {
+      instance.register("", 0, 0, 0, 10, 100, "", true, "both", {
         from: currAddr,
         value: utils.LP_COLLATERAL,
       }),
@@ -87,6 +88,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
         100,
         "http://localhost/api",
         true,
+        "both",
         { from: currAddr, value: web3.utils.toBN(0) }
       ),
       "Not enough collateral"
@@ -107,6 +109,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
         100,
         "http://localhost/api",
         true,
+        "both",
         { from: accounts[1], value: lessThanMinimum }
       ),
       "Not enough collateral"
@@ -136,6 +139,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       100,
       "http://localhost/api",
       true,
+      "both",
       {
         from: currAddr,
         value: utils.LP_COLLATERAL,
@@ -158,6 +162,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       100,
       "http://localhost/api",
       true,
+      "both",
       {
         from: currAddr2,
         value: utils.LP_COLLATERAL,
@@ -1223,7 +1228,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
     );
 
     const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
-    
+
     const signature = await web3.eth.sign(
       quoteHash,
       liquidityProviderRskAddress
@@ -1241,11 +1246,11 @@ contract("LiquidityBridgeContract", async (accounts) => {
     });
 
     const tx = await instance.refundUserPegOut(utils.asArray(quote), signature);
-    
+
     await truffleAssertions.eventEmitted(tx, "PegOutUserRefunded", {
       quoteHash: quoteHash,
       value: web3.utils.toBN(1),
-      userAddress: quote.rskRefundAddress
+      userAddress: quote.rskRefundAddress,
     });
   });
 
@@ -1258,7 +1263,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
     );
 
     const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
-    
+
     const signature = await web3.eth.sign(
       quoteHash,
       liquidityProviderRskAddress

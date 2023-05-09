@@ -5,23 +5,23 @@
       "deployed": false
     },
     "SignatureValidator": {
-      "address": "0xC8629f3433122dbDA1F0F1a1778623c654CEA485",
+      "address": "0xFe2746b892fFFf26E9a8F45935E7510d72028416",
       "deployed": true
     },
     "LiquidityBridgeContractAdmin": {
       "address": "0x1de4FF655DC7BC289cCa9D232755005265B4C94b",
-      "deployed": true
+      "deployed": false
     },
     "LiquidityBridgeContract": {
-      "address": "0xD2801B6c24821c118c39B29aCCDE9322491b0A37",
+      "address": "0x890D3AFD0F14D870DE24798329bf36ce8939D0b4",
       "deployed": true
     },
     "LiquidityBridgeContractProxy": {
       "address": "0x81e0038E7b88496cf3CdDd684f74711e5451870B",
-      "deployed": true
+      "deployed": false
     },
     "Migrations": {
-      "address": "0xb718538Ce5444ab77d7f31B7A84CA0719017c337",
+      "address": "0x9574a4972320d9988C110dAF950c89CC638B3b75",
       "deployed": true
     }
   },
