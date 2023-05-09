@@ -36,26 +36,161 @@ The quote structure defines the conditions of a service, and acts as a contract 
 
 ## ABI Signature
 
-### callForUser
+### **callForUser**
 
     function callForUser(
         Quote quote
     ) returns bool success
 
 This method performs a call on behalf of a user.
+#### Parameters 
+    * quote: The quote that identifies the service
+#### Return value
+    Boolean indicating whether the call was successful
 
-### registerPegIn
+### **registerPegIn**
 
     function registerPegIn(
 		Quote quote,
-        bytes signature,            // LP's signature of the quote
-        bytes btcRawTransaction,    // raw deposit transaction
-        bytes partialMerkleTree,    // PMT that proves the inclusion of the deposit in a block
-        uint256 height              // block number that contains the deposit tx
+        bytes signature,
+        bytes btcRawTransaction,
+        bytes partialMerkleTree,
+        uint256 height
 	) returns int executionStatus
 
-This method requests the Bridge contract on RSK a refund for the service. This method returns the amount transferred to the contract or an [error code](https://github.com/rsksmart/RSKIPs/blob/fast-bridge-alternative/IPs/RSKIP176.
-md#error-codes).
+This method requests the Bridge contract on RSK a refund for the service.
+#### Parameters
+    * quote The quote of the service
+    * signature The signature of the quote
+    * btcRawTransaction The peg-in transaction
+    * partialMerkleTree The merkle tree path that proves transaction inclusion
+    * height The block that contains the peg-in transaction
+#### Return value    
+    This method returns the amount transferred to the contract or an [error code](https://github.com/rsksmart/RSKIPs/blob/fast-bridge-alternative/IPs/RSKIP176.md#error-codes).
+
+### **isOperational**
+    function isOperational(address addr) external view returns (bool)
+Checks whether a liquidity provider can deliver a pegin service
+#### Parametets
+    * addr: address of the liquidity provider
+#### Return value
+    Whether the liquidity provider is registered and has enough locked collateral
+
+### **isOperationalForPegout**
+    function isOperationalForPegout(address addr) external view returns (bool)
+Checks whether a liquidity provider can deliver a pegout service
+#### Parametets
+    * addr: address of the liquidity provider
+#### Return value
+    Whether the liquidity provider is registered and has enough locked pegout collateral
+
+### **register**
+    function register(
+            string memory _name,
+            uint _fee,
+            uint _quoteExpiration,
+            uint _acceptedQuoteExpiration,
+            uint _minTransactionValue,
+            uint _maxTransactionValue,
+            string memory _apiBaseUrl,
+            bool _status,
+            string memory _providerType
+        ) external payable onlyEoa returns (uint)
+Registers msg.sender as a liquidity provider with msg.value as collateral
+#### Parametets
+    * name: name of the LP
+    * fee: fee that LP charges for this service
+    * quoteExpiration: time to accept the quotes of this LP 
+    * acceptedQuoteExpiration: time to deposit the accepted quotes of this LP
+    * minTransactionValue: miminum value to get quotes from this LP
+    * maxTransactionValue: maximum value to get quotes from this LP
+    * apiBaseUrl: url of this LP's Liquidity Provider Server instance
+    * status: if the LP is active
+    * providerType: if the LP allows pegin operations, pegout operations or both
+#### Return value
+    The registered provider ID
+
+### **getProviders**
+    function getProviders(
+        uint[] memory providerIds
+    ) external view returns (LiquidityProvider[] memory)
+Retrieves the information of a group of liquidity providers
+#### Parametets
+    * providerIds: IDs of the providers to fetch
+#### Return value
+    Array with the information of the requested LPs
+
+### **withdrawCollateral**
+    function withdrawCollateral() external
+Used to withdraw the locked collateral. It is only for LPs who have resigned
+
+### **withdrawPegoutCollateral**
+    function withdrawCollateral() external
+Used to withdraw the locked pegout collateral. It is only for LPs who have resigned
+
+### **resign**
+    function resign() external
+Used to resign as a liquidity provider
+
+### **addCollateral**
+    function addCollateral() external payable
+Increases the amount of collateral of the sender
+
+### **addPegoutCollateral**
+    function addPegoutCollateral() external payable
+Increases the amount of pegout collateral of the sender
+
+### **withdraw**
+    function withdraw(uint256 amount) external
+Used by LPs to withdraw funds
+#### Parametets
+    * amount: the amount to withdraw
+
+### **refundPegOut**
+    function refundPegOut(
+        PegOutQuote memory quote,
+        bytes32 btcTxHash,
+        bytes32 btcBlockHeaderHash,
+        uint256 partialMerkleTree,
+        bytes32[] memory merkleBranchHashes
+    ) public
+Validates that the LP made the deposit of the service and applies the corresponding punishments if any apply
+#### Parametets
+    * quote: the pegout quote representing the service
+    * btcTxHash: hash of the btc transaction where the LP sent the value to the user
+    * btcBlockHeaderHash: header of the block where the transaction was included
+    * partialMerkleTree: PMT to validate transaction
+    * merkleBranchHashes: merkleBranchHashes used by the bridge to validate transaction
+
+### **refundUserPegOut**
+    function refundUserPegOut(
+        PegOutQuote memory quote,
+        bytes memory signature
+    ) public
+Allows user to get his money back if LP didn't made the BTC deposit
+#### Parametets
+    * quote: the pegout quote to be refunded
+    * signature: signature provided to user when quote was accepted
+
+### **registerPegOut**
+    function registerPegOut(
+        PegOutQuote memory quote,
+        bytes memory signature
+    ) public
+Registers a pegout quote as accepted in the contract
+#### Parametets
+    * quote: the pegout quote to be registered
+    * signature: signature provided to user when quote was accepted
+
+### **depositPegout**
+    function depositPegout(
+        bytes32 quoteHash,
+        address lpAddress
+    ) external payable
+Used by the user to deposit the payment of a pegout service
+#### Parametets
+    * quoteHash: the accepted quote hash
+    * lpAddress: address of the LP that created the quote
 
 ### Deploy and Upgrade
 
