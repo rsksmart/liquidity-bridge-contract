@@ -83,7 +83,7 @@ contract BridgeMock is Bridge {
     function getFeePerKb (  ) external pure override returns (int256) {return int256(0);}
     function voteFeePerKbChange ( int256  ) external pure override returns (int256) {return int256(0);}
     function updateCollections (  ) external override {}
-    function getMinimumLockTxValue (  ) external pure override returns (int256) {return int256(0);}
+    function getMinimumLockTxValue (  ) external pure override returns (int256) {return int256(2);}
     function getBtcTransactionConfirmations ( bytes32 , bytes32, uint256 , bytes32[] calldata  ) external pure override returns (int256) {return int256(0);}
     function getLockingCap (  ) external pure override returns (int256) {return int256(0);}
     function increaseLockingCap ( int256 ) external pure override returns (bool) {return false;}
