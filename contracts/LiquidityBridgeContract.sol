@@ -163,7 +163,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     bool private locked;
 
     mapping(bytes32 => uint8) private processedQuotes;
-    mapping(bytes32 => PegOutQuoteState) private processedPegOutQuotes;
+    mapping(bytes32 => PegOutQuoteState) private pegOutQuotesStates;
 
     modifier onlyRegistered() {
         require(isRegistered(msg.sender), "Not registered");
@@ -264,10 +264,10 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         return dust;
     }
 
-    function getPegOutProcessedQuote(
+    function getPegOutQuoteState(
         bytes32 quoteHash
     ) external view returns (PegOutQuoteState memory) {
-        return processedPegOutQuotes[quoteHash];
+        return pegOutQuotesStates[quoteHash];
     }
 
     /**
@@ -760,7 +760,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         address lpAddress
     ) external payable {
         require(isRegisteredForPegout(lpAddress), "Provider not registered");
-        PegOutQuoteState storage state = processedPegOutQuotes[quoteHash];
+        PegOutQuoteState storage state = pegOutQuotesStates[quoteHash];
         require(!state.refunded, "LBC: Quote already refunded");
         state.receivedAmount += msg.value;
         emit PegOutDeposit(quoteHash, state.receivedAmount, block.timestamp);
@@ -781,17 +781,17 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             "LBC: Block height overflown"
         );
         require(
-            processedPegOutQuotes[quoteHash].statusCode != PROCESSED_QUOTE_CODE,
+            pegOutQuotesStates[quoteHash].statusCode != PROCESSED_QUOTE_CODE,
             "LBC: Quote already pegged out"
         );
 
-        processedPegOutQuotes[quoteHash].statusCode = PROCESSED_QUOTE_CODE;
+        pegOutQuotesStates[quoteHash].statusCode = PROCESSED_QUOTE_CODE;
 
         emit PegOut(
             msg.sender,
             quote.value + quote.callFee,
             quoteHash,
-            processedPegOutQuotes[quoteHash].statusCode
+            pegOutQuotesStates[quoteHash].statusCode
         );
     }
 
@@ -800,7 +800,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         bytes memory signature
     ) public {
         bytes32 quoteHash = hashPegoutQuote(quote);
-        PegOutQuoteState storage state = processedPegOutQuotes[quoteHash];
+        PegOutQuoteState storage state = pegOutQuotesStates[quoteHash];
 
         require(
             block.timestamp > quote.expireDate &&
@@ -810,7 +810,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         require(state.receivedAmount >= quote.value, "LBC: Deposit not found");
         require(!state.refunded, "LBC: Quote already refunded");
         require(
-            processedPegOutQuotes[quoteHash].statusCode ==
+            pegOutQuotesStates[quoteHash].statusCode ==
                 UNPROCESSED_QUOTE_CODE,
             "LBC: Quote already processed"
         );
@@ -843,7 +843,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     ) public noReentrancy onlyRegisteredForPegout {
         bytes32 quoteHash = validateAndHashPegOutQuote(quote);
         require(
-            processedPegOutQuotes[quoteHash].statusCode == PROCESSED_QUOTE_CODE,
+            pegOutQuotesStates[quoteHash].statusCode == PROCESSED_QUOTE_CODE,
             "LBC: Quote not processed"
         );
         require(
@@ -885,7 +885,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         }("");
         require(sent, "Failed to send refund to LP address");
 
-        delete processedPegOutQuotes[quoteHash];
+        delete pegOutQuotesStates[quoteHash];
         emit PegOutRefunded(quoteHash);
     }
 
