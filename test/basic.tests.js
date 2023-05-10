@@ -116,6 +116,42 @@ contract("LiquidityBridgeContract", async (accounts) => {
     );
   });
 
+  it("should validate provider limits on register", async () => {
+    const minCollateral = await instance.getMinCollateral();
+
+    await truffleAssertions.reverts(
+      instance.register(
+        "First contract",
+        10,
+        7200,
+        3600,
+        1,
+        100,
+        "http://localhost/api",
+        true,
+        "both",
+        { from: accounts[1], value: minCollateral }
+      ),
+      "Min transaction value can't be lower than bridge minimum lock tx value"
+    );
+
+    await truffleAssertions.reverts(
+      instance.register(
+        "First contract",
+        10,
+        7200,
+        3600,
+        10,
+        web3.utils.toBN("1000000000000000001"),
+        "http://localhost/api",
+        true,
+        "both",
+        { from: accounts[1], value: minCollateral }
+      ),
+      "Max transaction value can't be higher than maximum quote value"
+    );
+  });
+
   it("should fail to register liquidity provider from a contract", async () => {
     let currAddr = accounts[9];
 

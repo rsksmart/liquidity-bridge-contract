@@ -153,6 +153,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
 
     uint256 private minCollateral;
     uint256 private minPegIn;
+    uint256 public maxQuoteValue;
 
     uint32 private rewardP;
     uint32 private resignDelayInBlocks;
@@ -200,7 +201,8 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         uint256 _minimumPegIn,
         uint32 _rewardPercentage,
         uint32 _resignDelayBlocks,
-        uint _dustThreshold
+        uint _dustThreshold,
+        uint _maxQuoteValue
     ) external initializer {
         require(_rewardPercentage <= 100, "Invalid reward percentage");
         __Ownable_init_unchained();
@@ -210,6 +212,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         rewardP = _rewardPercentage;
         resignDelayInBlocks = _resignDelayBlocks;
         dust = _dustThreshold;
+        maxQuoteValue = _maxQuoteValue;
     }
 
     modifier onlyOwnerAndProvider(uint _providerId) {
@@ -355,7 +358,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         uint _maxTransactionValue,
         string memory _apiBaseUrl,
         string memory _providerType
-    ) internal pure {
+    ) internal view {
         require(bytes(_name).length > 0, "Name must not be empty");
         require(_fee > 0, "Fee must be greater than 0");
         require(
@@ -374,6 +377,9 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             _maxTransactionValue > _minTransactionValue,
             "Max transaction value must be greater than min transaction value"
         );
+        require(_maxTransactionValue <= maxQuoteValue, "Max transaction value can't be higher than maximum quote value");
+        uint256 bridgeMinimun = uint256(bridge.getMinimumLockTxValue());
+        require(_minTransactionValue >= bridgeMinimun, "Min transaction value can't be lower than bridge minimum lock tx value");
         require(
             bytes(_apiBaseUrl).length > 0,
             "API base URL must not be empty"

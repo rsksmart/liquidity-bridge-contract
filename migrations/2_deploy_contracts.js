@@ -1,4 +1,5 @@
 const { deployProxy } = require("@openzeppelin/truffle-upgrades");
+const web3 = require("web3");
 
 const LiquidityBridgeContract = artifacts.require("LiquidityBridgeContract");
 
@@ -25,6 +26,7 @@ const MINIMUM_PEG_IN_REGTEST = "5000000000000000"; // amount in wei
 const REWARD_PERCENTAGE = 10;
 const RESIGN_DELAY_BLOCKS = 1;
 const DUST_THRESHOLD = 2300 * 65164000;
+const MAX_QUOTE_VALUE = web3.utils.toBN("1000000000000000000"); // amount in wei
 const { deploy, read } = require("../config");
 
 module.exports = async function (deployer, network) {
@@ -82,6 +84,7 @@ module.exports = async function (deployer, network) {
         REWARD_PERCENTAGE,
         RESIGN_DELAY_BLOCKS,
         DUST_THRESHOLD,
+        MAX_QUOTE_VALUE,
       ],
       {
         deployer,

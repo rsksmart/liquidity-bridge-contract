@@ -380,21 +380,22 @@ contract("LiquidityBridgeContract", async (accounts) => {
 
   it("should validate reward percentage arg in initialize", async () => {
     let instance = await LiquidityBridgeContract.new();
-    await instance.initialize(bridgeMockInstance.address, 1, 1, 0, 1, 1);
+    const MAX_QUOTE_VALUE = web3.utils.toBN("1000000000000000000")
+    await instance.initialize(bridgeMockInstance.address, 1, 1, 0, 1, 1, MAX_QUOTE_VALUE);
     instance = await LiquidityBridgeContract.new();
-    await instance.initialize(bridgeMockInstance.address, 1, 1, 0, 1, 1);
+    await instance.initialize(bridgeMockInstance.address, 1, 1, 0, 1, 1, MAX_QUOTE_VALUE);
     instance = await LiquidityBridgeContract.new();
-    await instance.initialize(bridgeMockInstance.address, 1, 1, 1, 1, 1);
+    await instance.initialize(bridgeMockInstance.address, 1, 1, 1, 1, 1, MAX_QUOTE_VALUE);
     instance = await LiquidityBridgeContract.new();
-    await instance.initialize(bridgeMockInstance.address, 1, 1, 99, 1, 1);
+    await instance.initialize(bridgeMockInstance.address, 1, 1, 99, 1, 1, MAX_QUOTE_VALUE);
     instance = await LiquidityBridgeContract.new();
-    await instance.initialize(bridgeMockInstance.address, 1, 1, 100, 1, 1);
+    await instance.initialize(bridgeMockInstance.address, 1, 1, 100, 1, 1, MAX_QUOTE_VALUE);
     await truffleAssert.fails(
-      instance.initialize(bridgeMockInstance.address, 1, 1, 100, 1, 1)
+      instance.initialize(bridgeMockInstance.address, 1, 1, 100, 1, 1, MAX_QUOTE_VALUE)
     );
     instance = await LiquidityBridgeContract.new();
     await truffleAssert.fails(
-      instance.initialize(bridgeMockInstance.address, 1, 1, 101, 1, 1)
+      instance.initialize(bridgeMockInstance.address, 1, 1, 101, 1, 1, MAX_QUOTE_VALUE)
     );
   });
 
