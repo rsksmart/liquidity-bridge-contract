@@ -1227,6 +1227,10 @@ contract("LiquidityBridgeContract", async (accounts) => {
       web3.utils.toBN(1)
     );
 
+    // so its expired after deposit
+    quote.expireDate = quote.agreementTimestamp + 5
+    quote.expireBlock = await web3.eth.getBlock("latest").then(block => block.number + 1);
+
     const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
 
     const signature = await web3.eth.sign(
@@ -1261,6 +1265,10 @@ contract("LiquidityBridgeContract", async (accounts) => {
       accounts[1],
       web3.utils.toBN(1)
     );
+
+    // so its always expired
+    quote.expireDate = quote.agreementTimestamp
+    quote.expireBlock = 1
 
     const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
 

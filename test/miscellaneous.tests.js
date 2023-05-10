@@ -45,6 +45,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       100,
       "http://localhost/api",
       true,
+      'both',
       {
         value: attackerCollateral,
         from: attackingLP,
@@ -62,6 +63,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       100,
       "http://localhost/api",
       true,
+      'both',
       {
         value: goodProviderCollateral,
         from: goodLP,
