@@ -164,6 +164,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
 
     mapping(bytes32 => uint8) private processedQuotes;
     mapping(bytes32 => PegOutQuoteState) private pegOutQuotesStates;
+    mapping(bytes32 => PegOutQuote) private registeredPegoutQuotes;
 
     modifier onlyRegistered() {
         require(isRegistered(msg.sender), "Not registered");
@@ -268,6 +269,12 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         bytes32 quoteHash
     ) external view returns (PegOutQuoteState memory) {
         return pegOutQuotesStates[quoteHash];
+    }
+
+    function getRegisteredPegOutQuote(
+        bytes32 quoteHash
+    ) external view returns (PegOutQuote memory) {
+        return registeredPegoutQuotes[quoteHash];
     }
 
     /**
@@ -786,6 +793,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         );
 
         pegOutQuotesStates[quoteHash].statusCode = PROCESSED_QUOTE_CODE;
+        registeredPegoutQuotes[quoteHash] = quote;
 
         emit PegOut(
             msg.sender,
