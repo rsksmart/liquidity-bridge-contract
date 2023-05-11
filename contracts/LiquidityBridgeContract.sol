@@ -153,6 +153,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
 
     uint256 private minCollateral;
     uint256 private minPegIn;
+    uint256 public maxQuoteValue;
 
     uint32 private rewardP;
     uint32 private resignDelayInBlocks;
@@ -162,7 +163,8 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     bool private locked;
 
     mapping(bytes32 => uint8) private processedQuotes;
-    mapping(bytes32 => PegOutQuoteState) private processedPegOutQuotes;
+    mapping(bytes32 => PegOutQuoteState) private pegOutQuotesStates;
+    mapping(bytes32 => PegOutQuote) private registeredPegoutQuotes;
 
     modifier onlyRegistered() {
         require(isRegistered(msg.sender), "Not registered");
@@ -200,7 +202,8 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         uint256 _minimumPegIn,
         uint32 _rewardPercentage,
         uint32 _resignDelayBlocks,
-        uint _dustThreshold
+        uint _dustThreshold,
+        uint _maxQuoteValue
     ) external initializer {
         require(_rewardPercentage <= 100, "Invalid reward percentage");
         __Ownable_init_unchained();
@@ -210,6 +213,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         rewardP = _rewardPercentage;
         resignDelayInBlocks = _resignDelayBlocks;
         dust = _dustThreshold;
+        maxQuoteValue = _maxQuoteValue;
     }
 
     modifier onlyOwnerAndProvider(uint _providerId) {
@@ -261,10 +265,16 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         return dust;
     }
 
-    function getPegOutProcessedQuote(
+    function getPegOutQuoteState(
         bytes32 quoteHash
     ) external view returns (PegOutQuoteState memory) {
-        return processedPegOutQuotes[quoteHash];
+        return pegOutQuotesStates[quoteHash];
+    }
+
+    function getRegisteredPegOutQuote(
+        bytes32 quoteHash
+    ) external view returns (PegOutQuote memory) {
+        return registeredPegoutQuotes[quoteHash];
     }
 
     /**
@@ -355,7 +365,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         uint _maxTransactionValue,
         string memory _apiBaseUrl,
         string memory _providerType
-    ) internal pure {
+    ) internal view {
         require(bytes(_name).length > 0, "Name must not be empty");
         require(_fee > 0, "Fee must be greater than 0");
         require(
@@ -374,6 +384,9 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             _maxTransactionValue > _minTransactionValue,
             "Max transaction value must be greater than min transaction value"
         );
+        require(_maxTransactionValue <= maxQuoteValue, "Max transaction value can't be higher than maximum quote value");
+        uint256 bridgeMinimun = uint256(bridge.getMinimumLockTxValue());
+        require(_minTransactionValue >= bridgeMinimun, "Min transaction value can't be lower than bridge minimum lock tx value");
         require(
             bytes(_apiBaseUrl).length > 0,
             "API base URL must not be empty"
@@ -754,7 +767,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         address lpAddress
     ) external payable {
         require(isRegisteredForPegout(lpAddress), "Provider not registered");
-        PegOutQuoteState storage state = processedPegOutQuotes[quoteHash];
+        PegOutQuoteState storage state = pegOutQuotesStates[quoteHash];
         require(!state.refunded, "LBC: Quote already refunded");
         state.receivedAmount += msg.value;
         emit PegOutDeposit(quoteHash, state.receivedAmount, block.timestamp);
@@ -775,17 +788,18 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             "LBC: Block height overflown"
         );
         require(
-            processedPegOutQuotes[quoteHash].statusCode != PROCESSED_QUOTE_CODE,
+            pegOutQuotesStates[quoteHash].statusCode != PROCESSED_QUOTE_CODE,
             "LBC: Quote already pegged out"
         );
 
-        processedPegOutQuotes[quoteHash].statusCode = PROCESSED_QUOTE_CODE;
+        pegOutQuotesStates[quoteHash].statusCode = PROCESSED_QUOTE_CODE;
+        registeredPegoutQuotes[quoteHash] = quote;
 
         emit PegOut(
             msg.sender,
             quote.value + quote.callFee,
             quoteHash,
-            processedPegOutQuotes[quoteHash].statusCode
+            pegOutQuotesStates[quoteHash].statusCode
         );
     }
 
@@ -794,7 +808,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         bytes memory signature
     ) public {
         bytes32 quoteHash = hashPegoutQuote(quote);
-        PegOutQuoteState storage state = processedPegOutQuotes[quoteHash];
+        PegOutQuoteState storage state = pegOutQuotesStates[quoteHash];
 
         require(
             block.timestamp > quote.expireDate &&
@@ -804,7 +818,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         require(state.receivedAmount >= quote.value, "LBC: Deposit not found");
         require(!state.refunded, "LBC: Quote already refunded");
         require(
-            processedPegOutQuotes[quoteHash].statusCode ==
+            pegOutQuotesStates[quoteHash].statusCode ==
                 UNPROCESSED_QUOTE_CODE,
             "LBC: Quote already processed"
         );
@@ -837,7 +851,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     ) public noReentrancy onlyRegisteredForPegout {
         bytes32 quoteHash = validateAndHashPegOutQuote(quote);
         require(
-            processedPegOutQuotes[quoteHash].statusCode == PROCESSED_QUOTE_CODE,
+            pegOutQuotesStates[quoteHash].statusCode == PROCESSED_QUOTE_CODE,
             "LBC: Quote not processed"
         );
         require(
@@ -879,7 +893,8 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         }("");
         require(sent, "Failed to send refund to LP address");
 
-        delete processedPegOutQuotes[quoteHash];
+        delete pegOutQuotesStates[quoteHash];
+        delete registeredPegoutQuotes[quoteHash];
         emit PegOutRefunded(quoteHash);
     }
 

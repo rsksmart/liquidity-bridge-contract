@@ -116,6 +116,42 @@ contract("LiquidityBridgeContract", async (accounts) => {
     );
   });
 
+  it("should validate provider limits on register", async () => {
+    const minCollateral = await instance.getMinCollateral();
+
+    await truffleAssertions.reverts(
+      instance.register(
+        "First contract",
+        10,
+        7200,
+        3600,
+        1,
+        100,
+        "http://localhost/api",
+        true,
+        "both",
+        { from: accounts[1], value: minCollateral }
+      ),
+      "Min transaction value can't be lower than bridge minimum lock tx value"
+    );
+
+    await truffleAssertions.reverts(
+      instance.register(
+        "First contract",
+        10,
+        7200,
+        3600,
+        10,
+        web3.utils.toBN("1000000000000000001"),
+        "http://localhost/api",
+        true,
+        "both",
+        { from: accounts[1], value: minCollateral }
+      ),
+      "Max transaction value can't be higher than maximum quote value"
+    );
+  });
+
   it("should fail to register liquidity provider from a contract", async () => {
     let currAddr = accounts[9];
 
@@ -764,6 +800,9 @@ contract("LiquidityBridgeContract", async (accounts) => {
       userPegInBalanceAfter.toString()
     );
     expect(+contractBalanceAfter).to.be.eq(+contractBalanceBefore - +msgValue);
+    // check that stores quote
+    const storedQuote = await instance.getRegisteredPegOutQuote(quoteHash)
+    expect(storedQuote.lbcAddress).to.not.be.eq('0x0000000000000000000000000000000000000000')
   });
 
   it("should fail on a false signature", async () => {
@@ -1227,6 +1266,10 @@ contract("LiquidityBridgeContract", async (accounts) => {
       web3.utils.toBN(1)
     );
 
+    // so its expired after deposit
+    quote.expireDate = quote.agreementTimestamp + 5
+    quote.expireBlock = await web3.eth.getBlock("latest").then(block => block.number + 1);
+
     const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
 
     const signature = await web3.eth.sign(
@@ -1261,6 +1304,10 @@ contract("LiquidityBridgeContract", async (accounts) => {
       accounts[1],
       web3.utils.toBN(1)
     );
+
+    // so its always expired
+    quote.expireDate = quote.agreementTimestamp
+    quote.expireBlock = 1
 
     const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
 
