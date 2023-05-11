@@ -389,8 +389,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             "Max transaction value must be greater than min transaction value"
         );
         require(_maxTransactionValue <= maxQuoteValue, "Max transaction value can't be higher than maximum quote value");
-        uint256 bridgeMinimun = uint256(bridge.getMinimumLockTxValue());
-        require(_minTransactionValue >= bridgeMinimun, "Min transaction value can't be lower than bridge minimum lock tx value");
         require(
             bytes(_apiBaseUrl).length > 0,
             "API base URL must not be empty"
