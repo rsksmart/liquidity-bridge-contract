@@ -153,11 +153,11 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
 
     uint256 private minCollateral;
     uint256 private minPegIn;
-    uint256 public maxQuoteValue;
 
     uint32 private rewardP;
     uint32 private resignDelayInBlocks;
     uint private dust;
+    uint256 private maxQuoteValue;
     uint providerId;
 
     bool private locked;
@@ -235,6 +235,10 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
 
     receive() external payable {
         require(msg.sender == address(bridge), "Not allowed");
+    }
+
+    function getMaxQuoteValue() external view returns (uint256) {
+        return maxQuoteValue;
     }
 
     function getProviderIds() external view returns (uint) {
