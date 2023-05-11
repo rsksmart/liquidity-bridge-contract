@@ -800,6 +800,9 @@ contract("LiquidityBridgeContract", async (accounts) => {
       userPegInBalanceAfter.toString()
     );
     expect(+contractBalanceAfter).to.be.eq(+contractBalanceBefore - +msgValue);
+    // check that stores quote
+    const storedQuote = await instance.getRegisteredPegOutQuote(quoteHash)
+    expect(storedQuote.lbcAddress).to.not.be.eq('0x0000000000000000000000000000000000000000')
   });
 
   it("should fail on a false signature", async () => {
