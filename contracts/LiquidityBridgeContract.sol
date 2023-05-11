@@ -100,7 +100,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         string providerType;
     }
 
-    event Register(uint id, address from, uint256 amount);
+    event Register(uint indexed id, address indexed from, uint256 amount);
     event Deposit(address from, uint256 amount);
     event CollateralIncrease(address from, uint256 amount);
     event PegoutCollateralIncrease(address from, uint256 amount);
@@ -109,8 +109,8 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     event PegoutWithdrawCollateral(address from, uint256 amount);
     event Resigned(address from);
     event CallForUser(
-        address from,
-        address dest,
+        address indexed from,
+        address indexed dest,
         uint gasLimit,
         uint value,
         bytes data,
