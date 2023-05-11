@@ -894,6 +894,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         require(sent, "Failed to send refund to LP address");
 
         delete pegOutQuotesStates[quoteHash];
+        delete registeredPegoutQuotes[quoteHash];
         emit PegOutRefunded(quoteHash);
     }
 
