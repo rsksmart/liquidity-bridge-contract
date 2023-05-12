@@ -765,12 +765,15 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     }
 
     function depositPegout(
-        bytes32 quoteHash,
-        address lpAddress
+        PegOutQuote calldata quote
     ) external payable {
-        require(isRegisteredForPegout(lpAddress), "Provider not registered");
+        require(isRegisteredForPegout(quote.lpRskAddress), "Provider not registered");
+        bytes32 quoteHash = hashPegoutQuote(quote);
         PegOutQuoteState storage state = pegOutQuotesStates[quoteHash];
         require(!state.refunded, "LBC: Quote already refunded");
+        if(state.receivedAmount == 0) {
+            registeredPegoutQuotes[quoteHash] = quote;
+        }
         state.receivedAmount += msg.value;
         emit PegOutDeposit(quoteHash, state.receivedAmount, block.timestamp);
     }
@@ -795,7 +798,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         );
 
         pegOutQuotesStates[quoteHash].statusCode = PROCESSED_QUOTE_CODE;
-        registeredPegoutQuotes[quoteHash] = quote;
 
         emit PegOut(
             msg.sender,

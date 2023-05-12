@@ -87,8 +87,9 @@ async function ensureLiquidityProviderAvailable(
   liquidityProviderRskAddress,
   amount
 ) {
-  let lpIsAvailable = await instance.isOperational(liquidityProviderRskAddress);
-  if (!lpIsAvailable) {
+  let lpIsAvailableForPegin = await instance.isOperational(liquidityProviderRskAddress);
+  let lpIsAvailableForPegout = await instance.isOperationalForPegout(liquidityProviderRskAddress);
+  if (!lpIsAvailableForPegin || !lpIsAvailableForPegout) {
     return await instance.register(
       "First contract",
       10,
