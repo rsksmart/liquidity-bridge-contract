@@ -153,11 +153,11 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
 
     uint256 private minCollateral;
     uint256 private minPegIn;
-    uint256 public maxQuoteValue;
 
     uint32 private rewardP;
     uint32 private resignDelayInBlocks;
     uint private dust;
+    uint256 private maxQuoteValue;
     uint providerId;
 
     bool private locked;
@@ -235,6 +235,10 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
 
     receive() external payable {
         require(msg.sender == address(bridge), "Not allowed");
+    }
+
+    function getMaxQuoteValue() external view returns (uint256) {
+        return maxQuoteValue;
     }
 
     function getProviderIds() external view returns (uint) {
@@ -385,8 +389,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             "Max transaction value must be greater than min transaction value"
         );
         require(_maxTransactionValue <= maxQuoteValue, "Max transaction value can't be higher than maximum quote value");
-        uint256 bridgeMinimun = uint256(bridge.getMinimumLockTxValue());
-        require(_minTransactionValue >= bridgeMinimun, "Min transaction value can't be lower than bridge minimum lock tx value");
         require(
             bytes(_apiBaseUrl).length > 0,
             "API base URL must not be empty"
@@ -763,12 +765,15 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     }
 
     function depositPegout(
-        bytes32 quoteHash,
-        address lpAddress
+        PegOutQuote calldata quote
     ) external payable {
-        require(isRegisteredForPegout(lpAddress), "Provider not registered");
+        require(isRegisteredForPegout(quote.lpRskAddress), "Provider not registered");
+        bytes32 quoteHash = hashPegoutQuote(quote);
         PegOutQuoteState storage state = pegOutQuotesStates[quoteHash];
         require(!state.refunded, "LBC: Quote already refunded");
+        if(state.receivedAmount == 0) {
+            registeredPegoutQuotes[quoteHash] = quote;
+        }
         state.receivedAmount += msg.value;
         emit PegOutDeposit(quoteHash, state.receivedAmount, block.timestamp);
     }
@@ -793,7 +798,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         );
 
         pegOutQuotesStates[quoteHash].statusCode = PROCESSED_QUOTE_CODE;
-        registeredPegoutQuotes[quoteHash] = quote;
 
         emit PegOut(
             msg.sender,
