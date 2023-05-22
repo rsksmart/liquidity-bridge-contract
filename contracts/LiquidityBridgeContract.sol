@@ -432,7 +432,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         emit CollateralIncrease(msg.sender, msg.value);
     }
 
-    function addPegoutCollateral() external payable onlyRegistered {
+    function addPegoutCollateral() external payable onlyRegisteredForPegout {
         pegoutCollateral[msg.sender] += msg.value;
         emit PegoutCollateralIncrease(msg.sender, msg.value);
     }
