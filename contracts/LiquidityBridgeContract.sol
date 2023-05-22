@@ -848,6 +848,9 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             valueToTransfer,
             quote.rskRefundAddress
         );
+
+        delete pegOutQuotesStates[quoteHash];
+        delete registeredPegoutQuotes[quoteHash];
     }
 
     function refundPegOut(
