@@ -839,6 +839,10 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
 
         require(sent, "LBC: Error on refund user");
 
+        uint penalty = min(quote.penaltyFee, pegoutCollateral[quote.lpRskAddress]);
+        pegoutCollateral[quote.lpRskAddress] -= penalty;
+
+        emit Penalized(quote.lpRskAddress, penalty, quoteHash);
         emit PegOutUserRefunded(
             quoteHash,
             valueToTransfer,
