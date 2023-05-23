@@ -1281,6 +1281,12 @@ contract("LiquidityBridgeContract", async (accounts) => {
 
     const tx = await instance.refundUserPegOut(quote, signature);
 
+    await truffleAssertions.eventEmitted(tx, "Penalized", {
+      quoteHash: quote.penaltyFee,
+      penalty: web3.utils.toBN(4),
+      liquidityProvider: quote.rskRefundAddress,
+    });
+
     await truffleAssertions.eventEmitted(tx, "PegOutUserRefunded", {
       quoteHash: quoteHash,
       value: web3.utils.toBN(4),
