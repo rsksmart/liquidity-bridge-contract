@@ -153,7 +153,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
         partialMerkleTree,
         height
       ),
-      "Too low transferred amount"
+      "LBC057"
     );
   });
 
@@ -374,7 +374,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
         partialMerkleTree,
         height
       ),
-      "Too low transferred amount"
+      "LBC057"
     );
   });
 
@@ -419,15 +419,15 @@ contract("LiquidityBridgeContract", async (accounts) => {
 
     await truffleAssertions.reverts(
       instance.getBtcBlockTimestamp(btcHeaderEmpty),
-      "invalid header length"
+      "LBC061"
     );
     await truffleAssertions.reverts(
       instance.getBtcBlockTimestamp(btcHeader79),
-      "invalid header length"
+      "LBC061"
     );
     await truffleAssertions.reverts(
       instance.getBtcBlockTimestamp(btcHeader81),
-      "invalid header length"
+      "LBC061"
     );
   });
 });
