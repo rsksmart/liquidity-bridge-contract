@@ -6,6 +6,7 @@ const LiquidityBridgeContract = artifacts.require("LiquidityBridgeContract");
 const Mock = artifacts.require("Mock");
 const BridgeMock = artifacts.require("BridgeMock");
 const SignatureValidator = artifacts.require("SignatureValidator");
+const Quotes = artifacts.require("Quotes");
 const SignatureValidatorMock = artifacts.require("SignatureValidatorMock");
 
 const RSK_NETWORK_MAINNET = "rskMainnet";
@@ -42,6 +43,13 @@ module.exports = async function (deployer, network) {
       state.address = response.address;
     });
 
+    await deploy("Quotes", network, async (state) => {
+      await deployer.deploy(Quotes);
+      await deployer.link(Quotes, LiquidityBridgeContract);
+      const response = await Quotes.deployed();
+      state.address = response.address;
+    });
+
     if (network === RSK_NETWORK_REGTEST) {
       minimumPegIn = MINIMUM_PEG_IN_REGTEST;
     } else {
@@ -66,6 +74,13 @@ module.exports = async function (deployer, network) {
       state.address = signatureValidatorMockInstance.address;
     });
 
+    await deploy("Quotes", network, async (state) => {
+      await deployer.deploy(Quotes);
+      const quotesInstance = await Quotes.deployed();
+      await LiquidityBridgeContract.link("Quotes", quotesInstance.address);
+      state.address = quotesInstance.address;
+    });
+
     minimumPegIn = 2;
   }
 
@@ -75,6 +90,12 @@ module.exports = async function (deployer, network) {
       config[network]["SignatureValidator"].address
     );
     await deployer.link(signatureValidatorLib, LiquidityBridgeContract);
+
+    const quotesLib = await Quotes.at(
+      config[network]["Quotes"].address
+    );
+    await deployer.link(quotesLib, LiquidityBridgeContract);
+
     const response = await deployProxy(
       LiquidityBridgeContract,
       [

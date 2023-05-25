@@ -1261,6 +1261,13 @@ contract("LiquidityBridgeContract", async (accounts) => {
       web3.utils.toBN(4)
     );
 
+    await instance.addPegoutCollateral({
+      value: web3.utils.toWei("30000", "wei"),
+      from: liquidityProviderRskAddress,
+    });
+
+    const testPenaltyFee = web3.utils.toBN(5)
+    quote.penaltyFee = testPenaltyFee.toNumber()
     // so its expired after deposit
     quote.expireDate = quote.agreementTimestamp + 5
     quote.expireBlock = await web3.eth.getBlock("latest").then(block => block.number + 1);
@@ -1282,9 +1289,9 @@ contract("LiquidityBridgeContract", async (accounts) => {
     const tx = await instance.refundUserPegOut(quote, signature);
 
     await truffleAssertions.eventEmitted(tx, "Penalized", {
-      quoteHash: quote.penaltyFee,
-      penalty: web3.utils.toBN(4),
-      liquidityProvider: quote.rskRefundAddress,
+      liquidityProvider: liquidityProviderRskAddress,
+      penalty: testPenaltyFee,
+      quoteHash: quoteHash,
     });
 
     await truffleAssertions.eventEmitted(tx, "PegOutUserRefunded", {
