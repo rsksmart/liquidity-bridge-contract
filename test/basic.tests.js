@@ -72,7 +72,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
         from: currAddr,
         value: utils.LP_COLLATERAL,
       }),
-      "Name must not be empty"
+      "LBC010"
     );
   });
   it("Should fail on register if not deposit the minimum collateral", async () => {
@@ -91,7 +91,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
         "both",
         { from: currAddr, value: web3.utils.toBN(0) }
       ),
-      "Not enough collateral"
+      "LBC008"
     );
   });
 
@@ -112,7 +112,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
         "both",
         { from: accounts[1], value: lessThanMinimum }
       ),
-      "Not enough collateral"
+      "LBC008"
     );
   });
 
@@ -132,7 +132,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
         "both",
         { from: accounts[1], value: minCollateral }
       ),
-      "Max transaction value can't be higher than maximum quote value"
+      "LBC016"
     );
   });
 
@@ -356,7 +356,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
     await instance.deposit({ value: web3.utils.toBN("100000000") });
     await truffleAssertions.reverts(
       instance.withdraw(web3.utils.toBN("99999999999999999999")),
-      "Insufficient funds"
+      "LBC019"
     );
     await instance.withdraw(web3.utils.toBN("100000000"));
   });
@@ -365,7 +365,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
     await instance.addCollateral({ value: web3.utils.toBN("100000000") });
     await truffleAssertions.reverts(
       instance.withdrawCollateral(),
-      "Need to resign first"
+      "LBC021"
     );
     await instance.resign();
     await instance.withdrawCollateral();
@@ -373,7 +373,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
 
   it("should fail when liquidityProdvider resign two times", async () => {
     await instance.resign();
-    await truffleAssertions.reverts(instance.resign(), "Not registered");
+    await truffleAssertions.reverts(instance.resign(), "LBC001");
     await instance.withdrawCollateral();
   });
 
@@ -405,12 +405,12 @@ contract("LiquidityBridgeContract", async (accounts) => {
 
     await truffleAssertions.reverts(
       instance.hashQuote.call(utils.asArray(quote)),
-      "Wrong LBC address"
+      "LBC051"
     );
 
     await truffleAssertions.reverts(
       instance.callForUser.call(utils.asArray(quote), { value: quote.val }),
-      "Wrong LBC address"
+      "LBC051"
     );
 
     await truffleAssertions.reverts(
@@ -421,7 +421,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
         partialMerkleTree,
         height
       ),
-      "Wrong LBC address"
+      "LBC051"
     );
   });
 
@@ -444,12 +444,12 @@ contract("LiquidityBridgeContract", async (accounts) => {
 
     await truffleAssertions.reverts(
       instance.hashQuote.call(utils.asArray(quote)),
-      "Bridge is not an accepted contract address"
+      "LBC052"
     );
 
     await truffleAssertions.reverts(
       instance.callForUser.call(utils.asArray(quote), { value: quote.val }),
-      "Bridge is not an accepted contract address"
+      "LBC052"
     );
 
     await truffleAssertions.reverts(
@@ -460,7 +460,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
         partialMerkleTree,
         height
       ),
-      "Bridge is not an accepted contract address"
+      "LBC052"
     );
   });
 
@@ -488,12 +488,12 @@ contract("LiquidityBridgeContract", async (accounts) => {
 
       await truffleAssertions.reverts(
         instance.hashQuote.call(utils.asArray(quote)),
-        "BTC refund address must be 21 or 33 bytes long"
+        "LBC053"
       );
 
       await truffleAssertions.reverts(
         instance.callForUser.call(utils.asArray(quote), { value: quote.val }),
-        "BTC refund address must be 21 or 33 bytes long"
+        "LBC053"
       );
 
       await truffleAssertions.reverts(
@@ -504,7 +504,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
           partialMerkleTree,
           height
         ),
-        "BTC refund address must be 21 or 33 bytes long"
+        "LBC053"
       );
     }
   });
@@ -534,12 +534,12 @@ contract("LiquidityBridgeContract", async (accounts) => {
 
       await truffleAssertions.reverts(
         instance.hashQuote.call(utils.asArray(quote)),
-        "BTC LP address must be 21 bytes long"
+        "LBC054"
       );
 
       await truffleAssertions.reverts(
         instance.callForUser.call(utils.asArray(quote), { value: quote.val }),
-        "BTC LP address must be 21 bytes long"
+        "LBC054"
       );
 
       await truffleAssertions.reverts(
@@ -550,7 +550,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
           partialMerkleTree,
           height
         ),
-        "BTC LP address must be 21 bytes long"
+        "LBC054"
       );
     }
   });
@@ -574,12 +574,12 @@ contract("LiquidityBridgeContract", async (accounts) => {
 
     await truffleAssertions.reverts(
       instance.hashQuote.call(utils.asArray(quote)),
-      "Too low agreed amount"
+      "LBC055"
     );
 
     await truffleAssertions.reverts(
       instance.callForUser.call(utils.asArray(quote), { value: quote.val }),
-      "Too low agreed amount"
+      "LBC055"
     );
 
     await truffleAssertions.reverts(
@@ -590,7 +590,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
         partialMerkleTree,
         height
       ),
-      "Too low agreed amount"
+      "LBC055"
     );
   });
 
@@ -800,12 +800,12 @@ contract("LiquidityBridgeContract", async (accounts) => {
     const contractBalanceBefore = await web3.eth.getBalance(instance.address);
 
     const quoteHash = instance.hashPegoutQuote(utils.asArray(quote));
-    await truffleAssertions.reverts(quoteHash, "Wrong LBC address");
+    await truffleAssertions.reverts(quoteHash, "LBC056");
 
     let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
 
     const pegOutCall = instance.registerPegOut(utils.asArray(quote), signature);
-    await truffleAssertions.reverts(pegOutCall, "Wrong LBC address");
+    await truffleAssertions.reverts(pegOutCall, "LBC056");
 
     const contractBalanceAfter = await web3.eth.getBalance(instance.address);
     expect(contractBalanceBefore.toString()).to.be.eq(
@@ -832,7 +832,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       utils.asArray(quote),
       signature
     );
-    await truffleAssertions.reverts(pegOutCall, "LBC: Block height overflown");
+    await truffleAssertions.reverts(pegOutCall, "LBC039");
   });
 
   it("should fail because quote has already been processed", async () => {
@@ -866,7 +866,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
     );
     await truffleAssertions.reverts(
       pegOutCall,
-      "LBC: Quote already pegged out"
+      "LBC040"
     );
   });
 
@@ -993,7 +993,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       partialMerkleTree,
       merkleBranchHashes
     );
-    await truffleAssertions.reverts(refund, "LBC: Quote not processed");
+    await truffleAssertions.reverts(refund, "LBC045");
   });
 
   it("Should validate if the quote is expired date on refundPegOut", async () => {
@@ -1055,7 +1055,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       merkleBranchHashes
     );
 
-    await truffleAssertions.reverts(refund, "LBC: Quote expired by date");
+    await truffleAssertions.reverts(refund, "LBC046");
   });
 
   it("Should validate if the quote is expired blocks on refundPegOut", async () => {
@@ -1116,7 +1116,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       merkleBranchHashes
     );
 
-    await truffleAssertions.reverts(refund, "LBC: Quote expired by blocks");
+    await truffleAssertions.reverts(refund, "LBC047");
   });
 
   it("should fail if provider is not registered for pegout on registerPegout", async () => {
@@ -1135,7 +1135,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
     const pegOut = instance.registerPegOut(utils.asArray(quote), signature, {
       from: accounts[3],
     });
-    await truffleAssertions.reverts(pegOut, "Not registered.");
+    await truffleAssertions.reverts(pegOut, "LBC001");
   });
 
   it("should fail if provider is not registered for pegout on refundPegout", async () => {
@@ -1190,7 +1190,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
         from: accounts[4],
       }
     );
-    await truffleAssertions.reverts(refund, "Not registered.");
+    await truffleAssertions.reverts(refund, "LBC001");
   });
 
   it("Should emit event when pegout is deposited", async () => {
@@ -1250,7 +1250,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
     await instance.resign();
     await instance.withdrawPegoutCollateral();
     const tx = instance.depositPegout(quote, { value: web3.utils.toBN("500") });
-    await truffleAssertions.reverts(tx, "Provider not registered");
+    await truffleAssertions.reverts(tx, "LBC037");
   });
 
   it("Should refund user", async () => {
@@ -1322,6 +1322,6 @@ contract("LiquidityBridgeContract", async (accounts) => {
 
     const tx = instance.refundUserPegOut(utils.asArray(quote), signature);
 
-    await truffleAssertions.reverts(tx, "LBC: Deposit not found");
+    await truffleAssertions.reverts(tx, "LBC042");
   });
 });

@@ -135,7 +135,7 @@ library Quotes {
         // transferred amount should not be lower than (agreed amount - delta), where delta is intended to tackle rounding problems
         require(
             transferredAmount >= agreedAmount - delta,
-            "Too low transferred amount"
+            "LBC057"
         );
     }
     
