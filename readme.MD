@@ -73,6 +73,7 @@ Note that the call performed by the LP can be a transfer of value to an account 
 - <b>LBC060</b>: N block height invalid
 - <b>LBC061</b>: invalid header length
 - <b>LBC062</b>: slicing out of range
+- <b>LBC063</b>: Not enough value
 
 ## Quote
 
