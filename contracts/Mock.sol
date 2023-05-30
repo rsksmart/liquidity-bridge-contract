@@ -25,9 +25,8 @@ contract Mock {
             "First contract",
             10,
             7200,
-            3600,
-            10,
             100,
+            150,
             "http://localhost/api",
             true,
             "both"
