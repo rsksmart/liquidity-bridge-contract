@@ -830,6 +830,69 @@ contract("LiquidityBridgeContract", async (accounts) => {
     truffleAssertions.eventEmitted(refund, "PegOutRefunded");
   });
 
+  it("Should not allow user to re deposit a refunded quote", async () => {
+    await instance.addPegoutCollateral({
+      value: web3.utils.toWei("30000", "wei"),
+      from: liquidityProviderRskAddress,
+    });
+    const btcTxHash =
+      "0xa0cad11b688340cfbb8515d4deb7d37a8c67ea70a938578295f28b6cd8b5aade";
+    const blockHeaderHash =
+      "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326";
+    const partialMerkleTree =
+      "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb426";
+    const merkleBranchHashes = [
+      "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326",
+    ];
+
+    let quote = utils.getTestPegOutQuote(
+      instance.address, //lbc address
+      liquidityProviderRskAddress,
+      accounts[2],
+      web3.utils.toBN(25)
+    );
+    quote.transferConfirmations = 0;
+    quote.agreementTimestamp = Math.round(new Date().getTime() / 1000)
+
+    // configure mocked block on mockBridge
+    const block = await web3.eth.getBlock("latest");
+    const firstConfirmationTime = utils.reverseHexBytes(
+      web3.utils.toHex(quote.agreementTimestamp + 300).substring(2)
+    );
+    const nConfirmationTime = utils.reverseHexBytes(
+      web3.utils.toHex(quote.agreementTimestamp + 600).substring(2)
+    );
+    const firstHeader =
+      "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" +
+      firstConfirmationTime +
+      "0000000000000000";
+    const nHeader =
+      "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" +
+      nConfirmationTime +
+      "0000000000000000";
+    await bridgeMockInstance.setHeader(block.timestamp, firstHeader);
+    await bridgeMockInstance.setHeader(
+      block.timestamp + quote.depositConfirmations - 1,
+      nHeader
+    );
+
+    const msgValue = quote.value.add(quote.callFee);
+    const pegOut = await instance.depositPegout(quote, { value: msgValue.toNumber() });
+    await truffleAssertions.eventEmitted(pegOut, "PegOutDeposit");
+
+    const refund = await instance.refundPegOut(
+      quote,
+      btcTxHash,
+      blockHeaderHash,
+      partialMerkleTree,
+      merkleBranchHashes
+    );
+    truffleAssertions.eventEmitted(refund, "PegOutRefunded");
+
+    const secondDeposit = instance.depositPegout(quote, { value: msgValue.toNumber() });
+    await truffleAssertions.reverts(secondDeposit, "LBC064");
+  });
+
   it("Should validate that the quote was processed on refundPegOut", async () => {
     await instance.addPegoutCollateral({
       value: web3.utils.toWei("30000", "wei"),
