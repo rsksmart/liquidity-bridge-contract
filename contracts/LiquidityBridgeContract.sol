@@ -157,6 +157,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
 
     mapping(bytes32 => uint8) private processedQuotes;
     mapping(bytes32 => PegOutQuote) private registeredPegoutQuotes;
+    mapping(bytes32 => bool) private completedPegouts;
 
     modifier onlyRegistered() {
         require(isRegistered(msg.sender), "LBC001");
@@ -265,6 +266,10 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         bytes32 quoteHash
     ) external view returns (PegOutQuote memory) {
         return registeredPegoutQuotes[quoteHash];
+    }
+
+    function isPegOutQuoteCompleted(bytes32 quoteHash) external view returns (bool) {
+        return completedPegouts[quoteHash];
     }
 
     /**
@@ -753,6 +758,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         bytes32 quoteHash = hashPegoutQuote(quote);
         PegOutQuote storage registeredQuote = registeredPegoutQuotes[quoteHash];
 
+        require(completedPegouts[quoteHash] == false, "LBC064");
         require(registeredQuote.lbcAddress == address(0), "LBC028");
         registeredPegoutQuotes[quoteHash] = quote;
         emit PegOutDeposit(quoteHash, msg.value, block.timestamp);
@@ -793,6 +799,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         );
 
         delete registeredPegoutQuotes[quoteHash];
+        completedPegouts[quoteHash] = true;
     }
 
     function refundPegOut(
@@ -846,6 +853,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         require(sent, "LBC050");
 
         delete registeredPegoutQuotes[quoteHash];
+        completedPegouts[quoteHash] = true;
         emit PegOutRefunded(quoteHash);
     }
 
