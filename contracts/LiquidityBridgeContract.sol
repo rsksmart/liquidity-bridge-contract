@@ -293,7 +293,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         string memory _name,
         uint _fee,
         uint _quoteExpiration,
-        uint _acceptedQuoteExpiration,
         uint _minTransactionValue,
         uint _maxTransactionValue,
         string memory _apiBaseUrl,
@@ -305,7 +304,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             _name,
             _fee,
             _quoteExpiration,
-            _acceptedQuoteExpiration,
             _minTransactionValue,
             _maxTransactionValue,
             _apiBaseUrl,
@@ -333,7 +331,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             name: _name,
             fee: _fee,
             quoteExpiration: _quoteExpiration,
-            acceptedQuoteExpiration: _acceptedQuoteExpiration,
             minTransactionValue: _minTransactionValue,
             maxTransactionValue: _maxTransactionValue,
             apiBaseUrl: _apiBaseUrl,
@@ -351,7 +348,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         string memory _name,
         uint _fee,
         uint _quoteExpiration,
-        uint _acceptedQuoteExpiration,
         uint _minTransactionValue,
         uint _maxTransactionValue,
         string memory _apiBaseUrl,
@@ -362,10 +358,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         require(
             _quoteExpiration > 0,
             "LBC012"
-        );
-        require(
-            _acceptedQuoteExpiration > 0,
-            "LBC013"
         );
         require(
             _minTransactionValue > 0,

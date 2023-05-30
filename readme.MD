@@ -155,7 +155,6 @@ Checks whether a liquidity provider can deliver a pegout service
             string memory _name,
             uint _fee,
             uint _quoteExpiration,
-            uint _acceptedQuoteExpiration,
             uint _minTransactionValue,
             uint _maxTransactionValue,
             string memory _apiBaseUrl,
