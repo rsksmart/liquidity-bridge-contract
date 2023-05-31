@@ -13,7 +13,7 @@ module.exports = {
     enableTimeouts: false,
     timeout: 1000000
   },
-  plugins: ["solidity-coverage"],
+  plugins: ["truffle-contract-size"],
   networks: {
     rskRegtest: {
       host: '127.0.0.1',
