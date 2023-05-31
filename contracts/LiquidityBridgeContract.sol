@@ -719,6 +719,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     ) external payable {
         require(isRegisteredForPegout(quote.lpRskAddress), "LBC037");
         require(quote.value + quote.callFee <= msg.value, "LBC063");
+        require(block.timestamp <= quote.depositDateLimit, "LBC065");
         require(block.timestamp <= quote.expireDate, "LBC046");
         require(block.number <= quote.expireBlock, "LBC047");
 
@@ -993,13 +994,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         require(firstConfirmationHeader.length > 0, "LBC059");
 
         uint256 firstConfirmationTimestamp = getBtcBlockTimestamp(firstConfirmationHeader);
-
-        // do not penalize if deposit was not made on time
-        uint timeLimit = quote.agreementTimestamp + quote.depositDateLimit;
-        uint depositTimestamp = pegoutRegistry[quoteHash].depositTimestamp;
-        if (depositTimestamp > timeLimit) {
-            return false;
-        }
 
         // penalize if the transfer was not made on time
         if (firstConfirmationTimestamp > pegoutRegistry[quoteHash].depositTimestamp + quote.transferTime + btcBlockTime) {
