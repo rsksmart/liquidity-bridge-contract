@@ -1134,6 +1134,20 @@ contract("LiquidityBridgeContract", async (accounts) => {
     await truffleAssertions.reverts(revertByTime, "LBC046");
   });
 
+  it("Should not allow to deposit pegout after deposit date limit", async () => {
+    const quote = utils.getTestPegOutQuote(
+      instance.address, //lbc address
+      liquidityProviderRskAddress,
+      accounts[2],
+      1000
+    );
+
+    quote.depositDateLimit = quote.agreementTimestamp;
+    const tx = instance.depositPegout(quote, { value: 2000 });
+
+    await truffleAssertions.reverts(tx, "LBC065");
+  });
+
   it("Should not allow to deposit the same quote twice", async () => {
     const quote = utils.getTestPegOutQuote(
       instance.address, //lbc address

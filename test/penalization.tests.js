@@ -263,57 +263,6 @@ contract('LiquidityBridgeContract', async accounts => {
         expect(lpBal).to.eql(web3.utils.toBN(reward).add(peginAmount));
     });
 
-
-  it("Should not penalize LP on pegout when deposit was not made on time", async () => {
-    await instance.addPegoutCollateral({
-      value: web3.utils.toWei("30000", "wei"),
-      from: liquidityProviderRskAddress,
-    });
-    const btcTxHash =
-      "0xa0cad11b688340cfbb8515d4deb7d37a8c67ea70a938578295f28b6cd8b5aade";
-    const blockHeaderHash =
-      "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326";
-    const partialMerkleTree =
-      "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb426";
-    const merkleBranchHashes = [
-      "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326",
-    ];
-
-    let quote = utils.getTestPegOutQuote(
-      instance.address, //lbc address
-      liquidityProviderRskAddress,
-      accounts[2],
-      web3.utils.toBN(25)
-    );
-    quote.transferConfirmations = 0;
-    quote.depositDateLimit = 0;
-    quote.agreementTimestamp = Math.round(new Date().getTime() / 1000) - 1
-
-    // configure mocked block on mockBridge
-    const firstConfirmationTime = utils.reverseHexBytes(
-      web3.utils.toHex(quote.agreementTimestamp + 300).substring(2)
-    );
-    const firstHeader =
-      "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" +
-      firstConfirmationTime +
-      "0000000000000000";
-    await bridgeMockInstance.setHeaderByHash(blockHeaderHash, firstHeader);
-
-    const msgValue = quote.value.add(quote.callFee);
-    const pegOut = await instance.depositPegout(quote, { value: msgValue.toNumber() });
-    truffleAssert.eventEmitted(pegOut, "PegOutDeposit");
-
-    const refund = await instance.refundPegOut(
-      quote,
-      btcTxHash,
-      blockHeaderHash,
-      partialMerkleTree,
-      merkleBranchHashes
-    );
-    truffleAssert.eventEmitted(refund, "PegOutRefunded");
-    truffleAssert.eventNotEmitted(refund, "Penalized");
-  });
-
   it("Should penalize LP on pegout if the transfer was not made on time", async () => {
     await instance.addPegoutCollateral({
       value: web3.utils.toWei("30000", "wei"),

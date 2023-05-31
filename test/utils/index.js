@@ -53,7 +53,7 @@ function getTestPegOutQuote(lbcAddress, lpRskAddress, rskRefundAddress, value) {
   let expireDate = Math.round(new Date().getTime() / 1000) + 3600;
   let expireBlock = 4000;
   let transferTime = 1661788988;
-  let depositDateLimit = 600;
+  let depositDateLimit = Math.round(new Date().getTime() / 1000) + 600;
   let depositConfirmations = 10;
   let transferConfirmations = 10;
   let penaltyFee = web3.utils.toBN(0);
