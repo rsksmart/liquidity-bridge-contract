@@ -7,6 +7,7 @@ contract BridgeMock is Bridge {
 
     mapping(bytes32 => uint256) private amounts;
     mapping(uint256 => bytes) private headers;
+    mapping (bytes32 => bytes) private headersByHash;
 
     receive() external payable override {}
     function registerFastBridgeBtcTransaction(
@@ -36,6 +37,10 @@ contract BridgeMock is Bridge {
 
     function setHeader(uint256 height, bytes memory header) public {
         headers[height] = header;
+    }
+
+    function setHeaderByHash(bytes32 blockHash, bytes memory header) public {
+        headersByHash[blockHash] = header;
     }  
 
     function getBtcBlockchainBestChainHeight (  ) external pure override returns (int) {return 0;}
@@ -91,7 +96,13 @@ contract BridgeMock is Bridge {
     function hasBtcBlockCoinbaseTransactionInformation ( bytes32  ) external pure override returns (bool) {return false;}
     function getActiveFederationCreationBlockHeight (  ) external pure override returns (uint256) {return uint256(0);}
     function getBtcBlockchainBestBlockHeader (  ) external pure override returns (bytes memory) {bytes memory b; return b;}
-    function getBtcBlockchainBlockHeaderByHash ( bytes32  ) external pure override returns (bytes memory) {bytes memory b; return b;}
+
+    function getBtcBlockchainBlockHeaderByHash(
+        bytes32 blockHash
+    ) external view override returns (bytes memory) {
+        return headersByHash[blockHash];
+    }
+
     function getBtcBlockchainParentBlockHeaderByHash ( bytes32) external pure override returns (bytes memory) {bytes memory b; return b;}
    
 }

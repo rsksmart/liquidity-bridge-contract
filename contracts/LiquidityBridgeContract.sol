@@ -80,6 +80,11 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         bool success;
     }
 
+    struct PegoutRecord {
+        uint256 depositTimestamp;
+        bool completed;
+    }
+
     struct LiquidityProvider {
         uint id;
         address provider;
@@ -154,10 +159,11 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     uint providerId;
 
     bool private locked;
+    uint private btcBlockTime;
 
     mapping(bytes32 => uint8) private processedQuotes;
     mapping(bytes32 => PegOutQuote) private registeredPegoutQuotes;
-    mapping(bytes32 => bool) private completedPegouts;
+    mapping(bytes32 => PegoutRecord) private pegoutRegistry;
 
     modifier onlyRegistered() {
         require(isRegistered(msg.sender), "LBC001");
@@ -196,7 +202,8 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         uint32 _rewardPercentage,
         uint32 _resignDelayBlocks,
         uint _dustThreshold,
-        uint _maxQuoteValue
+        uint _maxQuoteValue,
+        uint _btcBlockTime
     ) external initializer {
         require(_rewardPercentage <= 100, "LBC004");
         __Ownable_init_unchained();
@@ -207,6 +214,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         resignDelayInBlocks = _resignDelayBlocks;
         dust = _dustThreshold;
         maxQuoteValue = _maxQuoteValue;
+        btcBlockTime = _btcBlockTime;
     }
 
     modifier onlyOwnerAndProvider(uint _providerId) {
@@ -269,7 +277,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     }
 
     function isPegOutQuoteCompleted(bytes32 quoteHash) external view returns (bool) {
-        return completedPegouts[quoteHash];
+        return pegoutRegistry[quoteHash].completed;
     }
 
     /**
@@ -758,9 +766,10 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         bytes32 quoteHash = hashPegoutQuote(quote);
         PegOutQuote storage registeredQuote = registeredPegoutQuotes[quoteHash];
 
-        require(completedPegouts[quoteHash] == false, "LBC064");
+        require(pegoutRegistry[quoteHash].completed == false, "LBC064");
         require(registeredQuote.lbcAddress == address(0), "LBC028");
         registeredPegoutQuotes[quoteHash] = quote;
+        pegoutRegistry[quoteHash].depositTimestamp = block.timestamp;
         emit PegOutDeposit(quoteHash, msg.value, block.timestamp);
     }
 
@@ -799,7 +808,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         );
 
         delete registeredPegoutQuotes[quoteHash];
-        completedPegouts[quoteHash] = true;
+        pegoutRegistry[quoteHash].completed = true;
     }
 
     function refundPegOut(
@@ -835,9 +844,8 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         if (
             shouldPenalizePegOutLP(
                 quote,
-                quote.penaltyFee,
-                callRegistry[quoteHash].timestamp,
-                block.timestamp
+                quoteHash,
+                btcBlockHeaderHash
             )
         ) {
             uint penalty = min(
@@ -845,6 +853,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
                 pegoutCollateral[quote.lpRskAddress]
             );
             pegoutCollateral[quote.lpRskAddress] -= penalty;
+            emit Penalized(quote.lpRskAddress, penalty, quoteHash);
         }
 
         (bool sent, ) = quote.lpRskAddress.call{
@@ -853,7 +862,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         require(sent, "LBC050");
 
         delete registeredPegoutQuotes[quoteHash];
-        completedPegouts[quoteHash] = true;
+        pegoutRegistry[quoteHash].completed = true;
         emit PegOutRefunded(quoteHash);
     }
 
@@ -1031,46 +1040,23 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
 
     function shouldPenalizePegOutLP(
         PegOutQuote memory quote,
-        uint256 penaltyFee,
-        uint256 callTimestamp,
-        uint256 height
+        bytes32 quoteHash,
+        bytes32 blockHash
     ) private view returns (bool) {
-        // do not penalize if deposit amount is insufficient
-        if (penaltyFee > 0 && uint256(penaltyFee) < quote.value) {
-            return false;
-        }
-
-        bytes memory firstConfirmationHeader = bridge
-            .getBtcBlockchainBlockHeaderByHeight(height);
+        bytes memory firstConfirmationHeader = bridge.getBtcBlockchainBlockHeaderByHash(blockHash);
         require(firstConfirmationHeader.length > 0, "LBC059");
 
-        uint256 firstConfirmationTimestamp = getBtcBlockTimestamp(
-            firstConfirmationHeader
-        );
+        uint256 firstConfirmationTimestamp = getBtcBlockTimestamp(firstConfirmationHeader);
 
         // do not penalize if deposit was not made on time
         uint timeLimit = quote.agreementTimestamp + quote.depositDateLimit;
-        if (firstConfirmationTimestamp > timeLimit) {
+        uint depositTimestamp = pegoutRegistry[quoteHash].depositTimestamp;
+        if (depositTimestamp > timeLimit) {
             return false;
         }
 
-        // penalize if call was not made
-        if (callTimestamp == 0) {
-            return true;
-        }
-
-        bytes memory nConfirmationsHeader = bridge
-            .getBtcBlockchainBlockHeaderByHeight(
-                height + quote.depositConfirmations - 1
-            );
-        require(nConfirmationsHeader.length > 0, "LBC060");
-
-        uint256 nConfirmationsTimestamp = getBtcBlockTimestamp(
-            nConfirmationsHeader
-        );
-
-        // penalize if the call was not made on time
-        if (callTimestamp > nConfirmationsTimestamp + quote.transferTime) {
+        // penalize if the transfer was not made on time
+        if (firstConfirmationTimestamp > pegoutRegistry[quoteHash].depositTimestamp + quote.transferTime + btcBlockTime) {
             return true;
         }
 
