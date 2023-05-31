@@ -27,6 +27,7 @@ const REWARD_PERCENTAGE = 10;
 const RESIGN_DELAY_BLOCKS = 1;
 const DUST_THRESHOLD = 2300 * 65164000;
 const MAX_QUOTE_VALUE = web3.utils.toBN("1000000000000000000"); // amount in wei
+const BTC_BLOCK_TIME = 5400; // the 5400 addition is to give 1.5h to the tx to be mined
 const { deploy, read } = require("../config");
 
 module.exports = async function (deployer, network) {
@@ -85,6 +86,7 @@ module.exports = async function (deployer, network) {
         RESIGN_DELAY_BLOCKS,
         DUST_THRESHOLD,
         MAX_QUOTE_VALUE,
+        BTC_BLOCK_TIME,
       ],
       {
         deployer,
