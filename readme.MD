@@ -166,7 +166,6 @@ Registers msg.sender as a liquidity provider with msg.value as collateral
     * name: name of the LP
     * fee: fee that LP charges for this service
     * quoteExpiration: time to accept the quotes of this LP 
-    * acceptedQuoteExpiration: time to deposit the accepted quotes of this LP
     * minTransactionValue: miminum value to get quotes from this LP
     * maxTransactionValue: maximum value to get quotes from this LP
     * apiBaseUrl: url of this LP's Liquidity Provider Server instance
