@@ -1260,4 +1260,9 @@ contract("LiquidityBridgeContract", async (accounts) => {
 
     await truffleAssertions.reverts(tx, "LBC042");
   });
+  it.only("Should get the OP_RETURN", async () => {
+    const rawTX = "0x0100000001e5410a9d29e049d9c3ea097cbf59c5d1e0b429b5b6e7c0a4e27e5a6c12dbbc8000000006b483045022100b0d9517f4a5a6b5fbc903d66083a4d9b1b3195ff2378767e4c4d7b66c4c50a2c02204151a88275d2c9c282e20e49c491f5d8a862e9760f2c5b3893c9798e46a9352f0121035e73df8dc36de9ff04de22160ab7818c5ff013c3d7024b9eac5a8c58f1bc1da5fffffffff02404b4c00000000001976a9145daff4c57be62c75c18b3ebe434d0c2e2e6cddfd88ac00e1f505000000001976a914714c78c25fe7b9504ef28a25a8d5bb65df7f3a1e88ac00000000";
+    const tx = await instance.getOpReturnData(utils.asArray(rawTX));
+    console.log(tx);
+  });
 });
