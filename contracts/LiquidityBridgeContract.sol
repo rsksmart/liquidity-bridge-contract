@@ -86,7 +86,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         string name;
         uint fee;
         uint quoteExpiration;
-        uint acceptedQuoteExpiration;
         uint minTransactionValue;
         uint maxTransactionValue;
         string apiBaseUrl;
