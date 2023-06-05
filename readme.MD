@@ -76,6 +76,11 @@ Note that the call performed by the LP can be a transfer of value to an account 
 - <b>LBC063</b>: Not enough value
 - <b>LBC064</b>: Pegout finalized
 - <b>LBC065</b>: Deposit date limit expired
+- <b>LBC066</b>: Invalid parameters, quote or quoteHash
+- <b>LBC067</b>: Invalid amount for bitcoin transaction
+- <b>LBC068</b>: Invalid destination for bitcoin transaction
+- <b>LBC069</b>: Quote is not related to transaction 
+
 
 ## Quote
 
