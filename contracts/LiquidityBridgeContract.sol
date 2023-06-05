@@ -23,16 +23,16 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     uint32 constant MAX_INT32 = 2147483647;
     uint32 constant MAX_UINT32 = 4294967295;
 
-    int16 constant BRIDGE_REFUNDED_USER_ERROR_CODE = -100;
-    int16 constant BRIDGE_REFUNDED_LP_ERROR_CODE = -200;
-    int16 constant BRIDGE_UNPROCESSABLE_TX_NOT_CONTRACT_ERROR_CODE = -300;
-    int16 constant BRIDGE_UNPROCESSABLE_TX_INVALID_SENDER_ERROR_CODE = -301;
-    int16 constant BRIDGE_UNPROCESSABLE_TX_ALREADY_PROCESSED_ERROR_CODE = -302;
-    int16 constant BRIDGE_UNPROCESSABLE_TX_VALIDATIONS_ERROR = -303;
-    int16 constant BRIDGE_UNPROCESSABLE_TX_VALUE_ZERO_ERROR = -304;
+    int16 constant BRIDGE_REFUNDED_USER_ERROR_CODE = - 100;
+    int16 constant BRIDGE_REFUNDED_LP_ERROR_CODE = - 200;
+    int16 constant BRIDGE_UNPROCESSABLE_TX_NOT_CONTRACT_ERROR_CODE = - 300;
+    int16 constant BRIDGE_UNPROCESSABLE_TX_INVALID_SENDER_ERROR_CODE = - 301;
+    int16 constant BRIDGE_UNPROCESSABLE_TX_ALREADY_PROCESSED_ERROR_CODE = - 302;
+    int16 constant BRIDGE_UNPROCESSABLE_TX_VALIDATIONS_ERROR = - 303;
+    int16 constant BRIDGE_UNPROCESSABLE_TX_VALUE_ZERO_ERROR = - 304;
     int16 constant BRIDGE_UNPROCESSABLE_TX_UTXO_AMOUNT_SENT_BELOW_MINIMUM_ERROR =
-        -305;
-    int16 constant BRIDGE_GENERIC_ERROR = -900;
+    - 305;
+    int16 constant BRIDGE_GENERIC_ERROR = - 900;
     uint constant MAX_UINT = 2 ** 256 - 1;
     uint constant PAY_TO_ADDRESS_OUTPUT = 0;
     uint constant QUOTE_HASH_OUTPUT = 1;
@@ -185,7 +185,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     modifier onlyOwnerAndProvider(uint _providerId) {
         require(
             msg.sender == owner() ||
-                msg.sender == liquidityProviders[_providerId].provider,
+            msg.sender == liquidityProviders[_providerId].provider,
             "LBC005"
         );
         _;
@@ -259,8 +259,8 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
      */
     function isOperationalForPegout(address addr) external view returns (bool) {
         return
-            isRegisteredForPegout(addr) &&
-            pegoutCollateral[addr] >= minCollateral;
+        isRegisteredForPegout(addr) &&
+        pegoutCollateral[addr] >= minCollateral;
     }
 
     /**
@@ -353,11 +353,11 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         // Check if _providerType is one of the valid strings
         require(
             keccak256(abi.encodePacked(_providerType)) ==
-                keccak256(abi.encodePacked("pegin")) ||
-                keccak256(abi.encodePacked(_providerType)) ==
-                keccak256(abi.encodePacked("pegout")) ||
-                keccak256(abi.encodePacked(_providerType)) ==
-                keccak256(abi.encodePacked("both")),
+            keccak256(abi.encodePacked("pegin")) ||
+            keccak256(abi.encodePacked(_providerType)) ==
+            keccak256(abi.encodePacked("pegout")) ||
+            keccak256(abi.encodePacked(_providerType)) ==
+            keccak256(abi.encodePacked("both")),
             "LBC018"
         );
     }
@@ -407,7 +407,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     function withdraw(uint256 amount) external {
         require(balances[msg.sender] >= amount, "LBC019");
         balances[msg.sender] -= amount;
-        (bool success, ) = msg.sender.call{value: amount}("");
+        (bool success,) = msg.sender.call{value: amount}("");
         require(success, "LBC020");
         emit Withdrawal(msg.sender, amount);
     }
@@ -419,13 +419,13 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         require(resignationBlockNum[msg.sender] > 0, "LBC021");
         require(
             block.number - resignationBlockNum[msg.sender] >=
-                resignDelayInBlocks,
+            resignDelayInBlocks,
             "LBC022"
         );
         uint amount = collateral[msg.sender];
         collateral[msg.sender] = 0;
         resignationBlockNum[msg.sender] = 0;
-        (bool success, ) = msg.sender.call{value: amount}("");
+        (bool success,) = msg.sender.call{value: amount}("");
         require(success, "LBC020");
         emit WithdrawCollateral(msg.sender, amount);
     }
@@ -434,13 +434,13 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         require(resignationBlockNum[msg.sender] > 0, "LBC021");
         require(
             block.number - resignationBlockNum[msg.sender] >=
-                resignDelayInBlocks,
+            resignDelayInBlocks,
             "LBC022"
         );
         uint amount = pegoutCollateral[msg.sender];
         pegoutCollateral[msg.sender] = 0;
         resignationBlockNum[msg.sender] = 0;
-        (bool success, ) = msg.sender.call{value: amount}("");
+        (bool success,) = msg.sender.call{value: amount}("");
         require(success, "LBC020");
         emit PegoutWithdrawCollateral(msg.sender, amount);
     }
@@ -490,7 +490,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         );
         require(
             balances[quote.liquidityProviderRskAddress] + msg.value >=
-                quote.value,
+            quote.value,
             "LBC019"
         );
 
@@ -507,10 +507,10 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             gasleft() >= quote.gasLimit + MAX_CALL_GAS_COST,
             "LBC026"
         );
-        (bool success, ) = quote.contractAddress.call{
-            gas: quote.gasLimit,
-            value: quote.value
-        }(quote.data);
+        (bool success,) = quote.contractAddress.call{
+                gas: quote.gasLimit,
+                value: quote.value
+            }(quote.data);
 
         require(block.timestamp <= MAX_UINT32, "LBC027");
         callRegistry[quoteHash].timestamp = uint32(block.timestamp);
@@ -575,22 +575,22 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
 
         require(
             transferredAmountOrErrorCode !=
-                BRIDGE_UNPROCESSABLE_TX_VALIDATIONS_ERROR,
+            BRIDGE_UNPROCESSABLE_TX_VALIDATIONS_ERROR,
             "LBC031"
         );
         require(
             transferredAmountOrErrorCode !=
-                BRIDGE_UNPROCESSABLE_TX_ALREADY_PROCESSED_ERROR_CODE,
+            BRIDGE_UNPROCESSABLE_TX_ALREADY_PROCESSED_ERROR_CODE,
             "LBC032"
         );
         require(
             transferredAmountOrErrorCode !=
-                BRIDGE_UNPROCESSABLE_TX_VALUE_ZERO_ERROR,
+            BRIDGE_UNPROCESSABLE_TX_VALUE_ZERO_ERROR,
             "LBC033"
         );
         require(
             transferredAmountOrErrorCode !=
-                BRIDGE_UNPROCESSABLE_TX_UTXO_AMOUNT_SENT_BELOW_MINIMUM_ERROR,
+            BRIDGE_UNPROCESSABLE_TX_UTXO_AMOUNT_SENT_BELOW_MINIMUM_ERROR,
             "LBC034"
         );
         require(
@@ -599,18 +599,18 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         );
         require(
             transferredAmountOrErrorCode > 0 ||
-                transferredAmountOrErrorCode == BRIDGE_REFUNDED_LP_ERROR_CODE ||
-                transferredAmountOrErrorCode == BRIDGE_REFUNDED_USER_ERROR_CODE,
+            transferredAmountOrErrorCode == BRIDGE_REFUNDED_LP_ERROR_CODE ||
+            transferredAmountOrErrorCode == BRIDGE_REFUNDED_USER_ERROR_CODE,
             "LBC036"
         );
 
         if (
             shouldPenalizeLP(
-                quote,
-                transferredAmountOrErrorCode,
-                callRegistry[quoteHash].timestamp,
-                height
-            )
+            quote,
+            transferredAmountOrErrorCode,
+            callRegistry[quoteHash].timestamp,
+            height
+        )
         ) {
             uint penalizationAmount = min(
                 quote.penaltyFee,
@@ -660,10 +660,10 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
 
             if (remainingAmount > dust) {
                 // refund rskRefundAddress, if remaining amount greater than dust
-                (bool success, ) = quote.rskRefundAddress.call{
-                    gas: MAX_REFUND_GAS_LIMIT,
-                    value: remainingAmount
-                }("");
+                (bool success,) = quote.rskRefundAddress.call{
+                        gas: MAX_REFUND_GAS_LIMIT,
+                        value: remainingAmount
+                    }("");
                 emit Refund(
                     quote.rskRefundAddress,
                     remainingAmount,
@@ -683,10 +683,10 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             uint refundAmount = transferredAmount;
 
             if (quote.callOnRegister && refundAmount >= quote.value) {
-                (bool callSuccess, ) = quote.contractAddress.call{
-                    gas: quote.gasLimit,
-                    value: quote.value
-                }(quote.data);
+                (bool callSuccess,) = quote.contractAddress.call{
+                        gas: quote.gasLimit,
+                        value: quote.value
+                    }(quote.data);
                 emit CallForUser(
                     msg.sender,
                     quote.contractAddress,
@@ -703,10 +703,10 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             }
             if (refundAmount > dust) {
                 // refund rskRefundAddress, if refund amount greater than dust
-                (bool success, ) = quote.rskRefundAddress.call{
-                    gas: MAX_REFUND_GAS_LIMIT,
-                    value: refundAmount
-                }("");
+                (bool success,) = quote.rskRefundAddress.call{
+                        gas: MAX_REFUND_GAS_LIMIT,
+                        value: refundAmount
+                    }("");
                 emit Refund(
                     quote.rskRefundAddress,
                     refundAmount,
@@ -749,7 +749,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         require(registeredQuote.lbcAddress != address(0), "LBC042");
         require(
             block.timestamp > quote.expireDate &&
-                block.number > quote.expireBlock,
+            block.number > quote.expireBlock,
             "LBC041"
         );
         require(
@@ -759,7 +759,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
 
         uint valueToTransfer = quote.value + quote.callFee;
 
-        (bool sent, ) = quote.rskRefundAddress.call{value: valueToTransfer}("");
+        (bool sent,) = quote.rskRefundAddress.call{value: valueToTransfer}("");
 
         require(sent, "LBC044");
 
@@ -827,9 +827,9 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             emit Penalized(quote.lpRskAddress, penalty, txQuoteHash);
         }
 
-        (bool sent, ) = quote.lpRskAddress.call{
-            value: quote.value + quote.callFee
-        }("");
+        (bool sent,) = quote.lpRskAddress.call{
+                value: quote.value + quote.callFee
+            }("");
         require(sent, "LBC050");
 
         delete registeredPegoutQuotes[txQuoteHash];
@@ -862,7 +862,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         );
         require(
             quote.btcRefundAddress.length == 21 ||
-                quote.btcRefundAddress.length == 33,
+            quote.btcRefundAddress.length == 33,
             "LBC053"
         );
         require(
@@ -929,16 +929,16 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         bytes32 derivationHash
     ) private returns (int256) {
         return
-            bridge.registerFastBridgeBtcTransaction(
-                btcRawTransaction,
-                height,
-                partialMerkleTree,
-                derivationHash,
-                quote.btcRefundAddress,
-                payable(this),
-                quote.liquidityProviderBtcAddress,
-                callRegistry[derivationHash].timestamp > 0
-            );
+        bridge.registerFastBridgeBtcTransaction(
+            btcRawTransaction,
+            height,
+            partialMerkleTree,
+            derivationHash,
+            quote.btcRefundAddress,
+            payable(this),
+            quote.liquidityProviderBtcAddress,
+            callRegistry[derivationHash].timestamp > 0
+        );
     }
 
     /**
@@ -961,7 +961,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         }
 
         bytes memory firstConfirmationHeader = bridge
-            .getBtcBlockchainBlockHeaderByHeight(height);
+        .getBtcBlockchainBlockHeaderByHeight(height);
         require(firstConfirmationHeader.length > 0, "Invalid block height");
 
         uint256 firstConfirmationTimestamp = getBtcBlockTimestamp(
@@ -980,9 +980,9 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         }
 
         bytes memory nConfirmationsHeader = bridge
-            .getBtcBlockchainBlockHeaderByHeight(
-                height + quote.depositConfirmations - 1
-            );
+        .getBtcBlockchainBlockHeaderByHeight(
+            height + quote.depositConfirmations - 1
+        );
         require(nConfirmationsHeader.length > 0, "LBC058");
 
         uint256 nConfirmationsTimestamp = getBtcBlockTimestamp(
@@ -1036,9 +1036,9 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         require(bs.length >= offset + 4, "LBC062");
 
         return
-            uint32(uint8(bs[offset])) |
-            (uint32(uint8(bs[offset + 1])) << 8) |
-            (uint32(uint8(bs[offset + 2])) << 16) |
-            (uint32(uint8(bs[offset + 3])) << 24);
+        uint32(uint8(bs[offset])) |
+        (uint32(uint8(bs[offset + 1])) << 8) |
+        (uint32(uint8(bs[offset + 2])) << 16) |
+        (uint32(uint8(bs[offset + 3])) << 24);
     }
 }
