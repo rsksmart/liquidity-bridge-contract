@@ -6,7 +6,6 @@ import "./Bridge.sol";
 import "./Quotes.sol";
 import "./SignatureValidator.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "github.com/ethereum/btcrelay/contracts/BitcoinTransactionLibrary.sol";
 
 /**
     @title Contract that assists with the Flyover protocol
@@ -773,21 +772,16 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     }
 
     function refundPegOut(
-        PegoutQuote memory Quote,
-        bytes32 quoteHash,
-        bytes btcTx,
+        Quotes.PegOutQuote memory quote,
         bytes32 btcTxHash,
-        uint8 outputIndex,
         bytes32 btcBlockHeaderHash,
         uint256 partialMerkleTree,
         bytes32[] memory merkleBranchHashes
     ) public noReentrancy onlyRegisteredForPegout {
-        bytes32 quoteHashCalculated = validateAndHashPegOutQuote(quote);
-        require(quoteHashCalculated == quoteHash, "LBC066");
-        require(
-            pegOutQuotesStates[quoteHash].statusCode == PROCESSED_QUOTE_CODE,
-            "LBC045"
-        );
+        bytes32 quoteHash = validateAndHashPegOutQuote(quote);
+        Quotes.PegOutQuote storage registeredQuote = registeredPegoutQuotes[quoteHash];
+
+        require(registeredQuote.lbcAddress != address(0), "LBC042");
         require(
             block.timestamp <= quote.expireDate,
             "LBC046"

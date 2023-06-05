@@ -76,8 +76,6 @@ Note that the call performed by the LP can be a transfer of value to an account 
 - <b>LBC063</b>: Not enough value
 - <b>LBC064</b>: Pegout finalized
 - <b>LBC065</b>: Deposit date limit expired
-- <b>LBC066</b>: Invalid parameters, quote or quoteHash
-
 
 ## Quote
 
