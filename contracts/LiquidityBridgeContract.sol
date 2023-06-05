@@ -394,7 +394,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
 
         for (uint i = 0; i < providerIds.length; i++) {
             uint id = providerIds[i];
-            if (isRegistered(liquidityProviders[id].provider)) {
+            if (isRegistered(liquidityProviders[id].provider) && liquidityProviders[id].status) {
                 providersToReturn[count] = liquidityProviders[id];
                 count++;
             }
