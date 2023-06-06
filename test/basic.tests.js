@@ -2,6 +2,7 @@ const LiquidityBridgeContract = artifacts.require("LiquidityBridgeContract");
 const BridgeMock = artifacts.require("BridgeMock");
 const Mock = artifacts.require("Mock");
 const SignatureValidatorMock = artifacts.require("SignatureValidatorMock");
+const BtcUtils = artifacts.require("BtcUtils");
 
 var chai = require("chai");
 const truffleAssertions = require("truffle-assertions");
@@ -15,6 +16,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
   let instance;
   let bridgeMockInstance;
   let signatureValidatorInstance;
+  let btcUtils;
   const liquidityProviderRskAddress = accounts[0];
   const MAX_UINT32 = Math.pow(2, 32) - 1;
   var providerList = [];
@@ -24,6 +26,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
     bridgeMockInstance = await BridgeMock.deployed();
     mock = await Mock.deployed();
     signatureValidatorInstance = await SignatureValidatorMock.deployed();
+    btcUtils = await BtcUtils.deployed();
   });
 
   beforeEach(async () => {
@@ -738,12 +741,12 @@ contract("LiquidityBridgeContract", async (accounts) => {
   });
 
   it("Should refundPegOut", async () => {
+    const btcTx = "0x0100000001013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40000000006a47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4ffffffff0200879303000000001976a9143c5f66fe733e0ad361805b3053f23212e5755c8d88ac0000000000000000426a403938343934346435383039323135366335613139643936356239613735383530326536646263326439353337333135656266343839373336333134656233343700000000";
+    
     await instance.addPegoutCollateral({
       value: web3.utils.toWei("30000", "wei"),
       from: liquidityProviderRskAddress,
     });
-    const btcTxHash =
-      "0xa0cad11b688340cfbb8515d4deb7d37a8c67ea70a938578295f28b6cd8b5aade";
     const blockHeaderHash =
       "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326";
     const partialMerkleTree =
@@ -796,7 +799,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
     );
     const refund = await instance.refundPegOut(
       quote,
-      btcTxHash,
+      btcTx,
       blockHeaderHash,
       partialMerkleTree,
       merkleBranchHashes
@@ -1260,9 +1263,32 @@ contract("LiquidityBridgeContract", async (accounts) => {
 
     await truffleAssertions.reverts(tx, "LBC042");
   });
-  it.only("Should get the OP_RETURN", async () => {
-    const rawTX = "0x0100000001e5410a9d29e049d9c3ea097cbf59c5d1e0b429b5b6e7c0a4e27e5a6c12dbbc8000000006b483045022100b0d9517f4a5a6b5fbc903d66083a4d9b1b3195ff2378767e4c4d7b66c4c50a2c02204151a88275d2c9c282e20e49c491f5d8a862e9760f2c5b3893c9798e46a9352f0121035e73df8dc36de9ff04de22160ab7818c5ff013c3d7024b9eac5a8c58f1bc1da5fffffffff02404b4c00000000001976a9145daff4c57be62c75c18b3ebe434d0c2e2e6cddfd88ac00e1f505000000001976a914714c78c25fe7b9504ef28a25a8d5bb65df7f3a1e88ac00000000";
-    const tx = await instance.getOpReturnData(utils.asArray(rawTX));
-    console.log(tx);
+
+  it("Should parse raw btc transaction", async () => {
+    const firstRawTX = "0x0100000001013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40000000006a47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4ffffffff0200879303000000001976a9143c5f66fe733e0ad361805b3053f23212e5755c8d88ac0000000000000000426a403938343934346435383039323135366335613139643936356239613735383530326536646263326439353337333135656266343839373336333134656233343700000000";
+    const firstTxOutputs = await btcUtils.getOutputs(firstRawTX);
+
+    const firstQuoteHash = web3.utils.hexToAscii(await btcUtils.parseOpReturnOuput(firstTxOutputs[1].pkScript));
+    const firstDestinationAddress = web3.utils.hexToAscii(await btcUtils.parsePayToAddressScript(firstTxOutputs[0].pkScript, false));
+    const firstValue = firstTxOutputs[0].value;
+    const firstHash = await btcUtils.hashBtcTx(firstRawTX);
+
+    const secondRawTX = "0x01000000010178a1cf4f2f0cb1607da57dcb02835d6aa8ef9f06be3f74cafea54759a029dc000000006a473044022070a22d8b67050bee57564279328a2f7b6e7f80b2eb4ecb684b879ea51d7d7a31022057fb6ece52c23ecf792e7597448c7d480f89b77a8371dca4700a18088f529f6a012103ef81e9c4c38df173e719863177e57c539bdcf97289638ec6831f07813307974cffffffff02801d2c04000000001976a9143c5f66fe733e0ad361805b3053f23212e5755c8d88ac0000000000000000426a406539346138393731323632396262633966636364316630633034613237386330653130353265623736323666393365396137663130363762343036663035373600000000";
+    const secondTxOutputs = await btcUtils.getOutputs(secondRawTX);
+
+    const secondQuoteHash = web3.utils.hexToAscii(await btcUtils.parseOpReturnOuput(secondTxOutputs[1].pkScript));
+    const secondDestinationAddress = web3.utils.hexToAscii(await btcUtils.parsePayToAddressScript(secondTxOutputs[0].pkScript, true));
+    const secondValue = secondTxOutputs[0].value;
+    const secondHash = await btcUtils.hashBtcTx(secondRawTX);
+
+    expect(firstQuoteHash).to.eq("984944d58092156c5a19d965b9a758502e6dbc2d9537315ebf489736314eb347");
+    expect(firstDestinationAddress).to.eq("mm2B8EUvZBZUi4BmBwN2M7RwgVBZ6BcVYU");
+    expect(firstValue).to.eq("60000000");
+    expect(firstHash).to.eq("0x03c4522ef958f724a7d2ffef04bd534d9eca74ffc0b28308797d2853bc323ba6");
+
+    expect(secondQuoteHash).to.eq("e94a89712629bbc9fccd1f0c04a278c0e1052eb7626f93e9a7f1067b406f0576");
+    expect(secondDestinationAddress).to.eq("16WDqBPwkA8Dvwi9UNPeXCDcpVar7XdD9y");
+    expect(secondValue).to.eq("70000000");
+    expect(secondHash).to.eq("0xfd4251485dafe36aaa6766b38cf236b5925f23f12617daf286e0e92f73708aa3");
   });
 });
