@@ -741,8 +741,6 @@ contract("LiquidityBridgeContract", async (accounts) => {
   });
 
   it("Should refundPegOut", async () => {
-    const btcTx = "0x0100000001013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40000000006a47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4ffffffff0200879303000000001976a9143c5f66fe733e0ad361805b3053f23212e5755c8d88ac0000000000000000426a403938343934346435383039323135366335613139643936356239613735383530326536646263326439353337333135656266343839373336333134656233343700000000";
-    
     await instance.addPegoutCollateral({
       value: web3.utils.toWei("30000", "wei"),
       from: liquidityProviderRskAddress,
@@ -787,6 +785,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
     });
     await truffleAssertions.eventEmitted(pegOut, "PegOutDeposit");
 
+    const btcTx = await utils.generateRawTx(instance, quote);
     const [userPegInBalanceAfter, contractBalanceAfter] = await getBalances();
 
     expect(userPegInBalanceBefore.toString()).to.be.eq(
@@ -820,8 +819,6 @@ contract("LiquidityBridgeContract", async (accounts) => {
       value: web3.utils.toWei("30000", "wei"),
       from: liquidityProviderRskAddress,
     });
-    const btcTxHash =
-      "0xa0cad11b688340cfbb8515d4deb7d37a8c67ea70a938578295f28b6cd8b5aade";
     const blockHeaderHash =
       "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326";
     const partialMerkleTree =
@@ -853,9 +850,10 @@ contract("LiquidityBridgeContract", async (accounts) => {
     const pegOut = await instance.depositPegout(quote, { value: msgValue.toNumber() });
     await truffleAssertions.eventEmitted(pegOut, "PegOutDeposit");
 
+    const btcTx = await utils.generateRawTx(instance, quote);
     const refund = await instance.refundPegOut(
       quote,
-      btcTxHash,
+      btcTx,
       blockHeaderHash,
       partialMerkleTree,
       merkleBranchHashes
@@ -900,8 +898,6 @@ contract("LiquidityBridgeContract", async (accounts) => {
   });
 
   it("Should validate if the quote is expired date on refundPegOut", async () => {
-    const btcTxHash =
-      "0xa0cad11b688340cfbb8515d4deb7d37a8c67ea70a938578295f28b6cd8b5aade";
     const blockHeaderHash =
       "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326";
     const partialMerkleTree =
@@ -948,9 +944,10 @@ contract("LiquidityBridgeContract", async (accounts) => {
     });
     await web3.eth.getBlock("latest")
 
+    const btcTx = await utils.generateRawTx(instance, quote);
     const refund = instance.refundPegOut(
       quote,
-      btcTxHash,
+      btcTx,
       blockHeaderHash,
       partialMerkleTree,
       merkleBranchHashes
@@ -964,8 +961,6 @@ contract("LiquidityBridgeContract", async (accounts) => {
       value: web3.utils.toWei("30000", "wei"),
       from: liquidityProviderRskAddress,
     });
-    const btcTxHash =
-      "0xa0cad11b688340cfbb8515d4deb7d37a8c67ea70a938578295f28b6cd8b5aade";
     const blockHeaderHash =
       "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326";
     const partialMerkleTree =
@@ -1003,9 +998,11 @@ contract("LiquidityBridgeContract", async (accounts) => {
     );
     expect(+contractBalanceAfter).to.be.eq(+contractBalanceBefore + msgValue.toNumber());
 
+    const btcTx = await utils.generateRawTx(instance, quote);
+
     const refund = instance.refundPegOut(
       quote,
-      btcTxHash,
+      btcTx,
       blockHeaderHash,
       partialMerkleTree,
       merkleBranchHashes
@@ -1291,4 +1288,136 @@ contract("LiquidityBridgeContract", async (accounts) => {
     expect(secondValue).to.eq("70000000");
     expect(secondHash).to.eq("0xfd4251485dafe36aaa6766b38cf236b5925f23f12617daf286e0e92f73708aa3");
   });
+
+  it("Should fail on refundPegout if btc tx has op return with incorrect quote hash", async () => {
+    const blockHeaderHash =
+      "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326";
+    const partialMerkleTree =
+      "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb426";
+    const merkleBranchHashes = [
+      "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326",
+    ];
+    let quote = utils.getTestPegOutQuote(
+      instance.address, //lbc address
+      liquidityProviderRskAddress,
+      accounts[2],
+      web3.utils.toBN(1)
+    );
+    quote.transferConfirmations = 0;
+
+    // configure mocked block on mockBridge
+    const firstConfirmationTime = utils.reverseHexBytes(
+      web3.utils.toHex(quote.agreementTimestamp + 300).substring(2)
+    );
+    const firstHeader =
+      "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" +
+      firstConfirmationTime +
+      "0000000000000000";
+    await bridgeMockInstance.setHeaderByHash(blockHeaderHash, firstHeader);
+
+    const msgValue = quote.value.add(quote.callFee);
+    const pegOut = await instance.depositPegout(quote, {
+      value: msgValue.toNumber()
+    });
+    await truffleAssertions.eventEmitted(pegOut, "PegOutDeposit");
+
+    quote.transferConfirmations = 5; // to generate another hash
+    const btcTx = await utils.generateRawTx(instance, quote);
+    quote.transferConfirmations = 0;
+
+    await truffleAssertions.reverts(
+      instance.refundPegOut(
+        quote,
+        btcTx,
+        blockHeaderHash,
+        partialMerkleTree,
+        merkleBranchHashes
+      ),
+      "LBC069"
+    );
+  });
+
+  it("Should fail on refundPegout if btc tx doesn't have correct amount", async () => {
+    const blockHeaderHash = "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326";
+    const partialMerkleTree = "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb426";
+    const merkleBranchHashes = [
+      "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326",
+    ];
+    let quote = utils.getTestPegOutQuote(
+      instance.address, //lbc address
+      liquidityProviderRskAddress,
+      accounts[2],
+      web3.utils.toBN(3)
+    );
+    quote.transferConfirmations = 0;
+    quote.value = 5; // any value that is not on the btc tx
+    quote.callFee = 1;
+
+    // configure mocked block on mockBridge
+    const firstConfirmationTime = utils.reverseHexBytes(
+      web3.utils.toHex(quote.agreementTimestamp + 300).substring(2)
+    );
+    const firstHeader =
+      "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" +
+    firstConfirmationTime +
+      "0000000000000000";
+    await bridgeMockInstance.setHeaderByHash(blockHeaderHash, firstHeader);
+
+    const msgValue = quote.value + quote.callFee;
+    const pegOut = await instance.depositPegout(quote, { value: msgValue });
+    await truffleAssertions.eventEmitted(pegOut, "PegOutDeposit");
+    const btcTx = await utils.generateRawTx(instance, quote);
+
+    await truffleAssertions.reverts(
+      instance.refundPegOut(
+        quote,
+        btcTx,
+        blockHeaderHash,
+        partialMerkleTree,
+        merkleBranchHashes
+      ), "LBC067");
+  });
+
+  it("Should fail on refundPegout if btc tx doesn't have correct destination", async () => {
+    const blockHeaderHash = "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326";
+    const partialMerkleTree = "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb426";
+    const merkleBranchHashes = [
+      "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326",
+    ];
+    let quote = utils.getTestPegOutQuote(
+      instance.address, //lbc address
+      liquidityProviderRskAddress,
+      accounts[2],
+      web3.utils.toBN(1)
+    );
+    quote.transferConfirmations = 0;
+    quote.deposityAddress = "0x000000000000000000000000000000000000000000"; // any wrong destination
+
+    // configure mocked block on mockBridge
+    const firstConfirmationTime = utils.reverseHexBytes(
+      web3.utils.toHex(quote.agreementTimestamp + 300).substring(2)
+    );
+    const firstHeader =
+      "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" +
+    firstConfirmationTime +
+      "0000000000000000";
+    await bridgeMockInstance.setHeaderByHash(blockHeaderHash, firstHeader);
+
+    const msgValue = quote.value.add(quote.callFee);
+    const pegOut = await instance.depositPegout(quote, {
+      value: msgValue.toNumber()
+    });
+    await truffleAssertions.eventEmitted(pegOut, "PegOutDeposit");
+    const btcTx = await utils.generateRawTx(instance, quote);
+
+    await truffleAssertions.reverts(
+      instance.refundPegOut(
+        quote,
+        btcTx,
+        blockHeaderHash,
+        partialMerkleTree,
+        merkleBranchHashes
+      ), "LBC068");
+  });
+
 });

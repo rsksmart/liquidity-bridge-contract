@@ -268,8 +268,6 @@ contract('LiquidityBridgeContract', async accounts => {
       value: web3.utils.toWei("30000", "wei"),
       from: liquidityProviderRskAddress,
     });
-    const btcTxHash =
-      "0xa0cad11b688340cfbb8515d4deb7d37a8c67ea70a938578295f28b6cd8b5aade";
     const blockHeaderHash =
       "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326";
     const partialMerkleTree =
@@ -302,10 +300,11 @@ contract('LiquidityBridgeContract', async accounts => {
       firstConfirmationTime +
       "0000000000000000";
     await bridgeMockInstance.setHeaderByHash(blockHeaderHash, firstHeader);
+    const btcTx = await utils.generateRawTx(instance, quote);
 
     const refund = await instance.refundPegOut(
       quote,
-      btcTxHash,
+      btcTx,
       blockHeaderHash,
       partialMerkleTree,
       merkleBranchHashes

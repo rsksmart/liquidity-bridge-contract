@@ -67,7 +67,7 @@ function getTestPegOutQuote(lbcAddress, lpRskAddress, rskRefundAddress, value) {
     callFee,
     penaltyFee,
     nonce,
-    deposityAddress: "0x000000000000000000000000000000000000000000",
+    deposityAddress: "0x6d6d3242384555765a425a556934426d42774e324d3752776756425a364263565955",
     gasLimit: 21000,
     value: valueToTransfer,
     agreementTimestamp,
@@ -128,6 +128,12 @@ function reverseHexBytes(hexStr) {
 const LP_COLLATERAL = web3.utils.toBN(100);
 const ONE_COLLATERAL = web3.utils.toBN(1);
 
+async function generateRawTx(lbc, quote) {
+  const quoteHash = await lbc.hashPegoutQuote(quote);
+  const btcTx = `0x0100000001013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40000000006a47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4ffffffff0200000000000000001976a9143c5f66fe733e0ad361805b3053f23212e5755c8d88ac0000000000000000226a20${quoteHash.slice(2)}00000000`;
+  return web3.utils.hexToBytes(btcTx)
+}
+
 module.exports = {
   getTestQuote,
   getTestPegOutQuote,
@@ -137,4 +143,5 @@ module.exports = {
   ONE_COLLATERAL,
   timeout,
   reverseHexBytes,
+  generateRawTx
 };

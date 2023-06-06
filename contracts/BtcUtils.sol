@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.3;
 
+/**
+ * @title BtcUtils
+ * @notice This library is based in this document https://developer.bitcoin.org/reference/transactions.html#raw-transaction-format
+ */
 library BtcUtils {
     bytes constant private ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
     uint8 private constant MAX_COMPACT_SIZE_LENGTH = 252;
