@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.3;
 
+/**
+ * @title BtcUtils
+ * @notice This library is based in this document https://developer.bitcoin.org/reference/transactions.html#raw-transaction-format
+ */
 library BtcUtils {
     bytes constant private ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
     uint8 private constant MAX_COMPACT_SIZE_LENGTH = 252;
@@ -33,8 +37,8 @@ library BtcUtils {
     function getOutputs(bytes calldata rawTx) public pure returns (TxRawOutput[] memory) {
         uint currentPosition = 4;
         
-        (uint64 inputCount, uint16 inputCountSize) = parseCompactSizeInt(++currentPosition, rawTx);
-        currentPosition += inputCountSize;
+        (uint64 inputCount, uint16 inputCountSize) = parseCompactSizeInt(currentPosition, rawTx);
+        currentPosition += inputCountSize + 1;
 
         uint64 scriptLarge;
         uint16 scriptLargeSize;
