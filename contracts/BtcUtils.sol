@@ -37,8 +37,8 @@ library BtcUtils {
     function getOutputs(bytes calldata rawTx) public pure returns (TxRawOutput[] memory) {
         uint currentPosition = 4;
         
-        (uint64 inputCount, uint16 inputCountSize) = parseCompactSizeInt(++currentPosition, rawTx);
-        currentPosition += inputCountSize;
+        (uint64 inputCount, uint16 inputCountSize) = parseCompactSizeInt(currentPosition, rawTx);
+        currentPosition += inputCountSize + 1;
 
         uint64 scriptLarge;
         uint16 scriptLargeSize;
