@@ -195,7 +195,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         uint _providerId,
         bool status
     ) public onlyOwnerAndProvider(_providerId) {
-        require(status == true || status == false, "LBC006");
         liquidityProviders[_providerId].status = status;
     }
 
