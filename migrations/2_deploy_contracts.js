@@ -6,7 +6,9 @@ const LiquidityBridgeContract = artifacts.require("LiquidityBridgeContract");
 const Mock = artifacts.require("Mock");
 const BridgeMock = artifacts.require("BridgeMock");
 const SignatureValidator = artifacts.require("SignatureValidator");
+const Quotes = artifacts.require("Quotes");
 const SignatureValidatorMock = artifacts.require("SignatureValidatorMock");
+const BtcUtils = artifacts.require("BtcUtils");
 
 const RSK_NETWORK_MAINNET = "rskMainnet";
 const RSK_NETWORK_TESTNET = "rskTestnet";
@@ -27,10 +29,12 @@ const REWARD_PERCENTAGE = 10;
 const RESIGN_DELAY_BLOCKS = 1;
 const DUST_THRESHOLD = 2300 * 65164000;
 const MAX_QUOTE_VALUE = web3.utils.toBN("1000000000000000000"); // amount in wei
+const BTC_BLOCK_TIME = 5400; // the 5400 addition is to give 1.5h to the tx to be mined
 const { deploy, read } = require("../config");
 
 module.exports = async function (deployer, network) {
   let minimumPegIn, bridgeAddress;
+  const mainnet = network === RSK_NETWORK_MAINNET;
   if (RSK_NETWORKS.includes(network)) {
     // deploy to actual networks so don't use mocks and use existing bridge.
     bridgeAddress = RSK_BRIDGE_ADDRESS;
@@ -39,6 +43,20 @@ module.exports = async function (deployer, network) {
       await deployer.deploy(SignatureValidator);
       await deployer.link(SignatureValidator, LiquidityBridgeContract);
       const response = await SignatureValidator.deployed();
+      state.address = response.address;
+    });
+
+    await deploy("Quotes", network, async (state) => {
+      await deployer.deploy(Quotes);
+      await deployer.link(Quotes, LiquidityBridgeContract);
+      const response = await Quotes.deployed();
+      state.address = response.address;
+    });
+
+    await deploy("BtcUtils", network, async (state) => {
+      await deployer.deploy(BtcUtils);
+      await deployer.link(BtcUtils, LiquidityBridgeContract);
+      const response = await BtcUtils.deployed();
       state.address = response.address;
     });
 
@@ -66,6 +84,20 @@ module.exports = async function (deployer, network) {
       state.address = signatureValidatorMockInstance.address;
     });
 
+    await deploy("Quotes", network, async (state) => {
+      await deployer.deploy(Quotes);
+      const quotesInstance = await Quotes.deployed();
+      await LiquidityBridgeContract.link("Quotes", quotesInstance.address);
+      state.address = quotesInstance.address;
+    });
+
+    await deploy("BtcUtils", network, async (state) => {
+      await deployer.deploy(BtcUtils);
+      const btcUtilsInstance = await BtcUtils.deployed();
+      await LiquidityBridgeContract.link("BtcUtils", btcUtilsInstance.address);
+      state.address = btcUtilsInstance.address;
+    });
+
     minimumPegIn = 2;
   }
 
@@ -75,6 +107,18 @@ module.exports = async function (deployer, network) {
       config[network]["SignatureValidator"].address
     );
     await deployer.link(signatureValidatorLib, LiquidityBridgeContract);
+
+    const quotesLib = await Quotes.at(
+      config[network]["Quotes"].address
+    );
+    await deployer.link(quotesLib, LiquidityBridgeContract);
+
+    const btcUtilsLib = await BtcUtils.at(
+      config[network]["BtcUtils"].address
+    );
+    await deployer.link(btcUtilsLib, LiquidityBridgeContract);
+
+    
     const response = await deployProxy(
       LiquidityBridgeContract,
       [
@@ -85,6 +129,8 @@ module.exports = async function (deployer, network) {
         RESIGN_DELAY_BLOCKS,
         DUST_THRESHOLD,
         MAX_QUOTE_VALUE,
+        BTC_BLOCK_TIME,
+        mainnet
       ],
       {
         deployer,
