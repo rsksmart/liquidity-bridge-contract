@@ -28,7 +28,7 @@
     "solidity-coverage": "^0.8.2"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^4.8.0",
+    "@openzeppelin/contracts": "^4.9.1",
     "@truffle/hdwallet-provider": "^2.1.3",
     "chai": "^4.3.4",
     "chai-bn": "^0.3.0",
