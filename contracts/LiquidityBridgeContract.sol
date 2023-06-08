@@ -94,8 +94,9 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     event PegOutRefunded(bytes32 quoteHash);
     event PegOutDeposit(
         bytes32 quoteHash,
-        uint256 amount,
-        uint256 timestamp
+        address indexed sender,
+        uint256 indexed amount,
+        uint256 indexed timestamp
     );
     event PegOutUserRefunded(
         bytes32 quoteHash,
@@ -735,7 +736,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         require(registeredQuote.lbcAddress == address(0), "LBC028");
         registeredPegoutQuotes[quoteHash] = quote;
         pegoutRegistry[quoteHash].depositTimestamp = block.timestamp;
-        emit PegOutDeposit(quoteHash, msg.value, block.timestamp);
+        emit PegOutDeposit(quoteHash, msg.sender , msg.value, block.timestamp);
     }
 
     function refundUserPegOut(
