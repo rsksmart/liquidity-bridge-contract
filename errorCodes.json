@@ -61,5 +61,11 @@
     "LBC060": "N block height invalid",
     "LBC061": "Invalid header length",
     "LBC062": "Slicing out of range",
-    "LBC063": "Not enough value"
-    }
+    "LBC063": "Not enough value",
+    "LBC064": "Pegout finalized",
+    "LBC065": "Deposit date limit expired",
+    "LBC066": "Invalid parameters, quote or quoteHash",
+    "LBC067": "Invalid amount for bitcoin transaction",
+    "LBC068": "Invalid destination for bitcoin transaction",
+    "LBC069": "Quote is not related to transaction"
+}
