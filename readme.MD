@@ -1,6 +1,8 @@
 # Liquidity Bridge Contract
 
-The Liquidity Bridge Contract (LBC) manages the interaction between users and liquidity providers (LP) in order to achieve fast peg-ins. The process is as follows:
+The Liquidity Bridge Contract (LBC) manages the interaction between users and liquidity providers (LP) in order to achieve fast peg-ins and peg-outs.
+
+## PegIn process
 
 1. A user and an LP agree on the conditions of the service
 2. The user makes a deposit in BTC
@@ -9,84 +11,22 @@ The Liquidity Bridge Contract (LBC) manages the interaction between users and li
 
 Note that the call performed by the LP can be a transfer of value to an account or a call to a contract method. This is specified by the ``value`` and ``data`` arguments of the call.
 
-## Error Codes
+## PegOut process
 
-- <b>LBC001</b>: Not registered
-- <b>LBC002</b>: Reentrant call
-- <b>LBC003</b>: Not EOA
-- <b>LBC004</b>: Invalid reward percentage
-- <b>LBC005</b>: Not owner or provider
-- <b>LBC006</b>: Invalid Status
-- <b>LBC007</b>: Not allowed
-- <b>LBC008</b>: Not enough collateral
-- <b>LBC009</b>: Withdraw collateral first
-- <b>LBC010</b>: Name must not be empty
-- <b>LBC011</b>: Fee must be greater than 0
-- <b>LBC012</b>: Quote expiration must be greater than 0
-- <b>LBC013</b>: Accepted quote expiration must be greater than 0
-- <b>LBC014</b>: Min transaction value must be greater than 0
-- <b>LBC015</b>: Max transaction value must be greater than min transaction value
-- <b>LBC016</b>: Max transaction value can't be higher than maximum quote value
-- <b>LBC017</b>: API base URL must not be empty
-- <b>LBC018</b>: Invalid provider type
-- <b>LBC019</b>: Insufficient funds
-- <b>LBC020</b>: Sending funds failed
-- <b>LBC021</b>: Need to resign first
-- <b>LBC022</b>: Not enough blocks
-- <b>LBC023</b>: Already resigned
-- <b>LBC024</b>: Unauthorized
-- <b>LBC025</b>: Quote already processed
-- <b>LBC026</b>: Insufficient gas
-- <b>LBC027</b>: Block timestamp overflow
-- <b>LBC028</b>: Quote already registered
-- <b>LBC029</b>: Invalid signature
-- <b>LBC030</b>: Height must be lower than 2^31
-- <b>LBC031</b>: Error -303: Failed to validate BTC transaction
-- <b>LBC032</b>: Error -302: Transaction already processed
-- <b>LBC033</b>: Error -304: Transaction value is zero
-- <b>LBC034</b>: Error -305: Transaction UTXO value is below the minimum
-- <b>LBC035</b>: Error -900: Bridge error
-- <b>LBC036</b>: Unknown Bridge error
-- <b>LBC037</b>: Provider not registered
-- <b>LBC038</b>: LBC: Quote already refunded
-- <b>LBC039</b>: LBC: Block height overflown
-- <b>LBC040</b>: LBC: Quote already pegged out
-- <b>LBC041</b>: LBC: Quote not expired yet
-- <b>LBC042</b>: LBC: Deposit not found
-- <b>LBC043</b>: LBC: Quote already refunded
-- <b>LBC044</b>: LBC: Error on refund user
-- <b>LBC045</b>: LBC: Quote not processed
-- <b>LBC046</b>: LBC: Quote expired by date
-- <b>LBC047</b>: LBC: Quote expired by blocks
-- <b>LBC048</b>: LBC: Wrong sender
-- <b>LBC049</b>: LBC: Don't have required confirmations
-- <b>LBC050</b>: Failed to send refund to LP address
-- <b>LBC051</b>: Wrong LBC address
-- <b>LBC052</b>: Bridge is not an accepted contract address
-- <b>LBC053</b>: BTC refund address must be 21 or 33 bytes long
-- <b>LBC054</b>: BTC LP address must be 21 bytes long
-- <b>LBC055</b>: Too low agreed amount
-- <b>LBC056</b>: Wrong LBC address
-- <b>LBC057</b>: Too low transferred amount
-- <b>LBC058</b>: Invalid block height
-- <b>LBC059</b>: 1st block height invalid
-- <b>LBC060</b>: N block height invalid
-- <b>LBC061</b>: invalid header length
-- <b>LBC062</b>: slicing out of range
-- <b>LBC063</b>: Not enough value
-- <b>LBC064</b>: Pegout finalized
-- <b>LBC065</b>: Deposit date limit expired
-- <b>LBC066</b>: Invalid parameters, quote or quoteHash
-- <b>LBC067</b>: Invalid amount for bitcoin transaction
-- <b>LBC068</b>: Invalid destination for bitcoin transaction
-- <b>LBC069</b>: Quote is not related to transaction 
+1. A user and an LP agree on the conditions of the service
+2. The user sends RBTC to the LBC using depositPegout function
+3. After a number of confirmations, the LP makes a deposit in the Bitcoin address specified by user
+4. After the deposit achieves a number of additional confirmations, the LP calls refundPegout function in LBC so the contract refunds the LP in RBTC and pay him for the service
+5. Once the LP has been refunded with RBTC he sends that RBTC to the Bridge contract to convert it to BTC and get the liquidity back
 
 
 ## Quote
+The quote structure defines the conditions of a service, and acts as a contract between users and LPs.
 
-The quote structure defines the conditions of a service, and acts as a contract between users and LPs. Quotes consist of:
+### PegIn Quote
+PegIn Quotes consist of:
 
-    Quote {
+    PeginQuote {
         bytes20 fedBtcAddress;                  // the BTC address of the Powpeg
         address lbcAddress;                     // the address of the LBC
         address liquidityProviderRskAddress;    // the RSK address of the LP
@@ -105,6 +45,29 @@ The quote structure defines the conditions of a service, and acts as a contract 
         uint callTime;                          // the time (in seconds) that the LP has to perform the call on behalf of the user after the deposit achieves the number of confirmations
         uint depositConfirmations;              // the number of confirmations that the LP requires before making the call
         bool callOnRegister:                    // a boolean value indicating whether the callForUser can be called on registerPegIn.
+    }
+
+PegOut Quotes consist of:
+
+    PegOutQuote {
+        address lbcAddress;                     // the address of the LBC
+        address lpRskAddress;                   // the RSK address of the LP
+        bytes btcRefundAddress;                 // a user BTC refund address
+        address rskRefundAddress;               // a user RSK refund address 
+        bytes lpBtcAddress;                     // the BTC address of the LP
+        uint callFee;                           // the fee charged by the LP
+        uint penaltyFee;                        // the penalty that the LP pays if it fails to deliver the service
+        uint nonce;                             // a nonce that uniquely identifies this quote
+        bytes deposityAddress;                  // the destination address of the peg-out
+        uint gasLimit;                          // the gas limit
+        uint value;                             // the value in btc to transfer
+        uint agreementTimestamp;                // the timestamp of the agreement
+        uint depositDateLimit                 // the limit timestamp for the user to do the deposit
+        uint depositConfirmations;              // the number of confirmations that the LP requires before making the call
+        uint transferConfirmations;             // the number of confirmations that the BTC transfer requires to be refunded
+        uint transferTime;                      // the time (in seconds) that the LP has to transfer on behalf of the user after the deposit achieves the number of confirmations
+        uint expireDate;                      // the timestamp to consider the quote expired
+        uint expireBlock;                     // the block number to consider the quote expired
     }
 
 ## ABI Signature
@@ -219,8 +182,8 @@ Used by LPs to withdraw funds
 
 ### **refundPegOut**
     function refundPegOut(
-        PegOutQuote memory quote,
-        bytes32 btcTxHash,
+        PegOutQuote calldata quote,
+        bytes calldata btcTx,
         bytes32 btcBlockHeaderHash,
         uint256 partialMerkleTree,
         bytes32[] memory merkleBranchHashes
@@ -228,7 +191,7 @@ Used by LPs to withdraw funds
 Validates that the LP made the deposit of the service and applies the corresponding punishments if any apply
 #### Parametets
     * quote: the pegout quote representing the service
-    * btcTxHash: hash of the btc transaction where the LP sent the value to the user
+    * btcTx: raw btc transaction
     * btcBlockHeaderHash: header of the block where the transaction was included
     * partialMerkleTree: PMT to validate transaction
     * merkleBranchHashes: merkleBranchHashes used by the bridge to validate transaction
@@ -243,20 +206,9 @@ Allows user to get his money back if LP didn't made the BTC deposit
     * quote: the pegout quote to be refunded
     * signature: signature provided to user when quote was accepted
 
-### **registerPegOut**
-    function registerPegOut(
-        PegOutQuote memory quote,
-        bytes memory signature
-    ) public
-Registers a pegout quote as accepted in the contract
-#### Parametets
-    * quote: the pegout quote to be registered
-    * signature: signature provided to user when quote was accepted
-
 ### **depositPegout**
     function depositPegout(
-        bytes32 quoteHash,
-        address lpAddress
+        bytes32 quoteHash
     ) external payable
 Used by the user to deposit the payment of a pegout service
 #### Parametets

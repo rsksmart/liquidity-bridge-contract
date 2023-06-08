@@ -60,7 +60,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         string providerType;
     }
 
-    event Register(uint indexed id, address indexed from, uint256 amount);
+    event Register(uint id, address indexed from, uint256 amount);
     event Deposit(address from, uint256 amount);
     event CollateralIncrease(address from, uint256 amount);
     event PegoutCollateralIncrease(address from, uint256 amount);
