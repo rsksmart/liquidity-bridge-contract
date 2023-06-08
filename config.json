@@ -27,7 +27,7 @@
   },
   "rskRegtest": {
     "Migrations": {
-      "address": "0xbdd70Fc6395558B595b04Fc96636Aaf2D63caF7D",
+      "address": "0xdac5481925A298B95Bf5b54c35b68FC6fc2eF423",
       "deployed": true
     },
     "SafeMath": {
@@ -35,7 +35,7 @@
       "deployed": false
     },
     "SignatureValidator": {
-      "address": "0x3ae8cc4dC900e409591D316091F8657aE1653fB1",
+      "address": "0xeFb80DB9E2d943A492Bd988f4c619495cA815643",
       "deployed": true
     },
     "LiquidityBridgeContractAdmin": {
@@ -43,11 +43,19 @@
       "deployed": true
     },
     "LiquidityBridgeContract": {
-      "address": "0x26eD623F6D42E4e2054Bb82AC336ae152A0CdCc9",
+      "address": "0xA66939ac57893C2E65425a5D66099Bc20C76D4CD",
       "deployed": true
     },
     "LiquidityBridgeContractProxy": {
       "address": "0x1eD614cd3443EFd9c70F04b6d777aed947A4b0c4",
+      "deployed": true
+    },
+    "Quotes": {
+      "address": "0x463F29B11503e198f6EbeC9903b4e5AaEddf6D29",
+      "deployed": true
+    },
+    "BtcUtils": {
+      "address": "0x987c1f13d417F7E04d852B44badc883E4E9782e1",
       "deployed": true
     }
   }

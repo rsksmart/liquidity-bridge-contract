@@ -40,9 +40,8 @@ contract("LiquidityBridgeContract", async (accounts) => {
       "First contract",
       10,
       7200,
-      3600,
-      10,
       100,
+      150,
       "http://localhost/api",
       true,
       'both',
@@ -58,9 +57,8 @@ contract("LiquidityBridgeContract", async (accounts) => {
       "First contract",
       10,
       7200,
-      3600,
-      10,
       100,
+      150,
       "http://localhost/api",
       true,
       'both',
@@ -153,7 +151,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
         partialMerkleTree,
         height
       ),
-      "Too low transferred amount"
+      "LBC057"
     );
   });
 
@@ -374,28 +372,28 @@ contract("LiquidityBridgeContract", async (accounts) => {
         partialMerkleTree,
         height
       ),
-      "Too low transferred amount"
+      "LBC057"
     );
   });
 
   it("should validate reward percentage arg in initialize", async () => {
     let instance = await LiquidityBridgeContract.new();
     const MAX_QUOTE_VALUE = web3.utils.toBN("1000000000000000000")
-    await instance.initialize(bridgeMockInstance.address, 1, 1, 0, 1, 1, MAX_QUOTE_VALUE);
+    await instance.initialize(bridgeMockInstance.address, 1, 1, 0, 1, 1, MAX_QUOTE_VALUE, 1, false);
     instance = await LiquidityBridgeContract.new();
-    await instance.initialize(bridgeMockInstance.address, 1, 1, 0, 1, 1, MAX_QUOTE_VALUE);
+    await instance.initialize(bridgeMockInstance.address, 1, 1, 0, 1, 1, MAX_QUOTE_VALUE, 1, false);
     instance = await LiquidityBridgeContract.new();
-    await instance.initialize(bridgeMockInstance.address, 1, 1, 1, 1, 1, MAX_QUOTE_VALUE);
+    await instance.initialize(bridgeMockInstance.address, 1, 1, 1, 1, 1, MAX_QUOTE_VALUE, 1, false);
     instance = await LiquidityBridgeContract.new();
-    await instance.initialize(bridgeMockInstance.address, 1, 1, 99, 1, 1, MAX_QUOTE_VALUE);
+    await instance.initialize(bridgeMockInstance.address, 1, 1, 99, 1, 1, MAX_QUOTE_VALUE, 1, false);
     instance = await LiquidityBridgeContract.new();
-    await instance.initialize(bridgeMockInstance.address, 1, 1, 100, 1, 1, MAX_QUOTE_VALUE);
+    await instance.initialize(bridgeMockInstance.address, 1, 1, 100, 1, 1, MAX_QUOTE_VALUE, 1, false);
     await truffleAssert.fails(
-      instance.initialize(bridgeMockInstance.address, 1, 1, 100, 1, 1, MAX_QUOTE_VALUE)
+      instance.initialize(bridgeMockInstance.address, 1, 1, 100, 1, 1, MAX_QUOTE_VALUE, 1, false)
     );
     instance = await LiquidityBridgeContract.new();
     await truffleAssert.fails(
-      instance.initialize(bridgeMockInstance.address, 1, 1, 101, 1, 1, MAX_QUOTE_VALUE)
+      instance.initialize(bridgeMockInstance.address, 1, 1, 101, 1, 1, MAX_QUOTE_VALUE, 1, false)
     );
   });
 
@@ -419,15 +417,15 @@ contract("LiquidityBridgeContract", async (accounts) => {
 
     await truffleAssertions.reverts(
       instance.getBtcBlockTimestamp(btcHeaderEmpty),
-      "invalid header length"
+      "LBC061"
     );
     await truffleAssertions.reverts(
       instance.getBtcBlockTimestamp(btcHeader79),
-      "invalid header length"
+      "LBC061"
     );
     await truffleAssertions.reverts(
       instance.getBtcBlockTimestamp(btcHeader81),
-      "invalid header length"
+      "LBC061"
     );
   });
 });

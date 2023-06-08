@@ -1,6 +1,8 @@
 # Liquidity Bridge Contract
 
-The Liquidity Bridge Contract (LBC) manages the interaction between users and liquidity providers (LP) in order to achieve fast peg-ins. The process is as follows:
+The Liquidity Bridge Contract (LBC) manages the interaction between users and liquidity providers (LP) in order to achieve fast peg-ins and peg-outs.
+
+## PegIn process
 
 1. A user and an LP agree on the conditions of the service
 2. The user makes a deposit in BTC
@@ -9,11 +11,22 @@ The Liquidity Bridge Contract (LBC) manages the interaction between users and li
 
 Note that the call performed by the LP can be a transfer of value to an account or a call to a contract method. This is specified by the ``value`` and ``data`` arguments of the call.
 
+## PegOut process
+
+1. A user and an LP agree on the conditions of the service
+2. The user sends RBTC to the LBC using depositPegout function
+3. After a number of confirmations, the LP makes a deposit in the Bitcoin address specified by user
+4. After the deposit achieves a number of additional confirmations, the LP calls refundPegout function in LBC so the contract refunds the LP in RBTC and pay him for the service
+5. Once the LP has been refunded with RBTC he sends that RBTC to the Bridge contract to convert it to BTC and get the liquidity back
+
+
 ## Quote
+The quote structure defines the conditions of a service, and acts as a contract between users and LPs.
 
-The quote structure defines the conditions of a service, and acts as a contract between users and LPs. Quotes consist of:
+### PegIn Quote
+PegIn Quotes consist of:
 
-    Quote {
+    PeginQuote {
         bytes20 fedBtcAddress;                  // the BTC address of the Powpeg
         address lbcAddress;                     // the address of the LBC
         address liquidityProviderRskAddress;    // the RSK address of the LP
@@ -32,6 +45,29 @@ The quote structure defines the conditions of a service, and acts as a contract 
         uint callTime;                          // the time (in seconds) that the LP has to perform the call on behalf of the user after the deposit achieves the number of confirmations
         uint depositConfirmations;              // the number of confirmations that the LP requires before making the call
         bool callOnRegister:                    // a boolean value indicating whether the callForUser can be called on registerPegIn.
+    }
+
+PegOut Quotes consist of:
+
+    PegOutQuote {
+        address lbcAddress;                     // the address of the LBC
+        address lpRskAddress;                   // the RSK address of the LP
+        bytes btcRefundAddress;                 // a user BTC refund address
+        address rskRefundAddress;               // a user RSK refund address 
+        bytes lpBtcAddress;                     // the BTC address of the LP
+        uint callFee;                           // the fee charged by the LP
+        uint penaltyFee;                        // the penalty that the LP pays if it fails to deliver the service
+        uint nonce;                             // a nonce that uniquely identifies this quote
+        bytes deposityAddress;                  // the destination address of the peg-out
+        uint gasLimit;                          // the gas limit
+        uint value;                             // the value in btc to transfer
+        uint agreementTimestamp;                // the timestamp of the agreement
+        uint depositDateLimit                 // the limit timestamp for the user to do the deposit
+        uint depositConfirmations;              // the number of confirmations that the LP requires before making the call
+        uint transferConfirmations;             // the number of confirmations that the BTC transfer requires to be refunded
+        uint transferTime;                      // the time (in seconds) that the LP has to transfer on behalf of the user after the deposit achieves the number of confirmations
+        uint expireDate;                      // the timestamp to consider the quote expired
+        uint expireBlock;                     // the block number to consider the quote expired
     }
 
 ## ABI Signature
@@ -89,7 +125,6 @@ Checks whether a liquidity provider can deliver a pegout service
             string memory _name,
             uint _fee,
             uint _quoteExpiration,
-            uint _acceptedQuoteExpiration,
             uint _minTransactionValue,
             uint _maxTransactionValue,
             string memory _apiBaseUrl,
@@ -101,7 +136,6 @@ Registers msg.sender as a liquidity provider with msg.value as collateral
     * name: name of the LP
     * fee: fee that LP charges for this service
     * quoteExpiration: time to accept the quotes of this LP 
-    * acceptedQuoteExpiration: time to deposit the accepted quotes of this LP
     * minTransactionValue: miminum value to get quotes from this LP
     * maxTransactionValue: maximum value to get quotes from this LP
     * apiBaseUrl: url of this LP's Liquidity Provider Server instance
@@ -148,8 +182,8 @@ Used by LPs to withdraw funds
 
 ### **refundPegOut**
     function refundPegOut(
-        PegOutQuote memory quote,
-        bytes32 btcTxHash,
+        PegOutQuote calldata quote,
+        bytes calldata btcTx,
         bytes32 btcBlockHeaderHash,
         uint256 partialMerkleTree,
         bytes32[] memory merkleBranchHashes
@@ -157,7 +191,7 @@ Used by LPs to withdraw funds
 Validates that the LP made the deposit of the service and applies the corresponding punishments if any apply
 #### Parametets
     * quote: the pegout quote representing the service
-    * btcTxHash: hash of the btc transaction where the LP sent the value to the user
+    * btcTx: raw btc transaction
     * btcBlockHeaderHash: header of the block where the transaction was included
     * partialMerkleTree: PMT to validate transaction
     * merkleBranchHashes: merkleBranchHashes used by the bridge to validate transaction
@@ -172,20 +206,9 @@ Allows user to get his money back if LP didn't made the BTC deposit
     * quote: the pegout quote to be refunded
     * signature: signature provided to user when quote was accepted
 
-### **registerPegOut**
-    function registerPegOut(
-        PegOutQuote memory quote,
-        bytes memory signature
-    ) public
-Registers a pegout quote as accepted in the contract
-#### Parametets
-    * quote: the pegout quote to be registered
-    * signature: signature provided to user when quote was accepted
-
 ### **depositPegout**
     function depositPegout(
-        bytes32 quoteHash,
-        address lpAddress
+        bytes32 quoteHash
     ) external payable
 Used by the user to deposit the payment of a pegout service
 #### Parametets
