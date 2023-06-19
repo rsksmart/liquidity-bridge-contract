@@ -742,7 +742,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     function refundUserPegOut(
         Quotes.PegOutQuote memory quote,
         bytes memory signature
-    ) public {
+    ) public noReentrancy {
         bytes32 quoteHash = hashPegoutQuote(quote);
         Quotes.PegOutQuote storage registeredQuote = registeredPegoutQuotes[quoteHash];
 
@@ -759,10 +759,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
 
         uint valueToTransfer = quote.value + quote.callFee;
 
-        (bool sent,) = quote.rskRefundAddress.call{value: valueToTransfer}("");
-
-        require(sent, "LBC044");
-
         uint penalty = min(quote.penaltyFee, pegoutCollateral[quote.lpRskAddress]);
         pegoutCollateral[quote.lpRskAddress] -= penalty;
 
@@ -775,6 +771,9 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
 
         delete registeredPegoutQuotes[quoteHash];
         pegoutRegistry[quoteHash].completed = true;
+
+        (bool sent,) = quote.rskRefundAddress.call{value: valueToTransfer}("");
+        require(sent, "LBC044");
     }
 
     function refundPegOut(
