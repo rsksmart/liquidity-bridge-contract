@@ -801,14 +801,14 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         require(msg.sender == quote.lpRskAddress, "LBC048");
         require(
             bridge.getBtcTransactionConfirmations(
-                txQuoteHash,
+                BtcUtils.hashBtcTx(btcTx),
                 btcBlockHeaderHash,
                 partialMerkleTree,
                 merkleBranchHashes
             ) >= int(uint256(quote.transferConfirmations)),
             "LBC049"
         );
-        require(quote.value == outputs[PAY_TO_ADDRESS_OUTPUT].value, "LBC067");
+        require(quote.value == outputs[PAY_TO_ADDRESS_OUTPUT].value * (10**10), "LBC067"); // satoshi to wei
         bytes memory btcTxDestination = BtcUtils.parsePayToAddressScript(outputs[PAY_TO_ADDRESS_OUTPUT].pkScript, mainnet);
         require(keccak256(quote.deposityAddress) == keccak256(btcTxDestination), "LBC068");
 
