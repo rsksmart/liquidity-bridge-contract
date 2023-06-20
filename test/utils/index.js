@@ -67,7 +67,7 @@ function getTestPegOutQuote(lbcAddress, lpRskAddress, rskRefundAddress, value) {
     callFee,
     penaltyFee,
     nonce,
-    deposityAddress: "0x6d6d3242384555765a425a556934426d42774e324d3752776756425a364263565955",
+    deposityAddress: "0x6f3c5f66fe733e0ad361805b3053f23212e5755c8d",
     gasLimit: 21000,
     value: valueToTransfer,
     agreementTimestamp,

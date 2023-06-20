@@ -6,7 +6,6 @@ pragma solidity ^0.8.3;
  * @notice This library is based in this document https://developer.bitcoin.org/reference/transactions.html#raw-transaction-format
  */
 library BtcUtils {
-    bytes constant private ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
     uint8 private constant MAX_COMPACT_SIZE_LENGTH = 252;
     uint8 private constant OUTPOINT_SIZE = 36;
     uint8 private constant OUTPUT_VALUE_SIZE = 8;
@@ -108,10 +107,9 @@ library BtcUtils {
         }
 
         uint8 versionByte = mainnet? 0x00 : 0x6f;
-        bytes memory result = addChecksumAndVersionByte(bytes1(versionByte), destinationAddress);
+        bytes memory result = addVersionByte(bytes1(versionByte), destinationAddress);
 
-        
-        return encodeAddressToBase58(result);
+        return result;
     }
 
     function parseOpReturnOuput(bytes calldata outputScript) public pure returns (bytes memory) {
@@ -129,7 +127,7 @@ library BtcUtils {
         return message;
     }
 
-    function addChecksumAndVersionByte(bytes1 versionByte, bytes memory source) private pure returns (bytes memory) {
+    function addVersionByte(bytes1 versionByte, bytes memory source) private pure returns (bytes memory) {
         bytes memory dataWithVersion = new bytes(source.length + 1);
         dataWithVersion[0] = versionByte;
 
@@ -138,65 +136,7 @@ library BtcUtils {
             dataWithVersion[i + 1] = source[i];
         }
 
-        bytes memory result = new bytes(dataWithVersion.length + CHECK_BYTES_FROM_HASH);
-        bytes32 doubleSha256 = sha256(abi.encodePacked(sha256(dataWithVersion)));
-        assembly {
-            let len := mload(dataWithVersion)
-            let dataPtr := add(dataWithVersion, 0x20)
-
-            let resizedLen := mload(result)
-            let resizedDataPtr := add(result, 0x20)
-
-            let dataSize := sub(len, 0x20)
-            let remaining := add(dataSize, 0x20)
-            for { } gt(remaining, 0) { } {
-                let chunkSize := lt(remaining, 0x20)
-                mstore(resizedDataPtr, mload(dataPtr))
-                dataPtr := add(dataPtr, 0x20)
-                resizedDataPtr := add(resizedDataPtr, 0x20)
-                remaining := sub(remaining, chunkSize)
-            }
-        }
-    
-        for (i = 0; i < CHECK_BYTES_FROM_HASH; i++) {
-            result[result.length - (CHECK_BYTES_FROM_HASH - i)] = doubleSha256[i];
-        }
-        return result;
-    }
-
-    function encodeAddressToBase58(bytes memory data) private pure returns (bytes memory) {
-        unchecked {
-            uint256 size = data.length;
-            uint256 zeroCount;
-            while (zeroCount < size && data[zeroCount] == 0) {
-                zeroCount++;
-            }
-
-            size = 34; // length of P2PKH address
-            bytes memory slot = new bytes(size);
-            uint32 carry;
-            int256 m;
-            int256 high = int256(size) - 1;
-            for (uint256 i = 0; i < data.length; i++) {
-                m = int256(size - 1);
-                for (carry = uint8(data[i]); m > high || carry != 0; m--) {
-                    carry = carry + 256 * uint8(slot[uint256(m)]);
-                    slot[uint256(m)] = bytes1(uint8(carry % 58));
-                    carry /= 58;
-                }
-                high = m;
-            }
-
-            uint256 n;
-            for (n = zeroCount; n < size && slot[n] == 0; n++) {}
-            size = slot.length - (n - zeroCount);
-            bytes memory out = new bytes(size);
-            for (uint256 i = 0; i < size; i++) {
-                uint256 j = i + n - zeroCount;
-                out[i] = ALPHABET[uint8(slot[j])];
-            }
-            return out;
-        }
+        return dataWithVersion;
     }
 
     function hashBtcTx(bytes calldata btcTx) public pure returns (bytes32) {

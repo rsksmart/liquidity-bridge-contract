@@ -1266,7 +1266,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
     const firstTxOutputs = await btcUtils.getOutputs(firstRawTX);
 
     const firstQuoteHash = web3.utils.hexToAscii(await btcUtils.parseOpReturnOuput(firstTxOutputs[1].pkScript));
-    const firstDestinationAddress = web3.utils.hexToAscii(await btcUtils.parsePayToAddressScript(firstTxOutputs[0].pkScript, false));
+    const firstDestinationAddress = await btcUtils.parsePayToAddressScript(firstTxOutputs[0].pkScript, false);
     const firstValue = firstTxOutputs[0].value;
     const firstHash = await btcUtils.hashBtcTx(firstRawTX);
 
@@ -1274,17 +1274,17 @@ contract("LiquidityBridgeContract", async (accounts) => {
     const secondTxOutputs = await btcUtils.getOutputs(secondRawTX);
 
     const secondQuoteHash = web3.utils.hexToAscii(await btcUtils.parseOpReturnOuput(secondTxOutputs[1].pkScript));
-    const secondDestinationAddress = web3.utils.hexToAscii(await btcUtils.parsePayToAddressScript(secondTxOutputs[0].pkScript, true));
+    const secondDestinationAddress = await btcUtils.parsePayToAddressScript(secondTxOutputs[0].pkScript, true);
     const secondValue = secondTxOutputs[0].value;
     const secondHash = await btcUtils.hashBtcTx(secondRawTX);
 
     expect(firstQuoteHash).to.eq("984944d58092156c5a19d965b9a758502e6dbc2d9537315ebf489736314eb347");
-    expect(firstDestinationAddress).to.eq("mm2B8EUvZBZUi4BmBwN2M7RwgVBZ6BcVYU");
+    expect(firstDestinationAddress).to.eq("0x6f3c5f66fe733e0ad361805b3053f23212e5755c8d");
     expect(firstValue).to.eq("60000000");
     expect(firstHash).to.eq("0x03c4522ef958f724a7d2ffef04bd534d9eca74ffc0b28308797d2853bc323ba6");
 
     expect(secondQuoteHash).to.eq("e94a89712629bbc9fccd1f0c04a278c0e1052eb7626f93e9a7f1067b406f0576");
-    expect(secondDestinationAddress).to.eq("16WDqBPwkA8Dvwi9UNPeXCDcpVar7XdD9y");
+    expect(secondDestinationAddress).to.eq("0x003c5f66fe733e0ad361805b3053f23212e5755c8d");
     expect(secondValue).to.eq("70000000");
     expect(secondHash).to.eq("0xfd4251485dafe36aaa6766b38cf236b5925f23f12617daf286e0e92f73708aa3");
   });
