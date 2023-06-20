@@ -3,7 +3,8 @@ pragma solidity ^0.8.3;
 
 /**
  * @title BtcUtils
- * @notice This library is based in this document https://developer.bitcoin.org/reference/transactions.html#raw-transaction-format
+ * @notice This library is based in this document
+ * https://developer.bitcoin.org/reference/transactions.html#raw-transaction-format
  */
 library BtcUtils {
     uint8 private constant MAX_COMPACT_SIZE_LENGTH = 252;
@@ -59,7 +60,8 @@ library BtcUtils {
         return result;
     }
 
-    function calculateLittleEndianFragment(uint fragmentStart, uint fragmentEnd, bytes memory array) private pure returns (uint) {
+    function calculateLittleEndianFragment(uint fragmentStart, uint fragmentEnd, bytes memory array)
+        private pure returns (uint) {
         require(
             fragmentStart < array.length && fragmentEnd < array.length, 
             "Range can't be bigger than array"
@@ -121,7 +123,8 @@ library BtcUtils {
 
         bytes memory message = new bytes(uint8(outputScript[1]));
         for (uint8 i = 0; i < message.length; i++) {
-            // the addition of two is because the two first bytes correspond to the op_return opcode and the length of the message
+            // the addition of two is because the two first bytes correspond to
+            // the op_return opcode and the length of the message
             message[i] = outputScript[i + 2]; 
         }
         return message;

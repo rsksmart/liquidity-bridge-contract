@@ -13,29 +13,29 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
  */
 
 contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
-    uint16 constant MAX_CALL_GAS_COST = 35000;
-    uint16 constant MAX_REFUND_GAS_LIMIT = 2300;
+    uint16 constant public MAX_CALL_GAS_COST = 35000;
+    uint16 constant public MAX_REFUND_GAS_LIMIT = 2300;
 
-    uint8 constant UNPROCESSED_QUOTE_CODE = 0;
-    uint8 constant CALL_DONE_CODE = 1;
-    uint8 constant PROCESSED_QUOTE_CODE = 2;
+    uint8 constant public UNPROCESSED_QUOTE_CODE = 0;
+    uint8 constant public CALL_DONE_CODE = 1;
+    uint8 constant public PROCESSED_QUOTE_CODE = 2;
 
-    uint32 constant MAX_INT32 = 2147483647;
-    uint32 constant MAX_UINT32 = 4294967295;
+    uint32 constant public MAX_INT32 = 2147483647;
+    uint32 constant public MAX_UINT32 = 4294967295;
 
-    int16 constant BRIDGE_REFUNDED_USER_ERROR_CODE = - 100;
-    int16 constant BRIDGE_REFUNDED_LP_ERROR_CODE = - 200;
-    int16 constant BRIDGE_UNPROCESSABLE_TX_NOT_CONTRACT_ERROR_CODE = - 300;
-    int16 constant BRIDGE_UNPROCESSABLE_TX_INVALID_SENDER_ERROR_CODE = - 301;
-    int16 constant BRIDGE_UNPROCESSABLE_TX_ALREADY_PROCESSED_ERROR_CODE = - 302;
-    int16 constant BRIDGE_UNPROCESSABLE_TX_VALIDATIONS_ERROR = - 303;
-    int16 constant BRIDGE_UNPROCESSABLE_TX_VALUE_ZERO_ERROR = - 304;
-    int16 constant BRIDGE_UNPROCESSABLE_TX_UTXO_AMOUNT_SENT_BELOW_MINIMUM_ERROR =
+    int16 constant public BRIDGE_REFUNDED_USER_ERROR_CODE = - 100;
+    int16 constant public BRIDGE_REFUNDED_LP_ERROR_CODE = - 200;
+    int16 constant public BRIDGE_UNPROCESSABLE_TX_NOT_CONTRACT_ERROR_CODE = - 300;
+    int16 constant public BRIDGE_UNPROCESSABLE_TX_INVALID_SENDER_ERROR_CODE = - 301;
+    int16 constant public BRIDGE_UNPROCESSABLE_TX_ALREADY_PROCESSED_ERROR_CODE = - 302;
+    int16 constant public BRIDGE_UNPROCESSABLE_TX_VALIDATIONS_ERROR = - 303;
+    int16 constant public BRIDGE_UNPROCESSABLE_TX_VALUE_ZERO_ERROR = - 304;
+    int16 constant public BRIDGE_UNPROCESSABLE_TX_UTXO_AMOUNT_SENT_BELOW_MINIMUM_ERROR =
     - 305;
-    int16 constant BRIDGE_GENERIC_ERROR = - 900;
-    uint constant MAX_UINT = 2 ** 256 - 1;
-    uint constant PAY_TO_ADDRESS_OUTPUT = 0;
-    uint constant QUOTE_HASH_OUTPUT = 1;
+    int16 constant public BRIDGE_GENERIC_ERROR = - 900;
+    uint constant public MAX_UINT = 2 ** 256 - 1;
+    uint constant public PAY_TO_ADDRESS_OUTPUT = 0;
+    uint constant public QUOTE_HASH_OUTPUT = 1;
 
     struct Registry {
         uint32 timestamp;
@@ -104,7 +104,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         address userAddress
     );
 
-    Bridge bridge;
+    Bridge public bridge;
     mapping(address => uint256) private balances;
     mapping(address => uint256) private collateral;
     mapping(address => uint256) private pegoutCollateral;
@@ -119,7 +119,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     uint32 private resignDelayInBlocks;
     uint private dust;
     uint256 private maxQuoteValue;
-    uint providerId;
+    uint public providerId;
 
     bool private locked;
     uint private btcBlockTime;
@@ -155,8 +155,10 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         @param _bridgeAddress The address of the bridge contract
         @param _minimumCollateral The minimum required collateral for liquidity providers
         @param _minimumPegIn The minimum peg-in amount
-        @param _rewardPercentage The percentage of the penalty fee that an honest party receives when calling registerPegIn in case of a liquidity provider misbehaving
-        @param _resignDelayBlocks The number of block confirmations that a liquidity provider needs to wait before it can withdraw its collateral
+        @param _rewardPercentage The percentage of the penalty fee that an honest party
+        // receives when calling registerPegIn in case of a liquidity provider misbehaving
+        @param _resignDelayBlocks The number of block confirmations that a liquidity
+        // provider needs to wait before it can withdraw its collateral
         @param _dustThreshold Amount that is considered dust
      */
     function initialize(
@@ -639,7 +641,8 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             return transferredAmountOrErrorCode;
         }
 
-        // the amount is safely assumed positive because it's already been validated in lines 287/298 there's no (negative) error code being returned by the bridge.
+        // the amount is safely assumed positive because it's already been
+        // validated in lines 287/298 there's no (negative) error code being returned by the bridge.
         uint transferredAmount = uint(transferredAmountOrErrorCode);
 
         Quotes.checkAgreedAmount(quote, transferredAmount);
@@ -808,7 +811,8 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             "LBC049"
         );
         require(quote.value == outputs[PAY_TO_ADDRESS_OUTPUT].value * (10**10), "LBC067"); // satoshi to wei
-        bytes memory btcTxDestination = BtcUtils.parsePayToAddressScript(outputs[PAY_TO_ADDRESS_OUTPUT].pkScript, mainnet);
+        bytes memory btcTxDestination = BtcUtils.parsePayToAddressScript(outputs[PAY_TO_ADDRESS_OUTPUT]
+            .pkScript, mainnet);
         require(keccak256(quote.deposityAddress) == keccak256(btcTxDestination), "LBC068");
 
         if (
@@ -968,7 +972,8 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         );
 
         // do not penalize if deposit was not made on time
-        uint timeLimit = quote.agreementTimestamp + quote.timeForDeposit; // prevent overflow when collateral is less than penalty fee.
+        // prevent overflow when collateral is less than penalty fee.
+        uint timeLimit = quote.agreementTimestamp + quote.timeForDeposit;
         if (firstConfirmationTimestamp > timeLimit) {
             return false;
         }
@@ -1006,7 +1011,8 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         uint256 firstConfirmationTimestamp = getBtcBlockTimestamp(firstConfirmationHeader);
 
         // penalize if the transfer was not made on time
-        if (firstConfirmationTimestamp > pegoutRegistry[quoteHash].depositTimestamp + quote.transferTime + btcBlockTime) {
+        if (firstConfirmationTimestamp > pegoutRegistry[quoteHash].depositTimestamp +
+            quote.transferTime + btcBlockTime) {
             return true;
         }
 

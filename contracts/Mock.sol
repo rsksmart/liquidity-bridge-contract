@@ -5,7 +5,7 @@ import "./LiquidityBridgeContract.sol";
 
 contract Mock {
     int private status;
-    uint256 balance;
+    uint256 public balance;
 
     function set(int s) external payable {
         status = s;
