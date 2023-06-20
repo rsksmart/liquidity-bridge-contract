@@ -132,7 +132,8 @@ library Quotes {
     ) external pure {
         uint agreedAmount = quote.value + quote.callFee;
         uint delta = agreedAmount / 10000;
-        // transferred amount should not be lower than (agreed amount - delta), where delta is intended to tackle rounding problems
+        // transferred amount should not be lower than (agreed amount - delta),
+        // where delta is intended to tackle rounding problems
         require(
             transferredAmount >= agreedAmount - delta,
             "LBC057"
