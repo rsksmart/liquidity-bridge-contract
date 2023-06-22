@@ -15,6 +15,7 @@ const expect = chai.expect;
 contract("LiquidityBridgeContract", async (accounts) => {
   let instance;
   let bridgeMockInstance;
+  let mock;
   let signatureValidatorInstance;
   let btcUtils;
   const liquidityProviderRskAddress = accounts[0];
@@ -248,7 +249,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
   it("should call contract for user", async () => {
     let rskRefundAddress = accounts[2];
     let destAddr = mock.address;
-    let data = web3.eth.abi.encodeFunctionCall(mock.abi[0], ["12"]);
+    let data = web3.eth.abi.encodeFunctionCall(mock.abi[1], ["12"]);
     let quote = utils.getTestQuote(
       instance.address,
       destAddr,
@@ -386,7 +387,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
   it("should fail on contract call due to invalid lbc address", async () => {
     let rskRefundAddress = accounts[2];
     let destAddr = mock.address;
-    let data = web3.eth.abi.encodeFunctionCall(mock.abi[0], ["12"]);
+    let data = web3.eth.abi.encodeFunctionCall(mock.abi[1], ["12"]);
     let signature = "0x00";
     let btcRawTransaction = "0x101";
     let partialMerkleTree = "0x202";
@@ -425,7 +426,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
   it("should fail on contract call due to invalid contract address", async () => {
     let rskRefundAddress = accounts[2];
     let destAddr = bridgeMockInstance.address;
-    let data = web3.eth.abi.encodeFunctionCall(mock.abi[0], ["12"]);
+    let data = web3.eth.abi.encodeFunctionCall(mock.abi[1], ["12"]);
     let signature = "0x00";
     let btcRawTransaction = "0x101";
     let partialMerkleTree = "0x202";
@@ -464,7 +465,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
   it("should fail on contract call due to invalid user btc refund address", async () => {
     let rskRefundAddress = accounts[2];
     let destAddr = mock.address;
-    let data = web3.eth.abi.encodeFunctionCall(mock.abi[0], ["12"]);
+    let data = web3.eth.abi.encodeFunctionCall(mock.abi[1], ["12"]);
     let signature = "0x00";
     let btcRawTransaction = "0x101";
     let partialMerkleTree = "0x202";
@@ -509,7 +510,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
   it("should fail on contract call due to invalid lp btc address", async () => {
     let rskRefundAddress = accounts[2];
     let destAddr = mock.address;
-    let data = web3.eth.abi.encodeFunctionCall(mock.abi[0], ["12"]);
+    let data = web3.eth.abi.encodeFunctionCall(mock.abi[1], ["12"]);
     let signature = "0x00";
     let btcRawTransaction = "0x101";
     let partialMerkleTree = "0x202";
@@ -555,7 +556,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
   it("should fail on contract call due to quote value+fee being below min peg-in", async () => {
     let rskRefundAddress = accounts[2];
     let destAddr = mock.address;
-    let data = web3.eth.abi.encodeFunctionCall(mock.abi[0], ["12"]);
+    let data = web3.eth.abi.encodeFunctionCall(mock.abi[1], ["12"]);
     let signature = "0x00";
     let btcRawTransaction = "0x101";
     let partialMerkleTree = "0x202";
