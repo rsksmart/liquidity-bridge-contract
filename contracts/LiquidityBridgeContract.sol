@@ -727,16 +727,21 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         return transferredAmountOrErrorCode;
     }
 
-    function depositPegout(
-        Quotes.PegOutQuote calldata quote
+    function depositPegout( // TODO convert to calldata when contract size issues are fixed
+        Quotes.PegOutQuote memory quote,
+        bytes memory signature
     ) external payable {
         require(isRegisteredForPegout(quote.lpRskAddress), "LBC037");
         require(quote.value + quote.callFee <= msg.value, "LBC063");
         require(block.timestamp <= quote.depositDateLimit, "LBC065");
         require(block.timestamp <= quote.expireDate, "LBC046");
         require(block.number <= quote.expireBlock, "LBC047");
-
         bytes32 quoteHash = hashPegoutQuote(quote);
+        require(
+            SignatureValidator.verify(quote.lpRskAddress, quoteHash, signature),
+            "LBC029"
+        );
+
         Quotes.PegOutQuote storage registeredQuote = registeredPegoutQuotes[quoteHash];
 
         require(pegoutRegistry[quoteHash].completed == false, "LBC064");
@@ -747,21 +752,15 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     }
 
     function refundUserPegOut(
-        Quotes.PegOutQuote memory quote,
-        bytes memory signature
+        bytes32 quoteHash
     ) public noReentrancy {
-        bytes32 quoteHash = hashPegoutQuote(quote);
-        Quotes.PegOutQuote storage registeredQuote = registeredPegoutQuotes[quoteHash];
+        Quotes.PegOutQuote storage quote = registeredPegoutQuotes[quoteHash];
 
-        require(registeredQuote.lbcAddress != address(0), "LBC042");
+        require(quote.lbcAddress != address(0), "LBC042");
         require(
             block.timestamp > quote.expireDate &&
             block.number > quote.expireBlock,
             "LBC041"
-        );
-        require(
-            SignatureValidator.verify(quote.lpRskAddress, quoteHash, signature),
-            "LBC029"
         );
 
         uint valueToTransfer = quote.value + quote.callFee;
@@ -784,16 +783,15 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     }
 
     function refundPegOut(
-        Quotes.PegOutQuote calldata quote,
-        bytes calldata btcTx,
+        bytes32 quoteHash,
+        bytes memory btcTx, // TODO convert to calldata when contract size issues are fixed
         bytes32 btcBlockHeaderHash,
         uint256 partialMerkleTree,
         bytes32[] memory merkleBranchHashes
     ) public noReentrancy onlyRegisteredForPegout {
-        bytes32 quoteHash = validateAndHashPegOutQuote(quote);
         require(pegoutRegistry[quoteHash].completed == false, "LBC064");
-        Quotes.PegOutQuote storage registeredQuote = registeredPegoutQuotes[quoteHash];
-        require(registeredQuote.lbcAddress != address(0), "LBC042");
+        Quotes.PegOutQuote storage quote = registeredPegoutQuotes[quoteHash];
+        require(quote.lbcAddress != address(0), "LBC042");
         BtcUtils.TxRawOutput[] memory outputs = BtcUtils.getOutputs(btcTx);
         bytes32 txQuoteHash = abi.decode(BtcUtils.parseOpReturnOuput(outputs[QUOTE_HASH_OUTPUT].pkScript), (bytes32));
         require(quoteHash == txQuoteHash, "LBC069");

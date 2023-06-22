@@ -11,7 +11,8 @@
     "lint": "npx prettier --list-different 'contracts/**/*.sol' 'test/**/*.js' 'migrations/**/*.js'",
     "lint:sol": "solhint 'contracts/**/*.sol'",
     "deploy-regtest": "npm run lint:sol && npx truffle deploy --network rskRegtest",
-    "deploy-rskTestnet": "npm run lint:sol && npx truffle deploy --network rskTestnet"
+    "deploy-rskTestnet": "npm run lint:sol && npx truffle deploy --network rskTestnet",
+    "contract-size": "npx truffle run contract-size"
   },
   "repository": {
     "type": "git",
