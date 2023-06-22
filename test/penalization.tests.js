@@ -285,8 +285,10 @@ contract('LiquidityBridgeContract', async accounts => {
     quote.transferConfirmations = 0;
     quote.agreementTimestamp = Math.round(new Date().getTime() / 1000)
 
+    const quoteHash = await instance.hashPegoutQuote(quote);
+    const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
     const msgValue = quote.value.add(quote.callFee);
-    const pegOut = await instance.depositPegout(quote, { value: msgValue.toNumber() });
+    const pegOut = await instance.depositPegout(quote, signature, { value: msgValue.toNumber() });
     truffleAssert.eventEmitted(pegOut, "PegOutDeposit");
 
     const block = await web3.eth.getBlock("latest");
@@ -303,7 +305,7 @@ contract('LiquidityBridgeContract', async accounts => {
     const btcTx = await utils.generateRawTx(instance, quote);
 
     const refund = await instance.refundPegOut(
-      quote,
+      quoteHash,
       btcTx,
       blockHeaderHash,
       partialMerkleTree,
