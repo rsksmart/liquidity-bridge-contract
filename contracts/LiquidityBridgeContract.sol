@@ -374,7 +374,11 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
 
         for (uint i = 0; i < providerIds.length; i++) {
             uint id = providerIds[i];
-            if (isRegistered(liquidityProviders[id].provider) && liquidityProviders[id].status) {
+            if (
+                (isRegistered(liquidityProviders[id].provider) ||
+                isRegisteredForPegout(liquidityProviders[id].provider)) &&
+                liquidityProviders[id].status
+            ) {
                 providersToReturn[count] = liquidityProviders[id];
                 count++;
             }
@@ -787,19 +791,12 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         bytes32[] memory merkleBranchHashes
     ) public noReentrancy onlyRegisteredForPegout {
         bytes32 quoteHash = validateAndHashPegOutQuote(quote);
+        require(pegoutRegistry[quoteHash].completed == false, "LBC064");
         Quotes.PegOutQuote storage registeredQuote = registeredPegoutQuotes[quoteHash];
         require(registeredQuote.lbcAddress != address(0), "LBC042");
         BtcUtils.TxRawOutput[] memory outputs = BtcUtils.getOutputs(btcTx);
         bytes32 txQuoteHash = abi.decode(BtcUtils.parseOpReturnOuput(outputs[QUOTE_HASH_OUTPUT].pkScript), (bytes32));
         require(quoteHash == txQuoteHash, "LBC069");
-        require(
-            block.timestamp <= quote.expireDate,
-            "LBC046"
-        );
-        require(
-            block.number <= quote.expireBlock,
-            "LBC047"
-        );
         require(msg.sender == quote.lpRskAddress, "LBC048");
         require(
             bridge.getBtcTransactionConfirmations(
@@ -810,7 +807,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             ) >= int(uint256(quote.transferConfirmations)),
             "LBC049"
         );
-        require(quote.value == outputs[PAY_TO_ADDRESS_OUTPUT].value * (10**10), "LBC067"); // satoshi to wei
+        require(quote.value <= outputs[PAY_TO_ADDRESS_OUTPUT].value * (10**10), "LBC067"); // satoshi to wei
         bytes memory btcTxDestination = BtcUtils.parsePayToAddressScript(outputs[PAY_TO_ADDRESS_OUTPUT]
             .pkScript, mainnet);
         require(keccak256(quote.deposityAddress) == keccak256(btcTxDestination), "LBC068");
@@ -1013,6 +1010,11 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         // penalize if the transfer was not made on time
         if (firstConfirmationTimestamp > pegoutRegistry[quoteHash].depositTimestamp +
             quote.transferTime + btcBlockTime) {
+            return true;
+        }
+
+        // penalize if LP is refunding after expiration
+        if (block.timestamp > quote.expireDate || block.number > quote.expireBlock) {
             return true;
         }
 
