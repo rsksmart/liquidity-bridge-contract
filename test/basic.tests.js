@@ -1102,10 +1102,11 @@ contract("LiquidityBridgeContract", async (accounts) => {
 
     const quoteHash = await instance.hashPegoutQuote(quote);
     const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
+    const valueToDeposit = 500
     const tx = instance.depositPegout(
       quote,
       signature,
-      { value: 500 }
+      { value: valueToDeposit }
     );
 
     await truffleAssertions.reverts(tx, "LBC063");
@@ -1122,10 +1123,11 @@ contract("LiquidityBridgeContract", async (accounts) => {
     const quoteHash = await instance.hashPegoutQuote(quoteExpiredByBlocks);
     const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
     quoteExpiredByBlocks.expireBlock = await web3.eth.getBlock("latest").then(block => block.number - 1);
+    const valueToDeposit = 2000
     const revertByBlocks = instance.depositPegout(
       quoteExpiredByBlocks,
       signature,
-      { value: 2000 }
+      { value: valueToDeposit }
     );
 
     await truffleAssertions.reverts(revertByBlocks, "LBC047");
@@ -1140,7 +1142,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
     const revertByTime = instance.depositPegout(
       quoteExpiredByTime,
       signature,
-      { value: 2000 }
+      { value: valueToDeposit }
     );
 
     await truffleAssertions.reverts(revertByTime, "LBC046");
@@ -1157,7 +1159,8 @@ contract("LiquidityBridgeContract", async (accounts) => {
     quote.depositDateLimit = quote.agreementTimestamp;
     const quoteHash = await instance.hashPegoutQuote(quote);
     const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
-    const tx = instance.depositPegout(quote, signature, { value: 2000 });
+    const valueToDeposit = 2000
+    const tx = instance.depositPegout(quote, signature, { value: valueToDeposit });
 
     await truffleAssertions.reverts(tx, "LBC065");
   });
