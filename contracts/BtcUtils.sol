@@ -3,7 +3,8 @@ pragma solidity ^0.8.3;
 
 /**
  * @title BtcUtils
- * @notice This library is based in this document https://developer.bitcoin.org/reference/transactions.html#raw-transaction-format
+ * @notice This library is based in this document
+ * https://developer.bitcoin.org/reference/transactions.html#raw-transaction-format
  */
 library BtcUtils {
     uint8 private constant MAX_COMPACT_SIZE_LENGTH = 252;
@@ -24,8 +25,10 @@ library BtcUtils {
     function parseCompactSizeInt(uint sizePosition, bytes memory array) private pure returns(uint64, uint16) {
         require(array.length > sizePosition, "Size position can't be bigger than array");
         uint8 maxSize = uint8(array[sizePosition]);
-        if (maxSize <= MAX_COMPACT_SIZE_LENGTH) {
-            return (maxSize, 0);
+        if (maxSize == 0) {
+            return (0, 1);
+        } else if (maxSize <= MAX_COMPACT_SIZE_LENGTH) {
+            return (maxSize, 1);
         }
         
         uint lastPosition = sizePosition + maxSize > array.length ? array.length - 1 : sizePosition + maxSize;
@@ -35,9 +38,13 @@ library BtcUtils {
 
     function getOutputs(bytes calldata rawTx) public pure returns (TxRawOutput[] memory) {
         uint currentPosition = 4;
+
+        if (rawTx[4] == 0x00 && rawTx[5] == 0x01) { // if its segwit, skip marker and flag
+            currentPosition = 6;
+        }
         
         (uint64 inputCount, uint16 inputCountSize) = parseCompactSizeInt(currentPosition, rawTx);
-        currentPosition += inputCountSize + 1;
+        currentPosition += inputCountSize;
 
         uint64 scriptLarge;
         uint16 scriptLargeSize;
@@ -47,9 +54,8 @@ library BtcUtils {
             currentPosition += scriptLarge + scriptLargeSize + 4;
         }
 
-        (uint64 outputCount, uint16 outputCountSize) = parseCompactSizeInt(++currentPosition, rawTx);
+        (uint64 outputCount, uint16 outputCountSize) = parseCompactSizeInt(currentPosition, rawTx);
         currentPosition += outputCountSize;
-        currentPosition++;
 
         TxRawOutput[] memory result = new TxRawOutput[](outputCount);
         for (uint i = 0; i < outputCount; i++) {
@@ -59,7 +65,8 @@ library BtcUtils {
         return result;
     }
 
-    function calculateLittleEndianFragment(uint fragmentStart, uint fragmentEnd, bytes memory array) private pure returns (uint) {
+    function calculateLittleEndianFragment(uint fragmentStart, uint fragmentEnd, bytes memory array)
+        private pure returns (uint) {
         require(
             fragmentStart < array.length && fragmentEnd < array.length, 
             "Range can't be bigger than array"
@@ -78,7 +85,6 @@ library BtcUtils {
 
         (uint64 scriptLength, uint16 scriptLengthSize) = parseCompactSizeInt(position, rawTx);
         position += scriptLengthSize;
-        position++;
 
         bytes memory pkScript = new bytes(scriptLength);
         for (uint64 i = 0; i < scriptLength; i++) {
@@ -86,7 +92,7 @@ library BtcUtils {
         }
         result.pkScript = pkScript;
         result.scriptSize = scriptLength;
-        result.totalSize = OUTPUT_VALUE_SIZE + scriptLength + scriptLengthSize + 1;
+        result.totalSize = OUTPUT_VALUE_SIZE + scriptLength + scriptLengthSize;
         return result;
     }
 
@@ -121,7 +127,8 @@ library BtcUtils {
 
         bytes memory message = new bytes(uint8(outputScript[1]));
         for (uint8 i = 0; i < message.length; i++) {
-            // the addition of two is because the two first bytes correspond to the op_return opcode and the length of the message
+            // the addition of two is because the two first bytes correspond to
+            // the op_return opcode and the length of the message
             message[i] = outputScript[i + 2]; 
         }
         return message;

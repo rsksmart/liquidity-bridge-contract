@@ -4,13 +4,15 @@
   "description": "## registerFastBridgeBtcTransaction",
   "main": "index.js",
   "scripts": {
-    "compile": "npx truffle compile --all",
+    "compile": "npm run lint:sol && npx truffle compile --all",
     "test": "npm run compile && npx truffle test",
     "test-regtest": "npm run compile && npx truffle test --network testRegtest",
     "coverage": "npx truffle run coverage",
     "lint": "npx prettier --list-different 'contracts/**/*.sol' 'test/**/*.js' 'migrations/**/*.js'",
-    "deploy-regtest": "npx truffle deploy --network rskRegtest",
-    "deploy-rskTestnet": "npx truffle deploy --network rskTestnet"
+    "lint:sol": "solhint 'contracts/**/*.sol'",
+    "deploy-regtest": "npm run lint:sol && npx truffle deploy --network rskRegtest",
+    "deploy-rskTestnet": "npm run lint:sol && npx truffle deploy --network rskTestnet",
+    "contract-size": "npx truffle run contract-size"
   },
   "repository": {
     "type": "git",
@@ -26,6 +28,8 @@
     "@openzeppelin/truffle-upgrades": "^1.17.1",
     "prettier": "^2.4.1",
     "prettier-plugin-solidity": "^1.0.0-beta.18",
+    "solc": "^0.8.3",
+    "solhint": "^3.4.1",
     "solidity-coverage": "^0.8.2"
   },
   "dependencies": {

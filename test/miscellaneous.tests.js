@@ -14,13 +14,14 @@ const expect = chai.expect;
 contract("LiquidityBridgeContract", async (accounts) => {
   let instance;
   let bridgeMockInstance;
+  let mock;
   const liquidityProviderRskAddress = accounts[0];
 
   before(async () => {
     const proxy = await LiquidityBridgeContract.deployed();
     instance = await LiquidityBridgeContract.at(proxy.address);
     bridgeMockInstance = await BridgeMock.deployed();
-    const mock = await Mock.deployed();
+    mock = await Mock.deployed();
   });
 
   beforeEach(async () => {
@@ -298,7 +299,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
     let destAddr = accounts[1];
     let fedBtcAddress = "0x0000000000000000000000000000000000000000";
     let liquidityProviderRskAddress = accounts[0];
-    let data = web3.eth.abi.encodeFunctionCall(mock.abi[0], [
+    let data = web3.eth.abi.encodeFunctionCall(mock.abi[1], [
       "100100001110010",
     ]);
     let callFee = 1;
