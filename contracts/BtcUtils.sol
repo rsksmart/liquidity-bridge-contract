@@ -8,6 +8,7 @@ pragma solidity ^0.8.3;
  */
 library BtcUtils {
     uint8 private constant MAX_COMPACT_SIZE_LENGTH = 252;
+    uint8 private constant MAX_BYTES_USED_FOR_COMPACT_SIZE = 8;
     uint8 private constant OUTPOINT_SIZE = 36;
     uint8 private constant OUTPUT_VALUE_SIZE = 8;
     uint8 private constant PUBKEY_HASH_SIZE = 20;
@@ -31,9 +32,11 @@ library BtcUtils {
             return (maxSize, 1);
         }
         
-        uint lastPosition = sizePosition + maxSize > array.length ? array.length - 1 : sizePosition + maxSize;
-        uint64 result = uint64(calculateLittleEndianFragment(sizePosition + 1, lastPosition, array));
-        return (result, maxSize);
+        uint compactSizeBytes = 2 ** (maxSize - MAX_COMPACT_SIZE_LENGTH);
+        require(compactSizeBytes <= MAX_BYTES_USED_FOR_COMPACT_SIZE, "unsupported compact size length");
+
+        uint64 result = uint64(calculateLittleEndianFragment(sizePosition + 1, sizePosition + compactSizeBytes, array));
+        return (result, uint16(compactSizeBytes) + 1);
     }
 
     function getOutputs(bytes calldata rawTx) public pure returns (TxRawOutput[] memory) {
