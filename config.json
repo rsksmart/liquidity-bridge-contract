@@ -2,22 +2,60 @@
   "rskTestnet": {
     "SafeMath": {
       "address": "0x343714bf746AcaF55BC1BAF93D2C47E42A762eC1",
-      "deployed": true
+      "deployed": false
     },
     "SignatureValidator": {
-      "address": "0xEE0e4fb6b967D3eAC2E2Af188eDAE5E319C0CD74",
+      "address": "0xFe2746b892fFFf26E9a8F45935E7510d72028416",
       "deployed": true
     },
     "LiquidityBridgeContractAdmin": {
-      "address": "0x0Cf562069E64aB810963F017F560c021F298aa40",
-      "deployed": true
+      "address": "0x1de4FF655DC7BC289cCa9D232755005265B4C94b",
+      "deployed": false
     },
     "LiquidityBridgeContract": {
-      "address": "0x6C69D66AF194b5b7c484E86765a95F6160b8b767",
+      "address": "0x890D3AFD0F14D870DE24798329bf36ce8939D0b4",
       "deployed": true
     },
     "LiquidityBridgeContractProxy": {
-      "address": "0x1007D87b2Ee25768bC9A58b4A0B564e12Be554bF",
+      "address": "0x81e0038E7b88496cf3CdDd684f74711e5451870B",
+      "deployed": false
+    },
+    "Migrations": {
+      "address": "0x9574a4972320d9988C110dAF950c89CC638B3b75",
+      "deployed": true
+    }
+  },
+  "rskRegtest": {
+    "Migrations": {
+      "address": "0xdac5481925A298B95Bf5b54c35b68FC6fc2eF423",
+      "deployed": true
+    },
+    "SafeMath": {
+      "address": "",
+      "deployed": false
+    },
+    "SignatureValidator": {
+      "address": "0xeFb80DB9E2d943A492Bd988f4c619495cA815643",
+      "deployed": true
+    },
+    "LiquidityBridgeContractAdmin": {
+      "address": "0x73ec81da0C72DD112e06c09A6ec03B5544d26F05",
+      "deployed": true
+    },
+    "LiquidityBridgeContract": {
+      "address": "0xA66939ac57893C2E65425a5D66099Bc20C76D4CD",
+      "deployed": true
+    },
+    "LiquidityBridgeContractProxy": {
+      "address": "0x1eD614cd3443EFd9c70F04b6d777aed947A4b0c4",
+      "deployed": true
+    },
+    "Quotes": {
+      "address": "0x463F29B11503e198f6EbeC9903b4e5AaEddf6D29",
+      "deployed": true
+    },
+    "BtcUtils": {
+      "address": "0x987c1f13d417F7E04d852B44badc883E4E9782e1",
       "deployed": true
     }
   }

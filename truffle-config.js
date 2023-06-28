@@ -13,7 +13,7 @@ module.exports = {
     enableTimeouts: false,
     timeout: 1000000
   },
-  plugins: ["solidity-coverage"],
+  plugins: ["truffle-contract-size"],
   networks: {
     rskRegtest: {
       host: '127.0.0.1',
@@ -41,12 +41,7 @@ module.exports = {
       network_id: 30,
       gasPrice: 65164000,
       deploymentPollingInterval: 30000,
-    },
-    testRegtest: {
-      host: '127.0.0.1',
-      port: 4444,
-      network_id: 33,
-    },
+    }
   },
   compilers: {
     solc: {
@@ -54,9 +49,9 @@ module.exports = {
         settings: {          // See the solidity docs for advice about optimization and evmVersion
           optimizer: {
             enabled: true,
-            runs: 200
+            runs: 1
           },
-          evmVersion: "byzantium"
+          // evmVersion: "byzantium"
         }
     }
   }

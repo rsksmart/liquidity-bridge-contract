@@ -1,3 +1,4 @@
+.openzeppelin
 node_modules
 build
 .vscode
@@ -5,3 +6,4 @@ build
 coverage
 coverage.json
 .secret
+.DS_Store
