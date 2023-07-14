@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.3;
 
-import "./Bridge.sol";
+import "../Bridge.sol";
 
 contract BridgeMock is Bridge {
 
