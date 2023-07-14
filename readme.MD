@@ -131,7 +131,7 @@ Checks whether a liquidity provider can deliver a pegout service
             bool _status,
             string memory _providerType
         ) external payable onlyEoa returns (uint)
-Registers msg.sender as a liquidity provider with msg.value as collateral
+Registers tx.origin as a liquidity provider with msg.value as collateral
 #### Parametets
     * name: name of the LP
     * fee: fee that LP charges for this service

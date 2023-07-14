@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.3;
 
-import "../liquidity-bridge-contract/LiquidityBridgeContract.sol";
+import "../liquidity-provider-contract/LiquidityProviderContract.sol";
 
 contract Mock {
     int private status;
@@ -20,7 +20,7 @@ contract Mock {
     }
 
     function callRegister(address payable lbcAddress) external payable {
-        LiquidityBridgeContract lbc = LiquidityBridgeContract(lbcAddress);
+        LiquidityProviderContract lbc = LiquidityProviderContract(lbcAddress);
         lbc.register{value: msg.value}(
             "First contract",
             10,
