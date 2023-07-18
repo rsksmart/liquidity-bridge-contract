@@ -1,4 +1,6 @@
-const LiquidityBridgeContract = artifacts.require("LiquidityBridgeContract");
+const FlyoverProviderContract = artifacts.require("FlyoverProviderContract");
+const LiquidityProviderContract = artifacts.require("LiquidityProviderContract");
+const PeginContract = artifacts.require("PeginContract");
 const BridgeMock = artifacts.require("BridgeMock");
 const Mock = artifacts.require("Mock");
 const truffleAssert = require("truffle-assertions");
@@ -11,15 +13,15 @@ const chaiBN = require("chai-bn")(BN);
 chai.use(chaiBN);
 const expect = chai.expect;
 
-contract("LiquidityBridgeContract", async (accounts) => {
+contract("FlyoverProviderContract", async (accounts) => {
   let instance;
   let bridgeMockInstance;
   let mock;
   const liquidityProviderRskAddress = accounts[0];
 
   before(async () => {
-    const proxy = await LiquidityBridgeContract.deployed();
-    instance = await LiquidityBridgeContract.at(proxy.address);
+    const proxy = await FlyoverProviderContract.deployed();
+    instance = await FlyoverProviderContract.at(proxy.address);
     bridgeMockInstance = await BridgeMock.deployed();
     mock = await Mock.deployed();
   });
@@ -172,7 +174,8 @@ contract("LiquidityBridgeContract", async (accounts) => {
     let initialLPBalance = await instance.getBalance(
       liquidityProviderRskAddress
     );
-    let initialLBCBalance = await web3.eth.getBalance(instance.address);
+    const lpContractAddress = await LiquidityProviderContract.deployed().then(contract => contract.address);
+    let initialLBCBalance = await web3.eth.getBalance(lpContractAddress);
     let data = "0x00";
     let callFee = 1;
     let gasLimit = 150000;
@@ -265,7 +268,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
     );
 
     let finalLPBalance = await instance.getBalance(liquidityProviderRskAddress);
-    let finalLBCBalance = await web3.eth.getBalance(instance.address);
+    let finalLBCBalance = await web3.eth.getBalance(lpContractAddress);
     let finalUserBalance = await web3.eth.getBalance(destAddr);
     let finalLPDeposit = await instance.getCollateral(
       liquidityProviderRskAddress
@@ -378,23 +381,23 @@ contract("LiquidityBridgeContract", async (accounts) => {
   });
 
   it("should validate reward percentage arg in initialize", async () => {
-    let instance = await LiquidityBridgeContract.new();
-    const MAX_QUOTE_VALUE = web3.utils.toBN("1000000000000000000")
-    await instance.initialize(bridgeMockInstance.address, 1, 1, 0, 1, 1, MAX_QUOTE_VALUE, 1, false);
-    instance = await LiquidityBridgeContract.new();
-    await instance.initialize(bridgeMockInstance.address, 1, 1, 0, 1, 1, MAX_QUOTE_VALUE, 1, false);
-    instance = await LiquidityBridgeContract.new();
-    await instance.initialize(bridgeMockInstance.address, 1, 1, 1, 1, 1, MAX_QUOTE_VALUE, 1, false);
-    instance = await LiquidityBridgeContract.new();
-    await instance.initialize(bridgeMockInstance.address, 1, 1, 99, 1, 1, MAX_QUOTE_VALUE, 1, false);
-    instance = await LiquidityBridgeContract.new();
-    await instance.initialize(bridgeMockInstance.address, 1, 1, 100, 1, 1, MAX_QUOTE_VALUE, 1, false);
+    let instance = await PeginContract.new();
+    const lpContractAddress = '0x0000000000000000000000000000000000000000';
+    await instance.initialize(bridgeMockInstance.address, lpContractAddress, 1, 0, 1);
+    instance = await PeginContract.new();
+    await instance.initialize(bridgeMockInstance.address, lpContractAddress, 1, 0, 1);
+    instance = await PeginContract.new();
+    await instance.initialize(bridgeMockInstance.address, lpContractAddress, 1, 1, 1);
+    instance = await PeginContract.new();
+    await instance.initialize(bridgeMockInstance.address, lpContractAddress, 1, 99, 1);
+    instance = await PeginContract.new();
+    await instance.initialize(bridgeMockInstance.address, lpContractAddress, 1, 100, 1);
     await truffleAssert.fails(
-      instance.initialize(bridgeMockInstance.address, 1, 1, 100, 1, 1, MAX_QUOTE_VALUE, 1, false)
+      instance.initialize(bridgeMockInstance.address, lpContractAddress, 1, 100, 1)
     );
-    instance = await LiquidityBridgeContract.new();
+    instance = await PeginContract.new();
     await truffleAssert.fails(
-      instance.initialize(bridgeMockInstance.address, 1, 1, 101, 1, 1, MAX_QUOTE_VALUE, 1, false)
+      instance.initialize(bridgeMockInstance.address, lpContractAddress, 1, 101, 1)
     );
   });
 

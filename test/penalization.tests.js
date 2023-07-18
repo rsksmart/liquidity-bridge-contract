@@ -1,4 +1,8 @@
-const LiquidityBridgeContract = artifacts.require('LiquidityBridgeContract');
+const FlyoverProviderContract = artifacts.require('FlyoverProviderContract');
+const FlyoverUserContract = artifacts.require('FlyoverUserContract');
+const LiquidityProviderContract = artifacts.require('LiquidityProviderContract');
+const PeginContract = artifacts.require('PeginContract');
+const PegoutContract = artifacts.require('PegoutContract');
 const BridgeMock = artifacts.require("BridgeMock");
 const Mock = artifacts.require('Mock')
 const truffleAssert = require('truffle-assertions');
@@ -11,23 +15,28 @@ chai.use(chaiBN);
 
 const expect = chai.expect;
 
-contract('LiquidityBridgeContract', async accounts => {
+contract('FlyoverProviderContract', async accounts => {
     let instance;
     let bridgeMockInstance;
     const liquidityProviderRskAddress = accounts[0];
+    let extractEvents;
+    let userContract;
 
     before(async () => {
-        const proxy = await LiquidityBridgeContract.deployed();
-        instance = await LiquidityBridgeContract.at(proxy.address);
+        const proxy = await FlyoverProviderContract.deployed();
+        instance = await FlyoverProviderContract.at(proxy.address);
         bridgeMockInstance = await BridgeMock.deployed();
         mock = await Mock.deployed()
+        const userContractProxy = await FlyoverUserContract.deployed();
+        userContract = await FlyoverUserContract.at(userContractProxy.address);
+        extractEvents = await utils.getDeepEventFinder(LiquidityProviderContract, PeginContract, PegoutContract);
     });
 
     beforeEach(async () => {
         await utils.ensureLiquidityProviderAvailable(instance, liquidityProviderRskAddress, utils.LP_COLLATERAL);
     });
 
-    it ('should not penalize with late deposit', async () => {
+    it('should not penalize with late deposit', async () => {
         let val = web3.utils.toBN(1000000000000);
         let destAddr = mock.address;
         let rskRefundAddress = accounts[2];
@@ -67,7 +76,7 @@ contract('LiquidityBridgeContract', async accounts => {
             btcRawTransaction,
             partialMerkleTree,
             height
-        );
+        ).then(extractEvents);
 
         finalUserBalance = await web3.eth.getBalance(rskRefundAddress);
         finalLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
@@ -116,7 +125,7 @@ contract('LiquidityBridgeContract', async accounts => {
             btcRawTransaction,
             partialMerkleTree,
             height
-        );
+        ).then(extractEvents);
 
         finalUserBalance = await web3.eth.getBalance(rskRefundAddress);
         finalLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
@@ -179,7 +188,7 @@ contract('LiquidityBridgeContract', async accounts => {
             btcRawTransaction,
             partialMerkleTree,
             height
-        );
+        ).then(extractEvents);
 
         finalUserBalance = await web3.eth.getBalance(quote.destAddr);
         finalLPBalance = await instance.getBalance(liquidityProviderRskAddress);
@@ -247,7 +256,7 @@ contract('LiquidityBridgeContract', async accounts => {
             btcRawTransaction,
             partialMerkleTree,
             height
-        );
+        ).then(extractEvents);
         
         finalUserBalance = await web3.eth.getBalance(destAddr);
         finalLPBalance = await instance.getBalance(liquidityProviderRskAddress);
@@ -288,7 +297,8 @@ contract('LiquidityBridgeContract', async accounts => {
     const quoteHash = await instance.hashPegoutQuote(quote);
     const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
     const msgValue = quote.value.add(quote.callFee);
-    const pegOut = await instance.depositPegout(quote, signature, { value: msgValue.toNumber() });
+    const pegOut = await userContract.depositPegout(quote, signature, { value: msgValue.toNumber() })
+      .then(extractEvents);
     truffleAssert.eventEmitted(pegOut, "PegOutDeposit");
 
     const block = await web3.eth.getBlock("latest");
@@ -310,7 +320,7 @@ contract('LiquidityBridgeContract', async accounts => {
       blockHeaderHash,
       partialMerkleTree,
       merkleBranchHashes
-    );
+    ).then(extractEvents);
     truffleAssert.eventEmitted(refund, "PegOutRefunded");
     truffleAssert.eventEmitted(refund, "Penalized");
   });

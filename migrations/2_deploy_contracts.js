@@ -1,7 +1,11 @@
 const { deployProxy } = require("@openzeppelin/truffle-upgrades");
 const web3 = require("web3");
 
-const LiquidityBridgeContract = artifacts.require("LiquidityBridgeContract");
+const LiquidityProviderContract = artifacts.require("LiquidityProviderContract");
+const PeginContract = artifacts.require("PeginContract");
+const PegoutContract = artifacts.require("PegoutContract");
+const FlyoverUserContract = artifacts.require("FlyoverUserContract");
+const FlyoverProviderContract = artifacts.require("FlyoverProviderContract");
 
 const Mock = artifacts.require("Mock");
 const BridgeMock = artifacts.require("BridgeMock");
@@ -41,21 +45,26 @@ module.exports = async function (deployer, network) {
 
     await deploy("SignatureValidator", network, async (state) => {
       await deployer.deploy(SignatureValidator);
-      await deployer.link(SignatureValidator, LiquidityBridgeContract);
+      await deployer.link(SignatureValidator, PeginContract);
+      await deployer.link(SignatureValidator, PegoutContract);
       const response = await SignatureValidator.deployed();
       state.address = response.address;
     });
 
     await deploy("Quotes", network, async (state) => {
       await deployer.deploy(Quotes);
-      await deployer.link(Quotes, LiquidityBridgeContract);
+      await deployer.link(Quotes, LiquidityProviderContract);
+      await deployer.link(Quotes, FlyoverUserContract);
+      await deployer.link(Quotes, FlyoverProviderContract);
+      await deployer.link(Quotes, PeginContract);
+      await deployer.link(Quotes, PegoutContract);
       const response = await Quotes.deployed();
       state.address = response.address;
     });
 
     await deploy("BtcUtils", network, async (state) => {
       await deployer.deploy(BtcUtils);
-      await deployer.link(BtcUtils, LiquidityBridgeContract);
+      await deployer.link(BtcUtils, PegoutContract);
       const response = await BtcUtils.deployed();
       state.address = response.address;
     });
@@ -77,24 +86,18 @@ module.exports = async function (deployer, network) {
       await deployer.deploy(SignatureValidatorMock);
       const signatureValidatorMockInstance =
         await SignatureValidatorMock.deployed();
-      await LiquidityBridgeContract.link(
-        "SignatureValidator",
-        signatureValidatorMockInstance.address
-      );
       state.address = signatureValidatorMockInstance.address;
     });
 
     await deploy("Quotes", network, async (state) => {
       await deployer.deploy(Quotes);
       const quotesInstance = await Quotes.deployed();
-      await LiquidityBridgeContract.link("Quotes", quotesInstance.address);
       state.address = quotesInstance.address;
     });
 
     await deploy("BtcUtils", network, async (state) => {
       await deployer.deploy(BtcUtils);
       const btcUtilsInstance = await BtcUtils.deployed();
-      await LiquidityBridgeContract.link("BtcUtils", btcUtilsInstance.address);
       state.address = btcUtilsInstance.address;
     });
 
@@ -102,33 +105,55 @@ module.exports = async function (deployer, network) {
   }
 
   let config = read();
-  config = await deploy("LiquidityBridgeContract", network, async (state) => {
+
+  config = await deploy("LiquidityProviderContract", network, async (state) => {
+    const quotesLib = await Quotes.at(
+      config[network]["Quotes"].address
+    );
+    await deployer.link(quotesLib, LiquidityProviderContract);
+
+    const response = await deployProxy(
+      LiquidityProviderContract,
+      [
+        bridgeAddress,
+        MINIMUM_COLLATERAL,
+        RESIGN_DELAY_BLOCKS,
+        MAX_QUOTE_VALUE
+      ],
+      {
+        deployer,
+        unsafeAllowLinkedLibraries: true
+      }
+    );
+    state.address = response.address;
+  });
+
+  config = await deploy("PegoutContract", network, async (state) => {
     const signatureValidatorLib = await SignatureValidator.at(
       config[network]["SignatureValidator"].address
     );
-    await deployer.link(signatureValidatorLib, LiquidityBridgeContract);
+    await deployer.link(signatureValidatorLib, PegoutContract);
 
     const quotesLib = await Quotes.at(
       config[network]["Quotes"].address
     );
-    await deployer.link(quotesLib, LiquidityBridgeContract);
+    await deployer.link(quotesLib, PegoutContract);
 
     const btcUtilsLib = await BtcUtils.at(
       config[network]["BtcUtils"].address
     );
-    await deployer.link(btcUtilsLib, LiquidityBridgeContract);
+    await deployer.link(btcUtilsLib, PegoutContract);
 
-    
+    const lpcAddress = config[network]["LiquidityProviderContract"].address;
+    if (!lpcAddress) {
+      throw new Error("There is no address for liquidity provider contract");
+    }
+
     const response = await deployProxy(
-      LiquidityBridgeContract,
+      PegoutContract,
       [
         bridgeAddress,
-        MINIMUM_COLLATERAL,
-        minimumPegIn,
-        REWARD_PERCENTAGE,
-        RESIGN_DELAY_BLOCKS,
-        DUST_THRESHOLD,
-        MAX_QUOTE_VALUE,
+        lpcAddress,
         BTC_BLOCK_TIME,
         mainnet
       ],
@@ -137,6 +162,97 @@ module.exports = async function (deployer, network) {
         unsafeAllowLinkedLibraries: true
       }
     );
+    state.address = response.address;
+  });
+
+  config = await deploy("PeginContract", network, async (state) => {
+    const signatureValidatorLib = await SignatureValidator.at(
+      config[network]["SignatureValidator"].address
+    );
+    await deployer.link(signatureValidatorLib, PeginContract);
+
+    const quotesLib = await Quotes.at(
+      config[network]["Quotes"].address
+    );
+    await deployer.link(quotesLib, PeginContract);
+
+    const lpcAddress = config[network]["LiquidityProviderContract"].address;
+    if (!lpcAddress) {
+      throw new Error("There is no address for liquidity provider contract");
+    }
+
+    const response = await deployProxy(
+      PeginContract,
+      [
+        bridgeAddress,
+        lpcAddress,
+        minimumPegIn,
+        REWARD_PERCENTAGE,
+        DUST_THRESHOLD
+      ],
+      {
+        deployer,
+        unsafeAllowLinkedLibraries: true
+      }
+    );
+    state.address = response.address;
+  });
+
+  config = await deploy("FlyoverUserContract", network, async (state) => {
+    const lpcAddress = config[network]["LiquidityProviderContract"].address;
+    if (!lpcAddress) {
+      throw new Error("There is no address for liquidity provider contract");
+    }
+
+    const pegoutContractAddress = config[network]["PegoutContract"].address;
+    if (!lpcAddress) {
+      throw new Error("There is no address for pegout contract");
+    }
+
+    const response = await deployProxy(
+      FlyoverUserContract,
+      [
+        lpcAddress,
+        pegoutContractAddress
+      ],
+      {
+        deployer,
+        unsafeAllowLinkedLibraries: true
+      }
+    );
+    state.address = response.address;
+  });
+
+  config = await deploy("FlyoverProviderContract", network, async (state) => {
+    const lpcAddress = config[network]["LiquidityProviderContract"].address;
+    if (!lpcAddress) {
+      throw new Error("There is no address for liquidity provider contract");
+    }
+
+    const pegoutContractAddress = config[network]["PegoutContract"].address;
+    if (!lpcAddress) {
+      throw new Error("There is no address for pegout contract");
+    }
+
+    const peginContractAddress = config[network]["PeginContract"].address;
+    if (!lpcAddress) {
+      throw new Error("There is no address for pegin contract");
+    }
+
+    const response = await deployProxy(
+      FlyoverProviderContract,
+      [
+        lpcAddress,
+        pegoutContractAddress,
+        peginContractAddress
+      ],
+      {
+        deployer,
+        unsafeAllowLinkedLibraries: true
+      }
+    );
+    await PeginContract.deployed().then(contract => contract.setProviderInterfaceAddress(response.address));
+    await PegoutContract.deployed().then(contract => contract.setProviderInterfaceAddress(response.address));
     state.address = response.address;
   });
 };
