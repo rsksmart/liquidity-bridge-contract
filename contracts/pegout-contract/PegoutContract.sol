@@ -189,7 +189,7 @@ contract PegoutContract is Initializable, ReentrancyGuardUpgradeable, OwnableUpg
         bytes memory firstConfirmationHeader = bridge.getBtcBlockchainBlockHeaderByHash(blockHash);
         require(firstConfirmationHeader.length > 0, "LBC059");
 
-        uint256 firstConfirmationTimestamp = getBtcBlockTimestamp(firstConfirmationHeader);
+        uint256 firstConfirmationTimestamp = BtcUtils.getBtcBlockTimestamp(firstConfirmationHeader);
 
         // penalize if the transfer was not made on time
         if (firstConfirmationTimestamp > pegoutRegistry[quoteHash].depositTimestamp +
@@ -203,35 +203,6 @@ contract PegoutContract is Initializable, ReentrancyGuardUpgradeable, OwnableUpg
         }
 
         return false;
-    }
-
-    // TODO MOVE TO LIBRARY
-    /**
-        @dev Gets the timestamp of a Bitcoin block header
-        @param header The block header
-        @return The timestamp of the block header
-     */
-    function getBtcBlockTimestamp(
-        bytes memory header
-    ) public pure returns (uint256) {
-        // bitcoin header is 80 bytes and timestamp is 4 bytes from byte 68 to byte 71 (both inclusive)
-        require(header.length == 80, "LBC061");
-
-        return sliceUint32FromLSB(header, 68);
-    }
-
-    // bytes must have at least 28 bytes before the uint32
-    function sliceUint32FromLSB(
-        bytes memory bs,
-        uint offset
-    ) internal pure returns (uint32) {
-        require(bs.length >= offset + 4, "LBC062");
-
-        return
-        uint32(uint8(bs[offset])) |
-        (uint32(uint8(bs[offset + 1])) << 8) |
-        (uint32(uint8(bs[offset + 2])) << 16) |
-        (uint32(uint8(bs[offset + 3])) << 24);
     }
 
     function validateAndHashPegOutQuote(

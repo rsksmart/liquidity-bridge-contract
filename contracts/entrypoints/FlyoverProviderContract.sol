@@ -154,10 +154,4 @@ contract FlyoverProviderContract is Initializable, OwnableUpgradeable {
     ) external payable returns (bool) {
         return peginContract.callForUser{value: msg.value}(quote);
     }
-
-    function getBtcBlockTimestamp(
-        bytes calldata header
-    ) public view returns (uint256) {
-        return peginContract.getBtcBlockTimestamp(header);
-    }
 }

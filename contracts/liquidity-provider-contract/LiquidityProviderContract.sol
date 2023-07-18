@@ -370,7 +370,7 @@ contract LiquidityProviderContract is Initializable, ReentrancyGuardUpgradeable,
     function useBalance(uint amount) nonReentrant public { // TODO FIX SECURITY OR RETURN TO PRIVATE
         // TODO SENDER MUST BE FLYOVER MODULE
         (bool success,) = msg.sender.call{value: amount}("");
-        require(success, "error"); //TODO MOVE TO ERROR FILE
+        require(success, "LBC071");
         emit BalanceUsed(msg.sender, amount);
     } 
 

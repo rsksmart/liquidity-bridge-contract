@@ -176,6 +176,11 @@ module.exports = async function (deployer, network) {
     );
     await deployer.link(quotesLib, PeginContract);
 
+    const btcUtilsLib = await BtcUtils.at(
+      config[network]["BtcUtils"].address
+    );
+    await deployer.link(btcUtilsLib, PeginContract);
+
     const lpcAddress = config[network]["LiquidityProviderContract"].address;
     if (!lpcAddress) {
       throw new Error("There is no address for liquidity provider contract");

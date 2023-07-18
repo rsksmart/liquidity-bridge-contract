@@ -2,6 +2,7 @@ const FlyoverProviderContract = artifacts.require("FlyoverProviderContract");
 const LiquidityProviderContract = artifacts.require("LiquidityProviderContract");
 const PeginContract = artifacts.require("PeginContract");
 const BridgeMock = artifacts.require("BridgeMock");
+const BtcUtils = artifacts.require("BtcUtils");
 const Mock = artifacts.require("Mock");
 const truffleAssert = require("truffle-assertions");
 const utils = require("../test/utils/index");
@@ -17,6 +18,7 @@ contract("FlyoverProviderContract", async (accounts) => {
   let instance;
   let bridgeMockInstance;
   let mock;
+  let btcUtils;
   const liquidityProviderRskAddress = accounts[0];
 
   before(async () => {
@@ -24,6 +26,7 @@ contract("FlyoverProviderContract", async (accounts) => {
     instance = await FlyoverProviderContract.at(proxy.address);
     bridgeMockInstance = await BridgeMock.deployed();
     mock = await Mock.deployed();
+    btcUtils = await BtcUtils.deployed();
   });
 
   beforeEach(async () => {
@@ -405,12 +408,12 @@ contract("FlyoverProviderContract", async (accounts) => {
     const btcHeader =
       "0x0080cf2a0857bdec9d66f5feb52d00d5061ff02a904112d9b0cd1ac401000000000000003d2d2b5733c820a1f07ce6e0acd2ea47f27016b49ccb405b1e3e5786f8ae962e3ce30c63bc292d1919856362";
 
-    let timestamp = await instance.getBtcBlockTimestamp(btcHeader);
+    let timestamp = await btcUtils.getBtcBlockTimestamp(btcHeader);
     expect(timestamp).to.be.a.bignumber.eq(web3.utils.toBN(1661788988));
 
     const btcHeader2 = "0x" + "00".repeat(68) + "12345678" + "00".repeat(8);
 
-    let timestamp2 = await instance.getBtcBlockTimestamp(btcHeader2);
+    let timestamp2 = await btcUtils.getBtcBlockTimestamp(btcHeader2);
     expect(timestamp2).to.be.a.bignumber.eq(web3.utils.toBN("0x78563412"));
   });
 
@@ -420,15 +423,15 @@ contract("FlyoverProviderContract", async (accounts) => {
     const btcHeader81 = "0x" + "00".repeat(81);
 
     await truffleAssertions.reverts(
-      instance.getBtcBlockTimestamp(btcHeaderEmpty),
+      btcUtils.getBtcBlockTimestamp(btcHeaderEmpty),
       "LBC061"
     );
     await truffleAssertions.reverts(
-      instance.getBtcBlockTimestamp(btcHeader79),
+      btcUtils.getBtcBlockTimestamp(btcHeader79),
       "LBC061"
     );
     await truffleAssertions.reverts(
-      instance.getBtcBlockTimestamp(btcHeader81),
+      btcUtils.getBtcBlockTimestamp(btcHeader81),
       "LBC061"
     );
   });

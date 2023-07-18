@@ -6,6 +6,7 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "../Bridge.sol";
 import "../libraries/Quotes.sol";
+import "../libraries/BtcUtils.sol";
 import "../libraries/SignatureValidator.sol";
 import "../liquidity-provider-contract/LiquidityProviderContract.sol";
 
@@ -21,7 +22,7 @@ contract PeginContract is Initializable, ReentrancyGuardUpgradeable, OwnableUpgr
     uint32 constant public MAX_INT32 = 2147483647;
     uint32 constant public MAX_UINT32 = 4294967295;
 
-    // TODO try to move to library
+    // TODO try to move to library (flyover module)
     int16 constant public BRIDGE_REFUNDED_USER_ERROR_CODE = -100;
     int16 constant public BRIDGE_REFUNDED_LP_ERROR_CODE = -200;
     int16 constant public BRIDGE_UNPROCESSABLE_TX_NOT_CONTRACT_ERROR_CODE = -300;
@@ -71,7 +72,7 @@ contract PeginContract is Initializable, ReentrancyGuardUpgradeable, OwnableUpgr
 
     function returnBalance(uint amount) private {
         (bool success, ) = address(liquidityProviderContract).call{value: amount}("");
-        require(success, "");// TODO error msg
+        require(success, "LBC070");
         emit BalanceReturned(liquidityProviderContract, amount);
     }
 
@@ -143,8 +144,7 @@ contract PeginContract is Initializable, ReentrancyGuardUpgradeable, OwnableUpgr
             "LBC025"
         );
 
-        (bool transferSuccess, ) = address(liquidityProviderContract).call{value: msg.value}("");
-        require(transferSuccess, ""); // TODO error msg
+        returnBalance(msg.value);
         liquidityProviderContract.increaseBalance(quote.liquidityProviderRskAddress, msg.value);
 
         // This check ensures that the call cannot be performed with less gas than the agreed amount
@@ -445,7 +445,7 @@ contract PeginContract is Initializable, ReentrancyGuardUpgradeable, OwnableUpgr
         .getBtcBlockchainBlockHeaderByHeight(height);
         require(firstConfirmationHeader.length > 0, "Invalid block height");
 
-        uint256 firstConfirmationTimestamp = getBtcBlockTimestamp(
+        uint256 firstConfirmationTimestamp = BtcUtils.getBtcBlockTimestamp(
             firstConfirmationHeader
         );
 
@@ -467,7 +467,7 @@ contract PeginContract is Initializable, ReentrancyGuardUpgradeable, OwnableUpgr
         );
         require(nConfirmationsHeader.length > 0, "LBC058");
 
-        uint256 nConfirmationsTimestamp = getBtcBlockTimestamp(
+        uint256 nConfirmationsTimestamp = BtcUtils.getBtcBlockTimestamp(
             nConfirmationsHeader
         );
 
@@ -476,35 +476,6 @@ contract PeginContract is Initializable, ReentrancyGuardUpgradeable, OwnableUpgr
             return true;
         }
         return false;
-    }
-
-    /**
-        @dev Gets the timestamp of a Bitcoin block header
-        @param header The block header
-        @return The timestamp of the block header
-     */
-    // TODO check if can be moved to BtcUtils library
-    function getBtcBlockTimestamp(
-        bytes memory header
-    ) public pure returns (uint256) {
-        // bitcoin header is 80 bytes and timestamp is 4 bytes from byte 68 to byte 71 (both inclusive)
-        require(header.length == 80, "LBC061");
-
-        return sliceUint32FromLSB(header, 68);
-    }
-
-    // bytes must have at least 28 bytes before the uint32
-    function sliceUint32FromLSB(
-        bytes memory bs,
-        uint offset
-    ) internal pure returns (uint32) {
-        require(bs.length >= offset + 4, "LBC062");
-
-        return
-        uint32(uint8(bs[offset])) |
-        (uint32(uint8(bs[offset + 1])) << 8) |
-        (uint32(uint8(bs[offset + 2])) << 16) |
-        (uint32(uint8(bs[offset + 3])) << 24);
     }
 
     function min(uint a, uint b) private pure returns (uint) {
