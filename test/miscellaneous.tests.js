@@ -424,15 +424,15 @@ contract("FlyoverProviderContract", async (accounts) => {
 
     await truffleAssertions.reverts(
       btcUtils.getBtcBlockTimestamp(btcHeaderEmpty),
-      "LBC061"
+      "Invalid header length"
     );
     await truffleAssertions.reverts(
       btcUtils.getBtcBlockTimestamp(btcHeader79),
-      "LBC061"
+      "Invalid header length"
     );
     await truffleAssertions.reverts(
       btcUtils.getBtcBlockTimestamp(btcHeader81),
-      "LBC061"
+      "Invalid header length"
     );
   });
 });
