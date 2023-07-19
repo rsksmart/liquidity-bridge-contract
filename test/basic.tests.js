@@ -78,6 +78,48 @@ contract("LiquidityBridgeContract", async (accounts) => {
       "LBC010"
     );
   });
+  it("should fail when Liquidity provider is already registered", async () => {
+    let currAddr = accounts[8];
+    let existing = await instance.getCollateral(currAddr);
+
+    let tx = await instance.register(
+        "First contract",
+        10,
+        7200,
+        100,
+        150,
+        "http://localhost/api",
+        true,
+        "both",
+        { from: currAddr, value: utils.LP_COLLATERAL }
+    );
+    providerList.push(tx.logs[0].args.id.toNumber());
+
+    let current = await instance.getCollateral(currAddr);
+    let registered = current.sub(existing);
+
+    truffleAssertions.eventEmitted(tx, "Register", {
+      from: currAddr,
+      amount: utils.LP_COLLATERAL,
+    });
+    expect(utils.LP_COLLATERAL).to.be.a.bignumber.eq(
+        registered.mul(web3.utils.toBN(2))
+    );
+    await truffleAssertions.reverts(
+        instance.register(
+            "First contract",
+            10,
+            7200,
+            100,
+            150,
+            "http://localhost/api",
+            true,
+            "both",
+            { from: currAddr, value: utils.LP_COLLATERAL }
+        ),
+        "LBC070"
+    );
+  });
   it("Should fail on register if not deposit the minimum collateral", async () => {
     let currAddr = accounts[5];
 
@@ -1075,7 +1117,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
         accounts[2],
         1
       );
-    const value = web3.utils.toBN("500") 
+    const value = web3.utils.toBN("500")
     const quoteHash = await instance.hashPegoutQuote(quote);
     const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
     const tx = await instance.depositPegout(
