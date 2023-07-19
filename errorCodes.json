@@ -70,5 +70,6 @@
     "LBC069": "Quote is not related to transaction",
     "LBC070": "Error returning balance to LiquidityProviderContract",
     "LBC071": "Error trying to use balance of LiquidityProviderContract",
-    "LBC072": "Not owner"
+    "LBC072": "Not owner",
+    "LBC073": "Liquidity provider already registered"
 }

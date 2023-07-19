@@ -166,6 +166,7 @@ contract LiquidityProviderContract is Initializable, ReentrancyGuardUpgradeable,
             _providerType
         );
         // TODO multiplication by 2 is a temporal fix until we define solution with product team
+        require(collateral[sender] == 0 && pegoutCollateral[sender] == 0, "LBC073");
         require(msg.value >= minCollateral * 2, "LBC008");
         require(
             resignationBlockNum[sender] == 0,

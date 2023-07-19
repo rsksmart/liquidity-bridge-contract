@@ -207,6 +207,21 @@ contract('FlyoverProviderContract', async accounts => {
     });
 
     it ('should not underflow when penalty is higher than collateral', async () => {
+      const lpAddress = accounts[9];
+      await instance.register(
+        "First contract",
+        10,
+        7200,
+        100,
+        150,
+        "http://localhost/api",
+        true,
+        "both",
+        {
+          from: lpAddress,
+          value: utils.LP_COLLATERAL,
+        }
+      );
         let val = web3.utils.toBN(10);
         let rskRefundAddress = accounts[2];
         let destAddr = accounts[1];
@@ -215,7 +230,7 @@ contract('FlyoverProviderContract', async accounts => {
             instance.address, 
             destAddr,
             null, 
-            liquidityProviderRskAddress, 
+            lpAddress, 
             rskRefundAddress,
             val);
         quote.callTime = 1;
@@ -224,12 +239,12 @@ contract('FlyoverProviderContract', async accounts => {
         let partialMerkleTree = '0x202';
         let height = 10;
 
-        let initialLPBalance = await instance.getBalance(liquidityProviderRskAddress);
+        let initialLPBalance = await instance.getBalance(lpAddress, { from: lpAddress });
         let peginAmount = quote.val.add(quote.callFee);
-        let initialLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
+        let initialLPDeposit = await instance.getCollateral(lpAddress, { from: lpAddress });
         let rewardPercentage = await instance.getRewardPercentage();
         let quoteHash = await instance.hashQuote(utils.asArray(quote));
-        let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
+        let signature = await web3.eth.sign(quoteHash, lpAddress);
         let firstConfirmationTime = utils.reverseHexBytes(web3.utils.toHex(quote.agreementTime + 300).substring(2));
         let nConfirmationTime = utils.reverseHexBytes(web3.utils.toHex(quote.agreementTime + 1).substring(2));
         let firstHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + firstConfirmationTime + '0000000000000000';
@@ -244,10 +259,10 @@ contract('FlyoverProviderContract', async accounts => {
         
         await instance.callForUser(
             utils.asArray(quote),
-            {value : quote.val}
+            { value: quote.val, from: lpAddress }
         );
         
-        currentLPBalance = await instance.getBalance(liquidityProviderRskAddress);
+        currentLPBalance = await instance.getBalance(lpAddress);
         expect(currentLPBalance).to.be.a.bignumber.eq(initialLPBalance);
         
         let tx = await instance.registerPegIn(
@@ -255,16 +270,17 @@ contract('FlyoverProviderContract', async accounts => {
             signature,
             btcRawTransaction,
             partialMerkleTree,
-            height
+            height,
+            { from: lpAddress }
         ).then(extractEvents);
         
         finalUserBalance = await web3.eth.getBalance(destAddr);
-        finalLPBalance = await instance.getBalance(liquidityProviderRskAddress);
-        finalLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
+        finalLPBalance = await instance.getBalance(lpAddress);
+        finalLPDeposit = await instance.getCollateral(lpAddress);
         
         let lpBal = web3.utils.toBN(finalLPBalance).sub(web3.utils.toBN(initialLPBalance));
         truffleAssert.eventEmitted(tx, "Penalized", {
-            liquidityProvider: liquidityProviderRskAddress,
+            liquidityProvider: lpAddress,
             penalty: initialLPDeposit,
             quoteHash: quoteHash
         });

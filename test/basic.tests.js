@@ -371,19 +371,49 @@ contract("FlyoverProviderContract", async (accounts) => {
   });
 
   it("should fail when liquidityProdvider try to withdraw collateral without resign postion as liquidity provider before", async () => {
-    await instance.addCollateral({ value: web3.utils.toBN("100000000") });
+    const lpAddress = accounts[6];
+    await instance.register(
+      "First contract",
+      10,
+      7200,
+      100,
+      150,
+      "http://localhost/api",
+      true,
+      "both",
+      {
+        from: lpAddress,
+        value: utils.LP_COLLATERAL,
+      }
+    );
+    await instance.addCollateral({ value: web3.utils.toBN("100000000"), from: lpAddress });
     await truffleAssertions.reverts(
-      instance.withdrawCollateral(),
+      instance.withdrawCollateral({ from: lpAddress }),
       "LBC021"
     );
-    await instance.resign();
-    await instance.withdrawCollateral();
+    await instance.resign({ from: lpAddress });
+    await instance.withdrawCollateral({ from: lpAddress });
   });
 
   it("should fail when liquidityProdvider resign two times", async () => {
-    await instance.resign();
-    await truffleAssertions.reverts(instance.resign(), "LBC001");
-    await instance.withdrawCollateral();
+    const lpAddress = accounts[3];
+    await instance.register(
+      "First contract",
+      10,
+      7200,
+      100,
+      150,
+      "http://localhost/api",
+      true,
+      "both",
+      {
+        from: lpAddress,
+        value: utils.LP_COLLATERAL,
+      }
+    );
+    await instance.resign({ from: lpAddress });
+    await truffleAssertions.reverts(instance.resign({ from: lpAddress }), "LBC001");
+    await instance.withdrawCollateral({ from: lpAddress });
   });
 
   it("should deposit a value to increase balance of liquidity provider", async () => {
@@ -708,18 +738,33 @@ contract("FlyoverProviderContract", async (accounts) => {
   });
 
   it("should resign", async () => {
+    const lpAddress = accounts[5];
+      await instance.register(
+        "First contract",
+        10,
+        7200,
+        100,
+        150,
+        "http://localhost/api",
+        true,
+        "both",
+        {
+          from: lpAddress,
+          value: utils.LP_COLLATERAL,
+        }
+      );
     let initialLPBalance = await instance.getBalance(
-      liquidityProviderRskAddress
+      lpAddress
     );
     let initialLBCBalance = await web3.eth.getBalance(lpContractAddress);
     let initialLPCol = await instance.getCollateral(
-      liquidityProviderRskAddress
+      lpAddress
     );
 
-    let resignTx = await instance.resign().then(extractEvents);
-    let withdrawTx = await instance.withdraw(initialLPBalance).then(extractEvents);
+    let resignTx = await instance.resign({ from: lpAddress }).then(extractEvents);
+    let withdrawTx = await instance.withdraw(initialLPBalance, { from: lpAddress }).then(extractEvents);
 
-    let finalLPBalance = await instance.getBalance(liquidityProviderRskAddress);
+    let finalLPBalance = await instance.getBalance(lpAddress);
     let currentLBCBalance = await web3.eth.getBalance(lpContractAddress);
 
     let lbcCurrBal = web3.utils
@@ -728,22 +773,22 @@ contract("FlyoverProviderContract", async (accounts) => {
     expect(initialLPBalance).to.be.a.bignumber.eq(lbcCurrBal);
     expect(finalLPBalance).to.be.a.bignumber.eq(web3.utils.toBN(0));
 
-    let withdrawCollateralTx = await instance.withdrawCollateral().then(extractEvents);
+    let withdrawCollateralTx = await instance.withdrawCollateral({ from: lpAddress }).then(extractEvents);
 
-    let finalLPCol = await instance.getCollateral(liquidityProviderRskAddress);
+    let finalLPCol = await instance.getCollateral(lpAddress);
     let finalLBCBalance = await web3.eth.getBalance(lpContractAddress);
     let lbcBal = web3.utils
       .toBN(currentLBCBalance)
       .sub(web3.utils.toBN(finalLBCBalance));
     truffleAssertions.eventEmitted(resignTx, "Resigned", {
-      from: liquidityProviderRskAddress,
+      from: lpAddress,
     });
     truffleAssertions.eventEmitted(withdrawTx, "Withdrawal", {
-      from: liquidityProviderRskAddress,
+      from: lpAddress,
       amount: initialLPBalance,
     });
     truffleAssertions.eventEmitted(withdrawCollateralTx, "WithdrawCollateral", {
-      from: liquidityProviderRskAddress,
+      from: lpAddress,
       amount: initialLPCol,
     });
     expect(lbcBal).to.be.a.bignumber.eq(initialLPCol);
@@ -1075,17 +1120,32 @@ contract("FlyoverProviderContract", async (accounts) => {
   });
 
   it("Should fail if provider is not registered", async () => {
+    const lpAddress = accounts[7];
+    await instance.register(
+      "First contract",
+      10,
+      7200,
+      100,
+      150,
+      "http://localhost/api",
+      true,
+      "both",
+      {
+        from: lpAddress,
+        value: utils.LP_COLLATERAL,
+      }
+    );
     const quote = utils.getTestPegOutQuote(
         instance.address, //lbc address
-        liquidityProviderRskAddress,
+        lpAddress,
         accounts[2],
         web3.utils.toBN(3)
       );
-    await instance.resign();
-    await instance.withdrawPegoutCollateral();
+    await instance.resign({ from: lpAddress });
+    await instance.withdrawPegoutCollateral({ from: lpAddress });
     const quoteHash = await instance.hashPegoutQuote(quote);
-    const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
-    const tx = userContract.depositPegout(quote, signature, { value: web3.utils.toBN("500") });
+    const signature = await web3.eth.sign(quoteHash, lpAddress);
+    const tx = userContract.depositPegout(quote, signature, { value: web3.utils.toBN("500"), from: lpAddress });
     await truffleAssertions.reverts(tx, "LBC037");
   });
 
@@ -1487,7 +1547,50 @@ contract("FlyoverProviderContract", async (accounts) => {
         expect(outputs[i].totalSize).to.eq(tx.outputs[i].totalSize.toString());
       }
     }
-  })
+  });
+
+  it("should fail when Liquidity provider is already registered", async () => {
+    let currAddr = accounts[4];
+    let existing = await instance.getCollateral(currAddr);
+
+    let tx = await instance.register(
+        "First contract",
+        10,
+        7200,
+        100,
+        150,
+        "http://localhost/api",
+        true,
+        "both",
+        { from: currAddr, value: utils.LP_COLLATERAL }
+    ).then(extractEvents);
+    providerList.push(tx.logs[0].args.id.toNumber());
+
+    let current = await instance.getCollateral(currAddr);
+    let registered = current.sub(existing);
+
+    truffleAssertions.eventEmitted(tx, "Register", {
+      from: currAddr,
+      amount: utils.LP_COLLATERAL,
+    });
+    expect(utils.LP_COLLATERAL).to.be.a.bignumber.eq(
+        registered.mul(web3.utils.toBN(2))
+    );
+    await truffleAssertions.reverts(
+        instance.register(
+            "First contract",
+            10,
+            7200,
+            100,
+            150,
+            "http://localhost/api",
+            true,
+            "both",
+            { from: currAddr, value: utils.LP_COLLATERAL }
+        ),
+        "LBC073"
+    );
+  });
 });
 
 
