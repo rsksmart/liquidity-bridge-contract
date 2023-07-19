@@ -2,15 +2,16 @@
 pragma solidity ^0.8.3;
 pragma experimental ABIEncoderV2;
 
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlDefaultAdminRulesUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "../Bridge.sol";
 import "../libraries/Quotes.sol";
 import "../libraries/BtcUtils.sol";
+import "../libraries/FlyoverModule.sol";
 import "../libraries/SignatureValidator.sol";
 import "../liquidity-provider-contract/LiquidityProviderContract.sol";
 
-contract PeginContract is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradeable {
+contract PeginContract is Initializable, ReentrancyGuardUpgradeable, AccessControlDefaultAdminRulesUpgradeable {
 
     uint16 constant public MAX_CALL_GAS_COST = 35000;
     uint16 constant public MAX_REFUND_GAS_LIMIT = 2300;
@@ -21,17 +22,6 @@ contract PeginContract is Initializable, ReentrancyGuardUpgradeable, OwnableUpgr
 
     uint32 constant public MAX_INT32 = 2147483647;
     uint32 constant public MAX_UINT32 = 4294967295;
-
-    // TODO try to move to library (flyover module)
-    int16 constant public BRIDGE_REFUNDED_USER_ERROR_CODE = -100;
-    int16 constant public BRIDGE_REFUNDED_LP_ERROR_CODE = -200;
-    int16 constant public BRIDGE_UNPROCESSABLE_TX_NOT_CONTRACT_ERROR_CODE = -300;
-    int16 constant public BRIDGE_UNPROCESSABLE_TX_INVALID_SENDER_ERROR_CODE = -301;
-    int16 constant public BRIDGE_UNPROCESSABLE_TX_ALREADY_PROCESSED_ERROR_CODE = -302;
-    int16 constant public BRIDGE_UNPROCESSABLE_TX_VALIDATIONS_ERROR = -303;
-    int16 constant public BRIDGE_UNPROCESSABLE_TX_VALUE_ZERO_ERROR = -304;
-    int16 constant public BRIDGE_UNPROCESSABLE_TX_UTXO_AMOUNT_SENT_BELOW_MINIMUM_ERROR = -305;
-    int16 constant public BRIDGE_GENERIC_ERROR = -900;
 
     struct Registry {
         uint32 timestamp;
@@ -91,7 +81,7 @@ contract PeginContract is Initializable, ReentrancyGuardUpgradeable, OwnableUpgr
         uint _dustThreshold
     ) external initializer {
         require(_rewardPercentage <= 100, "LBC004");
-        __Ownable_init_unchained();
+        __AccessControlDefaultAdminRules_init(30 minutes, msg.sender);
         bridge = Bridge(_bridgeAddress);
         liquidityProviderContract = LiquidityProviderContract(_liquidityProviderContract);
         minPegIn = _minimumPegIn;
@@ -116,7 +106,8 @@ contract PeginContract is Initializable, ReentrancyGuardUpgradeable, OwnableUpgr
         @param quote The quote of the service
         @return The hash of a quote
      */
-    function hashQuote(Quotes.PeginQuote memory quote) public view returns (bytes32) {
+    function hashQuote(Quotes.PeginQuote memory quote) public view
+        onlyRole(FlyoverModule.MODULE_ROLE) returns (bytes32) {
         return validateAndHashQuote(quote);
     }
 
@@ -127,7 +118,7 @@ contract PeginContract is Initializable, ReentrancyGuardUpgradeable, OwnableUpgr
      */
     function callForUser(
         Quotes.PeginQuote memory quote
-    ) external payable onlyLP nonReentrant returns (bool) {
+    ) external payable onlyRole(FlyoverModule.MODULE_ROLE) onlyLP nonReentrant returns (bool) {
         require(
             tx.origin == quote.liquidityProviderRskAddress,
             "LBC024"
@@ -190,12 +181,12 @@ contract PeginContract is Initializable, ReentrancyGuardUpgradeable, OwnableUpgr
         @return The total peg-in amount received from the bridge contract or an error code
      */
     function registerPegIn(
-        Quotes.PeginQuote memory quote,
-        bytes memory signature,
-        bytes memory btcRawTransaction,
-        bytes memory partialMerkleTree,
+        Quotes.PeginQuote calldata quote,
+        bytes calldata signature,
+        bytes calldata btcRawTransaction,
+        bytes calldata partialMerkleTree,
         uint256 height
-    ) public nonReentrant returns (int256) {
+    ) public onlyRole(FlyoverModule.MODULE_ROLE) nonReentrant returns (int256) {
         bytes32 quoteHash = validateAndHashQuote(quote);
 
         // TODO: allow multiple registerPegIns for the same quote with different transactions
@@ -223,32 +214,32 @@ contract PeginContract is Initializable, ReentrancyGuardUpgradeable, OwnableUpgr
 
         require(
             transferredAmountOrErrorCode !=
-            BRIDGE_UNPROCESSABLE_TX_VALIDATIONS_ERROR,
+            FlyoverModule.BRIDGE_UNPROCESSABLE_TX_VALIDATIONS_ERROR,
             "LBC031"
         );
         require(
             transferredAmountOrErrorCode !=
-            BRIDGE_UNPROCESSABLE_TX_ALREADY_PROCESSED_ERROR_CODE,
+            FlyoverModule.BRIDGE_UNPROCESSABLE_TX_ALREADY_PROCESSED_ERROR_CODE,
             "LBC032"
         );
         require(
             transferredAmountOrErrorCode !=
-            BRIDGE_UNPROCESSABLE_TX_VALUE_ZERO_ERROR,
+            FlyoverModule.BRIDGE_UNPROCESSABLE_TX_VALUE_ZERO_ERROR,
             "LBC033"
         );
         require(
             transferredAmountOrErrorCode !=
-            BRIDGE_UNPROCESSABLE_TX_UTXO_AMOUNT_SENT_BELOW_MINIMUM_ERROR,
+            FlyoverModule.BRIDGE_UNPROCESSABLE_TX_UTXO_AMOUNT_SENT_BELOW_MINIMUM_ERROR,
             "LBC034"
         );
         require(
-            transferredAmountOrErrorCode != BRIDGE_GENERIC_ERROR,
+            transferredAmountOrErrorCode != FlyoverModule.BRIDGE_GENERIC_ERROR,
             "LBC035"
         );
         require(
             transferredAmountOrErrorCode > 0 ||
-            transferredAmountOrErrorCode == BRIDGE_REFUNDED_LP_ERROR_CODE ||
-            transferredAmountOrErrorCode == BRIDGE_REFUNDED_USER_ERROR_CODE,
+            transferredAmountOrErrorCode == FlyoverModule.BRIDGE_REFUNDED_LP_ERROR_CODE ||
+            transferredAmountOrErrorCode == FlyoverModule.BRIDGE_REFUNDED_USER_ERROR_CODE,
             "LBC036"
         );
 
@@ -268,8 +259,8 @@ contract PeginContract is Initializable, ReentrancyGuardUpgradeable, OwnableUpgr
         }
 
         if (
-            transferredAmountOrErrorCode == BRIDGE_REFUNDED_LP_ERROR_CODE ||
-            transferredAmountOrErrorCode == BRIDGE_REFUNDED_USER_ERROR_CODE
+            transferredAmountOrErrorCode == FlyoverModule.BRIDGE_REFUNDED_LP_ERROR_CODE ||
+            transferredAmountOrErrorCode == FlyoverModule.BRIDGE_REFUNDED_USER_ERROR_CODE
         ) {
             // Bridge cap exceeded
             processedQuotes[quoteHash] = PROCESSED_QUOTE_CODE;
@@ -285,88 +276,105 @@ contract PeginContract is Initializable, ReentrancyGuardUpgradeable, OwnableUpgr
         Quotes.checkAgreedAmount(quote, transferredAmount);
 
         if (callRegistry[quoteHash].timestamp > 0) {
-            uint refundAmount;
-
-            if (callRegistry[quoteHash].success) {
-                refundAmount = min(
-                    transferredAmount,
-                    quote.value + quote.callFee
-                );
-            } else {
-                refundAmount = min(transferredAmount, quote.callFee);
-            }
-            liquidityProviderContract.increaseBalance(quote.liquidityProviderRskAddress, refundAmount);
-            uint remainingAmount = transferredAmount - refundAmount;
-
-            if (remainingAmount > dust) {
-                // refund rskRefundAddress, if remaining amount greater than dust
-                liquidityProviderContract.useBalance(remainingAmount);
-                (bool success,) = quote.rskRefundAddress.call{
-                        gas: MAX_REFUND_GAS_LIMIT,
-                        value: remainingAmount
-                    }("");
-                emit Refund(
-                    quote.rskRefundAddress,
-                    remainingAmount,
-                    success,
-                    quoteHash
-                );
-
-                if (!success) {
-                    returnBalance(remainingAmount);
-                    // transfer funds to LP instead, if for some reason transfer to rskRefundAddress was unsuccessful
-                    liquidityProviderContract.increaseBalance(
-                        quote.liquidityProviderRskAddress,
-                        remainingAmount
-                    );
-                }
-            }
+            registerCallForUserPerformed(quote, quoteHash, transferredAmount);
         } else {
-            uint refundAmount = transferredAmount;
-
-            if (quote.callOnRegister && refundAmount >= quote.value) {
-                liquidityProviderContract.useBalance(quote.value);
-                (bool callSuccess,) = quote.contractAddress.call{
-                        gas: quote.gasLimit,
-                        value: quote.value
-                    }(quote.data);
-                emit CallForUser(
-                    tx.origin,
-                    quote.contractAddress,
-                    quote.gasLimit,
-                    quote.value,
-                    quote.data,
-                    callSuccess,
-                    quoteHash
-                );
-
-                if (callSuccess) {
-                    refundAmount -= quote.value;
-                } else {
-                    returnBalance(quote.value);
-                }
-            }
-            if (refundAmount > dust) {
-                // refund rskRefundAddress, if refund amount greater than dust
-                liquidityProviderContract.useBalance(refundAmount);
-                (bool success,) = quote.rskRefundAddress.call{
-                        gas: MAX_REFUND_GAS_LIMIT,
-                        value: refundAmount
-                    }("");
-                emit Refund(
-                    quote.rskRefundAddress,
-                    refundAmount,
-                    success,
-                    quoteHash
-                );
-                if (!success) {
-                    returnBalance(refundAmount);
-                }
-            }
+            registerCallForUserNotPerformed(quote, quoteHash, transferredAmount);
         }
         processedQuotes[quoteHash] = PROCESSED_QUOTE_CODE;
         delete callRegistry[quoteHash];
         return transferredAmountOrErrorCode;
+    }
+
+    function registerCallForUserPerformed(
+        Quotes.PeginQuote calldata quote,
+        bytes32 quoteHash,
+        uint transferredAmount
+    ) private {
+        uint refundAmount;
+
+        if (callRegistry[quoteHash].success) {
+            refundAmount = min(
+                transferredAmount,
+                quote.value + quote.callFee
+            );
+        } else {
+            refundAmount = min(transferredAmount, quote.callFee);
+        }
+        liquidityProviderContract.increaseBalance(quote.liquidityProviderRskAddress, refundAmount);
+        uint remainingAmount = transferredAmount - refundAmount;
+
+        if (remainingAmount > dust) {
+            // refund rskRefundAddress, if remaining amount greater than dust
+            liquidityProviderContract.useBalance(remainingAmount);
+            (bool success,) = quote.rskRefundAddress.call{
+                gas: MAX_REFUND_GAS_LIMIT,
+                value: remainingAmount
+            }("");
+            emit Refund(
+                quote.rskRefundAddress,
+                remainingAmount,
+                success,
+                quoteHash
+            );
+
+            if (!success) {
+                returnBalance(remainingAmount);
+                // transfer funds to LP instead, if for some reason transfer to rskRefundAddress was unsuccessful
+                liquidityProviderContract.increaseBalance(
+                    quote.liquidityProviderRskAddress,
+                    remainingAmount
+                );
+            }
+        }
+    }
+
+    function registerCallForUserNotPerformed(
+        Quotes.PeginQuote calldata quote,
+        bytes32 quoteHash,
+        uint transferredAmount
+    ) private {
+        uint refundAmount = transferredAmount;
+
+        if (quote.callOnRegister && refundAmount >= quote.value) {
+            liquidityProviderContract.useBalance(quote.value);
+            (bool callSuccess,) = quote.contractAddress.call{
+                    gas: quote.gasLimit,
+                    value: quote.value
+                }(quote.data);
+            emit CallForUser(
+                tx.origin,
+                quote.contractAddress,
+                quote.gasLimit,
+                quote.value,
+                quote.data,
+                callSuccess,
+                quoteHash
+            );
+
+            if (callSuccess) {
+                refundAmount -= quote.value;
+            } else {
+                returnBalance(quote.value);
+            }
+        }
+            
+        if (refundAmount > dust) {
+            // refund rskRefundAddress, if refund amount greater than dust
+            liquidityProviderContract.useBalance(refundAmount);
+            (bool success,) = quote.rskRefundAddress.call{
+                gas: MAX_REFUND_GAS_LIMIT,
+                value: refundAmount
+            }("");
+            emit Refund(
+                quote.rskRefundAddress,
+                refundAmount,
+                success,
+                quoteHash
+            );
+            if (!success) {
+                returnBalance(refundAmount);
+            }
+        }
     }
 
     function validateAndHashQuote(
@@ -422,7 +430,7 @@ contract PeginContract is Initializable, ReentrancyGuardUpgradeable, OwnableUpgr
         );
     }
 
-        /**
+    /**
         @dev Checks if a liquidity provider should be penalized
         @param quote The quote of the service
         @param amount The transferred amount or an error code
@@ -482,11 +490,13 @@ contract PeginContract is Initializable, ReentrancyGuardUpgradeable, OwnableUpgr
         return a < b ? a : b;
     }
 
-    function getProviderInterfaceAddress() external view onlyOwner returns (address) {
+    function getProviderInterfaceAddress() external view returns (address) {
+        require(msg.sender == owner(), "LBC072");
         return providerInterfaceAddress;
     }
 
-    function setProviderInterfaceAddress(address _providerInterfaceAddress) external onlyOwner {
+    function setProviderInterfaceAddress(address _providerInterfaceAddress) external {
+        require(msg.sender == owner(), "LBC072");
         providerInterfaceAddress = _providerInterfaceAddress;
     }
 }

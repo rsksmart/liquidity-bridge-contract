@@ -389,8 +389,8 @@ contract("FlyoverProviderContract", async (accounts) => {
   it("should deposit a value to increase balance of liquidity provider", async () => {
     const value = web3.utils.toBN("100000000");
     const tx = await instance.deposit({ value }).then(extractEvents);
-    truffleAssertions.eventEmitted(tx, "BalanceIncrease", {
-      dest: liquidityProviderRskAddress,
+    truffleAssertions.eventEmitted(tx, "Deposited", {
+      liquidityProvider: liquidityProviderRskAddress,
       amount: value,
     });
   });

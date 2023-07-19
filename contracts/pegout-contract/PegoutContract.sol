@@ -2,15 +2,16 @@
 pragma solidity ^0.8.3;
 pragma experimental ABIEncoderV2;
 
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlDefaultAdminRulesUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "../Bridge.sol";
 import "../libraries/Quotes.sol";
 import "../libraries/SignatureValidator.sol";
 import "../libraries/BtcUtils.sol";
+import "../libraries/FlyoverModule.sol";
 import "../liquidity-provider-contract/LiquidityProviderContract.sol";
 
-contract PegoutContract is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradeable {
+contract PegoutContract is Initializable, ReentrancyGuardUpgradeable, AccessControlDefaultAdminRulesUpgradeable {
     uint constant public PAY_TO_ADDRESS_OUTPUT = 0;
     uint constant public QUOTE_HASH_OUTPUT = 1;
     
@@ -56,7 +57,7 @@ contract PegoutContract is Initializable, ReentrancyGuardUpgradeable, OwnableUpg
         uint _btcBlockTime,
         bool _mainnet
     ) external initializer {
-        __Ownable_init_unchained();
+        __AccessControlDefaultAdminRules_init(30 minutes, msg.sender);
         bridge = Bridge(_bridgeAddress);
         liquidityProviderContract = LiquidityProviderContract(_liquidityProviderContract);
         btcBlockTime = _btcBlockTime;
@@ -80,7 +81,7 @@ contract PegoutContract is Initializable, ReentrancyGuardUpgradeable, OwnableUpg
         bytes32 btcBlockHeaderHash,
         uint256 partialMerkleTree,
         bytes32[] calldata merkleBranchHashes
-    ) public nonReentrant onlyLP {
+    ) external onlyRole(FlyoverModule.MODULE_ROLE) nonReentrant onlyLP {
         require(pegoutRegistry[quoteHash].completed == false, "LBC064");
         Quotes.PegOutQuote storage quote = registeredPegoutQuotes[quoteHash];
         require(quote.lbcAddress != address(0), "LBC042");
@@ -125,7 +126,7 @@ contract PegoutContract is Initializable, ReentrancyGuardUpgradeable, OwnableUpg
     function depositPegout(
         Quotes.PegOutQuote calldata quote,
         bytes calldata signature
-    ) external payable {
+    ) external payable onlyRole(FlyoverModule.MODULE_ROLE) {
         require(liquidityProviderContract.isRegisteredForPegout(quote.lpRskAddress), "LBC037");
         require(quote.value + quote.callFee <= msg.value, "LBC063");
         require(block.timestamp <= quote.depositDateLimit, "LBC065");
@@ -148,7 +149,7 @@ contract PegoutContract is Initializable, ReentrancyGuardUpgradeable, OwnableUpg
 
     function refundUserPegOut(
         bytes32 quoteHash
-    ) public nonReentrant {
+    ) external onlyRole(FlyoverModule.MODULE_ROLE) nonReentrant {
         Quotes.PegOutQuote storage quote = registeredPegoutQuotes[quoteHash];
 
         require(quote.lbcAddress != address(0), "LBC042");
@@ -177,7 +178,7 @@ contract PegoutContract is Initializable, ReentrancyGuardUpgradeable, OwnableUpg
 
     function hashPegoutQuote(
         Quotes.PegOutQuote calldata quote
-    ) public view returns (bytes32) {
+    ) public view onlyRole(FlyoverModule.MODULE_ROLE) returns (bytes32) {
         return validateAndHashPegOutQuote(quote);
     }
 
@@ -213,11 +214,13 @@ contract PegoutContract is Initializable, ReentrancyGuardUpgradeable, OwnableUpg
         return keccak256(Quotes.encodePegOutQuote(quote));
     }
 
-    function getProviderInterfaceAddress() external view onlyOwner returns (address) {
+    function getProviderInterfaceAddress() external view returns (address) {
+        require(msg.sender == owner(), "LBC072");
         return providerInterfaceAddress;
     }
 
-    function setProviderInterfaceAddress(address _providerInterfaceAddress) external onlyOwner {
+    function setProviderInterfaceAddress(address _providerInterfaceAddress) external {
+        require(msg.sender == owner(), "LBC072");
         providerInterfaceAddress = _providerInterfaceAddress;
     }
 }

@@ -2,12 +2,14 @@
 pragma solidity ^0.8.3;
 pragma experimental ABIEncoderV2;
 
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlDefaultAdminRulesUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "../libraries/Quotes.sol";
+import "../libraries/FlyoverModule.sol";
 import "../Bridge.sol";
 
-contract LiquidityProviderContract is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradeable {
+contract LiquidityProviderContract is Initializable, ReentrancyGuardUpgradeable,
+    AccessControlDefaultAdminRulesUpgradeable {
 
     struct LiquidityProvider {
         uint id;
@@ -34,6 +36,7 @@ contract LiquidityProviderContract is Initializable, ReentrancyGuardUpgradeable,
     event Penalized(address liquidityProvider, uint penalty, bytes32 quoteHash);
     event BalanceUsed(address module, uint amount);
     event Received(address from, uint amount);
+    event Deposited(address liquidityProvider, uint amount);
 
     Bridge public bridge;
 
@@ -68,8 +71,7 @@ contract LiquidityProviderContract is Initializable, ReentrancyGuardUpgradeable,
     }
 
     receive() external payable {
-        // TODO only callable from module or bridge
-        // require(msg.sender == address(bridge), "LBC007");
+        require(msg.sender == address(bridge) || hasRole(FlyoverModule.MODULE_ROLE, msg.sender), "LBC007");
         emit Received(msg.sender, msg.value);
     }
 
@@ -86,7 +88,7 @@ contract LiquidityProviderContract is Initializable, ReentrancyGuardUpgradeable,
         uint32 _resignDelayBlocks,
         uint _maxQuoteValue
     ) external initializer {
-        __Ownable_init_unchained();
+        __AccessControlDefaultAdminRules_init(30 minutes, msg.sender);
         bridge = Bridge(_bridgeAddress);
         minCollateral = _minimumCollateral;
         resignDelayInBlocks = _resignDelayBlocks;
@@ -110,12 +112,11 @@ contract LiquidityProviderContract is Initializable, ReentrancyGuardUpgradeable,
         @param addr The address of the liquidity provider
         @return Boolean indicating whether the liquidity provider is registered
      */
-    function isRegistered(address addr) public view returns (bool) { // TODO CHECK SECURITY OR RETURN TO PRIVATE
+    function isRegistered(address addr) public view onlyRole(FlyoverModule.MODULE_ROLE) returns (bool) {
         return collateral[addr] > 0 && resignationBlockNum[addr] == 0;
     }
 
-    // TODO CHECK SECURITY OR RETURN TO PRIVATE
-    function isRegisteredForPegout(address addr) public view returns (bool) {
+    function isRegisteredForPegout(address addr) public view onlyRole(FlyoverModule.MODULE_ROLE) returns (bool) {
         return pegoutCollateral[addr] > 0 && resignationBlockNum[addr] == 0;
     }
 
@@ -135,7 +136,7 @@ contract LiquidityProviderContract is Initializable, ReentrancyGuardUpgradeable,
     function setProviderStatus(
         uint _providerId,
         bool status
-    ) public onlyOwnerAndProvider(_providerId) {
+    ) public onlyRole(FlyoverModule.MODULE_ROLE) onlyOwnerAndProvider(_providerId) {
         liquidityProviders[_providerId].status = status;
     }
 
@@ -151,7 +152,7 @@ contract LiquidityProviderContract is Initializable, ReentrancyGuardUpgradeable,
         string memory _apiBaseUrl,
         bool _status,
         string memory _providerType
-    ) external payable returns (uint) {
+    ) external onlyRole(FlyoverModule.MODULE_ROLE) payable returns (uint) {
         //require(collateral[tx.origin] == 0, "Already registered");
         validateRegisterParameters(
             _name,
@@ -197,19 +198,20 @@ contract LiquidityProviderContract is Initializable, ReentrancyGuardUpgradeable,
     /**
         @dev Increases the balance of the sender
      */
-    function deposit() external payable onlyRegistered {
-        increaseBalance(tx.origin, msg.value);
+    function deposit() external payable onlyRole(FlyoverModule.MODULE_ROLE) onlyRegistered {
+        balances[tx.origin] += msg.value;
+        emit Deposited(tx.origin, msg.value);
     }
 
     /**
         @dev Increases the amount of collateral of the sender
      */
-    function addCollateral() external payable onlyRegistered {
+    function addCollateral() external payable onlyRole(FlyoverModule.MODULE_ROLE) onlyRegistered {
         collateral[tx.origin] += msg.value;
         emit CollateralIncrease(tx.origin, msg.value);
     }
 
-    function addPegoutCollateral() external payable onlyRegisteredForPegout {
+    function addPegoutCollateral() external payable onlyRole(FlyoverModule.MODULE_ROLE) onlyRegisteredForPegout {
         pegoutCollateral[tx.origin] += msg.value;
         emit PegoutCollateralIncrease(tx.origin, msg.value);
     }
@@ -236,7 +238,7 @@ contract LiquidityProviderContract is Initializable, ReentrancyGuardUpgradeable,
         @dev Used to withdraw funds
         @param amount The amount to withdraw
      */
-    function withdraw(uint256 amount) external {
+    function withdraw(uint256 amount) external onlyRole(FlyoverModule.MODULE_ROLE) {
         require(balances[tx.origin] >= amount, "LBC019");
         balances[tx.origin] -= amount;
         (bool success,) = tx.origin.call{value: amount}("");
@@ -247,7 +249,7 @@ contract LiquidityProviderContract is Initializable, ReentrancyGuardUpgradeable,
     /**
         @dev Used to withdraw the locked collateral
      */
-    function withdrawCollateral() external {
+    function withdrawCollateral() external onlyRole(FlyoverModule.MODULE_ROLE) {
         require(resignationBlockNum[tx.origin] > 0, "LBC021");
         require(
             block.number - resignationBlockNum[tx.origin] >=
@@ -262,7 +264,7 @@ contract LiquidityProviderContract is Initializable, ReentrancyGuardUpgradeable,
         emit WithdrawCollateral(tx.origin, amount);
     }
 
-    function withdrawPegoutCollateral() external {
+    function withdrawPegoutCollateral() external onlyRole(FlyoverModule.MODULE_ROLE) {
         require(resignationBlockNum[tx.origin] > 0, "LBC021");
         require(
             block.number - resignationBlockNum[tx.origin] >=
@@ -280,7 +282,7 @@ contract LiquidityProviderContract is Initializable, ReentrancyGuardUpgradeable,
     /**
         @dev Used to resign as a liquidity provider
      */
-    function resign() external onlyRegistered {
+    function resign() external onlyRole(FlyoverModule.MODULE_ROLE) onlyRegistered {
         require(resignationBlockNum[tx.origin] == 0, "LBC023");
         resignationBlockNum[tx.origin] = block.number;
         emit Resigned(tx.origin);
@@ -292,7 +294,7 @@ contract LiquidityProviderContract is Initializable, ReentrancyGuardUpgradeable,
 
     function getProviders(
         uint[] memory providerIds
-    ) external view returns (LiquidityProvider[] memory) {
+    ) external view onlyRole(FlyoverModule.MODULE_ROLE) returns (LiquidityProvider[] memory) {
         LiquidityProvider[] memory providersToReturn = new LiquidityProvider[](
             providerIds.length
         );
@@ -356,19 +358,18 @@ contract LiquidityProviderContract is Initializable, ReentrancyGuardUpgradeable,
         );
     }
 
-        // IMPORTANT: These methods should remain private at all costs
-    function increaseBalance(address dest, uint amount) public { // TODO FIX SECURITY OR RETURN TO PRIVATE 
+    // IMPORTANT: These 3 methods should remain restricted to internal modules at all costs
+    function increaseBalance(address dest, uint amount) public onlyRole(FlyoverModule.INTERNAL_MODULE_ROLE) {
         balances[dest] += amount;
         emit BalanceIncrease(dest, amount);
     }
 
-    function decreaseBalance(address dest, uint amount) public { // TODO FIX SECURITY OR RETURN TO PRIVATE
+    function decreaseBalance(address dest, uint amount) public onlyRole(FlyoverModule.INTERNAL_MODULE_ROLE) {
         balances[dest] -= amount;
         emit BalanceDecrease(dest, amount);
     }
 
-    function useBalance(uint amount) nonReentrant public { // TODO FIX SECURITY OR RETURN TO PRIVATE
-        // TODO SENDER MUST BE FLYOVER MODULE
+    function useBalance(uint amount) public onlyRole(FlyoverModule.INTERNAL_MODULE_ROLE) nonReentrant {
         (bool success,) = msg.sender.call{value: amount}("");
         require(success, "LBC071");
         emit BalanceUsed(msg.sender, amount);
@@ -378,8 +379,8 @@ contract LiquidityProviderContract is Initializable, ReentrancyGuardUpgradeable,
         return balances[liquidityProvider];
     }
 
-    // TODO FIX SECURITY OR RETURN TO PRIVATE
-    function penalizeForPegin(Quotes.PeginQuote calldata quote, bytes32 quoteHash) public returns (uint) {
+    function penalizeForPegin(Quotes.PeginQuote calldata quote, bytes32 quoteHash)
+        public onlyRole(FlyoverModule.INTERNAL_MODULE_ROLE) returns (uint) {
         uint currentColalteral = collateral[quote.liquidityProviderRskAddress];
         // prevent underflow when collateral is less than penalty fee.
         uint penalizationAmount = quote.penaltyFee < currentColalteral ? quote.penaltyFee : currentColalteral;
@@ -388,8 +389,8 @@ contract LiquidityProviderContract is Initializable, ReentrancyGuardUpgradeable,
         return penalizationAmount;
     }
 
-    // TODO FIX SECURITY OR RETURN TO PRIVATE
-    function penalizeForPegout(Quotes.PegOutQuote calldata quote, bytes32 quoteHash) public returns (uint) {
+    function penalizeForPegout(Quotes.PegOutQuote calldata quote, bytes32 quoteHash)
+        public onlyRole(FlyoverModule.INTERNAL_MODULE_ROLE) returns (uint) {
         uint currentColalteral = pegoutCollateral[quote.lpRskAddress];
         uint penalty = quote.penaltyFee < currentColalteral ? quote.penaltyFee : currentColalteral;
         pegoutCollateral[quote.lpRskAddress] -= penalty;
