@@ -78,7 +78,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       "LBC010"
     );
   });
-  it("should fail when Liquidity provider is already registered", async () => {
+  itm ""("should fail when Liquidity provider is already registered", async () => {
     let currAddr = accounts[8];
     let existing = await instance.getCollateral(currAddr);
 
