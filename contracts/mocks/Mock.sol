@@ -22,6 +22,7 @@ contract Mock {
     function callRegister(address payable lbcAddress) external payable {
         LiquidityProviderContract lbc = LiquidityProviderContract(lbcAddress);
         lbc.register{value: msg.value}(
+            msg.sender,
             "First contract",
             10,
             7200,

@@ -49,8 +49,8 @@ contract PeginContract is Initializable, ReentrancyGuardUpgradeable, AccessContr
     event Refund(address dest, uint amount, bool success, bytes32 quoteHash);
     event BalanceReturned(LiquidityProviderContract lpContract, uint amount);
 
-    modifier onlyLP() {
-        require(liquidityProviderContract.isRegistered(tx.origin), "LBC001");
+    modifier onlyLP(address sender) {
+        require(liquidityProviderContract.isRegistered(sender), "LBC001");
         _;
     }
 
@@ -117,10 +117,11 @@ contract PeginContract is Initializable, ReentrancyGuardUpgradeable, AccessContr
         @return Boolean indicating whether the call was successful
      */
     function callForUser(
+        address sender,
         Quotes.PeginQuote memory quote
-    ) external payable onlyRole(FlyoverModule.MODULE_ROLE) onlyLP nonReentrant returns (bool) {
+    ) external payable onlyRole(FlyoverModule.MODULE_ROLE) onlyLP(sender) nonReentrant returns (bool) {
         require(
-            tx.origin == quote.liquidityProviderRskAddress,
+            sender == quote.liquidityProviderRskAddress,
             "LBC024"
         );
         require(
@@ -159,7 +160,7 @@ contract PeginContract is Initializable, ReentrancyGuardUpgradeable, AccessContr
             returnBalance(quote.value);
         }
         emit CallForUser(
-            tx.origin,
+            sender,
             quote.contractAddress,
             quote.gasLimit,
             quote.value,
@@ -181,6 +182,7 @@ contract PeginContract is Initializable, ReentrancyGuardUpgradeable, AccessContr
         @return The total peg-in amount received from the bridge contract or an error code
      */
     function registerPegIn(
+        address sender,
         Quotes.PeginQuote calldata quote,
         bytes calldata signature,
         bytes calldata btcRawTransaction,
@@ -243,20 +245,7 @@ contract PeginContract is Initializable, ReentrancyGuardUpgradeable, AccessContr
             "LBC036"
         );
 
-        if (
-            shouldPenalizeLP(
-            quote,
-            transferredAmountOrErrorCode,
-            callRegistry[quoteHash].timestamp,
-            height
-        )
-        ) {
-            uint penalizationAmount= liquidityProviderContract.penalizeForPegin(quote, quoteHash);
-
-            // pay reward to sender
-            uint256 punisherReward = (penalizationAmount * rewardP) / 100;
-            liquidityProviderContract.increaseBalance(tx.origin, punisherReward);
-        }
+        penalizeIfApplies(sender, quote, transferredAmountOrErrorCode, quoteHash, height);
 
         if (
             transferredAmountOrErrorCode == FlyoverModule.BRIDGE_REFUNDED_LP_ERROR_CODE ||
@@ -278,11 +267,34 @@ contract PeginContract is Initializable, ReentrancyGuardUpgradeable, AccessContr
         if (callRegistry[quoteHash].timestamp > 0) {
             registerCallForUserPerformed(quote, quoteHash, transferredAmount);
         } else {
-            registerCallForUserNotPerformed(quote, quoteHash, transferredAmount);
+            registerCallForUserNotPerformed(sender, quote, quoteHash, transferredAmount);
         }
         processedQuotes[quoteHash] = PROCESSED_QUOTE_CODE;
         delete callRegistry[quoteHash];
         return transferredAmountOrErrorCode;
+    }
+
+    function penalizeIfApplies(
+        address sender,
+        Quotes.PeginQuote calldata quote,
+        int256 value,
+        bytes32 quoteHash,
+        uint256 height
+    ) private {
+        if (
+            shouldPenalizeLP(
+            quote,
+            value,
+            callRegistry[quoteHash].timestamp,
+            height
+        )
+        ) {
+            uint penalizationAmount= liquidityProviderContract.penalizeForPegin(quote, quoteHash);
+
+            // pay reward to sender
+            uint256 punisherReward = (penalizationAmount * rewardP) / 100;
+            liquidityProviderContract.increaseBalance(sender, punisherReward);
+        }
     }
 
     function registerCallForUserPerformed(
@@ -329,6 +341,7 @@ contract PeginContract is Initializable, ReentrancyGuardUpgradeable, AccessContr
     }
 
     function registerCallForUserNotPerformed(
+        address sender,
         Quotes.PeginQuote calldata quote,
         bytes32 quoteHash,
         uint transferredAmount
@@ -342,7 +355,7 @@ contract PeginContract is Initializable, ReentrancyGuardUpgradeable, AccessContr
                     value: quote.value
                 }(quote.data);
             emit CallForUser(
-                tx.origin,
+                sender,
                 quote.contractAddress,
                 quote.gasLimit,
                 quote.value,

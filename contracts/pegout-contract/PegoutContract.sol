@@ -40,8 +40,8 @@ contract PegoutContract is Initializable, ReentrancyGuardUpgradeable, AccessCont
     // which address are using LPs to hash the quotes
     address private providerInterfaceAddress;
 
-    modifier onlyLP() {
-        require(liquidityProviderContract.isRegisteredForPegout(tx.origin), "LBC001");
+    modifier onlyLP(address sender) {
+        require(liquidityProviderContract.isRegisteredForPegout(sender), "LBC001");
         _;
     }
 
@@ -76,19 +76,20 @@ contract PegoutContract is Initializable, ReentrancyGuardUpgradeable, AccessCont
     }
 
     function refundPegOut(
+        address sender,
         bytes32 quoteHash,
         bytes calldata btcTx,
         bytes32 btcBlockHeaderHash,
         uint256 partialMerkleTree,
         bytes32[] calldata merkleBranchHashes
-    ) external onlyRole(FlyoverModule.MODULE_ROLE) nonReentrant onlyLP {
+    ) external onlyRole(FlyoverModule.MODULE_ROLE) nonReentrant onlyLP(sender) {
         require(pegoutRegistry[quoteHash].completed == false, "LBC064");
         Quotes.PegOutQuote storage quote = registeredPegoutQuotes[quoteHash];
         require(quote.lbcAddress != address(0), "LBC042");
         BtcUtils.TxRawOutput[] memory outputs = BtcUtils.getOutputs(btcTx);
         bytes32 txQuoteHash = abi.decode(BtcUtils.parseOpReturnOuput(outputs[QUOTE_HASH_OUTPUT].pkScript), (bytes32));
         require(quoteHash == txQuoteHash, "LBC069");
-        require(tx.origin == quote.lpRskAddress, "LBC048");
+        require(sender == quote.lpRskAddress, "LBC048");
         require(
             bridge.getBtcTransactionConfirmations(
                 BtcUtils.hashBtcTx(btcTx),
@@ -124,6 +125,7 @@ contract PegoutContract is Initializable, ReentrancyGuardUpgradeable, AccessCont
     }
 
     function depositPegout(
+        address sender,
         Quotes.PegOutQuote calldata quote,
         bytes calldata signature
     ) external payable onlyRole(FlyoverModule.MODULE_ROLE) {
@@ -144,7 +146,7 @@ contract PegoutContract is Initializable, ReentrancyGuardUpgradeable, AccessCont
         require(registeredQuote.lbcAddress == address(0), "LBC028");
         registeredPegoutQuotes[quoteHash] = quote;
         pegoutRegistry[quoteHash].depositTimestamp = block.timestamp;
-        emit PegOutDeposit(quoteHash, tx.origin, msg.value, block.timestamp);
+        emit PegOutDeposit(quoteHash, sender, msg.value, block.timestamp);
     }
 
     function refundUserPegOut(

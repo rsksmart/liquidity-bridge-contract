@@ -51,22 +51,22 @@ contract LiquidityProviderContract is Initializable, ReentrancyGuardUpgradeable,
     uint public providerId;
     uint256 private maxQuoteValue;
 
-    modifier onlyOwnerAndProvider(uint _providerId) {
+    modifier onlyOwnerAndProvider(address sender, uint _providerId) {
         require(
-            tx.origin == owner() ||
-            tx.origin == liquidityProviders[_providerId].provider,
+            sender == owner() ||
+            sender == liquidityProviders[_providerId].provider,
             "LBC005"
         );
         _;
     }
 
-    modifier onlyRegistered() {
-        require(isRegistered(tx.origin), "LBC001");
+    modifier onlyRegistered(address sender) {
+        require(isRegistered(sender), "LBC001");
         _;
     }
 
-    modifier onlyRegisteredForPegout() {
-        require(isRegisteredForPegout(tx.origin), "LBC001");
+    modifier onlyRegisteredForPegout(address sender) {
+        require(isRegisteredForPegout(sender), "LBC001");
         _;
     }
 
@@ -134,16 +134,18 @@ contract LiquidityProviderContract is Initializable, ReentrancyGuardUpgradeable,
     }
 
     function setProviderStatus(
+        address sender,
         uint _providerId,
         bool status
-    ) public onlyRole(FlyoverModule.MODULE_ROLE) onlyOwnerAndProvider(_providerId) {
+    ) public onlyRole(FlyoverModule.MODULE_ROLE) onlyOwnerAndProvider(sender, _providerId) {
         liquidityProviders[_providerId].status = status;
     }
 
     /**
-        @dev Registers tx.origin as a liquidity provider with msg.value as collateral
+        @dev Registers msg.sender as a liquidity provider with msg.value as collateral
      */
     function register(
+        address sender,
         string memory _name,
         uint _fee,
         uint _quoteExpiration,
@@ -166,22 +168,22 @@ contract LiquidityProviderContract is Initializable, ReentrancyGuardUpgradeable,
         // TODO multiplication by 2 is a temporal fix until we define solution with product team
         require(msg.value >= minCollateral * 2, "LBC008");
         require(
-            resignationBlockNum[tx.origin] == 0,
+            resignationBlockNum[sender] == 0,
             "LBC009"
         );
         // TODO split 50/50 between pegin and pegout is a temporal fix until we define solution with product team
         if (msg.value % 2 == 0) {
-            collateral[tx.origin] = msg.value / 2;
-            pegoutCollateral[tx.origin] = msg.value / 2;
+            collateral[sender] = msg.value / 2;
+            pegoutCollateral[sender] = msg.value / 2;
         } else {
-            collateral[tx.origin] = msg.value / 2 + 1;
-            pegoutCollateral[tx.origin] = msg.value / 2;
+            collateral[sender] = msg.value / 2 + 1;
+            pegoutCollateral[sender] = msg.value / 2;
         }
 
         providerId++;
         liquidityProviders[providerId] = LiquidityProvider({
             id: providerId,
-            provider: tx.origin,
+            provider: sender,
             name: _name,
             fee: _fee,
             quoteExpiration: _quoteExpiration,
@@ -191,29 +193,30 @@ contract LiquidityProviderContract is Initializable, ReentrancyGuardUpgradeable,
             status: _status,
             providerType: _providerType
         });
-        emit Register(providerId, tx.origin, msg.value);
+        emit Register(providerId, sender, msg.value);
         return (providerId);
     }
 
     /**
         @dev Increases the balance of the sender
      */
-    function deposit() external payable onlyRole(FlyoverModule.MODULE_ROLE) onlyRegistered {
-        balances[tx.origin] += msg.value;
-        emit Deposited(tx.origin, msg.value);
+    function deposit(address sender) external payable onlyRole(FlyoverModule.MODULE_ROLE) onlyRegistered(sender) {
+        balances[sender] += msg.value;
+        emit Deposited(sender, msg.value);
     }
 
     /**
         @dev Increases the amount of collateral of the sender
      */
-    function addCollateral() external payable onlyRole(FlyoverModule.MODULE_ROLE) onlyRegistered {
-        collateral[tx.origin] += msg.value;
-        emit CollateralIncrease(tx.origin, msg.value);
+    function addCollateral(address sender) external payable onlyRole(FlyoverModule.MODULE_ROLE) onlyRegistered(sender) {
+        collateral[sender] += msg.value;
+        emit CollateralIncrease(sender, msg.value);
     }
 
-    function addPegoutCollateral() external payable onlyRole(FlyoverModule.MODULE_ROLE) onlyRegisteredForPegout {
-        pegoutCollateral[tx.origin] += msg.value;
-        emit PegoutCollateralIncrease(tx.origin, msg.value);
+    function addPegoutCollateral(address sender)
+        external payable onlyRole(FlyoverModule.MODULE_ROLE) onlyRegisteredForPegout(sender) {
+        pegoutCollateral[sender] += msg.value;
+        emit PegoutCollateralIncrease(sender, msg.value);
     }
 
     /**
@@ -238,54 +241,54 @@ contract LiquidityProviderContract is Initializable, ReentrancyGuardUpgradeable,
         @dev Used to withdraw funds
         @param amount The amount to withdraw
      */
-    function withdraw(uint256 amount) external onlyRole(FlyoverModule.MODULE_ROLE) {
-        require(balances[tx.origin] >= amount, "LBC019");
-        balances[tx.origin] -= amount;
-        (bool success,) = tx.origin.call{value: amount}("");
+    function withdraw(address sender, uint256 amount) external onlyRole(FlyoverModule.MODULE_ROLE) {
+        require(balances[sender] >= amount, "LBC019");
+        balances[sender] -= amount;
+        (bool success,) = sender.call{value: amount}("");
         require(success, "LBC020");
-        emit Withdrawal(tx.origin, amount);
+        emit Withdrawal(sender, amount);
     }
 
     /**
         @dev Used to withdraw the locked collateral
      */
-    function withdrawCollateral() external onlyRole(FlyoverModule.MODULE_ROLE) {
-        require(resignationBlockNum[tx.origin] > 0, "LBC021");
+    function withdrawCollateral(address sender) external onlyRole(FlyoverModule.MODULE_ROLE) {
+        require(resignationBlockNum[sender] > 0, "LBC021");
         require(
-            block.number - resignationBlockNum[tx.origin] >=
+            block.number - resignationBlockNum[sender] >=
             resignDelayInBlocks,
             "LBC022"
         );
-        uint amount = collateral[tx.origin];
-        collateral[tx.origin] = 0;
-        resignationBlockNum[tx.origin] = 0;
-        (bool success,) = tx.origin.call{value: amount}("");
+        uint amount = collateral[sender];
+        collateral[sender] = 0;
+        resignationBlockNum[sender] = 0;
+        (bool success,) = sender.call{value: amount}("");
         require(success, "LBC020");
-        emit WithdrawCollateral(tx.origin, amount);
+        emit WithdrawCollateral(sender, amount);
     }
 
-    function withdrawPegoutCollateral() external onlyRole(FlyoverModule.MODULE_ROLE) {
-        require(resignationBlockNum[tx.origin] > 0, "LBC021");
+    function withdrawPegoutCollateral(address sender) external onlyRole(FlyoverModule.MODULE_ROLE) {
+        require(resignationBlockNum[sender] > 0, "LBC021");
         require(
-            block.number - resignationBlockNum[tx.origin] >=
+            block.number - resignationBlockNum[sender] >=
             resignDelayInBlocks,
             "LBC022"
         );
-        uint amount = pegoutCollateral[tx.origin];
-        pegoutCollateral[tx.origin] = 0;
-        resignationBlockNum[tx.origin] = 0;
-        (bool success,) = tx.origin.call{value: amount}("");
+        uint amount = pegoutCollateral[sender];
+        pegoutCollateral[sender] = 0;
+        resignationBlockNum[sender] = 0;
+        (bool success,) = sender.call{value: amount}("");
         require(success, "LBC020");
-        emit PegoutWithdrawCollateral(tx.origin, amount);
+        emit PegoutWithdrawCollateral(sender, amount);
     }
 
     /**
         @dev Used to resign as a liquidity provider
      */
-    function resign() external onlyRole(FlyoverModule.MODULE_ROLE) onlyRegistered {
-        require(resignationBlockNum[tx.origin] == 0, "LBC023");
-        resignationBlockNum[tx.origin] = block.number;
-        emit Resigned(tx.origin);
+    function resign(address sender) external onlyRole(FlyoverModule.MODULE_ROLE) onlyRegistered(sender) {
+        require(resignationBlockNum[sender] == 0, "LBC023");
+        resignationBlockNum[sender] = block.number;
+        emit Resigned(sender);
     }
 
     function getProviderIds() external view returns (uint) {

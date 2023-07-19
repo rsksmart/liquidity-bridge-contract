@@ -70,35 +70,35 @@ contract FlyoverProviderContract is Initializable, OwnableUpgradeable {
     }
 
     function addCollateral() external payable {
-        return lpContract.addCollateral{value: msg.value}();
+        return lpContract.addCollateral{value: msg.value}(msg.sender);
     }
 
     function addPegoutCollateral() external payable {
-        return lpContract.addPegoutCollateral{value: msg.value}();
+        return lpContract.addPegoutCollateral{value: msg.value}(msg.sender);
     }
 
     function setProviderStatus(uint _providerId, bool status) public {
-        return lpContract.setProviderStatus(_providerId, status);
+        return lpContract.setProviderStatus(msg.sender, _providerId, status);
     }
 
     function deposit() external payable {
-        lpContract.deposit{value: msg.value}();
+        lpContract.deposit{value: msg.value}(msg.sender);
     }
 
     function withdraw(uint256 amount) external {
-        lpContract.withdraw(amount);
+        lpContract.withdraw(msg.sender, amount);
     }
 
     function withdrawCollateral() external {
-        lpContract.withdrawCollateral();
+        lpContract.withdrawCollateral(msg.sender);
     }
 
     function withdrawPegoutCollateral() external {
-        lpContract.withdrawPegoutCollateral();
+        lpContract.withdrawPegoutCollateral(msg.sender);
     }
 
     function resign() external {
-        lpContract.resign();
+        lpContract.resign(msg.sender);
     }
 
     function register(
@@ -112,6 +112,7 @@ contract FlyoverProviderContract is Initializable, OwnableUpgradeable {
         string memory _providerType
     ) external payable onlyEoa returns (uint) {
         return lpContract.register{value: msg.value}(
+            msg.sender,
             _name,
             _fee,
             _quoteExpiration,
@@ -136,7 +137,14 @@ contract FlyoverProviderContract is Initializable, OwnableUpgradeable {
         uint256 partialMerkleTree,
         bytes32[] calldata merkleBranchHashes
     ) public {
-        pegoutContract.refundPegOut(quoteHash, btcTx, btcBlockHeaderHash, partialMerkleTree, merkleBranchHashes);
+        pegoutContract.refundPegOut(
+            msg.sender,
+            quoteHash,
+            btcTx,
+            btcBlockHeaderHash,
+            partialMerkleTree,
+            merkleBranchHashes
+        );
     }
 
     function registerPegIn(
@@ -146,12 +154,12 @@ contract FlyoverProviderContract is Initializable, OwnableUpgradeable {
         bytes memory partialMerkleTree,
         uint256 height
     ) public returns (int256) {
-        return peginContract.registerPegIn(quote, signature, btcRawTransaction, partialMerkleTree, height);
+        return peginContract.registerPegIn(msg.sender, quote, signature, btcRawTransaction, partialMerkleTree, height);
     }
 
     function callForUser(
         Quotes.PeginQuote calldata quote
     ) external payable returns (bool) {
-        return peginContract.callForUser{value: msg.value}(quote);
+        return peginContract.callForUser{value: msg.value}(msg.sender, quote);
     }
 }
