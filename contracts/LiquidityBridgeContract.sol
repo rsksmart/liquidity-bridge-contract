@@ -289,6 +289,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             _providerType
         );
         // TODO multiplication by 2 is a temporal fix until we define solution with product team
+        require(collateral[msg.sender] == 0 && pegoutCollateral[msg.sender] == 0, "LBC070");
         require(msg.value >= minCollateral * 2, "LBC008");
         require(
             resignationBlockNum[msg.sender] == 0,

@@ -67,5 +67,6 @@
     "LBC066": "Invalid parameters, quote or quoteHash",
     "LBC067": "Invalid amount for bitcoin transaction",
     "LBC068": "Invalid destination for bitcoin transaction",
-    "LBC069": "Quote is not related to transaction"
+    "LBC069": "Quote is not related to transaction",
+    "LBC070": "Liquidity provider already registered"
 }
