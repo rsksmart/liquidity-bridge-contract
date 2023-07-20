@@ -3,4 +3,4 @@ pragma solidity ^0.8.3;
 
 import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
-contract LiquidityBridgeContractAdmin is ProxyAdmin {}
+contract LiquidityProviderContractAdmin is ProxyAdmin {}

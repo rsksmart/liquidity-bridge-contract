@@ -1,5 +1,8 @@
-const LiquidityBridgeContract = artifacts.require("LiquidityBridgeContract");
+const FlyoverProviderContract = artifacts.require("FlyoverProviderContract");
+const LiquidityProviderContract = artifacts.require("LiquidityProviderContract");
+const PeginContract = artifacts.require("PeginContract");
 const BridgeMock = artifacts.require("BridgeMock");
+const BtcUtils = artifacts.require("BtcUtils");
 const Mock = artifacts.require("Mock");
 const truffleAssert = require("truffle-assertions");
 const utils = require("../test/utils/index");
@@ -11,17 +14,19 @@ const chaiBN = require("chai-bn")(BN);
 chai.use(chaiBN);
 const expect = chai.expect;
 
-contract("LiquidityBridgeContract", async (accounts) => {
+contract("FlyoverProviderContract", async (accounts) => {
   let instance;
   let bridgeMockInstance;
   let mock;
+  let btcUtils;
   const liquidityProviderRskAddress = accounts[0];
 
   before(async () => {
-    const proxy = await LiquidityBridgeContract.deployed();
-    instance = await LiquidityBridgeContract.at(proxy.address);
+    const proxy = await FlyoverProviderContract.deployed();
+    instance = await FlyoverProviderContract.at(proxy.address);
     bridgeMockInstance = await BridgeMock.deployed();
     mock = await Mock.deployed();
+    btcUtils = await BtcUtils.deployed();
   });
 
   beforeEach(async () => {
@@ -172,7 +177,8 @@ contract("LiquidityBridgeContract", async (accounts) => {
     let initialLPBalance = await instance.getBalance(
       liquidityProviderRskAddress
     );
-    let initialLBCBalance = await web3.eth.getBalance(instance.address);
+    const lpContractAddress = await LiquidityProviderContract.deployed().then(contract => contract.address);
+    let initialLBCBalance = await web3.eth.getBalance(lpContractAddress);
     let data = "0x00";
     let callFee = 1;
     let gasLimit = 150000;
@@ -265,7 +271,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
     );
 
     let finalLPBalance = await instance.getBalance(liquidityProviderRskAddress);
-    let finalLBCBalance = await web3.eth.getBalance(instance.address);
+    let finalLBCBalance = await web3.eth.getBalance(lpContractAddress);
     let finalUserBalance = await web3.eth.getBalance(destAddr);
     let finalLPDeposit = await instance.getCollateral(
       liquidityProviderRskAddress
@@ -378,23 +384,23 @@ contract("LiquidityBridgeContract", async (accounts) => {
   });
 
   it("should validate reward percentage arg in initialize", async () => {
-    let instance = await LiquidityBridgeContract.new();
-    const MAX_QUOTE_VALUE = web3.utils.toBN("1000000000000000000")
-    await instance.initialize(bridgeMockInstance.address, 1, 1, 0, 1, 1, MAX_QUOTE_VALUE, 1, false);
-    instance = await LiquidityBridgeContract.new();
-    await instance.initialize(bridgeMockInstance.address, 1, 1, 0, 1, 1, MAX_QUOTE_VALUE, 1, false);
-    instance = await LiquidityBridgeContract.new();
-    await instance.initialize(bridgeMockInstance.address, 1, 1, 1, 1, 1, MAX_QUOTE_VALUE, 1, false);
-    instance = await LiquidityBridgeContract.new();
-    await instance.initialize(bridgeMockInstance.address, 1, 1, 99, 1, 1, MAX_QUOTE_VALUE, 1, false);
-    instance = await LiquidityBridgeContract.new();
-    await instance.initialize(bridgeMockInstance.address, 1, 1, 100, 1, 1, MAX_QUOTE_VALUE, 1, false);
+    let instance = await PeginContract.new();
+    const lpContractAddress = '0x0000000000000000000000000000000000000000';
+    await instance.initialize(bridgeMockInstance.address, lpContractAddress, 1, 0, 1);
+    instance = await PeginContract.new();
+    await instance.initialize(bridgeMockInstance.address, lpContractAddress, 1, 0, 1);
+    instance = await PeginContract.new();
+    await instance.initialize(bridgeMockInstance.address, lpContractAddress, 1, 1, 1);
+    instance = await PeginContract.new();
+    await instance.initialize(bridgeMockInstance.address, lpContractAddress, 1, 99, 1);
+    instance = await PeginContract.new();
+    await instance.initialize(bridgeMockInstance.address, lpContractAddress, 1, 100, 1);
     await truffleAssert.fails(
-      instance.initialize(bridgeMockInstance.address, 1, 1, 100, 1, 1, MAX_QUOTE_VALUE, 1, false)
+      instance.initialize(bridgeMockInstance.address, lpContractAddress, 1, 100, 1)
     );
-    instance = await LiquidityBridgeContract.new();
+    instance = await PeginContract.new();
     await truffleAssert.fails(
-      instance.initialize(bridgeMockInstance.address, 1, 1, 101, 1, 1, MAX_QUOTE_VALUE, 1, false)
+      instance.initialize(bridgeMockInstance.address, lpContractAddress, 1, 101, 1)
     );
   });
 
@@ -402,12 +408,12 @@ contract("LiquidityBridgeContract", async (accounts) => {
     const btcHeader =
       "0x0080cf2a0857bdec9d66f5feb52d00d5061ff02a904112d9b0cd1ac401000000000000003d2d2b5733c820a1f07ce6e0acd2ea47f27016b49ccb405b1e3e5786f8ae962e3ce30c63bc292d1919856362";
 
-    let timestamp = await instance.getBtcBlockTimestamp(btcHeader);
+    let timestamp = await btcUtils.getBtcBlockTimestamp(btcHeader);
     expect(timestamp).to.be.a.bignumber.eq(web3.utils.toBN(1661788988));
 
     const btcHeader2 = "0x" + "00".repeat(68) + "12345678" + "00".repeat(8);
 
-    let timestamp2 = await instance.getBtcBlockTimestamp(btcHeader2);
+    let timestamp2 = await btcUtils.getBtcBlockTimestamp(btcHeader2);
     expect(timestamp2).to.be.a.bignumber.eq(web3.utils.toBN("0x78563412"));
   });
 
@@ -417,16 +423,16 @@ contract("LiquidityBridgeContract", async (accounts) => {
     const btcHeader81 = "0x" + "00".repeat(81);
 
     await truffleAssertions.reverts(
-      instance.getBtcBlockTimestamp(btcHeaderEmpty),
-      "LBC061"
+      btcUtils.getBtcBlockTimestamp(btcHeaderEmpty),
+      "Invalid header length"
     );
     await truffleAssertions.reverts(
-      instance.getBtcBlockTimestamp(btcHeader79),
-      "LBC061"
+      btcUtils.getBtcBlockTimestamp(btcHeader79),
+      "Invalid header length"
     );
     await truffleAssertions.reverts(
-      instance.getBtcBlockTimestamp(btcHeader81),
-      "LBC061"
+      btcUtils.getBtcBlockTimestamp(btcHeader81),
+      "Invalid header length"
     );
   });
 });

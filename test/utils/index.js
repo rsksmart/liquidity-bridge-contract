@@ -1,3 +1,5 @@
+const truffleAssertions = require("truffle-assertions");
+
 function getTestQuote(
   lbcAddress,
   destAddr,
@@ -134,6 +136,26 @@ async function generateRawTx(lbc, quote) {
   return web3.utils.hexToBytes(btcTx)
 }
 
+async function getDeepEventFinder(...internalContracts) {
+  const contracts = [];
+  let deployedContract;
+  for (let internalContract of internalContracts) {
+    deployedContract = await internalContract.deployed();
+    contracts.push(deployedContract);
+  }
+
+  return async function(tx){
+    const allLogs = [];
+    let internalTx;
+    for (let contract of contracts) {
+      internalTx = await truffleAssertions.createTransactionResult(contract, tx.tx)
+      allLogs.push(...internalTx.logs)
+    }
+    tx.logs = allLogs
+    return tx
+  }
+}
+
 module.exports = {
   getTestQuote,
   getTestPegOutQuote,
@@ -143,5 +165,6 @@ module.exports = {
   ONE_COLLATERAL,
   timeout,
   reverseHexBytes,
-  generateRawTx
+  generateRawTx,
+  getDeepEventFinder
 };

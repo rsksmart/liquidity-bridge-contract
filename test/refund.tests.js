@@ -1,4 +1,7 @@
-const LiquidityBridgeContract = artifacts.require('LiquidityBridgeContract');
+const FlyoverProviderContract = artifacts.require('FlyoverProviderContract');
+const LiquidityProviderContract = artifacts.require('LiquidityProviderContract');
+const PeginContract = artifacts.require('PeginContract');
+const PegoutContract = artifacts.require('PegoutContract');
 const BridgeMock = artifacts.require("BridgeMock");
 const Mock = artifacts.require('Mock');
 const WalletMock = artifacts.require('WalletMock');
@@ -13,16 +16,19 @@ chai.use(chaiBN);
 
 const expect = chai.expect;
 
-contract('LiquidityBridgeContract', async accounts => {
+contract('FlyoverProviderContract', async accounts => {
     let instance;
     let bridgeMockInstance;
     const liquidityProviderRskAddress = accounts[0];
+    let lpContractAddress;
 
     before(async () => {
-        const proxy = await LiquidityBridgeContract.deployed();
-        instance = await LiquidityBridgeContract.at(proxy.address);
+        const proxy = await FlyoverProviderContract.deployed();
+        instance = await FlyoverProviderContract.at(proxy.address);
         bridgeMockInstance = await BridgeMock.deployed();
         mock = await Mock.deployed();
+        extractEvents = await utils.getDeepEventFinder(LiquidityProviderContract, PeginContract, PegoutContract);
+        lpContractAddress = await LiquidityProviderContract.deployed().then(contract => contract.address);
     });
 
     beforeEach(async () => {
@@ -47,7 +53,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let height = 10;
         let initialUserBalance = await web3.eth.getBalance(destAddr);
         let initialLPBalance = await instance.getBalance(liquidityProviderRskAddress);
-        let initialLBCBalance = await web3.eth.getBalance(instance.address);
+        let initialLBCBalance = await web3.eth.getBalance(lpContractAddress);
         let initialRefundBalance = await web3.eth.getBalance(rskRefundAddress);
         let additionalFunds = web3.utils.toBN(1000000000000);
         let peginAmount = val.add(quote.callFee).add(additionalFunds);
@@ -87,10 +93,10 @@ contract('LiquidityBridgeContract', async accounts => {
             btcRawTransaction,
             partialMerkleTree,
             height
-        );
+        ).then(extractEvents);
 
         let finalLPBalance = await instance.getBalance(liquidityProviderRskAddress);
-        let finalLBCBalance = await web3.eth.getBalance(instance.address);
+        let finalLBCBalance = await web3.eth.getBalance(lpContractAddress);
         let finalUserBalance = await web3.eth.getBalance(destAddr);
         let finalRefundBalance = await web3.eth.getBalance(rskRefundAddress);
         let finalLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
@@ -133,7 +139,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let height = 10;
         let initialUserBalance = await web3.eth.getBalance(destAddr);
         let initialLPBalance = await instance.getBalance(liquidityProviderRskAddress);
-        let initialLBCBalance = await web3.eth.getBalance(instance.address);
+        let initialLBCBalance = await web3.eth.getBalance(lpContractAddress);
         let initialRefundBalance = await web3.eth.getBalance(rskRefundAddress);
         let additionalFunds = web3.utils.toBN(1000000000000);
         let peginAmount = val.add(quote.callFee).add(additionalFunds);
@@ -173,10 +179,10 @@ contract('LiquidityBridgeContract', async accounts => {
             btcRawTransaction,
             partialMerkleTree,
             height
-        );
+        ).then(extractEvents);
 
         let finalLPBalance = await instance.getBalance(liquidityProviderRskAddress);
-        let finalLBCBalance = await web3.eth.getBalance(instance.address);
+        let finalLBCBalance = await web3.eth.getBalance(lpContractAddress);
         let finalUserBalance = await web3.eth.getBalance(destAddr);
         let finalRefundBalance = await web3.eth.getBalance(rskRefundAddress);
         let finalLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
@@ -251,7 +257,7 @@ contract('LiquidityBridgeContract', async accounts => {
             btcRawTransaction,
             partialMerkleTree,
             height
-        );
+        ).then(extractEvents);
 
         let finalUserBalance = await web3.eth.getBalance(rskRefundAddress);
         let finalLPBalance = await instance.getBalance(liquidityProviderRskAddress);
@@ -290,7 +296,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let initialUserBalance = await web3.eth.getBalance(rskRefundAddress);
         let initialLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
         let reward = Math.floor(quote.penaltyFee.div(web3.utils.toBN(10)));
-        let initialLbcBalance = await web3.eth.getBalance(instance.address);
+        let initialLbcBalance = await web3.eth.getBalance(lpContractAddress);
         let peginAmount = quote.val.add(quote.callFee);
         
         let quoteHash = await instance.hashQuote(utils.asArray(quote));
@@ -310,12 +316,12 @@ contract('LiquidityBridgeContract', async accounts => {
             btcRawTransaction,
             partialMerkleTree,
             height
-        );
+        ).then(extractEvents);
 
         let finalUserBalance = await web3.eth.getBalance(rskRefundAddress);
         let finalAltBalance = await instance.getBalance(liquidityProviderRskAddress);
         let finalLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
-        let finalLbcBalance = await web3.eth.getBalance(instance.address);
+        let finalLbcBalance = await web3.eth.getBalance(lpContractAddress);
 
         let usrBal = web3.utils.toBN(finalUserBalance).sub(web3.utils.toBN(initialUserBalance));
         let altBal = web3.utils.toBN(finalAltBalance).sub(web3.utils.toBN(initialAltBalance));
@@ -370,7 +376,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let initialCallerBalance = await instance.getBalance(registerPegInCaller);
         let initialLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
         let initialUserBalance = await web3.eth.getBalance(rskRefundAddress);
-        let initialLbcBalance = await web3.eth.getBalance(instance.address);
+        let initialLbcBalance = await web3.eth.getBalance(lpContractAddress);
 
         let tx = await instance.registerPegIn(
             utils.asArray(quote),
@@ -379,12 +385,12 @@ contract('LiquidityBridgeContract', async accounts => {
             partialMerkleTree,
             height,
             { from: registerPegInCaller }
-        );
+        ).then(extractEvents);
 
         let finalUserBalance = await web3.eth.getBalance(rskRefundAddress);
         let finalCallerBalance = await instance.getBalance(registerPegInCaller);
         let finalLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
-        let finalLbcBalance = await web3.eth.getBalance(instance.address);
+        let finalLbcBalance = await web3.eth.getBalance(lpContractAddress);
 
         let usrBal = web3.utils.toBN(finalUserBalance).sub(web3.utils.toBN(initialUserBalance));
         let callerBal = web3.utils.toBN(finalCallerBalance).sub(web3.utils.toBN(initialCallerBalance));
