@@ -6,7 +6,7 @@ import "@openzeppelin/contracts-upgradeable/access/AccessControlDefaultAdminRule
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "../Bridge.sol";
 import "../libraries/Quotes.sol";
-import "../libraries/BtcUtils.sol";
+import "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import "../libraries/FlyoverModule.sol";
 import "../libraries/SignatureValidator.sol";
 import "../liquidity-provider-contract/LiquidityProviderContract.sol";

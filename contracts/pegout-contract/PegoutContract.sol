@@ -7,7 +7,7 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
 import "../Bridge.sol";
 import "../libraries/Quotes.sol";
 import "../libraries/SignatureValidator.sol";
-import "../libraries/BtcUtils.sol";
+import "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import "../libraries/FlyoverModule.sol";
 import "../liquidity-provider-contract/LiquidityProviderContract.sol";
 
@@ -87,7 +87,7 @@ contract PegoutContract is Initializable, ReentrancyGuardUpgradeable, AccessCont
         Quotes.PegOutQuote storage quote = registeredPegoutQuotes[quoteHash];
         require(quote.lbcAddress != address(0), "LBC042");
         BtcUtils.TxRawOutput[] memory outputs = BtcUtils.getOutputs(btcTx);
-        bytes32 txQuoteHash = abi.decode(BtcUtils.parseOpReturnOuput(outputs[QUOTE_HASH_OUTPUT].pkScript), (bytes32));
+        bytes32 txQuoteHash = abi.decode(BtcUtils.parseNullDataScript(outputs[QUOTE_HASH_OUTPUT].pkScript), (bytes32));
         require(quoteHash == txQuoteHash, "LBC069");
         require(sender == quote.lpRskAddress, "LBC048");
         require(
@@ -100,7 +100,7 @@ contract PegoutContract is Initializable, ReentrancyGuardUpgradeable, AccessCont
             "LBC049"
         );
         require(quote.value <= outputs[PAY_TO_ADDRESS_OUTPUT].value * (10**10), "LBC067"); // satoshi to wei
-        bytes memory btcTxDestination = BtcUtils.parsePayToAddressScript(outputs[PAY_TO_ADDRESS_OUTPUT]
+        bytes memory btcTxDestination = BtcUtils.parsePayToPubKeyHash(outputs[PAY_TO_ADDRESS_OUTPUT]
             .pkScript, mainnet);
         require(keccak256(quote.deposityAddress) == keccak256(btcTxDestination), "LBC068");
 
