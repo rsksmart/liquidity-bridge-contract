@@ -11,6 +11,8 @@ const BN = web3.utils.BN;
 const chaiBN = require("chai-bn")(BN);
 chai.use(chaiBN);
 const expect = chai.expect;
+const bs58check = require('bs58check')
+const bs58 = require('bs58');
 
 contract("LiquidityBridgeContract", async (accounts) => {
   let instance;
@@ -1780,4 +1782,83 @@ contract("LiquidityBridgeContract", async (accounts) => {
       }
     }
   })
+
+  it("Should verify depositAddress for given quote", async () => {
+    const tests = [
+      {
+        quote: {
+          fedBtcAddress: bs58check.decode("2N5muMepJizJE1gR7FbHJU6CD18V3BpNF9p").slice(1),
+          lbcAddress: instance.address,
+          liquidityProviderRskAddress: "0x9D93929A9099be4355fC2389FbF253982F9dF47c",
+          btcRefundAddress:  bs58check.decode("mxqk28jvEtvjxRN8k7W9hFEJfWz5VcUgHW"),
+          rskRefundAddress: "0xa2193A393aa0c94A4d52893496F02B56C61c36A1",
+          liquidityProviderBtcAddress: bs58check.decode("mnYcQxCZBbmLzNfE9BhV7E8E2u7amdz5y6"),
+          callFee: BigInt("1000000000000000"),
+          penaltyFee: 1000000,
+          contractAddress: "0xa2193A393aa0c94A4d52893496F02B56C61c36A1",
+          data: '0x',
+          gasLimit: 46000,
+          nonce: BigInt("3426962016206607167"),
+          value: BigInt("600000000000000000"),
+          agreementTimestamp: 1691772110,
+          timeForDeposit: 3600,
+          callTime: 7200,
+          depositConfirmations: 10,
+          callOnRegister: false
+        },
+        address: '2NB9Rp6DxS4WXefGoyNLa5rQWkcQtUM1FmF'
+      },
+      {
+        quote: {
+          fedBtcAddress: bs58check.decode("2N5muMepJizJE1gR7FbHJU6CD18V3BpNF9p").slice(1),
+          lbcAddress: instance.address,
+          liquidityProviderRskAddress: "0x9D93929A9099be4355fC2389FbF253982F9dF47c",
+          btcRefundAddress:  bs58check.decode("mi5vEG69RGhi3RKsn7bWco5xnafZvsXvrF"),
+          rskRefundAddress: "0x69b3886457c0e0654d9829d29a6156f49236235c",
+          liquidityProviderBtcAddress: bs58check.decode("mnYcQxCZBbmLzNfE9BhV7E8E2u7amdz5y6"),
+          callFee: BigInt("1000000000000000"),
+          penaltyFee: 1000000,
+          contractAddress: "0x7221249458b5e2055b33069a27836985a3822c99",
+          data: '0x',
+          gasLimit: 46000,
+          nonce: BigInt("7363369648470809209"),
+          value: BigInt("700000000000000000"),
+          agreementTimestamp: 1691873604,
+          timeForDeposit: 3600,
+          callTime: 7200,
+          depositConfirmations: 10,
+          callOnRegister: false
+        },
+        address: '2Mvbn9JQWjoS3SCBuxf1KTTkLw49WYjrkLx'
+      },
+      {
+        quote: {
+          fedBtcAddress: bs58check.decode("2N5muMepJizJE1gR7FbHJU6CD18V3BpNF9p").slice(1),
+          lbcAddress: instance.address,
+          liquidityProviderRskAddress: "0x9D93929A9099be4355fC2389FbF253982F9dF47c",
+          btcRefundAddress:  bs58check.decode("mjSE41mAMwqdYsXiibUgyWe4oESoCygf96"),
+          rskRefundAddress: "0xc67319ce23965591947a93884356252477330456",
+          liquidityProviderBtcAddress: bs58check.decode("mnYcQxCZBbmLzNfE9BhV7E8E2u7amdz5y6"),
+          callFee: BigInt("1000000000000000"),
+          penaltyFee: 1000000,
+          contractAddress: "0x48c8396629c550203e183350c9074a2b42e83d1a",
+          data: '0x',
+          gasLimit: 46000,
+          nonce: BigInt("8681289575209299775"),
+          value: BigInt("800000000000000000"),
+          agreementTimestamp: 1691874253,
+          timeForDeposit: 3600,
+          callTime: 7200,
+          depositConfirmations: 10,
+          callOnRegister: false
+        },
+        address: '2N2dEn75BJDgUA4mnfZyKG9qX99ofzKizeC'
+      }
+    ]
+
+    for (const test of tests) {
+      const decoded = web3.utils.bytesToHex(bs58.decode(test.address))
+      expect(await instance.validatePeginDepositAddress(test.quote, decoded)).to.be.true
+    }
+  });
 });

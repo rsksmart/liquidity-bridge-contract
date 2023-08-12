@@ -81,7 +81,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     event BridgeCapExceeded(bytes32 quoteHash, int256 errorCode);
     event BalanceIncrease(address dest, uint amount);
     event BalanceDecrease(address dest, uint amount);
-    event BridgeError(bytes32 quoteHash, int256 errorCode);
     event Refund(address dest, uint amount, bool success, bytes32 quoteHash);
     event PegOut(
         address from,
@@ -89,8 +88,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         bytes32 quotehash,
         uint processed
     );
-    event PegOutBalanceIncrease(address dest, uint amount);
-    event PegOutBalanceDecrease(address dest, uint amount);
     event PegOutRefunded(bytes32 quoteHash);
     event PegOutDeposit(
         bytes32 quoteHash,
@@ -296,13 +293,9 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             "LBC009"
         );
         // TODO split 50/50 between pegin and pegout is a temporal fix until we define solution with product team
-        if (msg.value % 2 == 0) {
-            collateral[msg.sender] = msg.value / 2;
-            pegoutCollateral[msg.sender] = msg.value / 2;
-        } else {
-            collateral[msg.sender] = msg.value / 2 + 1;
-            pegoutCollateral[msg.sender] = msg.value / 2;
-        }
+        uint halfMsgValue = msg.value / 2;
+        collateral[msg.sender] = msg.value % 2 == 0 ? halfMsgValue : halfMsgValue + 1;
+        pegoutCollateral[msg.sender] = halfMsgValue;
 
         providerId++;
         liquidityProviders[providerId] = LiquidityProvider({
@@ -834,6 +827,27 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         delete registeredPegoutQuotes[txQuoteHash];
         pegoutRegistry[txQuoteHash].completed = true;
         emit PegOutRefunded(txQuoteHash);
+    }
+
+   function validatePeginDepositAddress(
+        Quotes.PeginQuote memory quote,
+        bytes memory depositAddress
+    ) external view returns (bool) {
+        bytes32 derivationValue = keccak256(
+            bytes.concat(
+                hashQuote(quote),
+                quote.btcRefundAddress,
+                bytes20(quote.lbcAddress),
+                quote.liquidityProviderBtcAddress
+            )
+        );
+        bytes memory flyoverRedeemScript = bytes.concat(
+            hex"20",
+            derivationValue,
+            hex"75",
+            bridge.getActivePowpegRedeemScript()
+        );
+        return BtcUtils.validateP2SHAdress(depositAddress, flyoverRedeemScript, mainnet);
     }
 
     /**

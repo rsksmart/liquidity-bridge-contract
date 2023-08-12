@@ -120,6 +120,8 @@ interface Bridge {
 
     function getActiveFederationCreationBlockHeight() external view returns (uint256);
 
+    function getActivePowpegRedeemScript() external view returns (bytes memory);
+
     function getBtcBlockchainBestBlockHeader() external view returns (bytes memory);
 
     function getBtcBlockchainBlockHeaderByHash(bytes32 btcBlockHash) external view returns (bytes memory);

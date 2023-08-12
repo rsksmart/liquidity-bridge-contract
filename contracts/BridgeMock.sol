@@ -41,7 +41,14 @@ contract BridgeMock is Bridge {
 
     function setHeaderByHash(bytes32 blockHash, bytes memory header) public {
         headersByHash[blockHash] = header;
-    }  
+    }
+
+    function getActivePowpegRedeemScript() external pure returns (bytes memory) {
+        bytes memory part1 = hex"522102cd53fc53a07f211641a677d250f6de99caf620e8e77071e811a28b3bcddf0be1210362634ab5";
+        bytes memory part2 = hex"7dae9cb373a5d536e66a8c4f67468bbcfb063809bab643072d78a1242103c5946b3fbae03a654237da86";
+        bytes memory part3 = hex"3c9ed534e0878657175b132b8ca630f245df04db53ae";
+        return abi.encodePacked(part1, part2, part3);
+    }
 
     function getBtcBlockchainBestChainHeight (  ) external pure override returns (int) {return 0;}
     function getStateForBtcReleaseClient (  ) external pure override returns (bytes memory) {bytes memory b; return b;}
