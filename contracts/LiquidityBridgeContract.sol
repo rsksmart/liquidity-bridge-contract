@@ -950,7 +950,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
             quote.btcRefundAddress,
             payable(this),
             quote.liquidityProviderBtcAddress,
-            callRegistry[derivationHash].timestamp > 0
+            callRegistry[derivationHash].timestamp > 0 && callRegistry[derivationHash].success
         );
     }
 
