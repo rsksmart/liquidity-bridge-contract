@@ -1861,4 +1861,21 @@ contract("LiquidityBridgeContract", async (accounts) => {
       expect(await instance.validatePeginDepositAddress(test.quote, decoded)).to.be.true
     }
   });
+
+  it('Should throw error in hashQuote if summing quote agreementTimestamp and timeForDeposit cause overflow', async () => {
+    const quote = utils.getTestQuote(
+      instance.address,
+      accounts[1],
+      "0x00",
+      liquidityProviderRskAddress,
+      accounts[2],
+      web3.utils.toBN(1)
+    );
+    quote.agreementTime = 4294967294;
+    quote.timeForDeposit = 4294967294;
+    await truffleAssertions.reverts(
+      instance.hashQuote(utils.asArray(quote)),
+      "LBC071"
+    );
+  })
 });
