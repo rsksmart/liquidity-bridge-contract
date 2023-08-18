@@ -7,12 +7,13 @@ import "./Quotes.sol";
 import "./SignatureValidator.sol";
 import "./BtcUtils.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
 /**
     @title Contract that assists with the Flyover protocol
  */
 
-contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
+contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     uint16 constant public MAX_CALL_GAS_COST = 35000;
     uint16 constant public MAX_REFUND_GAS_LIMIT = 2300;
 
@@ -118,7 +119,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     uint256 private maxQuoteValue;
     uint public providerId;
 
-    bool private locked;
     uint private btcBlockTime;
     bool private mainnet;
 
@@ -134,13 +134,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
     modifier onlyRegisteredForPegout() {
         require(isRegisteredForPegout(msg.sender), "LBC001");
         _;
-    }
-
-    modifier noReentrancy() {
-        require(!locked, "LBC002");
-        locked = true;
-        _;
-        locked = false;
     }
 
     modifier onlyEoa() {
@@ -483,7 +476,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
      */
     function callForUser(
         Quotes.PeginQuote memory quote
-    ) external payable onlyRegistered noReentrancy returns (bool) {
+    ) external payable onlyRegistered nonReentrant returns (bool) {
         require(
             msg.sender == quote.liquidityProviderRskAddress,
             "LBC024"
@@ -547,7 +540,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         bytes memory btcRawTransaction,
         bytes memory partialMerkleTree,
         uint256 height
-    ) public noReentrancy returns (int256) {
+    ) public nonReentrant returns (int256) {
         bytes32 quoteHash = validateAndHashQuote(quote);
 
         // TODO: allow multiple registerPegIns for the same quote with different transactions
@@ -747,7 +740,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
 
     function refundUserPegOut(
         bytes32 quoteHash
-    ) public noReentrancy {
+    ) public nonReentrant {
         Quotes.PegOutQuote storage quote = registeredPegoutQuotes[quoteHash];
 
         require(quote.lbcAddress != address(0), "LBC042");
@@ -782,7 +775,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         bytes32 btcBlockHeaderHash,
         uint256 partialMerkleTree,
         bytes32[] memory merkleBranchHashes
-    ) public noReentrancy onlyRegisteredForPegout {
+    ) public nonReentrant onlyRegisteredForPegout {
         require(pegoutRegistry[quoteHash].completed == false, "LBC064");
         Quotes.PegOutQuote storage quote = registeredPegoutQuotes[quoteHash];
         require(quote.lbcAddress != address(0), "LBC042");
@@ -885,6 +878,10 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable {
         require(
             quote.value + quote.callFee >= minPegIn,
             "LBC055"
+        );
+        require(
+            type(uint32).max >= uint64(quote.agreementTimestamp) + uint64(quote.timeForDeposit),
+            "LBC071"
         );
 
         return keccak256(Quotes.encodeQuote(quote));
