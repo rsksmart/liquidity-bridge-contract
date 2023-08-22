@@ -21,9 +21,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
     uint8 constant public CALL_DONE_CODE = 1;
     uint8 constant public PROCESSED_QUOTE_CODE = 2;
 
-    uint32 constant public MAX_INT32 = 2147483647;
-    uint32 constant public MAX_UINT32 = 4294967295;
-
     int16 constant public BRIDGE_REFUNDED_USER_ERROR_CODE = - 100;
     int16 constant public BRIDGE_REFUNDED_LP_ERROR_CODE = - 200;
     int16 constant public BRIDGE_UNPROCESSABLE_TX_NOT_CONTRACT_ERROR_CODE = - 300;
@@ -505,7 +502,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
                 value: quote.value
             }(quote.data);
 
-        require(block.timestamp <= MAX_UINT32, "LBC027");
+        require(block.timestamp <= type(uint32).max, "LBC027");
         callRegistry[quoteHash].timestamp = uint32(block.timestamp);
 
         if (success) {
@@ -556,7 +553,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
             ),
             "LBC029"
         );
-        require(height < uint256(MAX_INT32), "LBC030");
+        require(height < uint256(int256(type(int32).max)), "LBC030");
 
         int256 transferredAmountOrErrorCode = registerBridge(
             quote,
