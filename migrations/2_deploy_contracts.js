@@ -13,11 +13,13 @@ const BtcUtils = artifacts.require("BtcUtils");
 const RSK_NETWORK_MAINNET = "rskMainnet";
 const RSK_NETWORK_TESTNET = "rskTestnet";
 const RSK_NETWORK_REGTEST = "rskRegtest";
+const INTERNAL_ALPHANET = "alphanet";
 
 const RSK_NETWORKS = [
   RSK_NETWORK_MAINNET,
   RSK_NETWORK_TESTNET,
   RSK_NETWORK_REGTEST,
+  INTERNAL_ALPHANET
 ];
 
 const RSK_BRIDGE_ADDRESS = "0x0000000000000000000000000000000001000006";
