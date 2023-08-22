@@ -12,6 +12,7 @@
     "lint:sol": "solhint 'contracts/**/*.sol'",
     "deploy-regtest": "npm run lint:sol && npx truffle deploy --network rskRegtest",
     "deploy-rskTestnet": "npm run lint:sol && npx truffle deploy --network rskTestnet",
+    "deploy-alphanet": "npm run lint:sol && npx truffle deploy --network alphanet",
     "contract-size": "npx truffle run contract-size"
   },
   "repository": {

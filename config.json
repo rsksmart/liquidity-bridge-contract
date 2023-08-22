@@ -58,5 +58,35 @@
       "address": "0x987c1f13d417F7E04d852B44badc883E4E9782e1",
       "deployed": true
     }
+  },
+  "alphanet": {
+    "Migrations": {
+      "address": "0x8E30B378224c001aEc0159003646020085733113",
+      "deployed": true
+    },
+    "SignatureValidator": {
+      "address": "0x6B8856025aF768722dE6DDECEC57EeC5dE09DF43",
+      "deployed": true
+    },
+    "Quotes": {
+      "address": "0x0c7c184dFbb2f4c9c903137A951FA1d1fb498288",
+      "deployed": true
+    },
+    "BtcUtils": {
+      "address": "0x921467716303C239FeE5014a3bc6233546da8C3b",
+      "deployed": true
+    },
+    "LiquidityBridgeContractAdmin": {
+      "address": "0x2d16c305eB546b6AE9cf320B58c993Df3df48b23",
+      "deployed": true
+    },
+    "LiquidityBridgeContract": {
+      "address": "0x1251d64eb93c9Bc6D8b93DBBA685721aE1753561",
+      "deployed": true
+    },
+    "LiquidityBridgeContractProxy": {
+      "address": "0x53cd29D248490AE7161bdC8F07B5dB033895d5CD",
+      "deployed": true
+    }
   }
 }

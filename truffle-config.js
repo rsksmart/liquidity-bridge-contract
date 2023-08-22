@@ -20,6 +20,16 @@ module.exports = {
       port: 4444,
       network_id: 33,
     },
+    alphanet: {
+      provider: () => new HDWalletProvider({
+        mnemonic,
+        providerOrUrl: `http://fullnode-use1-1.alphanet.iovlabs.net:4444`,
+        derivationPath: "m/44'/60'/0'/0/",
+        pollingInterval: 30000,
+      }),
+      port: 4444,
+      network_id: 78
+    },
     rskTestnet: {
       provider: () => new HDWalletProvider({
         mnemonic,
