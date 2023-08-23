@@ -201,10 +201,6 @@ contract('LiquidityBridgeContract', async accounts => {
       const lpAddress = accounts[9];
       await instance.register(
         "First contract",
-        10,
-        7200,
-        100,
-        150,
         "http://localhost/api",
         true,
         "both",

@@ -23,10 +23,6 @@ contract Mock {
         LiquidityBridgeContract lbc = LiquidityBridgeContract(lbcAddress);
         lbc.register{value: msg.value}(
             "First contract",
-            10,
-            7200,
-            100,
-            150,
             "http://localhost/api",
             true,
             "both"

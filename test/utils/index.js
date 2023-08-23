@@ -92,10 +92,6 @@ async function ensureLiquidityProviderAvailable(
   if (!lpIsAvailableForPegin || !lpIsAvailableForPegout) {
     return await instance.register(
       "First contract",
-      10,
-      7200,
-      100,
-      150,
       "http://localhost/api",
       true,
       "both",
