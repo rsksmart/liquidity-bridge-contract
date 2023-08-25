@@ -39,10 +39,6 @@ contract("LiquidityBridgeContract", async (accounts) => {
     let attackerCollateral = web3.utils.toWei("10");
     await instance.register.call(
       "First contract",
-      10,
-      7200,
-      100,
-      150,
       "http://localhost/api",
       true,
       'both',
@@ -56,10 +52,6 @@ contract("LiquidityBridgeContract", async (accounts) => {
     let goodProviderCollateral = web3.utils.toWei("30");
     await instance.register.call(
       "First contract",
-      10,
-      7200,
-      100,
-      150,
       "http://localhost/api",
       true,
       'both',

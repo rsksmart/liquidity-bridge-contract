@@ -46,10 +46,6 @@ contract("LiquidityBridgeContract", async (accounts) => {
 
     let tx = await instance.register(
       "First contract",
-      10,
-      7200,
-      100,
-      150,
       "http://localhost/api",
       true,
       "both",
@@ -73,7 +69,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
     let currAddr = accounts[5];
 
     await truffleAssertions.reverts(
-      instance.register("", 0, 0, 0, 100, "", true, "both", {
+      instance.register("", "", true, "both", {
         from: currAddr,
         value: utils.LP_COLLATERAL,
       }),
@@ -86,10 +82,6 @@ contract("LiquidityBridgeContract", async (accounts) => {
 
     let tx = await instance.register(
         "First contract",
-        10,
-        7200,
-        100,
-        150,
         "http://localhost/api",
         true,
         "both",
@@ -110,10 +102,6 @@ contract("LiquidityBridgeContract", async (accounts) => {
     await truffleAssertions.reverts(
         instance.register(
             "First contract",
-            10,
-            7200,
-            100,
-            150,
             "http://localhost/api",
             true,
             "both",
@@ -128,10 +116,6 @@ contract("LiquidityBridgeContract", async (accounts) => {
     await truffleAssertions.reverts(
       instance.register(
         "First contract",
-        10,
-        7200,
-        100,
-        150,
         "http://localhost/api",
         true,
         "both",
@@ -148,35 +132,12 @@ contract("LiquidityBridgeContract", async (accounts) => {
     await truffleAssertions.reverts(
       instance.register(
         "First contract",
-        10,
-        7200,
-        100,
-        150,
         "http://localhost/api",
         true,
         "both",
         { from: accounts[1], value: lessThanMinimum }
       ),
       "LBC008"
-    );
-  });
-
-  it("should validate provider limits on register", async () => {
-    const minCollateral = await instance.getMinCollateral();
-
-    await truffleAssertions.reverts(
-      instance.register(
-        "First contract",
-        10,
-        7200,
-        3600,
-        web3.utils.toBN("1000000000000000001"),
-        "http://localhost/api",
-        true,
-        "both",
-        { from: accounts[1], value: minCollateral }
-      ),
-      "LBC016"
     );
   });
 
@@ -196,10 +157,6 @@ contract("LiquidityBridgeContract", async (accounts) => {
 
     let tx = await instance.register(
       "First contract",
-      10,
-      7200,
-      100,
-      150,
       "http://localhost/api",
       true,
       "both",
@@ -218,10 +175,6 @@ contract("LiquidityBridgeContract", async (accounts) => {
 
     let tx2 = await instance.register(
       "First contract",
-      10,
-      7200,
-      100,
-      150,
       "http://localhost/api",
       true,
       "both",
@@ -407,10 +360,6 @@ contract("LiquidityBridgeContract", async (accounts) => {
     const lpAddress = accounts[6];
     await instance.register(
       "First contract",
-      10,
-      7200,
-      100,
-      150,
       "http://localhost/api",
       true,
       "both",
@@ -433,10 +382,6 @@ contract("LiquidityBridgeContract", async (accounts) => {
     const lpAddress = accounts[3];
     await instance.register(
       "First contract",
-      10,
-      7200,
-      100,
-      150,
       "http://localhost/api",
       true,
       "both",
@@ -777,10 +722,6 @@ contract("LiquidityBridgeContract", async (accounts) => {
     const lpAddress = accounts[5];
       await instance.register(
         "First contract",
-        10,
-        7200,
-        100,
-        150,
         "http://localhost/api",
         true,
         "both",
@@ -1285,10 +1226,6 @@ contract("LiquidityBridgeContract", async (accounts) => {
     const lpAddress = accounts[7];
     await instance.register(
       "First contract",
-      10,
-      7200,
-      100,
-      150,
       "http://localhost/api",
       true,
       "both",

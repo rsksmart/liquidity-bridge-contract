@@ -49,10 +49,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
         uint id;
         address provider;
         string name;
-        uint fee;
-        uint quoteExpiration;
-        uint minTransactionValue;
-        uint maxTransactionValue;
         string apiBaseUrl;
         bool status;
         string providerType;
@@ -257,10 +253,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
      */
     function register(
         string memory _name,
-        uint _fee,
-        uint _quoteExpiration,
-        uint _minTransactionValue,
-        uint _maxTransactionValue,
         string memory _apiBaseUrl,
         bool _status,
         string memory _providerType
@@ -268,10 +260,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
         //require(collateral[msg.sender] == 0, "Already registered");
         validateRegisterParameters(
             _name,
-            _fee,
-            _quoteExpiration,
-            _minTransactionValue,
-            _maxTransactionValue,
             _apiBaseUrl,
             _providerType
         );
@@ -292,10 +280,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
             id: providerId,
             provider: msg.sender,
             name: _name,
-            fee: _fee,
-            quoteExpiration: _quoteExpiration,
-            minTransactionValue: _minTransactionValue,
-            maxTransactionValue: _maxTransactionValue,
             apiBaseUrl: _apiBaseUrl,
             status: _status,
             providerType: _providerType
@@ -309,28 +293,10 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
   */
     function validateRegisterParameters(
         string memory _name,
-        uint _fee,
-        uint _quoteExpiration,
-        uint _minTransactionValue,
-        uint _maxTransactionValue,
         string memory _apiBaseUrl,
         string memory _providerType
-    ) internal view {
+    ) internal pure {
         require(bytes(_name).length > 0, "LBC010");
-        require(_fee > 0, "LBC011");
-        require(
-            _quoteExpiration > 0,
-            "LBC012"
-        );
-        require(
-            _minTransactionValue > 0,
-            "LBC014"
-        );
-        require(
-            _maxTransactionValue > _minTransactionValue,
-            "LBC015"
-        );
-        require(_maxTransactionValue <= maxQuoteValue, "LBC016");
         require(
             bytes(_apiBaseUrl).length > 0,
             "LBC017"
