@@ -14,7 +14,7 @@
     "deploy-rskTestnet": "npm run lint:sol && npx truffle deploy --network rskTestnet",
     "deploy-alphanet": "npm run lint:sol && npx truffle deploy --network alphanet",
     "contract-size": "npx truffle run contract-size",
-    "test:integration": "npx truffle test integration-test/* --migrate-none --network"
+    "test:integration": "npx truffle test integration-test/* --bail --migrate-none --network"
   },
   "repository": {
     "type": "git",

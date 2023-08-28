@@ -12,7 +12,9 @@ const {
     sendFromAccount,
     decodeLogs,
     getBitcoinRpcCaller,
-    loadConfig
+    loadConfig,
+    sendBtc,
+    waitForBtcTransaction
 } = require('./common')
 
 describe('Flyover pegin process should', () => {
@@ -100,23 +102,8 @@ describe('Flyover pegin process should', () => {
         const amountInSatoshi = (quote.value + quote.callFee) / BigInt(10**10)
         const amountInBtc = Number(amountInSatoshi) / 10**8
 
-        const rawSendTx = await bitcoinRpc("createrawtransaction", {
-            inputs: [],
-            outputs: { [derivationAddress]: amountInBtc }
-        })
-        const fundedSendTx = await bitcoinRpc("fundrawtransaction", rawSendTx, { fee_rate: 25 })
-        const signedSendTx = await bitcoinRpc("signrawtransactionwithwallet", fundedSendTx.hex)
-        const txHash = await bitcoinRpc("sendrawtransaction", signedSendTx.hex)
-
-        let tx
-        while (!tx?.confirmations || quote.depositConfirmations > tx.confirmations) {
-            tx = await bitcoinRpc("gettransaction", txHash)
-            if (quote.depositConfirmations > tx.confirmations) {
-                console.log(`Waiting for transaction ${txHash} (${tx.confirmations} confirmations)`)
-                await sleep(interval)
-            }
-        }
-        console.log("Transaction confirmed")
+        const txHash = await sendBtc({ rpc: bitcoinRpc, amountInBtc, toAddress: derivationAddress })
+        const tx = await waitForBtcTransaction({ rpc: bitcoinRpc, hash: txHash, confirmations: quote.depositConfirmations, interval })
 
         const block = await bitcoinRpc("getblock", tx.blockhash)
         const rawTx = await bitcoinRpc("getrawtransaction", txHash)
