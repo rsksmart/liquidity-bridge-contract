@@ -1,0 +1,14 @@
+{
+    "pollingIntervalInSeconds": 10,
+    "lbcAddress": "0x0848B16e015A5e8A5c40Bfa0387367Be2fD371cf",
+    "btcUtilsAddress": "0xa841Cf63635A86ba39E8Cbaf8795f757d3Ec83B4",
+    "lpPrivateKey": "<PRIVATE KEY>",
+    "lpBtcAddress": "mvoUMT3X1Kpfvp8YgupcWNJKrU2VaR4dMS",
+    "userPrivateKey": "<PRIVATE KEY>",
+    "userBtcAddress": "muyEFdh98xUM35jYbSQ2hWBBadnQ31a5kh",
+    "btc": {
+        "url": "http://127.0.0.1:5555/",
+        "user": "test",
+        "pass": "test"
+    }
+}
