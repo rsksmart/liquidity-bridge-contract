@@ -7,16 +7,15 @@ async function sendFromAccount({ account, value, call, additionalGasLimit }) {
     const gasPrice = await web3.eth.getGasPrice().then(price => {
         return parseInt(price) + parseInt(web3.utils.toWei('1', 'gwei'))
     })
-    const gasLimit = await call.estimateGas({ from: account.address, gasPrice })
-        .then(gas => additionalGasLimit? gas + additionalGasLimit : gas)
     const tx = {
         from: account.address,
         gasPrice,
-        gas: gasLimit,
         to: call._parent.options.address,
         value: value?.toString(),
         data: call.encodeABI()
     };
+    const gasLimit = await call.estimateGas(tx).then(gas => additionalGasLimit? gas + additionalGasLimit : gas)
+    tx.gasLimit = gasLimit
     const signedTx = await account.signTransaction(tx)
     return web3.eth.sendSignedTransaction(signedTx.rawTransaction)
 }
@@ -67,6 +66,34 @@ async function loadConfig() {
     const buffer = await readFile('integration-test/test.config.json')
     return JSON.parse(buffer.toString())
 }
+async function sendBtc({ toAddress, amountInBtc, rpc, data }) {
+    const outputs = [ { [toAddress]: amountInBtc } ]
+    const fundOptions = { fee_rate: 25 }
+    if (data) {
+        outputs.push({ data })
+        fundOptions.changePosition = 2
+    }
+    const rawSendTx = await rpc("createrawtransaction", {
+        inputs: [],
+        outputs
+    })
+    const fundedSendTx = await rpc("fundrawtransaction", rawSendTx, fundOptions)
+    const signedSendTx = await rpc("signrawtransactionwithwallet", fundedSendTx.hex)
+    return rpc("sendrawtransaction", signedSendTx.hex)
+}
+
+async function waitForBtcTransaction({ rpc, hash, confirmations, interval }) {
+    let tx
+    while (!tx?.confirmations || confirmations > tx.confirmations) {
+        tx = await rpc("gettransaction", hash)
+        if (confirmations > tx.confirmations) {
+            console.log(`Waiting for transaction ${hash} (${tx.confirmations} confirmations)`)
+            await sleep(interval)
+        }
+    }
+    console.log("Transaction confirmed")
+    return tx
+}
 
 module.exports = {
     sleep,
@@ -74,5 +101,7 @@ module.exports = {
     sendFromAccount,
     decodeLogs,
     getBitcoinRpcCaller,
-    loadConfig
+    loadConfig,
+    sendBtc,
+    waitForBtcTransaction
 }
