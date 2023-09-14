@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.3;
+pragma solidity ^0.8.18;
 
 interface Bridge {
 
@@ -119,6 +119,8 @@ interface Bridge {
         bytes calldata liquidityProviderBtcAddress, bool shouldTransferToContract) external returns (int256);
 
     function getActiveFederationCreationBlockHeight() external view returns (uint256);
+
+    function getActivePowpegRedeemScript() external view returns (bytes memory);
 
     function getBtcBlockchainBestBlockHeader() external view returns (bytes memory);
 

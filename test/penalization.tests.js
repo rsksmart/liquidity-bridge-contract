@@ -198,6 +198,17 @@ contract('LiquidityBridgeContract', async accounts => {
     });
 
     it ('should not underflow when penalty is higher than collateral', async () => {
+      const lpAddress = accounts[9];
+      await instance.register(
+        "First contract",
+        "http://localhost/api",
+        true,
+        "both",
+        {
+          from: lpAddress,
+          value: utils.LP_COLLATERAL,
+        }
+      );
         let val = web3.utils.toBN(10);
         let rskRefundAddress = accounts[2];
         let destAddr = accounts[1];
@@ -206,7 +217,7 @@ contract('LiquidityBridgeContract', async accounts => {
             instance.address, 
             destAddr,
             null, 
-            liquidityProviderRskAddress, 
+            lpAddress, 
             rskRefundAddress,
             val);
         quote.callTime = 1;
@@ -215,12 +226,12 @@ contract('LiquidityBridgeContract', async accounts => {
         let partialMerkleTree = '0x202';
         let height = 10;
 
-        let initialLPBalance = await instance.getBalance(liquidityProviderRskAddress);
+        let initialLPBalance = await instance.getBalance(lpAddress, { from: lpAddress });
         let peginAmount = quote.val.add(quote.callFee);
-        let initialLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
+        let initialLPDeposit = await instance.getCollateral(lpAddress, { from: lpAddress });
         let rewardPercentage = await instance.getRewardPercentage();
         let quoteHash = await instance.hashQuote(utils.asArray(quote));
-        let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
+        let signature = await web3.eth.sign(quoteHash, lpAddress);
         let firstConfirmationTime = utils.reverseHexBytes(web3.utils.toHex(quote.agreementTime + 300).substring(2));
         let nConfirmationTime = utils.reverseHexBytes(web3.utils.toHex(quote.agreementTime + 1).substring(2));
         let firstHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + firstConfirmationTime + '0000000000000000';
@@ -235,10 +246,10 @@ contract('LiquidityBridgeContract', async accounts => {
         
         await instance.callForUser(
             utils.asArray(quote),
-            {value : quote.val}
+            { value: quote.val, from: lpAddress }
         );
         
-        currentLPBalance = await instance.getBalance(liquidityProviderRskAddress);
+        currentLPBalance = await instance.getBalance(lpAddress);
         expect(currentLPBalance).to.be.a.bignumber.eq(initialLPBalance);
         
         let tx = await instance.registerPegIn(
@@ -246,16 +257,17 @@ contract('LiquidityBridgeContract', async accounts => {
             signature,
             btcRawTransaction,
             partialMerkleTree,
-            height
+            height,
+            { from: lpAddress }
         );
         
         finalUserBalance = await web3.eth.getBalance(destAddr);
-        finalLPBalance = await instance.getBalance(liquidityProviderRskAddress);
-        finalLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
+        finalLPBalance = await instance.getBalance(lpAddress);
+        finalLPDeposit = await instance.getCollateral(lpAddress);
         
         let lpBal = web3.utils.toBN(finalLPBalance).sub(web3.utils.toBN(initialLPBalance));
         truffleAssert.eventEmitted(tx, "Penalized", {
-            liquidityProvider: liquidityProviderRskAddress,
+            liquidityProvider: lpAddress,
             penalty: initialLPDeposit,
             quoteHash: quoteHash
         });
@@ -285,10 +297,10 @@ contract('LiquidityBridgeContract', async accounts => {
     quote.transferConfirmations = 0;
     quote.agreementTimestamp = Math.round(new Date().getTime() / 1000)
 
-    const quoteHash = await instance.hashPegoutQuote(quote);
+    const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
     const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
     const msgValue = quote.value.add(quote.callFee);
-    const pegOut = await instance.depositPegout(quote, signature, { value: msgValue.toNumber() });
+    const pegOut = await instance.depositPegout(utils.asArray(quote), signature, { value: msgValue.toNumber() });
     truffleAssert.eventEmitted(pegOut, "PegOutDeposit");
 
     const block = await web3.eth.getBlock("latest");

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.3;
+pragma solidity ^0.8.18;
 
 library Quotes {
     struct PeginQuote {
@@ -33,7 +33,6 @@ library Quotes {
         uint256 penaltyFee;
         int64 nonce;
         bytes deposityAddress;
-        uint32 gasLimit;
         uint256 value;
         uint32 agreementTimestamp;
         uint32 depositDateLimit;
@@ -114,7 +113,6 @@ library Quotes {
     ) private pure returns (bytes memory) {
         return
             abi.encode(
-                quote.gasLimit,
                 quote.value,
                 quote.agreementTimestamp,
                 quote.depositDateLimit,
