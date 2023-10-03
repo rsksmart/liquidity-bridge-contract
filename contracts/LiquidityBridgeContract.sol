@@ -156,6 +156,8 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
         bool _mainnet
     ) external initializer {
         require(_rewardPercentage <= 100, "LBC004");
+        require(_minimumCollateral >= 0.6 ether, "LBC072");
+        require(_resignDelayBlocks >= 15, "LBC073");
         __Ownable_init_unchained();
         bridge = Bridge(_bridgeAddress);
         minCollateral = _minimumCollateral;
