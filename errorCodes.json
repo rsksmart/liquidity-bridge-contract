@@ -64,5 +64,7 @@
     "LBC068": "Invalid destination for bitcoin transaction",
     "LBC069": "Quote is not related to transaction",
     "LBC070": "Liquidity provider already registered",
-    "LBC071": "Intentional overflow on quote values"
+    "LBC071": "Intentional overflow on quote values",
+    "LBC072": "Minimum collateral for registration can't be lower than 0.6 RBTC",
+    "LBC073": "Resign delay blocks lower than minimal"
 }

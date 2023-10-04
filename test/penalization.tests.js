@@ -221,7 +221,7 @@ contract('LiquidityBridgeContract', async accounts => {
             rskRefundAddress,
             val);
         quote.callTime = 1;
-        quote.penaltyFee = web3.utils.toBN(110);
+        quote.penaltyFee = web3.utils.toBN(utils.LP_COLLATERAL.add(web3.utils.toBN(1)));
         let btcRawTransaction = '0x101';
         let partialMerkleTree = '0x202';
         let height = 10;

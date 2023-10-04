@@ -375,6 +375,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       "LBC021"
     );
     await instance.resign({ from: lpAddress });
+    await utils.mineBlocks(utils.RESIGN_DELAY_BLOCKS);
     await instance.withdrawCollateral({ from: lpAddress });
   });
 
@@ -392,6 +393,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
     );
     await instance.resign({ from: lpAddress });
     await truffleAssertions.reverts(instance.resign({ from: lpAddress }), "LBC001");
+    await utils.mineBlocks(utils.RESIGN_DELAY_BLOCKS);
     await instance.withdrawCollateral({ from: lpAddress });
   });
 
@@ -749,6 +751,8 @@ contract("LiquidityBridgeContract", async (accounts) => {
       .sub(web3.utils.toBN(currentLBCBalance));
     expect(initialLPBalance).to.be.a.bignumber.eq(lbcCurrBal);
     expect(finalLPBalance).to.be.a.bignumber.eq(web3.utils.toBN(0));
+
+    await utils.mineBlocks(utils.RESIGN_DELAY_BLOCKS);
 
     let withdrawCollateralTx = await instance.withdrawCollateral({ from: lpAddress });
 
@@ -1241,6 +1245,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
         web3.utils.toBN(3)
       );
     await instance.resign({ from: lpAddress });
+    await utils.mineBlocks(utils.RESIGN_DELAY_BLOCKS);
     await instance.withdrawPegoutCollateral({ from: lpAddress });
     const quoteHash = await instance.hashPegoutQuote(quote);
     const signature = await web3.eth.sign(quoteHash, lpAddress);
