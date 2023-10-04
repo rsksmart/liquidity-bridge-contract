@@ -8,3 +8,4 @@ coverage.json
 .secret
 .DS_Store
 integration-test/test.config.json
+.env
