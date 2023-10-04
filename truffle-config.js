@@ -1,3 +1,4 @@
+require('dotenv').config()
 const HDWalletProvider = require('@truffle/hdwallet-provider');
 
 const fs = require('fs');
@@ -23,7 +24,7 @@ module.exports = {
     alphanet: {
       provider: () => new HDWalletProvider({
         mnemonic,
-        providerOrUrl: `http://fullnode-use1-1.alphanet.iovlabs.net:4444`,
+        providerOrUrl: process.env.ALPHANET_RPC_URL,
         derivationPath: "m/44'/60'/0'/0/",
         pollingInterval: 30000,
       }),
