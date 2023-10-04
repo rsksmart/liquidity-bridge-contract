@@ -22,7 +22,7 @@ module.exports = function (callback) {
     )
     .call({
       // from: accounts[0],
-      value: 100000000000000000,
+      value: 1200000000000000000,
     })
     .then((response) => console.log("Success: " + response))
     .catch((err) => console.log("Error: " + err));

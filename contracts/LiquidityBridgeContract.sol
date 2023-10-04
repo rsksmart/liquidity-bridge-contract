@@ -265,17 +265,25 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
             _apiBaseUrl,
             _providerType
         );
-        // TODO multiplication by 2 is a temporal fix until we define solution with product team
+
         require(collateral[msg.sender] == 0 && pegoutCollateral[msg.sender] == 0, "LBC070");
-        require(msg.value >= minCollateral * 2, "LBC008");
         require(
             resignationBlockNum[msg.sender] == 0,
             "LBC009"
         );
-        // TODO split 50/50 between pegin and pegout is a temporal fix until we define solution with product team
-        uint halfMsgValue = msg.value / 2;
-        collateral[msg.sender] = msg.value % 2 == 0 ? halfMsgValue : halfMsgValue + 1;
-        pegoutCollateral[msg.sender] = halfMsgValue;
+
+        if (keccak256(abi.encodePacked(_providerType)) == keccak256(abi.encodePacked("pegin"))) {
+            require(msg.value >= minCollateral, "LBC008");
+            collateral[msg.sender] = msg.value;
+        } else if (keccak256(abi.encodePacked(_providerType)) == keccak256(abi.encodePacked("pegout"))) {
+            require(msg.value >= minCollateral, "LBC008");
+            pegoutCollateral[msg.sender] = msg.value;
+        } else {
+            require(msg.value >= minCollateral * 2, "LBC008");
+            uint halfMsgValue = msg.value / 2;
+            collateral[msg.sender] = msg.value % 2 == 0 ? halfMsgValue : halfMsgValue + 1;
+            pegoutCollateral[msg.sender] = halfMsgValue;
+        }
 
         providerId++;
         liquidityProviders[providerId] = LiquidityProvider({

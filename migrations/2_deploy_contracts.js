@@ -24,11 +24,11 @@ const RSK_NETWORKS = [
 
 const RSK_BRIDGE_ADDRESS = "0x0000000000000000000000000000000001000006";
 
-const MINIMUM_COLLATERAL = "1"; // amount in wei
+const MINIMUM_COLLATERAL = "600000000000000000"; // amount in wei
 const MINIMUM_PEG_IN_DEFAULT = "5000000000000000"; // amount in wei
 const MINIMUM_PEG_IN_REGTEST = "5000000000000000"; // amount in wei
 const REWARD_PERCENTAGE = 10;
-const RESIGN_DELAY_BLOCKS = 1;
+const RESIGN_DELAY_BLOCKS = 15;
 const DUST_THRESHOLD = 2300 * 65164000;
 const MAX_QUOTE_VALUE = web3.utils.toBN("1000000000000000000"); // amount in wei
 const BTC_BLOCK_TIME = 5400; // the 5400 addition is to give 1.5h to the tx to be mined
