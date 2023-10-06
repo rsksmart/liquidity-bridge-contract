@@ -71,6 +71,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
         bool success,
         bytes32 quoteHash
     );
+    event PegInRegistered(bytes32 indexed quoteHash, int256 transferredAmount);
     event Penalized(address liquidityProvider, uint penalty, bytes32 quoteHash);
     event BridgeCapExceeded(bytes32 quoteHash, int256 errorCode);
     event BalanceIncrease(address dest, uint amount);
@@ -82,15 +83,15 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
         bytes32 quotehash,
         uint processed
     );
-    event PegOutRefunded(bytes32 quoteHash);
+    event PegOutRefunded(bytes32 indexed quoteHash);
     event PegOutDeposit(
-        bytes32 quoteHash,
+        bytes32 indexed quoteHash,
         address indexed sender,
-        uint256 indexed amount,
-        uint256 indexed timestamp
+        uint256 amount,
+        uint256 timestamp
     );
     event PegOutUserRefunded(
-        bytes32 quoteHash,
+        bytes32 indexed quoteHash,
         uint256 value,
         address userAddress
     );
@@ -684,6 +685,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
         }
         processedQuotes[quoteHash] = PROCESSED_QUOTE_CODE;
         delete callRegistry[quoteHash];
+        emit PegInRegistered(quoteHash, transferredAmountOrErrorCode);
         return transferredAmountOrErrorCode;
     }
 
@@ -708,7 +710,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
         require(registeredQuote.lbcAddress == address(0), "LBC028");
         registeredPegoutQuotes[quoteHash] = quote;
         pegoutRegistry[quoteHash].depositTimestamp = block.timestamp;
-        emit PegOutDeposit(quoteHash, msg.sender , msg.value, block.timestamp);
+        emit PegOutDeposit(quoteHash, msg.sender, msg.value, block.timestamp);
     }
 
     function refundUserPegOut(
