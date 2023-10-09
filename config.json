@@ -5,7 +5,7 @@
       "deployed": false
     },
     "SignatureValidator": {
-      "address": "0xFe2746b892fFFf26E9a8F45935E7510d72028416",
+      "address": "0x9ffA71ad9ED6F23900EE8b753F7910Fb80D22CD5",
       "deployed": true
     },
     "LiquidityBridgeContractAdmin": {
@@ -13,7 +13,7 @@
       "deployed": false
     },
     "LiquidityBridgeContract": {
-      "address": "0x890D3AFD0F14D870DE24798329bf36ce8939D0b4",
+      "address": "0xc2E56a5518B17C5d88eBd67C6ED6e12AB5Ec7fef",
       "deployed": true
     },
     "LiquidityBridgeContractProxy": {
@@ -23,70 +23,66 @@
     "Migrations": {
       "address": "0x9574a4972320d9988C110dAF950c89CC638B3b75",
       "deployed": true
+    },
+    "Quotes": {
+      "address": "0x826186c06DA7b106A7aCBcB1E8E6AcbE5fA3Ab5F",
+      "deployed": true
+    },
+    "BtcUtils": {
+      "address": "0x1c30E87C717e80A19AD5BEa9AF57b20d98bCcb5B",
+      "deployed": true
     }
   },
   "rskRegtest": {
     "Migrations": {
-      "address": "0xdac5481925A298B95Bf5b54c35b68FC6fc2eF423",
+      "address": "0x1Af2844A588759D0DE58abD568ADD96BB8B3B6D8",
       "deployed": true
-    },
-    "SafeMath": {
-      "address": "",
-      "deployed": false
     },
     "SignatureValidator": {
-      "address": "0xeFb80DB9E2d943A492Bd988f4c619495cA815643",
-      "deployed": true
-    },
-    "LiquidityBridgeContractAdmin": {
-      "address": "0x73ec81da0C72DD112e06c09A6ec03B5544d26F05",
-      "deployed": true
-    },
-    "LiquidityBridgeContract": {
-      "address": "0xA66939ac57893C2E65425a5D66099Bc20C76D4CD",
-      "deployed": true
-    },
-    "LiquidityBridgeContractProxy": {
-      "address": "0x1eD614cd3443EFd9c70F04b6d777aed947A4b0c4",
+      "address": "0xCd5805d60Bbf9Afe69a394c2BDa10F6Dae2c39AF",
       "deployed": true
     },
     "Quotes": {
-      "address": "0x463F29B11503e198f6EbeC9903b4e5AaEddf6D29",
+      "address": "0xdac5481925A298B95Bf5b54c35b68FC6fc2eF423",
       "deployed": true
     },
     "BtcUtils": {
+      "address": "0xfD1dda8C3BC734Bc1C8e71F69F25BFBEe9cE9535",
+      "deployed": true
+    },
+    "LiquidityBridgeContract": {
       "address": "0x987c1f13d417F7E04d852B44badc883E4E9782e1",
       "deployed": true
     }
   },
   "alphanet": {
     "Migrations": {
-      "address": "0x97CF123cFaB0720D4Bff758f3EF441F8867C38B0",
+      "address": "0x54D5d3e94Fe0542f9de230cf47e544Bbb7C9C1dd",
       "deployed": true
     },
     "SignatureValidator": {
-      "address": "0x536Fc3732Edcc90e0970CF3Ba0D8FF25bc91EEeb",
+      "address": "0x7eAdDF7Aa126027Bd31F4aCADf4D1d0830a14763",
       "deployed": true
     },
     "Quotes": {
-      "address": "0xaCF13405051Ab20e13d5F30Fadec46837CFb0065",
+      "address": "0x1A0898B4Ac6ed5BF1576237A1709cF791083d915",
       "deployed": true
     },
     "BtcUtils": {
-      "address": "0xa841Cf63635A86ba39E8Cbaf8795f757d3Ec83B4",
+      "address": "0x6D69F04179e093C53Bf2DEc8147E15406c0aFdB4",
       "deployed": true
     },
     "LiquidityBridgeContractAdmin": {
       "address": "0x5fb9966EF4D07C81E3165FD60adC8563A76B93bD",
-      "deployed": true
+      "deployed": false
     },
     "LiquidityBridgeContract": {
-      "address": "0x4b8763082e70ba997c685C77D8172142D1db40cb",
+      "address": "0xDFED830702fd9339Ae826Ae0F1DF834163e4bBa6",
       "deployed": true
     },
     "LiquidityBridgeContractProxy": {
       "address": "0x0848B16e015A5e8A5c40Bfa0387367Be2fD371cf",
-      "deployed": true
+      "deployed": false
     }
   }
 }

@@ -93,7 +93,7 @@ describe('Flyover pegin process should', () => {
             additionalGasLimit: quote.gasLimit + cfuExtraGas
         })
         const parsedReceipt = decodeLogs({ abi: LiquidityBridgeContract.abi, receipt })
-        expect(parsedReceipt.CallForUser.success).to.be.true
+        expect(parsedReceipt.CallForUser?.success).to.be.true
     })
     
     it('execute registerPegIn', async () => {

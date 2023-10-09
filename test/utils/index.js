@@ -120,14 +120,32 @@ function reverseHexBytes(hexStr) {
   return arr.join("");
 }
 
-const LP_COLLATERAL = web3.utils.toBN(100);
+const LP_COLLATERAL = web3.utils.toBN(1500000000000000000);
 const ONE_COLLATERAL = web3.utils.toBN(1);
+const RESIGN_DELAY_BLOCKS = 15;
 
 async function generateRawTx(lbc, quote) {
   const quoteHash = await lbc.hashPegoutQuote(asArray(quote));
   const btcTx = `0x0100000001013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40000000006a47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4ffffffff0201000000000000001976a9143c5f66fe733e0ad361805b3053f23212e5755c8d88ac0000000000000000226a20${quoteHash.slice(2)}00000000`;
   return web3.utils.hexToBytes(btcTx)
 }
+
+async function mineBlocks (blocks) {
+  for (let i = 0; i < blocks; i++) {
+    await new Promise((resolve, reject) => {
+      web3.currentProvider.send({
+          jsonrpc: "2.0",
+          method: "evm_mine",
+          id: 1
+        }, (error, result) => {
+          if (error) {
+              return reject(error);
+          }
+          return resolve(result);
+        });
+    });
+  }
+};
 
 module.exports = {
   getTestQuote,
@@ -138,5 +156,7 @@ module.exports = {
   ONE_COLLATERAL,
   timeout,
   reverseHexBytes,
-  generateRawTx
+  generateRawTx,
+  mineBlocks,
+  RESIGN_DELAY_BLOCKS
 };

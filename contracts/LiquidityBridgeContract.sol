@@ -71,6 +71,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
         bool success,
         bytes32 quoteHash
     );
+    event PegInRegistered(bytes32 indexed quoteHash, int256 transferredAmount);
     event Penalized(address liquidityProvider, uint penalty, bytes32 quoteHash);
     event BridgeCapExceeded(bytes32 quoteHash, int256 errorCode);
     event BalanceIncrease(address dest, uint amount);
@@ -82,15 +83,15 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
         bytes32 quotehash,
         uint processed
     );
-    event PegOutRefunded(bytes32 quoteHash);
+    event PegOutRefunded(bytes32 indexed quoteHash);
     event PegOutDeposit(
-        bytes32 quoteHash,
+        bytes32 indexed quoteHash,
         address indexed sender,
-        uint256 indexed amount,
-        uint256 indexed timestamp
+        uint256 amount,
+        uint256 timestamp
     );
     event PegOutUserRefunded(
-        bytes32 quoteHash,
+        bytes32 indexed quoteHash,
         uint256 value,
         address userAddress
     );
@@ -156,6 +157,8 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
         bool _mainnet
     ) external initializer {
         require(_rewardPercentage <= 100, "LBC004");
+        require(_minimumCollateral >= 0.6 ether, "LBC072");
+        require(_resignDelayBlocks >= 15, "LBC073");
         __Ownable_init_unchained();
         bridge = Bridge(_bridgeAddress);
         minCollateral = _minimumCollateral;
@@ -263,17 +266,25 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
             _apiBaseUrl,
             _providerType
         );
-        // TODO multiplication by 2 is a temporal fix until we define solution with product team
+
         require(collateral[msg.sender] == 0 && pegoutCollateral[msg.sender] == 0, "LBC070");
-        require(msg.value >= minCollateral * 2, "LBC008");
         require(
             resignationBlockNum[msg.sender] == 0,
             "LBC009"
         );
-        // TODO split 50/50 between pegin and pegout is a temporal fix until we define solution with product team
-        uint halfMsgValue = msg.value / 2;
-        collateral[msg.sender] = msg.value % 2 == 0 ? halfMsgValue : halfMsgValue + 1;
-        pegoutCollateral[msg.sender] = halfMsgValue;
+
+        if (keccak256(abi.encodePacked(_providerType)) == keccak256(abi.encodePacked("pegin"))) {
+            require(msg.value >= minCollateral, "LBC008");
+            collateral[msg.sender] = msg.value;
+        } else if (keccak256(abi.encodePacked(_providerType)) == keccak256(abi.encodePacked("pegout"))) {
+            require(msg.value >= minCollateral, "LBC008");
+            pegoutCollateral[msg.sender] = msg.value;
+        } else {
+            require(msg.value >= minCollateral * 2, "LBC008");
+            uint halfMsgValue = msg.value / 2;
+            collateral[msg.sender] = msg.value % 2 == 0 ? halfMsgValue : halfMsgValue + 1;
+            pegoutCollateral[msg.sender] = halfMsgValue;
+        }
 
         providerId++;
         liquidityProviders[providerId] = LiquidityProvider({
@@ -674,6 +685,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
         }
         processedQuotes[quoteHash] = PROCESSED_QUOTE_CODE;
         delete callRegistry[quoteHash];
+        emit PegInRegistered(quoteHash, transferredAmountOrErrorCode);
         return transferredAmountOrErrorCode;
     }
 
@@ -698,7 +710,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
         require(registeredQuote.lbcAddress == address(0), "LBC028");
         registeredPegoutQuotes[quoteHash] = quote;
         pegoutRegistry[quoteHash].depositTimestamp = block.timestamp;
-        emit PegOutDeposit(quoteHash, msg.sender , msg.value, block.timestamp);
+        emit PegOutDeposit(quoteHash, msg.sender, msg.value, block.timestamp);
     }
 
     function refundUserPegOut(
