@@ -10,6 +10,11 @@ const { deploy, read } = require("../config");
 module.exports = async function (deployer, network) {
     let config = read();
     config = await deploy("LiquidityBridgeContract", network, async (state) => {
+        if (network === 'test') {
+            console.log("Upgrade isn't executed during tests");
+            return;
+        }
+
         const signatureValidatorLib = await SignatureValidator.at(
             config[network]["SignatureValidator"].address
         );
