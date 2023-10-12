@@ -122,7 +122,7 @@ function reverseHexBytes(hexStr) {
 
 const LP_COLLATERAL = web3.utils.toBN(1500000000000000000);
 const ONE_COLLATERAL = web3.utils.toBN(1);
-const RESIGN_DELAY_BLOCKS = 15;
+const RESIGN_DELAY_BLOCKS = 60;
 
 async function generateRawTx(lbc, quote) {
   const quoteHash = await lbc.hashPegoutQuote(asArray(quote));
