@@ -110,7 +110,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
     uint32 private rewardP;
     uint32 private resignDelayInBlocks;
     uint private dust;
-    uint256 private maxQuoteValue;
     uint public providerId;
 
     uint private btcBlockTime;
@@ -152,13 +151,12 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
         uint32 _rewardPercentage,
         uint32 _resignDelayBlocks,
         uint _dustThreshold,
-        uint _maxQuoteValue,
         uint _btcBlockTime,
         bool _mainnet
     ) external initializer {
         require(_rewardPercentage <= 100, "LBC004");
         require(_minimumCollateral >= 0.6 ether, "LBC072");
-        require(_resignDelayBlocks >= 15, "LBC073");
+        require(_resignDelayBlocks >= 60, "LBC073");
         __Ownable_init_unchained();
         bridge = Bridge(_bridgeAddress);
         minCollateral = _minimumCollateral;
@@ -166,7 +164,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
         rewardP = _rewardPercentage;
         resignDelayInBlocks = _resignDelayBlocks;
         dust = _dustThreshold;
-        maxQuoteValue = _maxQuoteValue;
         btcBlockTime = _btcBlockTime;
         mainnet = _mainnet;
     }
@@ -189,10 +186,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
 
     receive() external payable {
         require(msg.sender == address(bridge), "LBC007");
-    }
-
-    function getMaxQuoteValue() external view returns (uint256) {
-        return maxQuoteValue;
     }
 
     function getProviderIds() external view returns (uint) {
