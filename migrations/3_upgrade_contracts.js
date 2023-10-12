@@ -1,31 +1,37 @@
-// const { upgradeProxy } = require("@openzeppelin/truffle-upgrades");
+const { upgradeProxy } = require("@openzeppelin/truffle-upgrades");
 
-// const version = "V2";
+const SignatureValidator = artifacts.require("SignatureValidator");
+const Quotes = artifacts.require("Quotes");
+const LiquidityBridgeContract = artifacts.require('LiquidityBridgeContract');
+const BtcUtils = artifacts.require("BtcUtils");
 
-// const SignatureValidator = artifacts.require("SignatureValidator");
-// const LiquidityBridgeContract = artifacts.require(`LiquidityBridgeContract`);
-// const LiquidityBridgeContractUpgrade = artifacts.require(
-//   `LiquidityBridgeContract${version}`
-// );
-
-// const { deploy, read } = require("../config");
+const { deploy, read } = require("../config");
 
 module.exports = async function (deployer, network) {
-//   let config = read();
-//   config = await deploy("LiquidityBridgeContract", network, async (state) => {
-//     const signatureValidatorLib = await SignatureValidator.at(
-//       config[network]["SignatureValidator"].address
-//     );
-//     await deployer.link(signatureValidatorLib, LiquidityBridgeContractUpgrade);
+    let config = read();
+    config = await deploy("LiquidityBridgeContract", network, async (state) => {
+        const signatureValidatorLib = await SignatureValidator.at(
+            config[network]["SignatureValidator"].address
+        );
+        await deployer.link(signatureValidatorLib, LiquidityBridgeContract);
 
-//     const existing = await LiquidityBridgeContract.deployed();
-//     const response = await upgradeProxy(
-//       existing.address,
-//       LiquidityBridgeContractUpgrade,
-//       { deployer, unsafeAllowLinkedLibraries: true }
-//     );
-//     console.log("Upgraded", response.address);
-//     state.address = response.address;
-//   });
-console.log("There is notting to upgrade");
+        const quotesLib = await Quotes.at(
+            config[network]["Quotes"].address
+        );
+        await deployer.link(quotesLib, LiquidityBridgeContract);
+
+        const btcUtilsLib = await BtcUtils.at(
+            config[network]["BtcUtils"].address
+        );
+        await deployer.link(btcUtilsLib, LiquidityBridgeContract);
+
+        const existing = config[network]["LiquidityBridgeContract"]
+        const response = await upgradeProxy(
+            existing.address,
+            LiquidityBridgeContract,
+            { deployer, unsafeAllowLinkedLibraries: true }
+        );
+        console.log("Upgraded", response.address);
+        state.address = response.address;
+    });
 };

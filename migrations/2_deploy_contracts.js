@@ -120,6 +120,10 @@ module.exports = async function (deployer, network) {
     );
     await deployer.link(btcUtilsLib, LiquidityBridgeContract);
 
+    if (config[network]["LiquidityBridgeContract"]?.address) {
+      console.log('Already deployed, skipping LiquidityBridgeContract deploy...');
+      return;
+    }
     
     const response = await deployProxy(
       LiquidityBridgeContract,
