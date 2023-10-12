@@ -5,7 +5,7 @@
       "deployed": false
     },
     "SignatureValidator": {
-      "address": "0x9ffA71ad9ED6F23900EE8b753F7910Fb80D22CD5",
+      "address": "0x698736e3433E664FE513EC6707EB81b3D2476700",
       "deployed": true
     },
     "LiquidityBridgeContractAdmin": {
@@ -13,7 +13,7 @@
       "deployed": false
     },
     "LiquidityBridgeContract": {
-      "address": "0xc2E56a5518B17C5d88eBd67C6ED6e12AB5Ec7fef",
+      "address": "0x4243CD5eb064ce9ABD4e9e2BbDD329E731cACB4B",
       "deployed": true
     },
     "LiquidityBridgeContractProxy": {
@@ -21,15 +21,15 @@
       "deployed": false
     },
     "Migrations": {
-      "address": "0x9574a4972320d9988C110dAF950c89CC638B3b75",
+      "address": "0x08ff8FB2C85e2840f29c974fa01658a93E4b4fF9",
       "deployed": true
     },
     "Quotes": {
-      "address": "0x826186c06DA7b106A7aCBcB1E8E6AcbE5fA3Ab5F",
+      "address": "0x28e84E9754BceF023f6529B6697728Bea6465aA2",
       "deployed": true
     },
     "BtcUtils": {
-      "address": "0x1c30E87C717e80A19AD5BEa9AF57b20d98bCcb5B",
+      "address": "0xf64f4f7D9970810B1b9c611dd32c0c182454b525",
       "deployed": true
     }
   },
