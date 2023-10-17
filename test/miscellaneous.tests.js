@@ -371,7 +371,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
 
   it("should validate minimiumCollateral arg in initialize", async () => {
     let instance = await LiquidityBridgeContract.new();
-    const MINIMUM_COLLATERAL = web3.utils.toBN("500000000000000000")
+    const MINIMUM_COLLATERAL = web3.utils.toBN("20000000000000000")
     const RESIGN_DELAY_BLOCKS = 15
     await truffleAssert.reverts(
       instance.initialize(bridgeMockInstance.address, MINIMUM_COLLATERAL, 1, 50, RESIGN_DELAY_BLOCKS, 1, 1, false),
