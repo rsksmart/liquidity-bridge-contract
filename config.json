@@ -84,5 +84,23 @@
       "address": "0x0848B16e015A5e8A5c40Bfa0387367Be2fD371cf",
       "deployed": false
     }
+  },
+  "rskMainnet": {
+    "SignatureValidator": {
+      "address": "0xb107cc96A5CfC4Be502e9BBB1208dE4792044ba7",
+      "deployed": true
+    },
+    "Quotes": {
+      "address": "0x12B53F7fB6D15beB3EBB8B8a69B979AF23133B2b",
+      "deployed": true
+    },
+    "BtcUtils": {
+      "address": "0x912c0CbF5C7CE892B9f165BeE288C4380FAa16C7",
+      "deployed": true
+    },
+    "LiquidityBridgeContract": {
+      "address": "0xAA9cAf1e3967600578727F975F283446A3Da6612",
+      "deployed": true
+    }
   }
 }
