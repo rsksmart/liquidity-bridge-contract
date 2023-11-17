@@ -67,6 +67,10 @@
     "LiquidityBridgeContract": {
       "address": "0xAA9cAf1e3967600578727F975F283446A3Da6612",
       "deployed": true
+    },
+    "Migrations": {
+      "address": "0x22183DB087d1Fed621435d00aa9cac4B5CdC9aE1",
+      "deployed": true
     }
   },
   "rskTestnet": {
