@@ -1292,7 +1292,17 @@ contract("LiquidityBridgeContract", async (accounts) => {
     });
     await web3.eth.getBlock("latest")
 
+    const balanceBefore = await web3.eth.getBalance(quote.rskRefundAddress);
+    const balanceBeforeBN = web3.utils.toBN(balanceBefore);
+
     const tx = await instance.refundUserPegOut(quoteHash);
+
+    const balanceAfter = await web3.eth.getBalance(quote.rskRefundAddress);
+    const balanceAfterBN = web3.utils.toBN(balanceAfter);
+
+    const dif = balanceAfterBN.sub(balanceBeforeBN);
+
+    expect(dif.toNumber()).to.be.eq(quoteValue.toNumber());
 
     await truffleAssertions.eventEmitted(tx, "Penalized", {
       quoteHash: quoteHash,

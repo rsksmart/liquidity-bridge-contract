@@ -719,6 +719,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
         );
 
         uint valueToTransfer = quote.value + quote.callFee;
+        address addressToTransfer = quote.rskRefundAddress;
 
         uint penalty = min(quote.penaltyFee, pegoutCollateral[quote.lpRskAddress]);
         pegoutCollateral[quote.lpRskAddress] -= penalty;
@@ -733,13 +734,13 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
         delete registeredPegoutQuotes[quoteHash];
         pegoutRegistry[quoteHash].completed = true;
 
-        (bool sent,) = quote.rskRefundAddress.call{value: valueToTransfer}("");
+        (bool sent,) = addressToTransfer.call{value: valueToTransfer}("");
         require(sent, "LBC044");
     }
 
     function refundPegOut(
         bytes32 quoteHash,
-        bytes memory btcTx, // TODO convert to calldata when contract size issues are fixed
+        bytes memory btcTx,
         bytes32 btcBlockHeaderHash,
         uint256 partialMerkleTree,
         bytes32[] memory merkleBranchHashes
