@@ -7,6 +7,7 @@
     "compile": "npm run lint:sol && npx truffle compile --all",
     "test": "npm run compile && npx truffle test",
     "test-regtest": "npm run compile && npx truffle test --network testRegtest",
+    "test-ganache": "npm run compile && npx truffle test --network ganache",
     "coverage": "npx truffle run coverage",
     "lint": "npx prettier --list-different 'contracts/**/*.sol' 'test/**/*.js' 'migrations/**/*.js'",
     "lint:sol": "solhint 'contracts/**/*.sol'",
@@ -14,6 +15,7 @@
     "deploy-rskTestnet": "npm run lint:sol && npx truffle deploy --network rskTestnet",
     "deploy-rskMainet": "npm run lint:sol && npx truffle deploy --network rskMainnet",
     "deploy-alphanet": "npm run lint:sol && npx truffle deploy --network alphanet",
+    "deploy-localGanache": "npm run lint:sol && npx truffle deploy --network ganache",
     "contract-size": "npx truffle run contract-size",
     "test:integration": "npx truffle test integration-test/* --bail --migrate-none --network"
   },

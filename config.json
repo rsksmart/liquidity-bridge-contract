@@ -90,5 +90,27 @@
       "address": "0xc2A630c053D12D63d32b025082f6Ba268db18300",
       "deployed": true
     }
+  },
+  "ganache": {
+    "Migrations": {
+      "address": "0x21d86cA6fb5753d76ecBb313c9bc87f99306A57C",
+      "deployed": true
+    },
+    "SignatureValidator": {
+      "address": "0x97522395D02899beB44C1c11cFD4F3B1ff2d6Ad9",
+      "deployed": true
+    },
+    "Quotes": {
+      "address": "0x31fE2df3EccA461EaD8D1823e192E902dd3953eE",
+      "deployed": true
+    },
+    "BtcUtils": {
+      "address": "0xbD171112775e70a44A1aBaabf3045aA8229Df7B5",
+      "deployed": true
+    },
+    "LiquidityBridgeContract": {
+      "address": "0x11D50Bcaff24425FC0b8E60a6818C5c455082bE7",
+      "deployed": true
+    }
   }
 }

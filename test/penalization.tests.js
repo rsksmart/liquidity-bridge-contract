@@ -1,4 +1,4 @@
-const LiquidityBridgeContract = artifacts.require('LiquidityBridgeContract');
+const LiquidityBridgeContractV1 = artifacts.require('LiquidityBridgeContractV1');
 const BridgeMock = artifacts.require("BridgeMock");
 const Mock = artifacts.require('Mock')
 const truffleAssert = require('truffle-assertions');
@@ -11,14 +11,14 @@ chai.use(chaiBN);
 
 const expect = chai.expect;
 
-contract('LiquidityBridgeContract', async accounts => {
+contract('LiquidityBridgeContractV1', async accounts => {
     let instance;
     let bridgeMockInstance;
     const liquidityProviderRskAddress = accounts[0];
 
     before(async () => {
-        const proxy = await LiquidityBridgeContract.deployed();
-        instance = await LiquidityBridgeContract.at(proxy.address);
+        const proxy = await LiquidityBridgeContractV1.deployed();
+        instance = await LiquidityBridgeContractV1.at(proxy.address);
         bridgeMockInstance = await BridgeMock.deployed();
         mock = await Mock.deployed()
     });
@@ -34,10 +34,10 @@ contract('LiquidityBridgeContract', async accounts => {
         let data = web3.eth.abi.encodeFunctionCall(mock.abi[2], []);
 
         let quote = utils.getTestQuote(
-            instance.address, 
+            instance.address,
             destAddr,
-            data, 
-            liquidityProviderRskAddress, 
+            data,
+            liquidityProviderRskAddress,
             rskRefundAddress,
             val);
         quote.penaltyFee = web3.utils.toBN(10);
@@ -84,10 +84,10 @@ contract('LiquidityBridgeContract', async accounts => {
         let data = web3.eth.abi.encodeFunctionCall(mock.abi[2], []);
 
         let quote = utils.getTestQuote(
-            instance.address, 
+            instance.address,
             destAddr,
-            data, 
-            liquidityProviderRskAddress, 
+            data,
+            liquidityProviderRskAddress,
             rskRefundAddress,
             val);
         quote.penaltyFee = web3.utils.toBN(10);
@@ -127,21 +127,21 @@ contract('LiquidityBridgeContract', async accounts => {
         expect(finalLPDeposit).to.be.a.bignumber.eq(initialLPDeposit);
     });
 
-    it ('should penalize on late call', async () => {
+    it('should penalize on late call', async () => {
         let val = web3.utils.toBN(10);
         let rskRefundAddress = accounts[2];
         let destAddr = accounts[1];
 
         let quote = utils.getTestQuote(
-            instance.address, 
+            instance.address,
             destAddr,
-            null, 
-            liquidityProviderRskAddress, 
+            null,
+            liquidityProviderRskAddress,
             rskRefundAddress,
             val);
         quote.penaltyFee = web3.utils.toBN(10);
         quote.callTime = 1;
-        let peginAmount = quote.val.add(quote.callFee);
+        let peginAmount = quote.val.add(quote.callFee).add(quote.productFeeAmount);
 
         let btcRawTransaction = '0x101';
         let partialMerkleTree = '0x202';
@@ -162,7 +162,7 @@ contract('LiquidityBridgeContract', async accounts => {
         await bridgeMockInstance.setPegin(quoteHash, {value : peginAmount});
         await bridgeMockInstance.setHeader(height, firstHeader);
         await bridgeMockInstance.setHeader(height + quote.depositConfirmations - 1, nHeader);
-    
+
         await utils.timeout(5000);
 
         await instance.callForUser(
@@ -191,13 +191,13 @@ contract('LiquidityBridgeContract', async accounts => {
             liquidityProvider: liquidityProviderRskAddress,
             penalty: quote.penaltyFee,
             quoteHash: quoteHash
-        }); 
+        });
         expect(usrBal).to.be.a.bignumber.eq(quote.val);
         expect(lpCol).to.be.a.bignumber.eq(quote.penaltyFee);
-        expect(lpBal).to.eql(web3.utils.toBN(reward).add(peginAmount));
+        expect(lpBal).to.eql(peginAmount);
     });
 
-    it ('should not underflow when penalty is higher than collateral', async () => {
+    it('should not underflow when penalty is higher than collateral', async () => {
       const lpAddress = accounts[9];
       await instance.register(
         "First contract",
@@ -214,10 +214,10 @@ contract('LiquidityBridgeContract', async accounts => {
         let destAddr = accounts[1];
 
         let quote = utils.getTestQuote(
-            instance.address, 
+            instance.address,
             destAddr,
-            null, 
-            lpAddress, 
+            null,
+            lpAddress,
             rskRefundAddress,
             val);
         quote.callTime = 1;
@@ -227,7 +227,7 @@ contract('LiquidityBridgeContract', async accounts => {
         let height = 10;
 
         let initialLPBalance = await instance.getBalance(lpAddress, { from: lpAddress });
-        let peginAmount = quote.val.add(quote.callFee);
+        let peginAmount = quote.val.add(quote.callFee).add(quote.productFeeAmount);
         let initialLPDeposit = await instance.getCollateral(lpAddress, { from: lpAddress });
         let rewardPercentage = await instance.getRewardPercentage();
         let quoteHash = await instance.hashQuote(utils.asArray(quote));
@@ -236,22 +236,22 @@ contract('LiquidityBridgeContract', async accounts => {
         let nConfirmationTime = utils.reverseHexBytes(web3.utils.toHex(quote.agreementTime + 1).substring(2));
         let firstHeader = '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + firstConfirmationTime + '0000000000000000';
         let nHeader =     '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' + nConfirmationTime +     '0000000000000000';
-        
+
         let reward = Math.floor(Math.min(initialLPDeposit, quote.penaltyFee) * rewardPercentage / 100);
         await bridgeMockInstance.setPegin(quoteHash, {value : peginAmount});
         await bridgeMockInstance.setHeader(height, firstHeader);
         await bridgeMockInstance.setHeader(height + quote.depositConfirmations - 1, nHeader);
-        
+
         await utils.timeout(5000);
-        
+
         await instance.callForUser(
             utils.asArray(quote),
             { value: quote.val, from: lpAddress }
         );
-        
+
         currentLPBalance = await instance.getBalance(lpAddress);
         expect(currentLPBalance).to.be.a.bignumber.eq(initialLPBalance);
-        
+
         let tx = await instance.registerPegIn(
             utils.asArray(quote),
             signature,
@@ -260,11 +260,11 @@ contract('LiquidityBridgeContract', async accounts => {
             height,
             { from: lpAddress }
         );
-        
+
         finalUserBalance = await web3.eth.getBalance(destAddr);
         finalLPBalance = await instance.getBalance(lpAddress);
         finalLPDeposit = await instance.getCollateral(lpAddress);
-        
+
         let lpBal = web3.utils.toBN(finalLPBalance).sub(web3.utils.toBN(initialLPBalance));
         truffleAssert.eventEmitted(tx, "Penalized", {
             liquidityProvider: lpAddress,
@@ -272,7 +272,7 @@ contract('LiquidityBridgeContract', async accounts => {
             quoteHash: quoteHash
         });
         expect(web3.utils.toBN(0)).to.be.a.bignumber.eq(finalLPDeposit);
-        expect(lpBal).to.eql(web3.utils.toBN(reward).add(peginAmount));
+        expect(lpBal).to.eql(peginAmount.add(web3.utils.toBN(reward)).sub(quote.productFeeAmount));
     });
 
   it("Should penalize LP on pegout if the transfer was not made on time", async () => {
