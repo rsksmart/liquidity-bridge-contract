@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-library QuotesV1 {
+library QuotesV2 {
     struct PeginQuote {
         bytes20 fedBtcAddress;
         address lbcAddress;
@@ -133,11 +133,8 @@ library QuotesV1 {
         uint transferredAmount
     ) external pure {
         uint agreedAmount = 0;
-        if(quote.productFeeAmount > 0) {
-            agreedAmount = quote.value + quote.callFee + quote.productFeeAmount;
-        } else {
-            agreedAmount = quote.value + quote.callFee;
-        }
+        agreedAmount = quote.value + quote.callFee + quote.productFeeAmount;
+
 
         uint delta = agreedAmount / 10000;
         // transferred amount should not be lower than (agreed amount - delta),

@@ -1,4 +1,4 @@
-const LiquidityBridgeContractV1 = artifacts.require("LiquidityBridgeContractV1");
+const LiquidityBridgeContractV2 = artifacts.require("LiquidityBridgeContractV2.sol");
 const LiquidityBridgeContract = artifacts.require("LiquidityBridgeContract");
 const BridgeMock = artifacts.require("BridgeMock");
 const Mock = artifacts.require("Mock");
@@ -12,15 +12,15 @@ const chaiBN = require("chai-bn")(BN);
 chai.use(chaiBN);
 const expect = chai.expect;
 
-contract("LiquidityBridgeContractV1", async (accounts) => {
+contract("LiquidityBridgeContractV2.sol", async (accounts) => {
   let instance;
   let bridgeMockInstance;
   let mock;
   const liquidityProviderRskAddress = accounts[0];
 
   before(async () => {
-    const proxy = await LiquidityBridgeContractV1.deployed();
-    instance = await LiquidityBridgeContractV1.at(proxy.address);
+    const proxy = await LiquidityBridgeContractV2.deployed();
+    instance = await LiquidityBridgeContractV2.at(proxy.address);
     bridgeMockInstance = await BridgeMock.deployed();
     mock = await Mock.deployed();
   });
@@ -49,7 +49,7 @@ contract("LiquidityBridgeContractV1", async (accounts) => {
       }
     );
 
-    let goodLP = accounts[8];
+    let goodLP = accounts[6];
     let goodProviderCollateral = web3.utils.toWei("30");
     await instance.register.call(
       "First contract",

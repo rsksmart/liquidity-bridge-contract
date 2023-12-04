@@ -1,4 +1,4 @@
-const LiquidityBridgeContractV1 = artifacts.require('LiquidityBridgeContractV1');
+const LiquidityBridgeContractV2 = artifacts.require('LiquidityBridgeContractV2.sol');
 const BridgeMock = artifacts.require("BridgeMock");
 const Mock = artifacts.require('Mock')
 const truffleAssert = require('truffle-assertions');
@@ -11,14 +11,14 @@ chai.use(chaiBN);
 
 const expect = chai.expect;
 
-contract('LiquidityBridgeContractV1', async accounts => {
+contract('LiquidityBridgeContractV2.sol', async accounts => {
     let instance;
     let bridgeMockInstance;
     const liquidityProviderRskAddress = accounts[0];
 
     before(async () => {
-        const proxy = await LiquidityBridgeContractV1.deployed();
-        instance = await LiquidityBridgeContractV1.at(proxy.address);
+        const proxy = await LiquidityBridgeContractV2.deployed();
+        instance = await LiquidityBridgeContractV2.at(proxy.address);
         bridgeMockInstance = await BridgeMock.deployed();
         mock = await Mock.deployed()
     });

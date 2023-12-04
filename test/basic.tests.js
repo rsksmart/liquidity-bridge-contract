@@ -1,4 +1,4 @@
-const LiquidityBridgeContractV1 = artifacts.require("LiquidityBridgeContractV1");
+const LiquidityBridgeContractV2 = artifacts.require("LiquidityBridgeContractV2.sol");
 const BridgeMock = artifacts.require("BridgeMock");
 const Mock = artifacts.require("Mock");
 const SignatureValidatorMock = artifacts.require("SignatureValidatorMock");
@@ -14,7 +14,7 @@ const expect = chai.expect;
 const bs58check = require('bs58check')
 const bs58 = require('bs58');
 
-contract("LiquidityBridgeContractV1", async (accounts) => {
+contract("LiquidityBridgeContractV2.sol", async (accounts) => {
   let instance;
   let bridgeMockInstance;
   let mock;
@@ -24,8 +24,8 @@ contract("LiquidityBridgeContractV1", async (accounts) => {
   const MAX_UINT32 = Math.pow(2, 32) - 1;
   var providerList = [];
   before(async () => {
-    const proxy = await LiquidityBridgeContractV1.deployed();
-    instance = await LiquidityBridgeContractV1.at(proxy.address);
+    const proxy = await LiquidityBridgeContractV2.deployed();
+    instance = await LiquidityBridgeContractV2.at(proxy.address);
     bridgeMockInstance = await BridgeMock.deployed();
     mock = await Mock.deployed();
     signatureValidatorInstance = await SignatureValidatorMock.deployed();
@@ -41,7 +41,7 @@ contract("LiquidityBridgeContractV1", async (accounts) => {
   });
 
   it("should register liquidity provider", async () => {
-    let currAddr = accounts[8];
+    let currAddr = accounts[9];
     let existing = await instance.getCollateral(currAddr);
 
     let tx = await instance.register(
@@ -616,7 +616,7 @@ contract("LiquidityBridgeContractV1", async (accounts) => {
 
   it("should transfer value for user", async () => {
     let rskRefundAddress = accounts[2];
-    const daoFeeCollectorInitialBalance = await web3.eth.getBalance(accounts[9]);
+    const daoFeeCollectorInitialBalance = await web3.eth.getBalance(accounts[8]);
     let destAddr = accounts[1];
     let lbcAddress = instance.address;
     let quote = utils.getTestQuote(
@@ -717,7 +717,7 @@ contract("LiquidityBridgeContractV1", async (accounts) => {
       success: true,
       quoteHash: quoteHash,
     });
-    const daoFeeCollectorFinalBalance = await web3.eth.getBalance(accounts[9]);
+    const daoFeeCollectorFinalBalance = await web3.eth.getBalance(accounts[8]);
     expect(peginAmount).to.be.a.bignumber.eq(amount);
     expect(usrBal).to.be.a.bignumber.eq(quote.val);
     expect(lbcBal).to.be.a.bignumber.eq(peginAmount.sub(quote.productFeeAmount));
