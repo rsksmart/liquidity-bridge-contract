@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-library Quotes {
+library QuotesV2 {
     struct PeginQuote {
         bytes20 fedBtcAddress;
         address lbcAddress;
@@ -21,6 +21,7 @@ library Quotes {
         uint32 callTime;
         uint16 depositConfirmations;
         bool callOnRegister;
+        uint256 productFeeAmount;
     }
 
     struct PegOutQuote {
@@ -41,6 +42,7 @@ library Quotes {
         uint32 transferTime;
         uint32 expireDate;
         uint32 expireBlock;
+        uint256 productFeeAmount;
     }
 
     function encodeQuote(
@@ -87,7 +89,8 @@ library Quotes {
                 quote.timeForDeposit,
                 quote.callTime,
                 quote.depositConfirmations,
-                quote.callOnRegister
+                quote.callOnRegister,
+                quote.productFeeAmount
             );
     }
 
@@ -120,7 +123,8 @@ library Quotes {
                 quote.transferConfirmations,
                 quote.transferTime,
                 quote.expireDate,
-                quote.expireBlock
+                quote.expireBlock,
+                quote.productFeeAmount
             );
     }
 
@@ -128,7 +132,10 @@ library Quotes {
         PeginQuote memory quote,
         uint transferredAmount
     ) external pure {
-        uint agreedAmount = quote.value + quote.callFee;
+        uint agreedAmount = 0;
+        agreedAmount = quote.value + quote.callFee + quote.productFeeAmount;
+
+
         uint delta = agreedAmount / 10000;
         // transferred amount should not be lower than (agreed amount - delta),
         // where delta is intended to tackle rounding problems

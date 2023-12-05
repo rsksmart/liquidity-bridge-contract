@@ -1,3 +1,4 @@
+const LiquidityBridgeContractV2 = artifacts.require("LiquidityBridgeContractV2.sol");
 const LiquidityBridgeContract = artifacts.require("LiquidityBridgeContract");
 const BridgeMock = artifacts.require("BridgeMock");
 const Mock = artifacts.require("Mock");
@@ -11,15 +12,15 @@ const chaiBN = require("chai-bn")(BN);
 chai.use(chaiBN);
 const expect = chai.expect;
 
-contract("LiquidityBridgeContract", async (accounts) => {
+contract("LiquidityBridgeContractV2.sol", async (accounts) => {
   let instance;
   let bridgeMockInstance;
   let mock;
   const liquidityProviderRskAddress = accounts[0];
 
   before(async () => {
-    const proxy = await LiquidityBridgeContract.deployed();
-    instance = await LiquidityBridgeContract.at(proxy.address);
+    const proxy = await LiquidityBridgeContractV2.deployed();
+    instance = await LiquidityBridgeContractV2.at(proxy.address);
     bridgeMockInstance = await BridgeMock.deployed();
     mock = await Mock.deployed();
   });
@@ -48,7 +49,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       }
     );
 
-    let goodLP = accounts[8];
+    let goodLP = accounts[6];
     let goodProviderCollateral = web3.utils.toWei("30");
     await instance.register.call(
       "First contract",
@@ -88,6 +89,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
     let depositConfirmations = 10;
     let penaltyFee = web3.utils.toBN(0);
     let callOnRegister = true;
+    let productFeeAmount = web3.utils.toBN(1);
     let quote = [
       fedBtcAddress,
       lbcAddress,
@@ -107,6 +109,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       callTime,
       depositConfirmations,
       callOnRegister,
+      productFeeAmount
     ];
     // Let's now register our quote in the bridge... note that the
     // value is only a hundred wei
@@ -184,6 +187,8 @@ contract("LiquidityBridgeContract", async (accounts) => {
     let depositConfirmations = 10;
     let penaltyFee = 0;
     let callOnRegister = false;
+    let productFeeAmount = web3.utils.toBN(1);
+    peginAmount.add(productFeeAmount);
     let quote = [
       fedBtcAddress,
       lbcAddress,
@@ -203,6 +208,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       callTime,
       depositConfirmations,
       callOnRegister,
+      productFeeAmount
     ];
     let quoteHash = await instance.hashQuote(quote);
     let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
@@ -232,7 +238,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       liquidityProviderRskAddress
     );
 
-    await instance.callForUser(quote, { value: val });
+    await instance.callForUser(quote, { value: val.add(productFeeAmount) });
 
     let currentLPBalance = await instance.getBalance(
       liquidityProviderRskAddress
@@ -313,6 +319,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
     let depositConfirmations = 10;
     let penaltyFee = 0;
     let callOnRegister = false;
+    let productFeeAmount = web3.utils.toBN(1);
     let quote = [
       fedBtcAddress,
       lbcAddress,
@@ -332,6 +339,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       callTime,
       depositConfirmations,
       callOnRegister,
+      productFeeAmount
     ];
     let quoteHash = await instance.hashQuote(quote);
     let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
