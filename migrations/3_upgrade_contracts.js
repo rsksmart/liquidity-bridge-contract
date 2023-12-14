@@ -41,7 +41,7 @@ module.exports = async function (deployer, network, accounts) {
 
     if(network === 'ganache' || network === 'rskRegtest' || network === 'test') {
         daoFeeCollectorAddress = accounts[8];
-    } else if(network === '') {
+    } else if(network === 'rskTestnet') {
         daoFeeCollectorAddress = '0x438A3641d53552EFBaB487c5894a78A1434F5aC9';
     }
 
