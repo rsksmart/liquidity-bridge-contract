@@ -16,6 +16,12 @@ module.exports = {
   },
   plugins: ["truffle-contract-size"],
   networks: {
+    ganache: {
+      host: '127.0.0.1',
+      port: 7545,
+      network_id: 5777,
+      gas: 200000000
+    },
     rskRegtest: {
       host: '127.0.0.1',
       port: 4444,

@@ -21,6 +21,7 @@ function getTestQuote(
   let depositConfirmations = 10;
   let penaltyFee = web3.utils.toBN(0);
   let callOnRegister = false;
+  let productFeeAmount = web3.utils.toBN(1);
   let quote = {
     fedBtcAddress,
     lbcAddress,
@@ -40,6 +41,7 @@ function getTestQuote(
     callTime,
     depositConfirmations,
     callOnRegister,
+    productFeeAmount
   };
 
   return quote;
@@ -57,6 +59,7 @@ function getTestPegOutQuote(lbcAddress, lpRskAddress, rskRefundAddress, value) {
   let depositConfirmations = 10;
   let transferConfirmations = 10;
   let penaltyFee = web3.utils.toBN(0);
+  let productFeeAmount = web3.utils.toBN(1);
 
   let quote = {
     lbcAddress,
@@ -76,6 +79,7 @@ function getTestPegOutQuote(lbcAddress, lpRskAddress, rskRefundAddress, value) {
     transferTime,
     expireDate,
     expireBlock,
+    productFeeAmount
   };
 
   return quote;
