@@ -2,7 +2,7 @@ const json = require("../build/contracts/LiquidityBridgeContractV2.json");
 const configJson = require("../config.json");
 
 module.exports = async function (callback) {
-    const network = config.network;
+    const network = config.config.network
     let LBCAddress = '';
 
     if (network) {
