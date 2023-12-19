@@ -598,7 +598,6 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
 
             uint remainingAmount = transferredAmount - refundAmount;
             (bool daoSuccess,) = payable(daoFeeCollectorAddress).call{
-                    gas: MAX_REFUND_GAS_LIMIT,
                     value: quote.productFeeAmount
                 }("");
 
