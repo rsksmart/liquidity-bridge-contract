@@ -7,6 +7,9 @@ const BtcUtils = artifacts.require("BtcUtils");
 
 const { read, deploy} = require("../config");
 
+const FEE_COLLECTOR_TESTNET_ADDRESS = '0x86B6534687A176A476C16083a373fB9Fe4FAb449'
+const DAO_FEE_PERCENTAGE = 1
+
 module.exports = async function (deployer, network, accounts) {
     let config = read();
 
@@ -42,10 +45,10 @@ module.exports = async function (deployer, network, accounts) {
     if(network === 'ganache' || network === 'rskRegtest' || network === 'test') {
         daoFeeCollectorAddress = accounts[8];
     } else if(network === 'rskTestnet') {
-        daoFeeCollectorAddress = '0x86B6534687A176A476C16083a373fB9Fe4FAb449';
+        daoFeeCollectorAddress = FEE_COLLECTOR_TESTNET_ADDRESS;
     }
 
-    await response.initializeV2(1, daoFeeCollectorAddress);
+    await response.initializeV2(DAO_FEE_PERCENTAGE, daoFeeCollectorAddress);
 
     console.log("Upgraded", response.address);
 };
