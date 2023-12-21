@@ -854,11 +854,11 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       liquidityProviderRskAddress
     );
     const usedInGas = refund.receipt.gasUsed * refund.receipt.effectiveGasPrice;
-    const refundedAmount = +quote.value + +quote.callFee;
+    const refundedAmount = quote.value.add(quote.callFee);
     const daoFeeCollectorAfter = await web3.eth.getBalance(accounts[9]);
 
-    expect(+lpBalanceAfter).to.be.eq(
-      +lpBalanceBefore + refundedAmount - usedInGas
+    expect(lpBalanceAfter).to.be.a.bignumber.eq(
+      web3.utils.toBN(lpBalanceBefore).add(refundedAmount).sub(web3.utils.toBN(usedInGas))
     );
     expect(+daoFeeCollectorBefore + +quote.productFeeAmount.toString()).to.be.eq(+daoFeeCollectorAfter)
     truffleAssertions.eventEmitted(refund, "PegOutRefunded");
