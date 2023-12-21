@@ -816,7 +816,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
 
     // configure mocked block on mockBridge
     const firstConfirmationTime = utils.reverseHexBytes(
-      web3.utils.toHex(quote.agreementTimestamp + 300).substring(2)
+      web3.utils.toHex(quote.agreementTimestamp + 100).substring(2)
     );
     const firstHeader =
       "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" +
