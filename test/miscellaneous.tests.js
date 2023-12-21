@@ -170,15 +170,18 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
     let initialLBCBalance = await web3.eth.getBalance(instance.address);
     let data = "0x00";
     let callFee = 1;
+    const productFeeAmount = 1;
     let gasLimit = 150000;
     let nonce = 0;
     let delta = web3.utils
       .toBN(val)
       .add(web3.utils.toBN(callFee))
+      .add(web3.utils.toBN(productFeeAmount))
       .div(web3.utils.toBN(10000));
     let peginAmount = web3.utils
       .toBN(val)
       .add(web3.utils.toBN(callFee))
+      .add(web3.utils.toBN(productFeeAmount))
       .sub(delta);
     let lbcAddress = instance.address;
     let agreementTime = 1661788988;
@@ -187,8 +190,6 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
     let depositConfirmations = 10;
     let penaltyFee = 0;
     let callOnRegister = false;
-    let productFeeAmount = web3.utils.toBN(1);
-    peginAmount.add(productFeeAmount);
     let quote = [
       fedBtcAddress,
       lbcAddress,
@@ -238,7 +239,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       liquidityProviderRskAddress
     );
 
-    await instance.callForUser(quote, { value: val.add(productFeeAmount) });
+    await instance.callForUser(quote, { value: val });
 
     let currentLPBalance = await instance.getBalance(
       liquidityProviderRskAddress
@@ -280,7 +281,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       .sub(web3.utils.toBN(initialLPBalance));
     expect(peginAmount).to.be.a.bignumber.eq(amount);
     expect(usrBal).to.be.a.bignumber.eq(val);
-    expect(lbcBal).to.be.a.bignumber.eq(peginAmount);
+    expect(lbcBal).to.be.a.bignumber.eq(peginAmount.sub(web3.utils.toBN(productFeeAmount)));
     expect(lpBal).to.be.a.bignumber.eq(peginAmount);
     expect(finalLPDeposit).to.be.a.bignumber.eq(initialLPDeposit);
   });
