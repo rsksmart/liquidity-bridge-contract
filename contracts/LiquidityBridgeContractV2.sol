@@ -5,7 +5,7 @@ pragma experimental ABIEncoderV2;
 import "./Bridge.sol";
 import "./QuotesV2.sol";
 import "./SignatureValidator.sol";
-import "./BtcUtils.sol";
+import "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
@@ -735,7 +735,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         QuotesV2.PegOutQuote storage quote = registeredPegoutQuotes[quoteHash];
         require(quote.lbcAddress != address(0), "LBC042");
         BtcUtils.TxRawOutput[] memory outputs = BtcUtils.getOutputs(btcTx);
-        bytes32 txQuoteHash = abi.decode(BtcUtils.parseOpReturnOuput(outputs[QUOTE_HASH_OUTPUT].pkScript), (bytes32));
+        bytes32 txQuoteHash = abi.decode(BtcUtils.parseNullDataScript(outputs[QUOTE_HASH_OUTPUT].pkScript), (bytes32));
         require(quoteHash == txQuoteHash, "LBC069");
         require(msg.sender == quote.lpRskAddress, "LBC048");
         require(
@@ -748,7 +748,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
             "LBC049"
         );
         require(quote.value <= outputs[PAY_TO_ADDRESS_OUTPUT].value * (10**10), "LBC067"); // satoshi to wei
-        bytes memory btcTxDestination = BtcUtils.parsePayToAddressScript(outputs[PAY_TO_ADDRESS_OUTPUT]
+        bytes memory btcTxDestination = BtcUtils.parsePayToPubKeyHash(outputs[PAY_TO_ADDRESS_OUTPUT]
         .pkScript, mainnet);
         require(keccak256(quote.deposityAddress) == keccak256(btcTxDestination), "LBC068");
 
@@ -934,7 +934,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
             .getBtcBlockchainBlockHeaderByHeight(height);
         require(firstConfirmationHeader.length > 0, "Invalid block height");
 
-        uint256 firstConfirmationTimestamp = getBtcBlockTimestamp(
+        uint256 firstConfirmationTimestamp = BtcUtils.getBtcBlockTimestamp(
             firstConfirmationHeader
         );
 
@@ -956,7 +956,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         );
         require(nConfirmationsHeader.length > 0, "LBC058");
 
-        uint256 nConfirmationsTimestamp = getBtcBlockTimestamp(
+        uint256 nConfirmationsTimestamp = BtcUtils.getBtcBlockTimestamp(
             nConfirmationsHeader
         );
 
@@ -975,7 +975,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         bytes memory firstConfirmationHeader = bridge.getBtcBlockchainBlockHeaderByHash(blockHash);
         require(firstConfirmationHeader.length > 0, "LBC059");
 
-        uint256 firstConfirmationTimestamp = getBtcBlockTimestamp(firstConfirmationHeader);
+        uint256 firstConfirmationTimestamp = BtcUtils.getBtcBlockTimestamp(firstConfirmationHeader);
 
         // penalize if the transfer was not made on time
         if (firstConfirmationTimestamp > pegoutRegistry[quoteHash].depositTimestamp +
@@ -989,33 +989,5 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         }
 
         return false;
-    }
-
-    /**
-        @dev Gets the timestamp of a Bitcoin block header
-        @param header The block header
-        @return The timestamp of the block header
-     */
-    function getBtcBlockTimestamp(
-        bytes memory header
-    ) public pure returns (uint256) {
-        // bitcoin header is 80 bytes and timestamp is 4 bytes from byte 68 to byte 71 (both inclusive)
-        require(header.length == 80, "LBC061");
-
-        return sliceUint32FromLSB(header, 68);
-    }
-
-    // bytes must have at least 28 bytes before the uint32
-    function sliceUint32FromLSB(
-        bytes memory bs,
-        uint offset
-    ) internal pure returns (uint32) {
-        require(bs.length >= offset + 4, "LBC062");
-
-        return
-            uint32(uint8(bs[offset])) |
-            (uint32(uint8(bs[offset + 1])) << 8) |
-            (uint32(uint8(bs[offset + 2])) << 16) |
-            (uint32(uint8(bs[offset + 3])) << 24);
     }
 }

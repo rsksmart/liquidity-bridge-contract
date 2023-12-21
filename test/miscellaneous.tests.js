@@ -419,36 +419,4 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       instance.initialize(bridgeMockInstance.address, MINIMUM_COLLATERAL, 1, 101, RESIGN_DELAY_BLOCKS, 1, 1, false)
     );
   });
-
-  it("should extract timestamp from btc block header", async () => {
-    const btcHeader =
-      "0x0080cf2a0857bdec9d66f5feb52d00d5061ff02a904112d9b0cd1ac401000000000000003d2d2b5733c820a1f07ce6e0acd2ea47f27016b49ccb405b1e3e5786f8ae962e3ce30c63bc292d1919856362";
-
-    let timestamp = await instance.getBtcBlockTimestamp(btcHeader);
-    expect(timestamp).to.be.a.bignumber.eq(web3.utils.toBN(1661788988));
-
-    const btcHeader2 = "0x" + "00".repeat(68) + "12345678" + "00".repeat(8);
-
-    let timestamp2 = await instance.getBtcBlockTimestamp(btcHeader2);
-    expect(timestamp2).to.be.a.bignumber.eq(web3.utils.toBN("0x78563412"));
-  });
-
-  it("should fail to extract timestamp from btc block header with invalid length", async () => {
-    const btcHeaderEmpty = "0x";
-    const btcHeader79 = "0x" + "00".repeat(79);
-    const btcHeader81 = "0x" + "00".repeat(81);
-
-    await truffleAssertions.reverts(
-      instance.getBtcBlockTimestamp(btcHeaderEmpty),
-      "LBC061"
-    );
-    await truffleAssertions.reverts(
-      instance.getBtcBlockTimestamp(btcHeader79),
-      "LBC061"
-    );
-    await truffleAssertions.reverts(
-      instance.getBtcBlockTimestamp(btcHeader81),
-      "LBC061"
-    );
-  });
 });

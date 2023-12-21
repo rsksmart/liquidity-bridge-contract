@@ -1352,16 +1352,16 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
     const firstRawTX = "0x0100000001013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40000000006a47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4ffffffff0200879303000000001976a9143c5f66fe733e0ad361805b3053f23212e5755c8d88ac0000000000000000426a403938343934346435383039323135366335613139643936356239613735383530326536646263326439353337333135656266343839373336333134656233343700000000";
     const firstTxOutputs = await btcUtils.getOutputs(firstRawTX);
 
-    const firstQuoteHash = web3.utils.hexToAscii(await btcUtils.parseOpReturnOuput(firstTxOutputs[1].pkScript));
-    const firstDestinationAddress = await btcUtils.parsePayToAddressScript(firstTxOutputs[0].pkScript, false);
+    const firstQuoteHash = web3.utils.hexToAscii(await btcUtils.parseNullDataScript(firstTxOutputs[1].pkScript));
+    const firstDestinationAddress = await btcUtils.parsePayToPubKeyHash(firstTxOutputs[0].pkScript, false);
     const firstValue = firstTxOutputs[0].value;
     const firstHash = await btcUtils.hashBtcTx(firstRawTX);
 
     const secondRawTX = "0x01000000010178a1cf4f2f0cb1607da57dcb02835d6aa8ef9f06be3f74cafea54759a029dc000000006a473044022070a22d8b67050bee57564279328a2f7b6e7f80b2eb4ecb684b879ea51d7d7a31022057fb6ece52c23ecf792e7597448c7d480f89b77a8371dca4700a18088f529f6a012103ef81e9c4c38df173e719863177e57c539bdcf97289638ec6831f07813307974cffffffff02801d2c04000000001976a9143c5f66fe733e0ad361805b3053f23212e5755c8d88ac0000000000000000426a406539346138393731323632396262633966636364316630633034613237386330653130353265623736323666393365396137663130363762343036663035373600000000";
     const secondTxOutputs = await btcUtils.getOutputs(secondRawTX);
 
-    const secondQuoteHash = web3.utils.hexToAscii(await btcUtils.parseOpReturnOuput(secondTxOutputs[1].pkScript));
-    const secondDestinationAddress = await btcUtils.parsePayToAddressScript(secondTxOutputs[0].pkScript, true);
+    const secondQuoteHash = web3.utils.hexToAscii(await btcUtils.parseNullDataScript(secondTxOutputs[1].pkScript));
+    const secondDestinationAddress = await btcUtils.parsePayToPubKeyHash(secondTxOutputs[0].pkScript, true);
     const secondValue = secondTxOutputs[0].value;
     const secondHash = await btcUtils.hashBtcTx(secondRawTX);
 
