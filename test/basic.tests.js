@@ -816,7 +816,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
 
     // configure mocked block on mockBridge
     const firstConfirmationTime = utils.reverseHexBytes(
-      web3.utils.toHex(quote.agreementTimestamp + 300).substring(2)
+      web3.utils.toHex(quote.agreementTimestamp + 100).substring(2)
     );
     const firstHeader =
       "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" +
@@ -1771,7 +1771,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
           callOnRegister: false,
           productFeeAmount: BigInt("6000000000000000")
         },
-        address: '2NB9Rp6DxS4WXefGoyNLa5rQWkcQtUM1FmF'
+        address: '2NFWum5hWgScV2QPPEfFGF1hWV6EcX5Gicg'
       },
       {
         quote: {
@@ -1795,7 +1795,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
           callOnRegister: false,
           productFeeAmount: BigInt("7000000000000000")
         },
-        address: '2Mvbn9JQWjoS3SCBuxf1KTTkLw49WYjrkLx'
+        address: '2Mwk75Usb1GyQB2AtFLmr3iqrET3ByP9M9j'
       },
       {
         quote: {
@@ -1819,7 +1819,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
           callOnRegister: false,
           productFeeAmount: BigInt("8000000000000000")
         },
-        address: '2N2dEn75BJDgUA4mnfZyKG9qX99ofzKizeC'
+        address: '2N56hAFac2aULZNw9SQfjdjLhT3qHtSrnFo'
       }
     ]
 
