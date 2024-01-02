@@ -291,7 +291,7 @@ contract('LiquidityBridgeContractV2.sol', async accounts => {
         let initialLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
         let reward = Math.floor(quote.penaltyFee.div(web3.utils.toBN(10)));
         let initialLbcBalance = await web3.eth.getBalance(instance.address);
-        let peginAmount = quote.val.add(quote.callFee);
+        let peginAmount = quote.val.add(quote.callFee).add(quote.productFeeAmount);
 
         let quoteHash = await instance.hashQuote(utils.asArray(quote));
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
@@ -322,7 +322,7 @@ contract('LiquidityBridgeContractV2.sol', async accounts => {
         let lpCol = web3.utils.toBN(initialLPDeposit).sub(web3.utils.toBN(finalLPDeposit));
         truffleAssert.eventEmitted(tx, "Refund", {
             dest: rskRefundAddress,
-            amount: web3.utils.toBN(1000000000001),
+            amount: web3.utils.toBN(1000000000002),
             success: true,
             quoteHash: quoteHash,
         });
@@ -353,7 +353,7 @@ contract('LiquidityBridgeContractV2.sol', async accounts => {
         let btcRawTransaction = '0x101';
         let partialMerkleTree = '0x202';
         let height = 10;
-        let peginAmount = quote.val.add(quote.callFee);
+        let peginAmount = quote.val.add(quote.callFee).add(quote.productFeeAmount);
 
         let quoteHash = await instance.hashQuote(utils.asArray(quote));
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
@@ -391,7 +391,7 @@ contract('LiquidityBridgeContractV2.sol', async accounts => {
         let lpCol = web3.utils.toBN(initialLPDeposit).sub(web3.utils.toBN(finalLPDeposit));
         truffleAssert.eventEmitted(tx, "Refund", {
             dest: rskRefundAddress,
-            amount: web3.utils.toBN(1000000000001),
+            amount: web3.utils.toBN(1000000000002),
             success: false,
             quoteHash: quoteHash,
         });
