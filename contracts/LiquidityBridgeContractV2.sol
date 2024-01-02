@@ -31,7 +31,6 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
     int16 constant public BRIDGE_UNPROCESSABLE_TX_UTXO_AMOUNT_SENT_BELOW_MINIMUM_ERROR =
     - 305;
     int16 constant public BRIDGE_GENERIC_ERROR = - 900;
-    uint constant public MAX_UINT = 2 ** 256 - 1;
     uint constant public PAY_TO_ADDRESS_OUTPUT = 0;
     uint constant public QUOTE_HASH_OUTPUT = 1;
 
@@ -146,7 +145,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
     function setProviderStatus(
         uint _providerId,
         bool status
-    ) public onlyOwnerAndProvider(_providerId) {
+    ) external onlyOwnerAndProvider(_providerId) {
         liquidityProviders[_providerId].status = status;
     }
 
@@ -221,10 +220,21 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
     ) external payable returns (uint) {
         require(tx.origin == msg.sender, "LBC003");
         //require(collateral[msg.sender] == 0, "Already registered");
-        validateRegisterParameters(
-            _name,
-            _apiBaseUrl,
-            _providerType
+        require(bytes(_name).length > 0, "LBC010");
+        require(
+            bytes(_apiBaseUrl).length > 0,
+            "LBC017"
+        );
+
+        // Check if _providerType is one of the valid strings
+        require(
+            keccak256(abi.encodePacked(_providerType)) ==
+            keccak256(abi.encodePacked("pegin")) ||
+            keccak256(abi.encodePacked(_providerType)) ==
+            keccak256(abi.encodePacked("pegout")) ||
+            keccak256(abi.encodePacked(_providerType)) ==
+            keccak256(abi.encodePacked("both")),
+            "LBC018"
         );
 
         require(collateral[msg.sender] == 0 && pegoutCollateral[msg.sender] == 0, "LBC070");
@@ -257,32 +267,6 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         });
         emit Register(providerId, msg.sender, msg.value);
         return (providerId);
-    }
-
-    /**
-        @dev Validates input parameters for the register function
-  */
-    function validateRegisterParameters(
-        string memory _name,
-        string memory _apiBaseUrl,
-        string memory _providerType
-    ) internal pure {
-        require(bytes(_name).length > 0, "LBC010");
-        require(
-            bytes(_apiBaseUrl).length > 0,
-            "LBC017"
-        );
-
-        // Check if _providerType is one of the valid strings
-        require(
-            keccak256(abi.encodePacked(_providerType)) ==
-            keccak256(abi.encodePacked("pegin")) ||
-            keccak256(abi.encodePacked(_providerType)) ==
-            keccak256(abi.encodePacked("pegout")) ||
-            keccak256(abi.encodePacked(_providerType)) ==
-            keccak256(abi.encodePacked("both")),
-            "LBC018"
-        );
     }
 
     function getProviders(
@@ -474,7 +458,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         bytes memory btcRawTransaction,
         bytes memory partialMerkleTree,
         uint256 height
-    ) public nonReentrant returns (int256) {
+    ) external nonReentrant returns (int256) {
         bytes32 quoteHash = validateAndHashQuote(quote);
 
         // TODO: allow multiple registerPegIns for the same quote with different transactions
@@ -586,13 +570,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
             increaseBalance(quote.liquidityProviderRskAddress, refundAmount);
 
             uint remainingAmount = transferredAmount - refundAmount;
-            if (quote.productFeeAmount > 0) {
-                (bool daoSuccess,) = payable(daoFeeCollectorAddress).call{
-                        value: quote.productFeeAmount
-                    }("");
-                require(daoSuccess, "LBC074");
-                emit DaoFeeSent(quoteHash, quote.productFeeAmount);
-            }
+            payToFeeCollector(quote.productFeeAmount, quoteHash);
 
             if (remainingAmount > dust) {
                 // refund rskRefundAddress, if remaining amount greater than dust
@@ -683,7 +661,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
 
     function refundUserPegOut(
         bytes32 quoteHash
-    ) public nonReentrant {
+    ) external nonReentrant {
         QuotesV2.PegOutQuote storage quote = registeredPegoutQuotes[quoteHash];
 
         require(quote.lbcAddress != address(0), "LBC042");
@@ -719,7 +697,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         bytes32 btcBlockHeaderHash,
         uint256 partialMerkleTree,
         bytes32[] memory merkleBranchHashes
-    ) public nonReentrant onlyRegisteredForPegout {
+    ) external nonReentrant onlyRegisteredForPegout {
         require(pegoutRegistry[quoteHash].completed == false, "LBC064");
         QuotesV2.PegOutQuote storage quote = registeredPegoutQuotes[quoteHash];
         require(quote.lbcAddress != address(0), "LBC042");
@@ -737,8 +715,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
             "LBC049"
         );
         require(quote.value <= outputs[PAY_TO_ADDRESS_OUTPUT].value * (10**10), "LBC067"); // satoshi to wei
-        bytes memory btcTxDestination = BtcUtils.parsePayToPubKeyHash(outputs[PAY_TO_ADDRESS_OUTPUT]
-        .pkScript, mainnet);
+        bytes memory btcTxDestination = BtcUtils.parsePayToPubKeyHash(outputs[PAY_TO_ADDRESS_OUTPUT].pkScript, mainnet);
         require(keccak256(quote.deposityAddress) == keccak256(btcTxDestination), "LBC068");
 
         if (
@@ -761,13 +738,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
             }("");
         require(sent, "LBC050");
 
-        if (quote.productFeeAmount > 0) {
-            (bool sentDAO,) = payable(daoFeeCollectorAddress).call{
-                    value: quote.productFeeAmount
-                }("");
-            require(sentDAO, "LBC074");
-            emit DaoFeeSent(quoteHash, quote.productFeeAmount);
-        }
+        payToFeeCollector(quote.productFeeAmount, quoteHash);
 
         delete registeredPegoutQuotes[txQuoteHash];
         pegoutRegistry[txQuoteHash].completed = true;
@@ -981,5 +952,13 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         }
 
         return false;
+    }
+
+    function payToFeeCollector(uint amount, bytes32 quoteHash) private {
+        if (amount > 0) {
+            (bool daoSuccess,) = payable(daoFeeCollectorAddress).call{value: amount}("");
+            require(daoSuccess, "LBC074");
+            emit DaoFeeSent(quoteHash, amount);
+        }
     }
 }
