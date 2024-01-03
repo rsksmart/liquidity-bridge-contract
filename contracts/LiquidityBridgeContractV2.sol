@@ -562,10 +562,10 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
             if (callRegistry[quoteHash].success) {
                 refundAmount = min(
                     transferredAmount,
-                    quote.value + quote.callFee
+                    quote.value + quote.callFee + quote.gasFee
                 );
             } else {
-                refundAmount = min(transferredAmount, quote.callFee);
+                refundAmount = min(transferredAmount, quote.callFee + quote.gasFee);
             }
             increaseBalance(quote.liquidityProviderRskAddress, refundAmount);
 
@@ -640,7 +640,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         bytes memory signature
     ) external payable {
         require(isRegisteredForPegout(quote.lpRskAddress), "LBC037");
-        require(quote.value + quote.callFee + quote.productFeeAmount <= msg.value, "LBC063");
+        require(quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee <= msg.value, "LBC063");
         require(block.timestamp <= quote.depositDateLimit, "LBC065");
         require(block.timestamp <= quote.expireDate, "LBC046");
         require(block.number <= quote.expireBlock, "LBC047");
@@ -671,7 +671,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
             "LBC041"
         );
 
-        uint valueToTransfer = quote.value + quote.callFee + quote.productFeeAmount;
+        uint valueToTransfer = quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
         address addressToTransfer = quote.rskRefundAddress;
 
         uint penalty = min(quote.penaltyFee, pegoutCollateral[quote.lpRskAddress]);
@@ -799,7 +799,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
             "LBC054"
         );
         require(
-            quote.value + quote.callFee + quote.productFeeAmount >= minPegIn,
+            quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee >= minPegIn,
             "LBC055"
         );
         require(
@@ -889,7 +889,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         uint256 height
     ) private view returns (bool) {
         // do not penalize if deposit amount is insufficient
-        if (amount > 0 && uint256(amount) < quote.value + quote.callFee + quote.productFeeAmount) {
+        if (amount > 0 && uint256(amount) < quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee) {
             return false;
         }
 

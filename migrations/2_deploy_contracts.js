@@ -98,7 +98,7 @@ module.exports = async function (deployer, network) {
       state.address = btcUtilsInstance.address;
     });
 
-    minimumPegIn = 2;
+    minimumPegIn = 3;
   }
 
   let config = read();

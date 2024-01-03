@@ -636,7 +636,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       liquidityProviderRskAddress
     );
     let initialLBCBalance = await web3.eth.getBalance(instance.address);
-    let peginAmount = quote.val.add(quote.callFee).add(quote.productFeeAmount);
+    let peginAmount = quote.val.add(quote.callFee).add(quote.productFeeAmount).add(quote.gasFee);
     let quoteHash = await instance.hashQuote(utils.asArray(quote));
     let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
     let firstConfirmationTime = utils.reverseHexBytes(
@@ -739,7 +739,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
     let btcRawTransaction = "0x101";
     let partialMerkleTree = "0x202";
     let height = 10;
-    let peginAmount = quote.val.add(quote.callFee).add(quote.productFeeAmount);
+    let peginAmount = quote.val.add(quote.callFee).add(quote.productFeeAmount).add(quote.gasFee);
     let quoteHash = await instance.hashQuote(utils.asArray(quote));
     let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
     let firstConfirmationTime = utils.reverseHexBytes(
@@ -886,7 +886,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
 
     const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
     const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
-    const msgValue = quote.value.add(quote.callFee).add(quote.productFeeAmount);
+    const msgValue = quote.value.add(quote.callFee).add(quote.productFeeAmount).add(quote.gasFee);
     const pegOut = await instance.depositPegout(utils.asArray(quote), signature, {
       value: msgValue.toNumber()
     });
@@ -959,7 +959,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
 
     const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
     const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
-    const msgValue = quote.value.add(quote.callFee);
+    const msgValue = quote.value.add(quote.callFee).add(quote.gasFee);
     const pegOut = await instance.depositPegout(utils.asArray(quote), signature, {
       value: msgValue.toNumber()
     });
@@ -1012,7 +1012,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
 
     const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
     const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
-    const msgValue = quote.value.add(quote.callFee).add(quote.productFeeAmount);
+    const msgValue = quote.value.add(quote.callFee).add(quote.productFeeAmount).add(quote.gasFee);
     const pegOut = await instance.depositPegout(utils.asArray(quote), signature, { value: msgValue.toNumber() });
     await truffleAssertions.eventEmitted(pegOut, "PegOutDeposit");
 
@@ -1148,7 +1148,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
 
     const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
     const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
-    const msgValue = quote.value.add(quote.callFee).add(quote.productFeeAmount);
+    const msgValue = quote.value.add(quote.callFee).add(quote.productFeeAmount).add(quote.gasFee);
     const pegOut = await instance.depositPegout(utils.asArray(quote), signature, {
       value: msgValue.toNumber()
     });
@@ -1566,7 +1566,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       "0000000000000000";
     await bridgeMockInstance.setHeaderByHash(blockHeaderHash, firstHeader);
 
-    const msgValue = quote.value.add(quote.callFee).add(quote.productFeeAmount);
+    const msgValue = quote.value.add(quote.callFee).add(quote.productFeeAmount).add(quote.gasFee);
     const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
     const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
     const pegOut = await instance.depositPegout(utils.asArray(quote), signature, { value: msgValue.toNumber() });
@@ -1608,7 +1608,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       "0000000000000000";
     await bridgeMockInstance.setHeaderByHash(blockHeaderHash, firstHeader);
 
-    const msgValue = quote.value.add(quote.callFee).add(quote.productFeeAmount);
+    const msgValue = quote.value.add(quote.callFee).add(quote.productFeeAmount).add(quote.gasFee);
     const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
     const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
     const pegOut = await instance.depositPegout(utils.asArray(quote), signature, {
@@ -1883,9 +1883,10 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
           callTime: 7200,
           depositConfirmations: 10,
           callOnRegister: false,
-          productFeeAmount: BigInt("6000000000000000")
+          productFeeAmount: BigInt("6000000000000000"),
+          gasFee: BigInt("3000000000000000")
         },
-        address: '2NFWum5hWgScV2QPPEfFGF1hWV6EcX5Gicg'
+        address: '2N54HuutZf7Xkmv85wCtBkQg5nCC3k432rf'
       },
       {
         quote: {
@@ -1907,9 +1908,10 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
           callTime: 7200,
           depositConfirmations: 10,
           callOnRegister: false,
-          productFeeAmount: BigInt("7000000000000000")
+          productFeeAmount: BigInt("7000000000000000"),
+          gasFee: BigInt("4000000000000000")
         },
-        address: '2Mwk75Usb1GyQB2AtFLmr3iqrET3ByP9M9j'
+        address: '2NARRvPtz2ch1KozGfZg6FahLSVVaSG2fQr'
       },
       {
         quote: {
@@ -1931,9 +1933,10 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
           callTime: 7200,
           depositConfirmations: 10,
           callOnRegister: false,
-          productFeeAmount: BigInt("8000000000000000")
+          productFeeAmount: BigInt("8000000000000000"),
+          gasFee: BigInt("5000000000000000")
         },
-        address: '2N56hAFac2aULZNw9SQfjdjLhT3qHtSrnFo'
+        address: '2Mwfc2XRxm64dDbNowHUFj2pZ4owePhNFyQ'
       }
     ]
 

@@ -22,6 +22,7 @@ library QuotesV2 {
         uint16 depositConfirmations;
         bool callOnRegister;
         uint256 productFeeAmount;
+        uint256 gasFee;
     }
 
     struct PegOutQuote {
@@ -43,6 +44,7 @@ library QuotesV2 {
         uint32 expireDate;
         uint32 expireBlock;
         uint256 productFeeAmount;
+        uint256 gasFee;
     }
 
     function encodeQuote(
@@ -90,7 +92,8 @@ library QuotesV2 {
                 quote.callTime,
                 quote.depositConfirmations,
                 quote.callOnRegister,
-                quote.productFeeAmount
+                quote.productFeeAmount,
+                quote.gasFee
             );
     }
 
@@ -124,7 +127,8 @@ library QuotesV2 {
                 quote.transferTime,
                 quote.expireDate,
                 quote.expireBlock,
-                quote.productFeeAmount
+                quote.productFeeAmount,
+                quote.gasFee
             );
     }
 
@@ -133,7 +137,7 @@ library QuotesV2 {
         uint transferredAmount
     ) external pure {
         uint agreedAmount = 0;
-        agreedAmount = quote.value + quote.callFee + quote.productFeeAmount;
+        agreedAmount = quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
 
 
         uint delta = agreedAmount / 10000;
