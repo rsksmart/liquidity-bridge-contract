@@ -299,7 +299,7 @@ contract('LiquidityBridgeContractV2.sol', async accounts => {
 
     const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
     const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
-    const msgValue = quote.value.add(quote.callFee);
+    const msgValue = quote.value.add(quote.callFee).add(quote.productFeeAmount);
     const pegOut = await instance.depositPegout(utils.asArray(quote), signature, { value: msgValue.toNumber() });
     truffleAssert.eventEmitted(pegOut, "PegOutDeposit");
 
