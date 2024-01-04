@@ -1,6 +1,6 @@
 const { expect } = require('chai')
 
-const LiquidityBridgeContract = artifacts.require("LiquidityBridgeContract")
+const LiquidityBridgeContract = artifacts.require("LiquidityBridgeContractV2")
 const bs58check = require('bs58check')
 const pmtBuilder = require("@rsksmart/pmt-builder")
 
@@ -29,8 +29,10 @@ describe('Flyover pegout process should', () => {
     let interval
     let userBtcEncodedAddress
 
+    let config
+
     before(async () => {
-        const config = await loadConfig()
+        config = await loadConfig()
         interval = config.pollingIntervalInSeconds * 1000
         lpAccount = web3.eth.accounts.privateKeyToAccount(config.lpPrivateKey)
         userAccount = web3.eth.accounts.privateKeyToAccount(config.userPrivateKey)
@@ -46,10 +48,17 @@ describe('Flyover pegout process should', () => {
 
         const timestamp = Math.floor(Date.now() / 1000)
         const transferTime = 1800, expireDate = 3600
-        const gasLimit = await web3.eth.estimateGas({ to: userAddress, data: '0x' })
-        const gasCost = await web3.eth.getGasPrice().then(price => price * gasLimit)
         const nonce = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
         const height = await web3.eth.getBlock("latest").then(block => block.number);
+
+        const productFeePercentage = await lbc.methods.productFeePercentage().call()
+        const value = BigInt(600000000000000000) // 0.6 eth
+        const productFee = (BigInt(productFeePercentage) * value) / BigInt(100)
+        const daoAddress = await lbc.methods.daoFeeCollectorAddress().call()
+        const daoGas = await web3.eth.estimateGas({ to: daoAddress, value: productFee.toString() })
+        const gasPrice = await web3.eth.getGasPrice()
+        const daoGasCost = gasPrice * daoGas
+        const btcNetworkFee = 0.00006700 * 10**18
 
         quote = {
             lbcAddress: config.lbcAddress,
@@ -57,11 +66,10 @@ describe('Flyover pegout process should', () => {
             btcRefundAddress: userBtcAddress,
             rskRefundAddress: userAddress,
             lpBtcAddress: lpBtcAddress,
-            callFee: BigInt(100000000000000 + gasCost), // fee is 0.0001 eth
+            callFee: BigInt(100000000000000), // fee is 0.0001 eth
             penaltyFee: 1000000,
             nonce: nonce,
             deposityAddress: userBtcAddress,
-            gasLimit: gasLimit,
             value: BigInt(6000000000000000), // 0.006 eth
             agreementTimestamp: timestamp,
             depositDateLimit: timestamp + transferTime,
@@ -69,7 +77,9 @@ describe('Flyover pegout process should', () => {
             transferConfirmations: 1,
             transferTime: transferTime,
             expireDate: timestamp + expireDate,
-            expireBlock: height + 50
+            expireBlock: height + 50,
+            productFeeAmount: productFee,
+            gasFee: daoGasCost + btcNetworkFee
         }
 
         quoteHash = await lbc.methods.hashPegoutQuote(quote).call()
@@ -79,7 +89,7 @@ describe('Flyover pegout process should', () => {
     it('execute depositPegout', async () => {
         const receipt = await sendFromAccount({
             account: userAccount,
-            value: quote.callFee + quote.value,
+            value: quote.callFee + quote.value + quote.productFeeAmount + BigInt(quote.gasFee),
             call: lbc.methods.depositPegout(quote, signedQuote.signature)
         })
         const parsedReceipt = decodeLogs({ abi: LiquidityBridgeContract.abi, receipt })
@@ -89,6 +99,12 @@ describe('Flyover pegout process should', () => {
     it('execute refundPegOut', async () => {
         const amountInSatoshi = (quote.value + quote.callFee) / BigInt(10**10)
         const amountInBtc = Number(amountInSatoshi) / 10**8
+        if (config.btc.walletPassphrase) {
+            await bitcoinRpc('walletpassphrase', {
+                passphrase: config.btc.walletPassphrase,
+                timeout: 60
+            })
+        }
         const txHash = await sendBtc({ 
             rpc: bitcoinRpc,
             amountInBtc,

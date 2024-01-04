@@ -90,6 +90,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
     let penaltyFee = web3.utils.toBN(0);
     let callOnRegister = true;
     let productFeeAmount = web3.utils.toBN(1);
+    const gasFee = web3.utils.toBN(1);
     let quote = [
       fedBtcAddress,
       lbcAddress,
@@ -109,7 +110,8 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       callTime,
       depositConfirmations,
       callOnRegister,
-      productFeeAmount
+      productFeeAmount,
+      gasFee
     ];
     // Let's now register our quote in the bridge... note that the
     // value is only a hundred wei
@@ -171,17 +173,20 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
     let data = "0x00";
     let callFee = 1;
     const productFeeAmount = 1;
+    const gasFee = 1;
     let gasLimit = 150000;
     let nonce = 0;
     let delta = web3.utils
       .toBN(val)
       .add(web3.utils.toBN(callFee))
       .add(web3.utils.toBN(productFeeAmount))
+      .add(web3.utils.toBN(gasFee))
       .div(web3.utils.toBN(10000));
     let peginAmount = web3.utils
       .toBN(val)
       .add(web3.utils.toBN(callFee))
       .add(web3.utils.toBN(productFeeAmount))
+      .add(web3.utils.toBN(gasFee))
       .sub(delta);
     let lbcAddress = instance.address;
     let agreementTime = 1661788988;
@@ -209,7 +214,8 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       callTime,
       depositConfirmations,
       callOnRegister,
-      productFeeAmount
+      productFeeAmount,
+      gasFee
     ];
     let quoteHash = await instance.hashQuote(quote);
     let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
@@ -321,6 +327,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
     let penaltyFee = 0;
     let callOnRegister = false;
     let productFeeAmount = web3.utils.toBN(1);
+    const gasFee = web3.utils.toBN(1);
     let quote = [
       fedBtcAddress,
       lbcAddress,
@@ -340,7 +347,8 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       callTime,
       depositConfirmations,
       callOnRegister,
-      productFeeAmount
+      productFeeAmount,
+      gasFee
     ];
     let quoteHash = await instance.hashQuote(quote);
     let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
