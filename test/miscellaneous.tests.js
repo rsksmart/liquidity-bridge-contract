@@ -39,10 +39,6 @@ contract("LiquidityBridgeContract", async (accounts) => {
     let attackerCollateral = web3.utils.toWei("10");
     await instance.register.call(
       "First contract",
-      10,
-      7200,
-      100,
-      150,
       "http://localhost/api",
       true,
       'both',
@@ -56,10 +52,6 @@ contract("LiquidityBridgeContract", async (accounts) => {
     let goodProviderCollateral = web3.utils.toWei("30");
     await instance.register.call(
       "First contract",
-      10,
-      7200,
-      100,
-      150,
       "http://localhost/api",
       true,
       'both',
@@ -377,24 +369,45 @@ contract("LiquidityBridgeContract", async (accounts) => {
     );
   });
 
+  it("should validate minimiumCollateral arg in initialize", async () => {
+    let instance = await LiquidityBridgeContract.new();
+    const MINIMUM_COLLATERAL = web3.utils.toBN("20000000000000000")
+    const RESIGN_DELAY_BLOCKS = 15
+    await truffleAssert.reverts(
+      instance.initialize(bridgeMockInstance.address, MINIMUM_COLLATERAL, 1, 50, RESIGN_DELAY_BLOCKS, 1, 1, false),
+      "LBC072"
+    );
+  });
+
+  it("should validate resignDelayBlocks arg in initialize", async () => {
+    let instance = await LiquidityBridgeContract.new();
+    const MINIMUM_COLLATERAL = web3.utils.toBN("600000000000000000")
+    const RESIGN_DELAY_BLOCKS = 14
+    await truffleAssert.reverts(
+      instance.initialize(bridgeMockInstance.address, MINIMUM_COLLATERAL, 1, 50, RESIGN_DELAY_BLOCKS, 1, 1, false),
+      "LBC073"
+    );
+  });
+
   it("should validate reward percentage arg in initialize", async () => {
     let instance = await LiquidityBridgeContract.new();
-    const MAX_QUOTE_VALUE = web3.utils.toBN("1000000000000000000")
-    await instance.initialize(bridgeMockInstance.address, 1, 1, 0, 1, 1, MAX_QUOTE_VALUE, 1, false);
+    const MINIMUM_COLLATERAL = web3.utils.toBN("600000000000000000")
+    const RESIGN_DELAY_BLOCKS = 60
+    await instance.initialize(bridgeMockInstance.address, MINIMUM_COLLATERAL, 1, 0, RESIGN_DELAY_BLOCKS, 1, 1, false);
     instance = await LiquidityBridgeContract.new();
-    await instance.initialize(bridgeMockInstance.address, 1, 1, 0, 1, 1, MAX_QUOTE_VALUE, 1, false);
+    await instance.initialize(bridgeMockInstance.address, MINIMUM_COLLATERAL, 1, 0, RESIGN_DELAY_BLOCKS, 1, 1, false);
     instance = await LiquidityBridgeContract.new();
-    await instance.initialize(bridgeMockInstance.address, 1, 1, 1, 1, 1, MAX_QUOTE_VALUE, 1, false);
+    await instance.initialize(bridgeMockInstance.address, MINIMUM_COLLATERAL, 1, 1, RESIGN_DELAY_BLOCKS, 1, 1, false);
     instance = await LiquidityBridgeContract.new();
-    await instance.initialize(bridgeMockInstance.address, 1, 1, 99, 1, 1, MAX_QUOTE_VALUE, 1, false);
+    await instance.initialize(bridgeMockInstance.address, MINIMUM_COLLATERAL, 1, 99, RESIGN_DELAY_BLOCKS, 1, 1, false);
     instance = await LiquidityBridgeContract.new();
-    await instance.initialize(bridgeMockInstance.address, 1, 1, 100, 1, 1, MAX_QUOTE_VALUE, 1, false);
+    await instance.initialize(bridgeMockInstance.address, MINIMUM_COLLATERAL, 1, 100, RESIGN_DELAY_BLOCKS, 1, 1, false);
     await truffleAssert.fails(
-      instance.initialize(bridgeMockInstance.address, 1, 1, 100, 1, 1, MAX_QUOTE_VALUE, 1, false)
+      instance.initialize(bridgeMockInstance.address, MINIMUM_COLLATERAL, 1, 100, RESIGN_DELAY_BLOCKS, 1, 1, false)
     );
     instance = await LiquidityBridgeContract.new();
     await truffleAssert.fails(
-      instance.initialize(bridgeMockInstance.address, 1, 1, 101, 1, 1, MAX_QUOTE_VALUE, 1, false)
+      instance.initialize(bridgeMockInstance.address, MINIMUM_COLLATERAL, 1, 101, RESIGN_DELAY_BLOCKS, 1, 1, false)
     );
   });
 

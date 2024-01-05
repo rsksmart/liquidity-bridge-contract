@@ -9,12 +9,7 @@
     "LBC008": "Not enough collateral",
     "LBC009": "Withdraw collateral first",
     "LBC010": "Name must not be empty",
-    "LBC011": "Fee must be greater than 0",
-    "LBC012": "Quote expiration must be greater than 0",
     "LBC013": "Accepted quote expiration must be greater than 0",
-    "LBC014": "Min transaction value must be greater than 0",
-    "LBC015": "Max transaction value must be greater than min transaction value",
-    "LBC016": "Max transaction value can't be higher than maximum quote value",
     "LBC017": "API base URL must not be empty",
     "LBC018": "Invalid provider type",
     "LBC019": "Insufficient funds",
@@ -67,5 +62,9 @@
     "LBC066": "Invalid parameters, quote or quoteHash",
     "LBC067": "Invalid amount for bitcoin transaction",
     "LBC068": "Invalid destination for bitcoin transaction",
-    "LBC069": "Quote is not related to transaction"
+    "LBC069": "Quote is not related to transaction",
+    "LBC070": "Liquidity provider already registered",
+    "LBC071": "Intentional overflow on quote values",
+    "LBC072": "Minimum collateral for registration can't be lower than 0.6 RBTC",
+    "LBC073": "Resign delay blocks lower than minimal"
 }

@@ -13,23 +13,24 @@ const BtcUtils = artifacts.require("BtcUtils");
 const RSK_NETWORK_MAINNET = "rskMainnet";
 const RSK_NETWORK_TESTNET = "rskTestnet";
 const RSK_NETWORK_REGTEST = "rskRegtest";
+const INTERNAL_ALPHANET = "alphanet";
 
 const RSK_NETWORKS = [
   RSK_NETWORK_MAINNET,
   RSK_NETWORK_TESTNET,
   RSK_NETWORK_REGTEST,
+  INTERNAL_ALPHANET
 ];
 
 const RSK_BRIDGE_ADDRESS = "0x0000000000000000000000000000000001000006";
 
-const MINIMUM_COLLATERAL = "1"; // amount in wei
+const MINIMUM_COLLATERAL = "30000000000000000"; // amount in wei
 const MINIMUM_PEG_IN_DEFAULT = "5000000000000000"; // amount in wei
 const MINIMUM_PEG_IN_REGTEST = "5000000000000000"; // amount in wei
 const REWARD_PERCENTAGE = 10;
-const RESIGN_DELAY_BLOCKS = 1;
+const RESIGN_DELAY_BLOCKS = 60;
 const DUST_THRESHOLD = 2300 * 65164000;
-const MAX_QUOTE_VALUE = web3.utils.toBN("1000000000000000000"); // amount in wei
-const BTC_BLOCK_TIME = 5400; // the 5400 addition is to give 1.5h to the tx to be mined
+const BTC_BLOCK_TIME = 900; // the 900 addition is to give 15m to the tx to be mined
 const { deploy, read } = require("../config");
 
 module.exports = async function (deployer, network) {
@@ -118,6 +119,10 @@ module.exports = async function (deployer, network) {
     );
     await deployer.link(btcUtilsLib, LiquidityBridgeContract);
 
+    if (config[network]["LiquidityBridgeContract"]?.address) {
+      console.log('Already deployed, skipping LiquidityBridgeContract deploy...');
+      return;
+    }
     
     const response = await deployProxy(
       LiquidityBridgeContract,
@@ -128,7 +133,6 @@ module.exports = async function (deployer, network) {
         REWARD_PERCENTAGE,
         RESIGN_DELAY_BLOCKS,
         DUST_THRESHOLD,
-        MAX_QUOTE_VALUE,
         BTC_BLOCK_TIME,
         mainnet
       ],

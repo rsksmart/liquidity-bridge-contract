@@ -1,61 +1,93 @@
 {
-  "rskTestnet": {
-    "SafeMath": {
-      "address": "0x343714bf746AcaF55BC1BAF93D2C47E42A762eC1",
-      "deployed": false
-    },
-    "SignatureValidator": {
-      "address": "0xFe2746b892fFFf26E9a8F45935E7510d72028416",
-      "deployed": true
-    },
-    "LiquidityBridgeContractAdmin": {
-      "address": "0x1de4FF655DC7BC289cCa9D232755005265B4C94b",
-      "deployed": false
-    },
-    "LiquidityBridgeContract": {
-      "address": "0x890D3AFD0F14D870DE24798329bf36ce8939D0b4",
-      "deployed": true
-    },
-    "LiquidityBridgeContractProxy": {
-      "address": "0x81e0038E7b88496cf3CdDd684f74711e5451870B",
-      "deployed": false
-    },
-    "Migrations": {
-      "address": "0x9574a4972320d9988C110dAF950c89CC638B3b75",
-      "deployed": true
-    }
-  },
   "rskRegtest": {
     "Migrations": {
-      "address": "0xdac5481925A298B95Bf5b54c35b68FC6fc2eF423",
-      "deployed": true
-    },
-    "SafeMath": {
-      "address": "",
+      "address": "0x1Af2844A588759D0DE58abD568ADD96BB8B3B6D8",
       "deployed": false
     },
     "SignatureValidator": {
-      "address": "0xeFb80DB9E2d943A492Bd988f4c619495cA815643",
-      "deployed": true
+      "address": "0xCd5805d60Bbf9Afe69a394c2BDa10F6Dae2c39AF",
+      "deployed": false
     },
-    "LiquidityBridgeContractAdmin": {
-      "address": "0x73ec81da0C72DD112e06c09A6ec03B5544d26F05",
-      "deployed": true
+    "Quotes": {
+      "address": "0xdac5481925A298B95Bf5b54c35b68FC6fc2eF423",
+      "deployed": false
+    },
+    "BtcUtils": {
+      "address": "0xfD1dda8C3BC734Bc1C8e71F69F25BFBEe9cE9535",
+      "deployed": false
     },
     "LiquidityBridgeContract": {
-      "address": "0xA66939ac57893C2E65425a5D66099Bc20C76D4CD",
+      "address": "0x987c1f13d417F7E04d852B44badc883E4E9782e1",
+      "deployed": false
+    }
+  },
+  "alphanet": {
+    "Migrations": {
+      "address": "0x54D5d3e94Fe0542f9de230cf47e544Bbb7C9C1dd",
       "deployed": true
     },
-    "LiquidityBridgeContractProxy": {
-      "address": "0x1eD614cd3443EFd9c70F04b6d777aed947A4b0c4",
+    "SignatureValidator": {
+      "address": "0x7eAdDF7Aa126027Bd31F4aCADf4D1d0830a14763",
       "deployed": true
     },
     "Quotes": {
-      "address": "0x463F29B11503e198f6EbeC9903b4e5AaEddf6D29",
+      "address": "0x1A0898B4Ac6ed5BF1576237A1709cF791083d915",
       "deployed": true
     },
     "BtcUtils": {
-      "address": "0x987c1f13d417F7E04d852B44badc883E4E9782e1",
+      "address": "0x6D69F04179e093C53Bf2DEc8147E15406c0aFdB4",
+      "deployed": true
+    },
+    "LiquidityBridgeContractAdmin": {
+      "address": "0x5fb9966EF4D07C81E3165FD60adC8563A76B93bD",
+      "deployed": false
+    },
+    "LiquidityBridgeContract": {
+      "address": "0xDFED830702fd9339Ae826Ae0F1DF834163e4bBa6",
+      "deployed": true
+    },
+    "LiquidityBridgeContractProxy": {
+      "address": "0x0848B16e015A5e8A5c40Bfa0387367Be2fD371cf",
+      "deployed": false
+    }
+  },
+  "rskMainnet": {
+    "SignatureValidator": {
+      "address": "0xb107cc96A5CfC4Be502e9BBB1208dE4792044ba7",
+      "deployed": true
+    },
+    "Quotes": {
+      "address": "0x12B53F7fB6D15beB3EBB8B8a69B979AF23133B2b",
+      "deployed": true
+    },
+    "BtcUtils": {
+      "address": "0x912c0CbF5C7CE892B9f165BeE288C4380FAa16C7",
+      "deployed": true
+    },
+    "LiquidityBridgeContract": {
+      "address": "0xAA9cAf1e3967600578727F975F283446A3Da6612",
+      "deployed": true
+    }
+  },
+  "rskTestnet": {
+    "Migrations": {
+      "address": "0xD35900b447AA1f18B42d26372660b7FE7d9aEB9C",
+      "deployed": true
+    },
+    "SignatureValidator": {
+      "address": "0x6905711e16AFBC51d8cf2a714479D14FB3e03281",
+      "deployed": true
+    },
+    "Quotes": {
+      "address": "0x8384952Dc2A3e413800e9D4EE89d7383FA12Af10",
+      "deployed": true
+    },
+    "BtcUtils": {
+      "address": "0x52b0108b38Ae80305F92FC461026e4c200ed673E",
+      "deployed": true
+    },
+    "LiquidityBridgeContract": {
+      "address": "0x2A4C1373A52D65943b9043062052534F7724c356",
       "deployed": true
     }
   }

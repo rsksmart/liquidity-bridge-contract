@@ -16,17 +16,13 @@ module.exports = function (callback) {
   contract.methods
     .register(
       "First contract",
-      10,
-      7200,
-      100,
-      150,
       "http://localhost/api",
       true,
       "both"
     )
     .call({
       // from: accounts[0],
-      value: 100000000000000000,
+      value: 1200000000000000000,
     })
     .then((response) => console.log("Success: " + response))
     .catch((err) => console.log("Error: " + err));

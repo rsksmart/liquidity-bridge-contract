@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.3;
+pragma solidity ^0.8.18;
 
 /**
  * @title BtcUtils
@@ -163,5 +163,17 @@ library BtcUtils {
             result := mload(add(doubleSha256, 32))
         }
         return result;
+    }
+
+    function validateP2SHAdress(bytes memory p2sh, bytes calldata script, bool mainnet) public pure returns (bool) {
+        return p2sh.length == 25 && keccak256(p2sh) ==  keccak256(getP2SHAddressFromScript(script, mainnet));
+    }
+
+    function getP2SHAddressFromScript(bytes calldata script, bool mainnet) public pure returns (bytes memory) {
+        bytes20 scriptHash = ripemd160(abi.encodePacked(sha256(script)));
+        uint8 versionByte = mainnet ? 0x5 : 0xc4;
+        bytes memory versionAndHash = bytes.concat(bytes1(versionByte), scriptHash);
+        bytes4 checksum = bytes4(sha256(abi.encodePacked(sha256(versionAndHash))));
+        return bytes.concat(versionAndHash, checksum);
     }
 }

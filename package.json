@@ -12,7 +12,10 @@
     "lint:sol": "solhint 'contracts/**/*.sol'",
     "deploy-regtest": "npm run lint:sol && npx truffle deploy --network rskRegtest",
     "deploy-rskTestnet": "npm run lint:sol && npx truffle deploy --network rskTestnet",
-    "contract-size": "npx truffle run contract-size"
+    "deploy-rskMainet": "npm run lint:sol && npx truffle deploy --network rskMainnet",
+    "deploy-alphanet": "npm run lint:sol && npx truffle deploy --network alphanet",
+    "contract-size": "npx truffle run contract-size",
+    "test:integration": "npx truffle test integration-test/* --bail --migrate-none --network"
   },
   "repository": {
     "type": "git",
@@ -26,6 +29,9 @@
   "homepage": "https://github.com/rsksmart/liquidity-bridge-contract#readme",
   "devDependencies": {
     "@openzeppelin/truffle-upgrades": "^1.17.1",
+    "@rsksmart/pmt-builder": "^3.0.0",
+    "bs58check": "^3.0.1",
+    "dotenv": "^16.3.1",
     "prettier": "^2.4.1",
     "prettier-plugin-solidity": "^1.0.0-beta.18",
     "solc": "^0.8.3",

@@ -1,3 +1,4 @@
+require('dotenv').config()
 const HDWalletProvider = require('@truffle/hdwallet-provider');
 
 const fs = require('fs');
@@ -19,6 +20,16 @@ module.exports = {
       host: '127.0.0.1',
       port: 4444,
       network_id: 33,
+    },
+    alphanet: {
+      provider: () => new HDWalletProvider({
+        mnemonic,
+        providerOrUrl: process.env.ALPHANET_RPC_URL,
+        derivationPath: "m/44'/60'/0'/0/",
+        pollingInterval: 30000,
+      }),
+      port: 4444,
+      network_id: 78
     },
     rskTestnet: {
       provider: () => new HDWalletProvider({
@@ -45,7 +56,7 @@ module.exports = {
   },
   compilers: {
     solc: {
-        version : "0.8.3",
+        version : "0.8.18",
         settings: {          // See the solidity docs for advice about optimization and evmVersion
           optimizer: {
             enabled: true,

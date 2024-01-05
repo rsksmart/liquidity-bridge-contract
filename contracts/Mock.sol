@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.3;
+pragma solidity ^0.8.18;
 
 import "./LiquidityBridgeContract.sol";
 
@@ -23,10 +23,6 @@ contract Mock {
         LiquidityBridgeContract lbc = LiquidityBridgeContract(lbcAddress);
         lbc.register{value: msg.value}(
             "First contract",
-            10,
-            7200,
-            100,
-            150,
             "http://localhost/api",
             true,
             "both"
