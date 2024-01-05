@@ -1,23 +1,18 @@
 {
   "rskRegtest": {
     "Migrations": {
-      "address": "0x1Af2844A588759D0DE58abD568ADD96BB8B3B6D8",
       "deployed": false
     },
     "SignatureValidator": {
-      "address": "0xCd5805d60Bbf9Afe69a394c2BDa10F6Dae2c39AF",
       "deployed": false
     },
     "Quotes": {
-      "address": "0xdac5481925A298B95Bf5b54c35b68FC6fc2eF423",
       "deployed": false
     },
     "BtcUtils": {
-      "address": "0xfD1dda8C3BC734Bc1C8e71F69F25BFBEe9cE9535",
       "deployed": false
     },
     "LiquidityBridgeContract": {
-      "address": "0x987c1f13d417F7E04d852B44badc883E4E9782e1",
       "deployed": false
     }
   },
