@@ -141,7 +141,7 @@ contract('LiquidityBridgeContractV2.sol', async accounts => {
             val);
         quote.penaltyFee = web3.utils.toBN(10);
         quote.callTime = 1;
-        let peginAmount = quote.val.add(quote.callFee).add(quote.productFeeAmount);
+        let peginAmount = quote.val.add(quote.callFee).add(quote.productFeeAmount).add(quote.gasFee);
 
         let btcRawTransaction = '0x101';
         let partialMerkleTree = '0x202';
@@ -227,7 +227,7 @@ contract('LiquidityBridgeContractV2.sol', async accounts => {
         let height = 10;
 
         let initialLPBalance = await instance.getBalance(lpAddress, { from: lpAddress });
-        let peginAmount = quote.val.add(quote.callFee).add(quote.productFeeAmount);
+        let peginAmount = quote.val.add(quote.callFee).add(quote.productFeeAmount).add(quote.gasFee);
         let initialLPDeposit = await instance.getCollateral(lpAddress, { from: lpAddress });
         let rewardPercentage = await instance.getRewardPercentage();
         let quoteHash = await instance.hashQuote(utils.asArray(quote));
@@ -299,7 +299,7 @@ contract('LiquidityBridgeContractV2.sol', async accounts => {
 
     const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
     const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
-    const msgValue = quote.value.add(quote.callFee);
+    const msgValue = quote.value.add(quote.callFee).add(quote.productFeeAmount).add(quote.gasFee);
     const pegOut = await instance.depositPegout(utils.asArray(quote), signature, { value: msgValue.toNumber() });
     truffleAssert.eventEmitted(pegOut, "PegOutDeposit");
 

@@ -50,7 +50,7 @@ contract('LiquidityBridgeContractV2.sol', async accounts => {
         let initialLBCBalance = await web3.eth.getBalance(instance.address);
         let initialRefundBalance = await web3.eth.getBalance(rskRefundAddress);
         let additionalFunds = web3.utils.toBN(1000000000000);
-        let peginAmount = val.add(quote.callFee).add(additionalFunds);
+        let peginAmount = val.add(quote.callFee).add(additionalFunds).add(quote.gasFee);
 
         let quoteHash = await instance.hashQuote(utils.asArray(quote));
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
@@ -136,7 +136,7 @@ contract('LiquidityBridgeContractV2.sol', async accounts => {
         let initialLBCBalance = await web3.eth.getBalance(instance.address);
         let initialRefundBalance = await web3.eth.getBalance(rskRefundAddress);
         let additionalFunds = web3.utils.toBN(1000000000000);
-        let peginAmount = val.add(quote.callFee).add(additionalFunds);
+        let peginAmount = val.add(quote.callFee).add(additionalFunds).add(quote.gasFee);
 
         let quoteHash = await instance.hashQuote(utils.asArray(quote));
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
@@ -219,7 +219,7 @@ contract('LiquidityBridgeContractV2.sol', async accounts => {
         let partialMerkleTree = '0x202';
         let height = 10;
         let initialLPBalance = await instance.getBalance(liquidityProviderRskAddress);
-        let peginAmount = quote.val.add(quote.callFee);
+        let peginAmount = quote.val.add(quote.callFee).add(quote.gasFee);
 
         let quoteHash = await instance.hashQuote(utils.asArray(quote));
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
@@ -264,8 +264,8 @@ contract('LiquidityBridgeContractV2.sol', async accounts => {
             amount: quote.val,
             success: true
         });
-        expect(lpBal).to.be.a.bignumber.eq(quote.val.add(quote.callFee));
-        expect(usrBal).to.be.a.bignumber.eq(peginAmount.sub(quote.callFee));
+        expect(lpBal).to.be.a.bignumber.eq(quote.val.add(quote.callFee).add(quote.gasFee));
+        expect(usrBal).to.be.a.bignumber.eq(peginAmount.sub(quote.callFee).sub(quote.gasFee));
         expect(finalLPDeposit).to.be.a.bignumber.eq(initialLPDeposit);
     });
 
@@ -291,7 +291,7 @@ contract('LiquidityBridgeContractV2.sol', async accounts => {
         let initialLPDeposit = await instance.getCollateral(liquidityProviderRskAddress);
         let reward = Math.floor(quote.penaltyFee.div(web3.utils.toBN(10)));
         let initialLbcBalance = await web3.eth.getBalance(instance.address);
-        let peginAmount = quote.val.add(quote.callFee);
+        let peginAmount = quote.val.add(quote.callFee).add(quote.productFeeAmount).add(quote.gasFee);
 
         let quoteHash = await instance.hashQuote(utils.asArray(quote));
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
@@ -322,7 +322,7 @@ contract('LiquidityBridgeContractV2.sol', async accounts => {
         let lpCol = web3.utils.toBN(initialLPDeposit).sub(web3.utils.toBN(finalLPDeposit));
         truffleAssert.eventEmitted(tx, "Refund", {
             dest: rskRefundAddress,
-            amount: web3.utils.toBN(1000000000001),
+            amount: web3.utils.toBN(1000000000003),
             success: true,
             quoteHash: quoteHash,
         });
@@ -353,7 +353,7 @@ contract('LiquidityBridgeContractV2.sol', async accounts => {
         let btcRawTransaction = '0x101';
         let partialMerkleTree = '0x202';
         let height = 10;
-        let peginAmount = quote.val.add(quote.callFee);
+        let peginAmount = quote.val.add(quote.callFee).add(quote.productFeeAmount).add(quote.gasFee);
 
         let quoteHash = await instance.hashQuote(utils.asArray(quote));
         let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
@@ -391,7 +391,7 @@ contract('LiquidityBridgeContractV2.sol', async accounts => {
         let lpCol = web3.utils.toBN(initialLPDeposit).sub(web3.utils.toBN(finalLPDeposit));
         truffleAssert.eventEmitted(tx, "Refund", {
             dest: rskRefundAddress,
-            amount: web3.utils.toBN(1000000000001),
+            amount: web3.utils.toBN(1000000000003),
             success: false,
             quoteHash: quoteHash,
         });

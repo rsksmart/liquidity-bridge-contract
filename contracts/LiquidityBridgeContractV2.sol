@@ -5,7 +5,7 @@ pragma experimental ABIEncoderV2;
 import "./Bridge.sol";
 import "./QuotesV2.sol";
 import "./SignatureValidator.sol";
-import "./BtcUtils.sol";
+import "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
@@ -31,7 +31,6 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
     int16 constant public BRIDGE_UNPROCESSABLE_TX_UTXO_AMOUNT_SENT_BELOW_MINIMUM_ERROR =
     - 305;
     int16 constant public BRIDGE_GENERIC_ERROR = - 900;
-    uint constant public MAX_UINT = 2 ** 256 - 1;
     uint constant public PAY_TO_ADDRESS_OUTPUT = 0;
     uint constant public QUOTE_HASH_OUTPUT = 1;
 
@@ -55,7 +54,6 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
     }
 
     event Register(uint id, address indexed from, uint256 amount);
-    event Deposit(address from, uint256 amount);
     event CollateralIncrease(address from, uint256 amount);
     event PegoutCollateralIncrease(address from, uint256 amount);
     event Withdrawal(address from, uint256 amount);
@@ -77,12 +75,6 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
     event BalanceIncrease(address dest, uint amount);
     event BalanceDecrease(address dest, uint amount);
     event Refund(address dest, uint amount, bool success, bytes32 quoteHash);
-    event PegOut(
-        address from,
-        uint256 amount,
-        bytes32 quotehash,
-        uint processed
-    );
     event PegOutRefunded(bytes32 indexed quoteHash);
     event PegOutDeposit(
         bytes32 indexed quoteHash,
@@ -133,11 +125,6 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         _;
     }
 
-    modifier onlyEoa() {
-        require(tx.origin == msg.sender, "LBC003");
-        _;
-    }
-
     function initializeV2(
         uint256 _productFeePercentage,
         address _daoFeeCollectorAddress
@@ -158,7 +145,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
     function setProviderStatus(
         uint _providerId,
         bool status
-    ) public onlyOwnerAndProvider(_providerId) {
+    ) external onlyOwnerAndProvider(_providerId) {
         liquidityProviders[_providerId].status = status;
     }
 
@@ -230,12 +217,24 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         string memory _apiBaseUrl,
         bool _status,
         string memory _providerType
-    ) external payable onlyEoa returns (uint) {
+    ) external payable returns (uint) {
+        require(tx.origin == msg.sender, "LBC003");
         //require(collateral[msg.sender] == 0, "Already registered");
-        validateRegisterParameters(
-            _name,
-            _apiBaseUrl,
-            _providerType
+        require(bytes(_name).length > 0, "LBC010");
+        require(
+            bytes(_apiBaseUrl).length > 0,
+            "LBC017"
+        );
+
+        // Check if _providerType is one of the valid strings
+        require(
+            keccak256(abi.encodePacked(_providerType)) ==
+            keccak256(abi.encodePacked("pegin")) ||
+            keccak256(abi.encodePacked(_providerType)) ==
+            keccak256(abi.encodePacked("pegout")) ||
+            keccak256(abi.encodePacked(_providerType)) ==
+            keccak256(abi.encodePacked("both")),
+            "LBC018"
         );
 
         require(collateral[msg.sender] == 0 && pegoutCollateral[msg.sender] == 0, "LBC070");
@@ -268,32 +267,6 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         });
         emit Register(providerId, msg.sender, msg.value);
         return (providerId);
-    }
-
-    /**
-        @dev Validates input parameters for the register function
-  */
-    function validateRegisterParameters(
-        string memory _name,
-        string memory _apiBaseUrl,
-        string memory _providerType
-    ) internal pure {
-        require(bytes(_name).length > 0, "LBC010");
-        require(
-            bytes(_apiBaseUrl).length > 0,
-            "LBC017"
-        );
-
-        // Check if _providerType is one of the valid strings
-        require(
-            keccak256(abi.encodePacked(_providerType)) ==
-            keccak256(abi.encodePacked("pegin")) ||
-            keccak256(abi.encodePacked(_providerType)) ==
-            keccak256(abi.encodePacked("pegout")) ||
-            keccak256(abi.encodePacked(_providerType)) ==
-            keccak256(abi.encodePacked("both")),
-            "LBC018"
-        );
     }
 
     function getProviders(
@@ -485,7 +458,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         bytes memory btcRawTransaction,
         bytes memory partialMerkleTree,
         uint256 height
-    ) public nonReentrant returns (int256) {
+    ) external nonReentrant returns (int256) {
         bytes32 quoteHash = validateAndHashQuote(quote);
 
         // TODO: allow multiple registerPegIns for the same quote with different transactions
@@ -589,22 +562,15 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
             if (callRegistry[quoteHash].success) {
                 refundAmount = min(
                     transferredAmount,
-                    quote.value + quote.callFee
+                    quote.value + quote.callFee + quote.gasFee
                 );
             } else {
-                refundAmount = min(transferredAmount, quote.callFee);
+                refundAmount = min(transferredAmount, quote.callFee + quote.gasFee);
             }
             increaseBalance(quote.liquidityProviderRskAddress, refundAmount);
 
             uint remainingAmount = transferredAmount - refundAmount;
-            (bool daoSuccess,) = payable(daoFeeCollectorAddress).call{
-                    gas: MAX_REFUND_GAS_LIMIT,
-                    value: quote.productFeeAmount
-                }("");
-
-            if(daoSuccess) {
-                emit DaoFeeSent(quoteHash, quote.productFeeAmount);
-            }
+            payToFeeCollector(quote.productFeeAmount, quoteHash);
 
             if (remainingAmount > dust) {
                 // refund rskRefundAddress, if remaining amount greater than dust
@@ -674,7 +640,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         bytes memory signature
     ) external payable {
         require(isRegisteredForPegout(quote.lpRskAddress), "LBC037");
-        require(quote.value + quote.callFee <= msg.value, "LBC063");
+        require(quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee <= msg.value, "LBC063");
         require(block.timestamp <= quote.depositDateLimit, "LBC065");
         require(block.timestamp <= quote.expireDate, "LBC046");
         require(block.number <= quote.expireBlock, "LBC047");
@@ -695,7 +661,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
 
     function refundUserPegOut(
         bytes32 quoteHash
-    ) public nonReentrant {
+    ) external nonReentrant {
         QuotesV2.PegOutQuote storage quote = registeredPegoutQuotes[quoteHash];
 
         require(quote.lbcAddress != address(0), "LBC042");
@@ -705,7 +671,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
             "LBC041"
         );
 
-        uint valueToTransfer = quote.value + quote.callFee + quote.productFeeAmount;
+        uint valueToTransfer = quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
         address addressToTransfer = quote.rskRefundAddress;
 
         uint penalty = min(quote.penaltyFee, pegoutCollateral[quote.lpRskAddress]);
@@ -731,12 +697,12 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         bytes32 btcBlockHeaderHash,
         uint256 partialMerkleTree,
         bytes32[] memory merkleBranchHashes
-    ) public nonReentrant onlyRegisteredForPegout {
+    ) external nonReentrant onlyRegisteredForPegout {
         require(pegoutRegistry[quoteHash].completed == false, "LBC064");
         QuotesV2.PegOutQuote storage quote = registeredPegoutQuotes[quoteHash];
         require(quote.lbcAddress != address(0), "LBC042");
         BtcUtils.TxRawOutput[] memory outputs = BtcUtils.getOutputs(btcTx);
-        bytes32 txQuoteHash = abi.decode(BtcUtils.parseOpReturnOuput(outputs[QUOTE_HASH_OUTPUT].pkScript), (bytes32));
+        bytes32 txQuoteHash = abi.decode(BtcUtils.parseNullDataScript(outputs[QUOTE_HASH_OUTPUT].pkScript), (bytes32));
         require(quoteHash == txQuoteHash, "LBC069");
         require(msg.sender == quote.lpRskAddress, "LBC048");
         require(
@@ -749,8 +715,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
             "LBC049"
         );
         require(quote.value <= outputs[PAY_TO_ADDRESS_OUTPUT].value * (10**10), "LBC067"); // satoshi to wei
-        bytes memory btcTxDestination = BtcUtils.parsePayToAddressScript(outputs[PAY_TO_ADDRESS_OUTPUT]
-        .pkScript, mainnet);
+        bytes memory btcTxDestination = BtcUtils.parsePayToPubKeyHash(outputs[PAY_TO_ADDRESS_OUTPUT].pkScript, mainnet);
         require(keccak256(quote.deposityAddress) == keccak256(btcTxDestination), "LBC068");
 
         if (
@@ -773,10 +738,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
             }("");
         require(sent, "LBC050");
 
-        (bool sentDAO,) = payable(daoFeeCollectorAddress).call{
-                value: quote.productFeeAmount
-            }("");
-        require(sentDAO, "LBC074");
+        payToFeeCollector(quote.productFeeAmount, quoteHash);
 
         delete registeredPegoutQuotes[txQuoteHash];
         pegoutRegistry[txQuoteHash].completed = true;
@@ -837,7 +799,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
             "LBC054"
         );
         require(
-            quote.value + quote.callFee >= minPegIn,
+            quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee >= minPegIn,
             "LBC055"
         );
         require(
@@ -927,7 +889,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         uint256 height
     ) private view returns (bool) {
         // do not penalize if deposit amount is insufficient
-        if (amount > 0 && uint256(amount) < quote.value + quote.callFee) {
+        if (amount > 0 && uint256(amount) < quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee) {
             return false;
         }
 
@@ -935,7 +897,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
             .getBtcBlockchainBlockHeaderByHeight(height);
         require(firstConfirmationHeader.length > 0, "Invalid block height");
 
-        uint256 firstConfirmationTimestamp = getBtcBlockTimestamp(
+        uint256 firstConfirmationTimestamp = BtcUtils.getBtcBlockTimestamp(
             firstConfirmationHeader
         );
 
@@ -957,7 +919,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         );
         require(nConfirmationsHeader.length > 0, "LBC058");
 
-        uint256 nConfirmationsTimestamp = getBtcBlockTimestamp(
+        uint256 nConfirmationsTimestamp = BtcUtils.getBtcBlockTimestamp(
             nConfirmationsHeader
         );
 
@@ -976,7 +938,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         bytes memory firstConfirmationHeader = bridge.getBtcBlockchainBlockHeaderByHash(blockHash);
         require(firstConfirmationHeader.length > 0, "LBC059");
 
-        uint256 firstConfirmationTimestamp = getBtcBlockTimestamp(firstConfirmationHeader);
+        uint256 firstConfirmationTimestamp = BtcUtils.getBtcBlockTimestamp(firstConfirmationHeader);
 
         // penalize if the transfer was not made on time
         if (firstConfirmationTimestamp > pegoutRegistry[quoteHash].depositTimestamp +
@@ -992,31 +954,11 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         return false;
     }
 
-    /**
-        @dev Gets the timestamp of a Bitcoin block header
-        @param header The block header
-        @return The timestamp of the block header
-     */
-    function getBtcBlockTimestamp(
-        bytes memory header
-    ) public pure returns (uint256) {
-        // bitcoin header is 80 bytes and timestamp is 4 bytes from byte 68 to byte 71 (both inclusive)
-        require(header.length == 80, "LBC061");
-
-        return sliceUint32FromLSB(header, 68);
-    }
-
-    // bytes must have at least 28 bytes before the uint32
-    function sliceUint32FromLSB(
-        bytes memory bs,
-        uint offset
-    ) internal pure returns (uint32) {
-        require(bs.length >= offset + 4, "LBC062");
-
-        return
-            uint32(uint8(bs[offset])) |
-            (uint32(uint8(bs[offset + 1])) << 8) |
-            (uint32(uint8(bs[offset + 2])) << 16) |
-            (uint32(uint8(bs[offset + 3])) << 24);
+    function payToFeeCollector(uint amount, bytes32 quoteHash) private {
+        if (amount > 0) {
+            (bool daoSuccess,) = payable(daoFeeCollectorAddress).call{value: amount}("");
+            require(daoSuccess, "LBC074");
+            emit DaoFeeSent(quoteHash, amount);
+        }
     }
 }
