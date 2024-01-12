@@ -62,6 +62,10 @@
     "LiquidityBridgeContract": {
       "address": "0xAA9cAf1e3967600578727F975F283446A3Da6612",
       "deployed": true
+    },
+    "Migrations": {
+      "address": "0x22183DB087d1Fed621435d00aa9cac4B5CdC9aE1",
+      "deployed": true
     }
   },
   "rskTestnet": {
@@ -78,8 +82,8 @@
       "deployed": true
     },
     "BtcUtils": {
-      "address": "0xDE99557170A479c58b32C0cf92ee50ec2836cB5B",
-      "deployed": true
+      "deployed": true,
+      "address": "0x5817485F1Bfd430D523a787CEAB62418365FbCBC"
     },
     "LiquidityBridgeContract": {
       "address": "0xc2A630c053D12D63d32b025082f6Ba268db18300",
