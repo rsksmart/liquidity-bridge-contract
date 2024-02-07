@@ -702,7 +702,12 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         QuotesV2.PegOutQuote storage quote = registeredPegoutQuotes[quoteHash];
         require(quote.lbcAddress != address(0), "LBC042");
         BtcUtils.TxRawOutput[] memory outputs = BtcUtils.getOutputs(btcTx);
-        bytes32 txQuoteHash = abi.decode(BtcUtils.parseNullDataScript(outputs[QUOTE_HASH_OUTPUT].pkScript), (bytes32));
+        bytes memory scriptContent = BtcUtils.parseNullDataScript(outputs[QUOTE_HASH_OUTPUT].pkScript);
+        // shift the array to remove the first byte (the size)
+        for (uint8 i = 0 ; i < scriptContent.length - 1; i++) {
+            scriptContent[i] = scriptContent[i + 1];
+        }
+        bytes32 txQuoteHash = abi.decode(scriptContent, (bytes32));
         require(quoteHash == txQuoteHash, "LBC069");
         require(msg.sender == quote.lpRskAddress, "LBC048");
         require(
