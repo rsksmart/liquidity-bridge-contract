@@ -30,7 +30,7 @@ jobs:
           node-version: '19.6.0'
 
       - name: NPM Login
-        run: echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> .npmrc
+        run: npm config set //npm.pkg.github.com/:_authToken ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install truffle
         run: npm install -g truffle
