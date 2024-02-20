@@ -52,12 +52,12 @@
       "deployed": true
     },
     "Quotes": {
-      "address": "0x12B53F7fB6D15beB3EBB8B8a69B979AF23133B2b",
+      "address": "0x1d35CE211333a0B1BABc2e34185E2A3b5c0C9F60",
       "deployed": true
     },
     "BtcUtils": {
-      "address": "",
-      "deployed": false
+      "address": "0xE2E976F1F07403bEdc2241505d1e2cD175A9d4F4",
+      "deployed": true
     },
     "LiquidityBridgeContract": {
       "address": "0xAA9cAf1e3967600578727F975F283446A3Da6612",
