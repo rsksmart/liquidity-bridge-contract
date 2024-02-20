@@ -45,18 +45,16 @@ module.exports = {
         pollingInterval: 30000,
       }),
       network_id: 31,
-      gasPrice: 65164000,
       deploymentPollingInterval: 30000,
     },
     rskMainnet: {
       provider: () => new HDWalletProvider({
         mnemonic,
         providerOrUrl: `https://public-node.rsk.co`,
-        derivationPath: "m/44'/137'/0'/0/",
+        derivationPath: "m/44'/60'/0'/0/",
         pollingInterval: 30000,
       }),
       network_id: 30,
-      gasPrice: 65164000,
       deploymentPollingInterval: 30000,
     }
   },
