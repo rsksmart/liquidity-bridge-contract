@@ -703,6 +703,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         require(quote.lbcAddress != address(0), "LBC042");
         BtcUtils.TxRawOutput[] memory outputs = BtcUtils.getOutputs(btcTx);
         bytes memory scriptContent = BtcUtils.parseNullDataScript(outputs[QUOTE_HASH_OUTPUT].pkScript);
+        require(scriptContent.length == 33 && scriptContent[0] == 0x20, "LBC075");
         // shift the array to remove the first byte (the size)
         for (uint8 i = 0 ; i < scriptContent.length - 1; i++) {
             scriptContent[i] = scriptContent[i + 1];
