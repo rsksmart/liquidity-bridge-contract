@@ -1540,6 +1540,68 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
     );
   });
 
+  it("Should fail on refundPegout if btc tx null data script has wrong format", async () => {
+    const blockHeaderHash =
+      "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326";
+    const partialMerkleTree =
+      "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb426";
+    const merkleBranchHashes = [
+      "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326",
+    ];
+    let quote = utils.getTestPegOutQuote(
+      instance.address, //lbc address
+      liquidityProviderRskAddress,
+      accounts[2],
+      web3.utils.toBN(1)
+    );
+    quote.transferConfirmations = 0;
+
+    // configure mocked block on mockBridge
+    const firstConfirmationTime = utils.reverseHexBytes(
+      web3.utils.toHex(quote.agreementTimestamp + 300).substring(2)
+    );
+    const firstHeader =
+      "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" +
+      firstConfirmationTime +
+      "0000000000000000";
+    await bridgeMockInstance.setHeaderByHash(blockHeaderHash, firstHeader);
+
+    const msgValue = quote.value.add(quote.callFee).add(quote.productFeeAmount).add(quote.gasFee);
+    const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
+    const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
+    const pegOut = await instance.depositPegout(utils.asArray(quote), signature, {
+      value: msgValue.toNumber()
+    });
+    await truffleAssertions.eventEmitted(pegOut, "PegOutDeposit");
+
+    let incorrectSizeByteTx = await utils.generateRawTx(instance, quote);
+    incorrectSizeByteTx = web3.utils.bytesToHex(incorrectSizeByteTx).replace("6a20", "6a40");
+    await truffleAssertions.reverts(
+      instance.refundPegOut(
+        quoteHash,
+        incorrectSizeByteTx,
+        blockHeaderHash,
+        partialMerkleTree,
+        merkleBranchHashes
+      ),
+      "LBC075"
+    );
+        
+    let incorrectHashSizeTx = await utils.generateRawTx(instance, quote);
+    incorrectHashSizeTx = web3.utils.bytesToHex(incorrectHashSizeTx)
+      .replace("226a20"+quoteHash.slice(2), "216a19"+quoteHash.slice(2, -2));
+    await truffleAssertions.reverts(
+      instance.refundPegOut(
+        quoteHash,
+        incorrectHashSizeTx,
+        blockHeaderHash,
+        partialMerkleTree,
+        merkleBranchHashes
+      ),
+      "LBC075"
+    );
+  });
+
   it("Should fail on refundPegout if btc tx doesn't have correct amount", async () => {
     const blockHeaderHash = "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326";
     const partialMerkleTree = "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb426";

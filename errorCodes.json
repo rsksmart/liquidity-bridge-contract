@@ -67,5 +67,6 @@
     "LBC071": "Intentional overflow on quote values",
     "LBC072": "Minimum collateral for registration can't be lower than 0.6 RBTC",
     "LBC073": "Resign delay blocks lower than minimal",
-    "LBC074": "Error sending fee to DAO"
+    "LBC074": "Error sending fee to DAO",
+    "LBC075": "Malformed BTC transaction output"
 }
