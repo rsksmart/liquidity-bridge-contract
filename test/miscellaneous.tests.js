@@ -1,3 +1,4 @@
+const LiquidityBridgeContractV2 = artifacts.require("LiquidityBridgeContractV2.sol");
 const LiquidityBridgeContract = artifacts.require("LiquidityBridgeContract");
 const BridgeMock = artifacts.require("BridgeMock");
 const Mock = artifacts.require("Mock");
@@ -11,15 +12,15 @@ const chaiBN = require("chai-bn")(BN);
 chai.use(chaiBN);
 const expect = chai.expect;
 
-contract("LiquidityBridgeContract", async (accounts) => {
+contract("LiquidityBridgeContractV2.sol", async (accounts) => {
   let instance;
   let bridgeMockInstance;
   let mock;
   const liquidityProviderRskAddress = accounts[0];
 
   before(async () => {
-    const proxy = await LiquidityBridgeContract.deployed();
-    instance = await LiquidityBridgeContract.at(proxy.address);
+    const proxy = await LiquidityBridgeContractV2.deployed();
+    instance = await LiquidityBridgeContractV2.at(proxy.address);
     bridgeMockInstance = await BridgeMock.deployed();
     mock = await Mock.deployed();
   });
@@ -48,7 +49,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       }
     );
 
-    let goodLP = accounts[8];
+    let goodLP = accounts[6];
     let goodProviderCollateral = web3.utils.toWei("30");
     await instance.register.call(
       "First contract",
@@ -88,6 +89,8 @@ contract("LiquidityBridgeContract", async (accounts) => {
     let depositConfirmations = 10;
     let penaltyFee = web3.utils.toBN(0);
     let callOnRegister = true;
+    let productFeeAmount = web3.utils.toBN(1);
+    const gasFee = web3.utils.toBN(1);
     let quote = [
       fedBtcAddress,
       lbcAddress,
@@ -107,6 +110,8 @@ contract("LiquidityBridgeContract", async (accounts) => {
       callTime,
       depositConfirmations,
       callOnRegister,
+      productFeeAmount,
+      gasFee
     ];
     // Let's now register our quote in the bridge... note that the
     // value is only a hundred wei
@@ -167,15 +172,21 @@ contract("LiquidityBridgeContract", async (accounts) => {
     let initialLBCBalance = await web3.eth.getBalance(instance.address);
     let data = "0x00";
     let callFee = 1;
+    const productFeeAmount = 1;
+    const gasFee = 1;
     let gasLimit = 150000;
     let nonce = 0;
     let delta = web3.utils
       .toBN(val)
       .add(web3.utils.toBN(callFee))
+      .add(web3.utils.toBN(productFeeAmount))
+      .add(web3.utils.toBN(gasFee))
       .div(web3.utils.toBN(10000));
     let peginAmount = web3.utils
       .toBN(val)
       .add(web3.utils.toBN(callFee))
+      .add(web3.utils.toBN(productFeeAmount))
+      .add(web3.utils.toBN(gasFee))
       .sub(delta);
     let lbcAddress = instance.address;
     let agreementTime = 1661788988;
@@ -203,6 +214,8 @@ contract("LiquidityBridgeContract", async (accounts) => {
       callTime,
       depositConfirmations,
       callOnRegister,
+      productFeeAmount,
+      gasFee
     ];
     let quoteHash = await instance.hashQuote(quote);
     let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
@@ -274,7 +287,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       .sub(web3.utils.toBN(initialLPBalance));
     expect(peginAmount).to.be.a.bignumber.eq(amount);
     expect(usrBal).to.be.a.bignumber.eq(val);
-    expect(lbcBal).to.be.a.bignumber.eq(peginAmount);
+    expect(lbcBal).to.be.a.bignumber.eq(peginAmount.sub(web3.utils.toBN(productFeeAmount)));
     expect(lpBal).to.be.a.bignumber.eq(peginAmount);
     expect(finalLPDeposit).to.be.a.bignumber.eq(initialLPDeposit);
   });
@@ -313,6 +326,8 @@ contract("LiquidityBridgeContract", async (accounts) => {
     let depositConfirmations = 10;
     let penaltyFee = 0;
     let callOnRegister = false;
+    let productFeeAmount = web3.utils.toBN(1);
+    const gasFee = web3.utils.toBN(1);
     let quote = [
       fedBtcAddress,
       lbcAddress,
@@ -332,6 +347,8 @@ contract("LiquidityBridgeContract", async (accounts) => {
       callTime,
       depositConfirmations,
       callOnRegister,
+      productFeeAmount,
+      gasFee
     ];
     let quoteHash = await instance.hashQuote(quote);
     let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
@@ -408,38 +425,6 @@ contract("LiquidityBridgeContract", async (accounts) => {
     instance = await LiquidityBridgeContract.new();
     await truffleAssert.fails(
       instance.initialize(bridgeMockInstance.address, MINIMUM_COLLATERAL, 1, 101, RESIGN_DELAY_BLOCKS, 1, 1, false)
-    );
-  });
-
-  it("should extract timestamp from btc block header", async () => {
-    const btcHeader =
-      "0x0080cf2a0857bdec9d66f5feb52d00d5061ff02a904112d9b0cd1ac401000000000000003d2d2b5733c820a1f07ce6e0acd2ea47f27016b49ccb405b1e3e5786f8ae962e3ce30c63bc292d1919856362";
-
-    let timestamp = await instance.getBtcBlockTimestamp(btcHeader);
-    expect(timestamp).to.be.a.bignumber.eq(web3.utils.toBN(1661788988));
-
-    const btcHeader2 = "0x" + "00".repeat(68) + "12345678" + "00".repeat(8);
-
-    let timestamp2 = await instance.getBtcBlockTimestamp(btcHeader2);
-    expect(timestamp2).to.be.a.bignumber.eq(web3.utils.toBN("0x78563412"));
-  });
-
-  it("should fail to extract timestamp from btc block header with invalid length", async () => {
-    const btcHeaderEmpty = "0x";
-    const btcHeader79 = "0x" + "00".repeat(79);
-    const btcHeader81 = "0x" + "00".repeat(81);
-
-    await truffleAssertions.reverts(
-      instance.getBtcBlockTimestamp(btcHeaderEmpty),
-      "LBC061"
-    );
-    await truffleAssertions.reverts(
-      instance.getBtcBlockTimestamp(btcHeader79),
-      "LBC061"
-    );
-    await truffleAssertions.reverts(
-      instance.getBtcBlockTimestamp(btcHeader81),
-      "LBC061"
     );
   });
 });

@@ -1,40 +1,60 @@
 const { upgradeProxy } = require("@openzeppelin/truffle-upgrades");
 
 const SignatureValidator = artifacts.require("SignatureValidator");
-const Quotes = artifacts.require("Quotes");
-const LiquidityBridgeContract = artifacts.require('LiquidityBridgeContract');
+const QuotesV2 = artifacts.require("QuotesV2");
+const LiquidityBridgeContractV2 = artifacts.require('LiquidityBridgeContractV2.sol');
 const BtcUtils = artifacts.require("BtcUtils");
 
-const { deploy, read } = require("../config");
+const { read, deploy} = require("../config");
 
-module.exports = async function (deployer, network) {
+// using LP address as placeholder for now
+const FEE_COLLECTOR_MAINNET_ADDRESS = '0x4202BAC9919C3412fc7C8BE4e678e26279386603'
+const FEE_COLLECTOR_TESTNET_ADDRESS = '0x86B6534687A176A476C16083a373fB9Fe4FAb449'
+const DAO_FEE_PERCENTAGE = 0
+
+module.exports = async function (deployer, network, accounts) {
     let config = read();
-    console.log(network);
-    if (network === 'test') {
-        console.log("Upgrade isn't executed during tests");
-        return;
-    }
 
     const signatureValidatorLib = await SignatureValidator.at(
         config[network]["SignatureValidator"].address
     );
-    await deployer.link(signatureValidatorLib, LiquidityBridgeContract);
+    await deployer.link(signatureValidatorLib, LiquidityBridgeContractV2);
 
-    const quotesLib = await Quotes.at(
-        config[network]["Quotes"].address
+    await deployer.deploy(QuotesV2);
+    const quotesInstance = await QuotesV2.deployed();
+    await LiquidityBridgeContractV2.link("QuotesV2", quotesInstance.address);
+    const quotesLib = await QuotesV2.at(
+        quotesInstance.address
     );
-    await deployer.link(quotesLib, LiquidityBridgeContract);
+    await deployer.link(quotesLib, LiquidityBridgeContractV2);
 
     const btcUtilsLib = await BtcUtils.at(
         config[network]["BtcUtils"].address
     );
-    await deployer.link(btcUtilsLib, LiquidityBridgeContract);
+    await deployer.link(btcUtilsLib, LiquidityBridgeContractV2);
 
-    const existing = config[network]["LiquidityBridgeContract"]
+    const existing = config[network]["LiquidityBridgeContract"];
+
+    console.log('Upgrading contract ', existing.address)
     const response = await upgradeProxy(
         existing.address,
-        LiquidityBridgeContract,
+        LiquidityBridgeContractV2,
         { deployer, unsafeAllowLinkedLibraries: true }
     );
+
+    let daoFeeCollectorAddress = '';
+
+    if(network === 'ganache' || network === 'rskRegtest' || network === 'test') {
+        daoFeeCollectorAddress = accounts[8];
+    } else if(network === 'rskTestnet') {
+        daoFeeCollectorAddress = FEE_COLLECTOR_TESTNET_ADDRESS;
+    } else if(network === 'rskMainnet'){
+        daoFeeCollectorAddress = FEE_COLLECTOR_MAINNET_ADDRESS;
+    } else {
+        throw new Error('Unknown network');
+    }
+
+    await response.initializeV2(DAO_FEE_PERCENTAGE, daoFeeCollectorAddress);
+
     console.log("Upgraded", response.address);
 };

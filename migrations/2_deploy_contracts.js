@@ -1,5 +1,4 @@
 const { deployProxy } = require("@openzeppelin/truffle-upgrades");
-const web3 = require("web3");
 
 const LiquidityBridgeContract = artifacts.require("LiquidityBridgeContract");
 
@@ -99,7 +98,7 @@ module.exports = async function (deployer, network) {
       state.address = btcUtilsInstance.address;
     });
 
-    minimumPegIn = 2;
+    minimumPegIn = 3;
   }
 
   let config = read();
@@ -123,7 +122,7 @@ module.exports = async function (deployer, network) {
       console.log('Already deployed, skipping LiquidityBridgeContract deploy...');
       return;
     }
-    
+
     const response = await deployProxy(
       LiquidityBridgeContract,
       [

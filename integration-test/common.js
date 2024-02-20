@@ -67,7 +67,7 @@ async function loadConfig() {
     return JSON.parse(buffer.toString())
 }
 async function sendBtc({ toAddress, amountInBtc, rpc, data }) {
-    const outputs = [ { [toAddress]: amountInBtc } ]
+    const outputs = [ { [toAddress]: amountInBtc.toString() } ]
     const fundOptions = { fee_rate: 25 }
     if (data) {
         outputs.push({ data })

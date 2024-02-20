@@ -9,6 +9,7 @@
     "btc": {
         "url": "http://127.0.0.1:5555/",
         "user": "test",
-        "pass": "test"
+        "pass": "test",
+        "walletPassphrase": "pass"
     }
 }

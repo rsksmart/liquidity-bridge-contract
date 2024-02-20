@@ -1,4 +1,4 @@
-const LiquidityBridgeContract = artifacts.require("LiquidityBridgeContract");
+const LiquidityBridgeContractV2 = artifacts.require("LiquidityBridgeContractV2.sol");
 const BridgeMock = artifacts.require("BridgeMock");
 const Mock = artifacts.require("Mock");
 const SignatureValidatorMock = artifacts.require("SignatureValidatorMock");
@@ -14,18 +14,17 @@ const expect = chai.expect;
 const bs58check = require('bs58check')
 const bs58 = require('bs58');
 
-contract("LiquidityBridgeContract", async (accounts) => {
+contract("LiquidityBridgeContractV2.sol", async (accounts) => {
   let instance;
   let bridgeMockInstance;
   let mock;
   let signatureValidatorInstance;
   let btcUtils;
   const liquidityProviderRskAddress = accounts[0];
-  const MAX_UINT32 = Math.pow(2, 32) - 1;
   var providerList = [];
   before(async () => {
-    const proxy = await LiquidityBridgeContract.deployed();
-    instance = await LiquidityBridgeContract.at(proxy.address);
+    const proxy = await LiquidityBridgeContractV2.deployed();
+    instance = await LiquidityBridgeContractV2.at(proxy.address);
     bridgeMockInstance = await BridgeMock.deployed();
     mock = await Mock.deployed();
     signatureValidatorInstance = await SignatureValidatorMock.deployed();
@@ -41,7 +40,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
   });
 
   it("should register liquidity provider", async () => {
-    let currAddr = accounts[8];
+    let currAddr = accounts[9];
     let existing = await instance.getCollateral(currAddr);
 
     let tx = await instance.register(
@@ -333,7 +332,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       .sub(web3.utils.toBN(initialLBCBalance));
     expect(peginAmount).to.be.a.bignumber.eq(amount);
     expect(peginAmount).to.be.a.bignumber.eq(lpBal);
-    expect(peginAmount).to.be.a.bignumber.eq(lbcBal);
+    expect(peginAmount.sub(quote.productFeeAmount)).to.be.a.bignumber.eq(lbcBal);
     expect(initialLPDeposit).to.be.a.bignumber.eq(finalLPDeposit);
     truffleAssertions.eventEmitted(cfuTx, "CallForUser", {
       from: quote.liquidityProviderRskAddress,
@@ -591,6 +590,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       rskRefundAddress,
       web3.utils.toBN(0)
     );
+    quote.productFeeAmount = web3.utils.toBN(0)
 
     await truffleAssertions.reverts(
       instance.hashQuote.call(utils.asArray(quote)),
@@ -616,6 +616,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
 
   it("should transfer value for user", async () => {
     let rskRefundAddress = accounts[2];
+    const daoFeeCollectorInitialBalance = await web3.eth.getBalance(accounts[8]);
     let destAddr = accounts[1];
     let lbcAddress = instance.address;
     let quote = utils.getTestQuote(
@@ -635,7 +636,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       liquidityProviderRskAddress
     );
     let initialLBCBalance = await web3.eth.getBalance(instance.address);
-    let peginAmount = quote.val.add(quote.callFee);
+    let peginAmount = quote.val.add(quote.callFee).add(quote.productFeeAmount).add(quote.gasFee);
     let quoteHash = await instance.hashQuote(utils.asArray(quote));
     let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
     let firstConfirmationTime = utils.reverseHexBytes(
@@ -655,10 +656,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
 
     await bridgeMockInstance.setPegin(quoteHash, { value: peginAmount });
     await bridgeMockInstance.setHeader(height, firstHeader);
-    await bridgeMockInstance.setHeader(
-      height + quote.depositConfirmations - 1,
-      nHeader
-    );
+    await bridgeMockInstance.setHeader(height + quote.depositConfirmations - 1, nHeader);
     let initialLPDeposit = await instance.getCollateral(
       liquidityProviderRskAddress
     );
@@ -680,7 +678,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       height
     );
 
-    await instance.registerPegIn(
+    const registerPegin = await instance.registerPegIn(
       utils.asArray(quote),
       signature,
       btcRawTransaction,
@@ -704,6 +702,10 @@ contract("LiquidityBridgeContract", async (accounts) => {
     let usrBal = web3.utils
       .toBN(finalUserBalance)
       .sub(web3.utils.toBN(initialUserBalance));
+    truffleAssertions.eventEmitted(registerPegin, "DaoFeeSent", {
+      quoteHash: quoteHash,
+      amount: quote.productFeeAmount
+    });
     truffleAssertions.eventEmitted(cfuTx, "CallForUser", {
       from: quote.liquidityProviderRskAddress,
       dest: quote.destAddr,
@@ -712,11 +714,77 @@ contract("LiquidityBridgeContract", async (accounts) => {
       success: true,
       quoteHash: quoteHash,
     });
+    const daoFeeCollectorFinalBalance = await web3.eth.getBalance(accounts[8]);
     expect(peginAmount).to.be.a.bignumber.eq(amount);
     expect(usrBal).to.be.a.bignumber.eq(quote.val);
-    expect(lbcBal).to.be.a.bignumber.eq(peginAmount);
-    expect(lpBal).to.be.a.bignumber.eq(peginAmount);
+    expect(lbcBal).to.be.a.bignumber.eq(peginAmount.sub(quote.productFeeAmount));
+    expect(lpBal).to.be.a.bignumber.eq(peginAmount.sub(quote.productFeeAmount));
     expect(finalLPDeposit).to.be.a.bignumber.eq(initialLPDeposit);
+    expect(daoFeeCollectorFinalBalance).to.be.a.bignumber.eq(
+        web3.utils.toBN(daoFeeCollectorInitialBalance).add(quote.productFeeAmount));
+  });
+
+  it("Should not generate transaction to DAO when product fee is 0 in registerPegIn", async () => {
+    const daoFeeCollectorInitialBalance = await web3.eth.getBalance(accounts[8]);
+    let quote = utils.getTestQuote(
+      instance.address,
+      accounts[1],
+      "0x00",
+      liquidityProviderRskAddress,
+      accounts[2],
+      web3.utils.toBN(100)
+    );
+    quote.productFeeAmount = web3.utils.toBN(0)
+
+    let btcRawTransaction = "0x101";
+    let partialMerkleTree = "0x202";
+    let height = 10;
+    let peginAmount = quote.val.add(quote.callFee).add(quote.productFeeAmount).add(quote.gasFee);
+    let quoteHash = await instance.hashQuote(utils.asArray(quote));
+    let signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
+    let firstConfirmationTime = utils.reverseHexBytes(
+      web3.utils.toHex(quote.agreementTime + 300).substring(2)
+    );
+    let nConfirmationTime = utils.reverseHexBytes(
+      web3.utils.toHex(quote.agreementTime + 600).substring(2)
+    );
+    let firstHeader =
+      "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" +
+      firstConfirmationTime +
+      "0000000000000000";
+    let nHeader =
+      "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" +
+      nConfirmationTime +
+      "0000000000000000";
+
+    await bridgeMockInstance.setPegin(quoteHash, { value: peginAmount });
+    await bridgeMockInstance.setHeader(height, firstHeader);
+    await bridgeMockInstance.setHeader(height + quote.depositConfirmations - 1, nHeader);
+
+    await instance.callForUser(utils.asArray(quote), { value: quote.val });
+
+    await instance.registerPegIn.call(
+      utils.asArray(quote),
+      signature,
+      btcRawTransaction,
+      partialMerkleTree,
+      height
+    );
+
+    const registerPegin = await instance.registerPegIn(
+      utils.asArray(quote),
+      signature,
+      btcRawTransaction,
+      partialMerkleTree,
+      height
+    );
+
+    const daoFeeCollectorFinalBalance = await web3.eth.getBalance(accounts[8]);
+    expect(daoFeeCollectorFinalBalance).to.be.a.bignumber.eq(web3.utils.toBN(daoFeeCollectorInitialBalance));
+    truffleAssertions.eventNotEmitted(registerPegin, "DaoFeeSent", {
+      quoteHash: quoteHash,
+      amount: quote.productFeeAmount
+    });
   });
 
   it("should resign", async () => {
@@ -781,6 +849,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       value: web3.utils.toWei("30000", "wei"),
       from: liquidityProviderRskAddress,
     });
+    const daoFeeCollectorBefore = await web3.eth.getBalance(accounts[8]);
     const blockHeaderHash =
       "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326";
     const partialMerkleTree =
@@ -807,7 +876,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
 
     // configure mocked block on mockBridge
     const firstConfirmationTime = utils.reverseHexBytes(
-      web3.utils.toHex(quote.agreementTimestamp + 300).substring(2)
+      web3.utils.toHex(quote.agreementTimestamp + 100).substring(2)
     );
     const firstHeader =
       "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" +
@@ -817,7 +886,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
 
     const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
     const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
-    const msgValue = quote.value.add(quote.callFee);
+    const msgValue = quote.value.add(quote.callFee).add(quote.productFeeAmount).add(quote.gasFee);
     const pegOut = await instance.depositPegout(utils.asArray(quote), signature, {
       value: msgValue.toNumber()
     });
@@ -845,11 +914,68 @@ contract("LiquidityBridgeContract", async (accounts) => {
       liquidityProviderRskAddress
     );
     const usedInGas = refund.receipt.gasUsed * refund.receipt.effectiveGasPrice;
-    const refundedAmount = +quote.value + +quote.callFee;
-    expect(+lpBalanceAfter).to.be.eq(
-      +lpBalanceBefore + refundedAmount - usedInGas
+    const refundedAmount = quote.value.add(quote.callFee);
+    const daoFeeCollectorAfter = await web3.eth.getBalance(accounts[8]);
+
+    expect(lpBalanceAfter).to.be.a.bignumber.eq(
+      web3.utils.toBN(lpBalanceBefore).add(refundedAmount).sub(web3.utils.toBN(usedInGas))
     );
+    expect(web3.utils.toBN(daoFeeCollectorBefore).add(quote.productFeeAmount)).to.be.a.bignumber.eq(web3.utils.toBN(daoFeeCollectorAfter))
     truffleAssertions.eventEmitted(refund, "PegOutRefunded");
+  });
+
+  it("Should not generate transaction to DAO when product fee is 0 in refundPegOut", async () => {
+    await instance.addPegoutCollateral({
+      value: web3.utils.toWei("30000", "wei"),
+      from: liquidityProviderRskAddress,
+    });
+    const daoFeeCollectorBefore = await web3.eth.getBalance(accounts[8]);
+    const blockHeaderHash =
+      "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326";
+    const partialMerkleTree =
+      "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb426";
+    const merkleBranchHashes = [
+      "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326",
+    ];
+
+    let quote = utils.getTestPegOutQuote(
+      instance.address, //lbc address
+      liquidityProviderRskAddress,
+      accounts[2],
+      web3.utils.toBN(1)
+    );
+    quote.transferConfirmations = 0;
+    quote.productFeeAmount = web3.utils.toBN(0);
+
+    // configure mocked block on mockBridge
+    const firstConfirmationTime = utils.reverseHexBytes(
+      web3.utils.toHex(quote.agreementTimestamp + 100).substring(2)
+    );
+    const firstHeader =
+      "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" +
+      firstConfirmationTime +
+      "0000000000000000";
+    await bridgeMockInstance.setHeaderByHash(blockHeaderHash, firstHeader);
+
+    const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
+    const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
+    const msgValue = quote.value.add(quote.callFee).add(quote.gasFee);
+    const pegOut = await instance.depositPegout(utils.asArray(quote), signature, {
+      value: msgValue.toNumber()
+    });
+    await truffleAssertions.eventEmitted(pegOut, "PegOutDeposit");
+
+    const btcTx = await utils.generateRawTx(instance, quote);
+    const refund = await instance.refundPegOut(
+      quoteHash,
+      btcTx,
+      blockHeaderHash,
+      partialMerkleTree,
+      merkleBranchHashes
+    );
+    const daoFeeCollectorAfter = await web3.eth.getBalance(accounts[8]);
+    expect(daoFeeCollectorBefore).to.be.a.bignumber.eq(daoFeeCollectorAfter)
+    truffleAssertions.eventNotEmitted(refund, "DaoFeeSent");
   });
 
   it("Should not allow user to re deposit a refunded quote", async () => {
@@ -886,7 +1012,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
 
     const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
     const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
-    const msgValue = quote.value.add(quote.callFee);
+    const msgValue = quote.value.add(quote.callFee).add(quote.productFeeAmount).add(quote.gasFee);
     const pegOut = await instance.depositPegout(utils.asArray(quote), signature, { value: msgValue.toNumber() });
     await truffleAssertions.eventEmitted(pegOut, "PegOutDeposit");
 
@@ -1022,7 +1148,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
 
     const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
     const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
-    const msgValue = quote.value.add(quote.callFee);
+    const msgValue = quote.value.add(quote.callFee).add(quote.productFeeAmount).add(quote.gasFee);
     const pegOut = await instance.depositPegout(utils.asArray(quote), signature, {
       value: msgValue.toNumber()
     });
@@ -1340,25 +1466,25 @@ contract("LiquidityBridgeContract", async (accounts) => {
     const firstRawTX = "0x0100000001013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40000000006a47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4ffffffff0200879303000000001976a9143c5f66fe733e0ad361805b3053f23212e5755c8d88ac0000000000000000426a403938343934346435383039323135366335613139643936356239613735383530326536646263326439353337333135656266343839373336333134656233343700000000";
     const firstTxOutputs = await btcUtils.getOutputs(firstRawTX);
 
-    const firstQuoteHash = web3.utils.hexToAscii(await btcUtils.parseOpReturnOuput(firstTxOutputs[1].pkScript));
-    const firstDestinationAddress = await btcUtils.parsePayToAddressScript(firstTxOutputs[0].pkScript, false);
+    const firstNullScript = await btcUtils.parseNullDataScript(firstTxOutputs[1].pkScript);
+    const firstDestinationAddress = await btcUtils.parsePayToPubKeyHash(firstTxOutputs[0].pkScript, false);
     const firstValue = firstTxOutputs[0].value;
     const firstHash = await btcUtils.hashBtcTx(firstRawTX);
 
     const secondRawTX = "0x01000000010178a1cf4f2f0cb1607da57dcb02835d6aa8ef9f06be3f74cafea54759a029dc000000006a473044022070a22d8b67050bee57564279328a2f7b6e7f80b2eb4ecb684b879ea51d7d7a31022057fb6ece52c23ecf792e7597448c7d480f89b77a8371dca4700a18088f529f6a012103ef81e9c4c38df173e719863177e57c539bdcf97289638ec6831f07813307974cffffffff02801d2c04000000001976a9143c5f66fe733e0ad361805b3053f23212e5755c8d88ac0000000000000000426a406539346138393731323632396262633966636364316630633034613237386330653130353265623736323666393365396137663130363762343036663035373600000000";
     const secondTxOutputs = await btcUtils.getOutputs(secondRawTX);
 
-    const secondQuoteHash = web3.utils.hexToAscii(await btcUtils.parseOpReturnOuput(secondTxOutputs[1].pkScript));
-    const secondDestinationAddress = await btcUtils.parsePayToAddressScript(secondTxOutputs[0].pkScript, true);
+    const secondNullScript = await btcUtils.parseNullDataScript(secondTxOutputs[1].pkScript);
+    const secondDestinationAddress = await btcUtils.parsePayToPubKeyHash(secondTxOutputs[0].pkScript, true);
     const secondValue = secondTxOutputs[0].value;
     const secondHash = await btcUtils.hashBtcTx(secondRawTX);
 
-    expect(firstQuoteHash).to.eq("984944d58092156c5a19d965b9a758502e6dbc2d9537315ebf489736314eb347");
+    expect(firstNullScript).to.eq("0x4039383439343464353830393231353663356131396439363562396137353835303265366462633264393533373331356562663438393733363331346562333437");
     expect(firstDestinationAddress).to.eq("0x6f3c5f66fe733e0ad361805b3053f23212e5755c8d");
     expect(firstValue).to.eq("60000000");
     expect(firstHash).to.eq("0x03c4522ef958f724a7d2ffef04bd534d9eca74ffc0b28308797d2853bc323ba6");
 
-    expect(secondQuoteHash).to.eq("e94a89712629bbc9fccd1f0c04a278c0e1052eb7626f93e9a7f1067b406f0576");
+    expect(secondNullScript).to.eq("0x4065393461383937313236323962626339666363643166306330346132373863306531303532656237363236663933653961376631303637623430366630353736");
     expect(secondDestinationAddress).to.eq("0x003c5f66fe733e0ad361805b3053f23212e5755c8d");
     expect(secondValue).to.eq("70000000");
     expect(secondHash).to.eq("0xfd4251485dafe36aaa6766b38cf236b5925f23f12617daf286e0e92f73708aa3");
@@ -1440,7 +1566,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       "0000000000000000";
     await bridgeMockInstance.setHeaderByHash(blockHeaderHash, firstHeader);
 
-    const msgValue = quote.value.add(quote.callFee);
+    const msgValue = quote.value.add(quote.callFee).add(quote.productFeeAmount).add(quote.gasFee);
     const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
     const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
     const pegOut = await instance.depositPegout(utils.asArray(quote), signature, { value: msgValue.toNumber() });
@@ -1482,7 +1608,7 @@ contract("LiquidityBridgeContract", async (accounts) => {
       "0000000000000000";
     await bridgeMockInstance.setHeaderByHash(blockHeaderHash, firstHeader);
 
-    const msgValue = quote.value.add(quote.callFee);
+    const msgValue = quote.value.add(quote.callFee).add(quote.productFeeAmount).add(quote.gasFee);
     const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
     const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
     const pegOut = await instance.depositPegout(utils.asArray(quote), signature, {
@@ -1756,9 +1882,11 @@ contract("LiquidityBridgeContract", async (accounts) => {
           timeForDeposit: 3600,
           callTime: 7200,
           depositConfirmations: 10,
-          callOnRegister: false
+          callOnRegister: false,
+          productFeeAmount: BigInt("6000000000000000"),
+          gasFee: BigInt("3000000000000000")
         },
-        address: '2NB9Rp6DxS4WXefGoyNLa5rQWkcQtUM1FmF'
+        address: '2N54HuutZf7Xkmv85wCtBkQg5nCC3k432rf'
       },
       {
         quote: {
@@ -1779,9 +1907,11 @@ contract("LiquidityBridgeContract", async (accounts) => {
           timeForDeposit: 3600,
           callTime: 7200,
           depositConfirmations: 10,
-          callOnRegister: false
+          callOnRegister: false,
+          productFeeAmount: BigInt("7000000000000000"),
+          gasFee: BigInt("4000000000000000")
         },
-        address: '2Mvbn9JQWjoS3SCBuxf1KTTkLw49WYjrkLx'
+        address: '2NARRvPtz2ch1KozGfZg6FahLSVVaSG2fQr'
       },
       {
         quote: {
@@ -1802,9 +1932,11 @@ contract("LiquidityBridgeContract", async (accounts) => {
           timeForDeposit: 3600,
           callTime: 7200,
           depositConfirmations: 10,
-          callOnRegister: false
+          callOnRegister: false,
+          productFeeAmount: BigInt("8000000000000000"),
+          gasFee: BigInt("5000000000000000")
         },
-        address: '2N2dEn75BJDgUA4mnfZyKG9qX99ofzKizeC'
+        address: '2Mwfc2XRxm64dDbNowHUFj2pZ4owePhNFyQ'
       }
     ]
 
