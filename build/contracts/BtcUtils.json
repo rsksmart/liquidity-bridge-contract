@@ -40,7 +40,8 @@
         }
       ],
       "stateMutability": "pure",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -64,7 +65,8 @@
         }
       ],
       "stateMutability": "pure",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -83,7 +85,8 @@
         }
       ],
       "stateMutability": "pure",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -102,7 +105,8 @@
         }
       ],
       "stateMutability": "pure",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -121,7 +125,8 @@
         }
       ],
       "stateMutability": "pure",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -150,7 +155,8 @@
         }
       ],
       "stateMutability": "pure",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -174,7 +180,8 @@
         }
       ],
       "stateMutability": "pure",
-      "type": "function"
+      "type": "function",
+      "constant": true
     }
   ],
   "metadata": "{\"compiler\":{\"version\":\"0.8.18+commit.87f61d96\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"header\",\"type\":\"bytes\"}],\"name\":\"getBtcBlockTimestamp\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"rawTx\",\"type\":\"bytes\"}],\"name\":\"getOutputs\",\"outputs\":[{\"components\":[{\"internalType\":\"uint64\",\"name\":\"value\",\"type\":\"uint64\"},{\"internalType\":\"bytes\",\"name\":\"pkScript\",\"type\":\"bytes\"},{\"internalType\":\"uint256\",\"name\":\"scriptSize\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"totalSize\",\"type\":\"uint256\"}],\"internalType\":\"struct BtcUtils.TxRawOutput[]\",\"name\":\"\",\"type\":\"tuple[]\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"script\",\"type\":\"bytes\"},{\"internalType\":\"bool\",\"name\":\"mainnet\",\"type\":\"bool\"}],\"name\":\"getP2SHAddressFromScript\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"btcTx\",\"type\":\"bytes\"}],\"name\":\"hashBtcTx\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"outputScript\",\"type\":\"bytes\"}],\"name\":\"parseNullDataScript\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"outputScript\",\"type\":\"bytes\"},{\"internalType\":\"bool\",\"name\":\"mainnet\",\"type\":\"bool\"}],\"name\":\"parsePayToPubKeyHash\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"p2sh\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"script\",\"type\":\"bytes\"},{\"internalType\":\"bool\",\"name\":\"mainnet\",\"type\":\"bool\"}],\"name\":\"validateP2SHAdress\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"pure\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{\"getBtcBlockTimestamp(bytes)\":{\"details\":\"Gets the timestamp of a Bitcoin block header\",\"params\":{\"header\":\"The block header\"},\"returns\":{\"_0\":\"The timestamp of the block header\"}},\"getOutputs(bytes)\":{\"params\":{\"rawTx\":\"the raw transaction\"},\"returns\":{\"_0\":\"An array of `TxRawOutput` with the outputs of the transaction\"}},\"getP2SHAddressFromScript(bytes,bool)\":{\"params\":{\"mainnet\":\"flag to specify if the output should be a mainnet address\",\"script\":\"the script to generate the address from\"},\"returns\":{\"_0\":\"The address generate from the script\"}},\"hashBtcTx(bytes)\":{\"params\":{\"btcTx\":\"the transaction to hash\"},\"returns\":{\"_0\":\"The transaction id \"}},\"parseNullDataScript(bytes)\":{\"params\":{\"outputScript\":\"the fragment of the raw transaction containing the raw output script \"},\"returns\":{\"_0\":\"The content embedded inside the script\"}},\"parsePayToPubKeyHash(bytes,bool)\":{\"params\":{\"mainnet\":\"if the address to generate is from mainnet or testnet \",\"outputScript\":\"the fragment of the raw transaction containing the raw output script\"},\"returns\":{\"_0\":\"The address generated using the receiver's public key hash\"}},\"validateP2SHAdress(bytes,bytes,bool)\":{\"params\":{\"mainnet\":\"flag to specify if its a mainnet address\",\"p2sh\":\"the pay-to-script-hash address\",\"script\":\"the script to check\"},\"returns\":{\"_0\":\"Whether the address belongs to the script or not\"}}},\"title\":\"BtcUtils\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{\"getOutputs(bytes)\":{\"notice\":\"Parse a raw transaction to get an array of its outputs in a structured representation\"},\"getP2SHAddressFromScript(bytes,bool)\":{\"notice\":\"Generate a pay-to-script-hash address from a script\"},\"hashBtcTx(bytes)\":{\"notice\":\"Hash a bitcoin raw transaction to get its id (reversed double sha256)\"},\"parseNullDataScript(bytes)\":{\"notice\":\"Parse a raw null-data output script to get its content\"},\"parsePayToPubKeyHash(bytes,bool)\":{\"notice\":\"Parse a raw pay-to-public-key-hash output script to get the corresponding address\"},\"validateP2SHAdress(bytes,bytes,bool)\":{\"notice\":\"Check if a pay-to-script-hash address belogs to a specific script\"}},\"notice\":\"This library contains functionality to make easier to work with Bitcoin transactions in Solidity.This library is based in this document:   https://developer.bitcoin.org/reference/transactions.html#raw-transaction-format\",\"version\":1}},\"settings\":{\"compilationTarget\":{\"@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol\":\"BtcUtils\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":1},\"remappings\":[]},\"sources\":{\"@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol\":{\"keccak256\":\"0x74f37be19bedfd0d29802bad535d081f97689171ea0317d65803c9a66af49c1c\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://44325d49566d08e72d7ed85a98382d0dcd66bde2e4046df2dd63df43a5196cc5\",\"dweb:/ipfs/QmUQvPkSpciVbFueE2GEwnMap5qUxHgf2DnQAnqhCx6a2R\"]}},\"version\":1}",
@@ -22664,9 +22671,17 @@
     "name": "solc",
     "version": "0.8.18+commit.87f61d96.Emscripten.clang"
   },
-  "networks": {},
+  "networks": {
+    "31": {
+      "events": {},
+      "links": {},
+      "address": "0x5F086180eB5F389A3f2217E8db759F3fD84F4dD0",
+      "transactionHash": "0x2c3607cf83e0263eb930740482e115af028386ddba280daebae5d2de2719e4c7"
+    }
+  },
   "schemaVersion": "3.4.13",
-  "updatedAt": "2024-02-27T21:36:42.617Z",
+  "updatedAt": "2024-03-08T19:52:46.832Z",
+  "networkType": "ethereum",
   "devdoc": {
     "kind": "dev",
     "methods": {

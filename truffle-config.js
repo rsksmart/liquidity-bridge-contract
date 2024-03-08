@@ -37,6 +37,16 @@ module.exports = {
       port: 4444,
       network_id: 78
     },
+    rskDevelopment: {
+      provider: () => new HDWalletProvider({
+        mnemonic,
+        providerOrUrl: `https://public-node.testnet.rsk.co`,
+        derivationPath: "m/44'/60'/0'/0/",
+        pollingInterval: 30000,
+      }),
+      network_id: 31,
+      deploymentPollingInterval: 30000,
+    },
     rskTestnet: {
       provider: () => new HDWalletProvider({
         mnemonic,

@@ -28,7 +28,8 @@
         }
       ],
       "stateMutability": "pure",
-      "type": "function"
+      "type": "function",
+      "constant": true
     }
   ],
   "metadata": "{\"compiler\":{\"version\":\"0.8.18+commit.87f61d96\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"addr\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"quoteHash\",\"type\":\"bytes32\"},{\"internalType\":\"bytes\",\"name\":\"signature\",\"type\":\"bytes\"}],\"name\":\"verify\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"pure\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{\"verify(address,bytes32,bytes)\":{\"details\":\"Verfies signature against address\",\"params\":{\"addr\":\"The signing address\",\"quoteHash\":\"The hash of the signed data\",\"signature\":\"The signature containing v, r and s\"},\"returns\":{\"_0\":\"True if the signature is valid, false otherwise.\"}}},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"project:/contracts/SignatureValidator.sol\":\"SignatureValidator\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":1},\"remappings\":[]},\"sources\":{\"project:/contracts/SignatureValidator.sol\":{\"keccak256\":\"0x9d72920dd5ff2891c8dd3b3a814c1b108e82fcc6dfd849c96842e88c01d25b2c\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://8df1167e9def35ced4a620e3fa1e6d148bc7c1fb995378bf12dabef250b3be65\",\"dweb:/ipfs/QmZJJchWvzUeMb68VPHFGnMXBx7aMhK5GqJy8ECDx2rf58\"]}},\"version\":1}",
@@ -2968,7 +2969,8 @@
   },
   "networks": {},
   "schemaVersion": "3.4.13",
-  "updatedAt": "2024-02-27T21:36:42.720Z",
+  "updatedAt": "2024-03-08T19:52:46.680Z",
+  "networkType": "ethereum",
   "devdoc": {
     "kind": "dev",
     "methods": {
