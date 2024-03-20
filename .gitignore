@@ -3,7 +3,6 @@
 # test network
 .openzeppelin/unknown-1337.json
 node_modules
-build
 .vscode
 .idea
 coverage
