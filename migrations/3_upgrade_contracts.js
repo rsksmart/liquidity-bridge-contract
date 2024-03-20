@@ -8,7 +8,7 @@ const BtcUtils = artifacts.require("BtcUtils");
 const { read, deploy} = require("../config");
 
 // using LP address as placeholder for now
-const FEE_COLLECTOR_MAINNET_ADDRESS = '0x4202BAC9919C3412fc7C8BE4e678e26279386603'
+const FEE_COLLECTOR_MAINNET_ADDRESS = '0x4202BAC9919C3412fc7C8BE4e678e26279386603'.toLowerCase();
 const FEE_COLLECTOR_TESTNET_ADDRESS = '0x86B6534687A176A476C16083a373fB9Fe4FAb449'
 const DAO_FEE_PERCENTAGE = 0
 
@@ -21,12 +21,9 @@ module.exports = async function (deployer, network, accounts) {
     await deployer.link(signatureValidatorLib, LiquidityBridgeContractV2);
 
     await deployer.deploy(QuotesV2);
+    await deployer.link(QuotesV2, LiquidityBridgeContractV2);
     const quotesInstance = await QuotesV2.deployed();
-    await LiquidityBridgeContractV2.link("QuotesV2", quotesInstance.address);
-    const quotesLib = await QuotesV2.at(
-        quotesInstance.address
-    );
-    await deployer.link(quotesLib, LiquidityBridgeContractV2);
+    console.log("QuotesV2 deployed at:", quotesInstance.address);
 
     const btcUtilsLib = await BtcUtils.at(
         config[network]["BtcUtils"].address
