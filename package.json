@@ -12,6 +12,7 @@
     "lint": "npx prettier --list-different 'contracts/**/*.sol' 'test/**/*.js' 'migrations/**/*.js'",
     "lint:sol": "solhint 'contracts/**/*.sol'",
     "deploy-regtest": "npm run lint:sol && npx truffle deploy --network rskRegtest",
+    "deploy-rskDev": "npm run lint:sol && npx truffle deploy --network rskDevelopment",
     "deploy-rskTestnet": "npm run lint:sol && npx truffle deploy --network rskTestnet",
     "deploy-rskMainet": "npm run lint:sol && npx truffle deploy --network rskMainnet",
     "deploy-alphanet": "npm run lint:sol && npx truffle deploy --network alphanet",

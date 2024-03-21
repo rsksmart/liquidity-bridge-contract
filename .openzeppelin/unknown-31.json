@@ -7,6 +7,11 @@
     {
       "address": "0xc2A630c053D12D63d32b025082f6Ba268db18300",
       "kind": "transparent"
+    },
+    {
+      "address": "0x8663e687836De3091C85DAe06620741369b65f35",
+      "txHash": "0x99a979cbeb1296e885c17033b8ed0f028cafd482f0f5d6adaa72cbe5ab9e1fee",
+      "kind": "transparent"
     }
   ],
   "impls": {
@@ -3646,6 +3651,2188 @@
     "3dd224bf4dade6a28f5bc9580e95605dfe954e5935c2f4f6c6e43d845b365eb8": {
       "address": "0xE2F501320571eD2E4bF909677c99D8Ec0D1A9903",
       "txHash": "0x37c84989fee55dac03b0d3e38f64b567f9dfbf948035341d12ac6afc89d73099",
+      "layout": {
+        "solcVersion": "0.8.18",
+        "storage": [
+          {
+            "contract": "Initializable",
+            "label": "_initialized",
+            "type": "t_uint8",
+            "src": "../@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:62",
+            "retypedFrom": "bool"
+          },
+          {
+            "contract": "Initializable",
+            "label": "_initializing",
+            "type": "t_bool",
+            "src": "../@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:67"
+          },
+          {
+            "contract": "ContextUpgradeable",
+            "label": "__gap",
+            "type": "t_array(t_uint256)50_storage",
+            "src": "../@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol:36"
+          },
+          {
+            "contract": "OwnableUpgradeable",
+            "label": "_owner",
+            "type": "t_address",
+            "src": "../@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:22"
+          },
+          {
+            "contract": "OwnableUpgradeable",
+            "label": "__gap",
+            "type": "t_array(t_uint256)49_storage",
+            "src": "../@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:94"
+          },
+          {
+            "contract": "ReentrancyGuardUpgradeable",
+            "label": "_status",
+            "type": "t_uint256",
+            "src": "../@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol:38"
+          },
+          {
+            "contract": "ReentrancyGuardUpgradeable",
+            "label": "__gap",
+            "type": "t_array(t_uint256)49_storage",
+            "src": "../@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol:80"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "bridge",
+            "type": "t_contract(Bridge)3208",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:92"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "balances",
+            "type": "t_mapping(t_address,t_uint256)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:93"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "collateral",
+            "type": "t_mapping(t_address,t_uint256)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:94"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "pegoutCollateral",
+            "type": "t_mapping(t_address,t_uint256)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:95"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "liquidityProviders",
+            "type": "t_mapping(t_uint256,t_struct(LiquidityProvider)7056_storage)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:96"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "callRegistry",
+            "type": "t_mapping(t_bytes32,t_struct(Registry)7038_storage)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:97"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "resignationBlockNum",
+            "type": "t_mapping(t_address,t_uint256)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:98"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "minCollateral",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:100"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "minPegIn",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:101"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "rewardP",
+            "type": "t_uint32",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:103"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "resignDelayInBlocks",
+            "type": "t_uint32",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:104"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "dust",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:105"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "providerId",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:106"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "btcBlockTime",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:108"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "mainnet",
+            "type": "t_bool",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:109"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "processedQuotes",
+            "type": "t_mapping(t_bytes32,t_uint8)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:111"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "registeredPegoutQuotes",
+            "type": "t_mapping(t_bytes32,t_struct(PegOutQuote)10194_storage)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:112"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "pegoutRegistry",
+            "type": "t_mapping(t_bytes32,t_struct(PegoutRecord)7043_storage)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:113"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "productFeePercentage",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:115"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "daoFeeCollectorAddress",
+            "type": "t_address",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:116"
+          }
+        ],
+        "types": {
+          "t_contract(Bridge)3208": {
+            "label": "contract Bridge"
+          },
+          "t_mapping(t_address,t_uint256)": {
+            "label": "mapping(address => uint256)"
+          },
+          "t_address": {
+            "label": "address"
+          },
+          "t_uint256": {
+            "label": "uint256"
+          },
+          "t_mapping(t_uint256,t_struct(LiquidityProvider)7056_storage)": {
+            "label": "mapping(uint256 => struct LiquidityBridgeContractV2.LiquidityProvider)"
+          },
+          "t_struct(LiquidityProvider)7056_storage": {
+            "label": "struct LiquidityBridgeContractV2.LiquidityProvider",
+            "members": [
+              {
+                "label": "id",
+                "type": "t_uint256"
+              },
+              {
+                "label": "provider",
+                "type": "t_address"
+              },
+              {
+                "label": "name",
+                "type": "t_string_storage"
+              },
+              {
+                "label": "apiBaseUrl",
+                "type": "t_string_storage"
+              },
+              {
+                "label": "status",
+                "type": "t_bool"
+              },
+              {
+                "label": "providerType",
+                "type": "t_string_storage"
+              }
+            ]
+          },
+          "t_string_storage": {
+            "label": "string"
+          },
+          "t_bool": {
+            "label": "bool"
+          },
+          "t_mapping(t_bytes32,t_struct(Registry)7038_storage)": {
+            "label": "mapping(bytes32 => struct LiquidityBridgeContractV2.Registry)"
+          },
+          "t_bytes32": {
+            "label": "bytes32"
+          },
+          "t_struct(Registry)7038_storage": {
+            "label": "struct LiquidityBridgeContractV2.Registry",
+            "members": [
+              {
+                "label": "timestamp",
+                "type": "t_uint32"
+              },
+              {
+                "label": "success",
+                "type": "t_bool"
+              }
+            ]
+          },
+          "t_uint32": {
+            "label": "uint32"
+          },
+          "t_mapping(t_bytes32,t_uint8)": {
+            "label": "mapping(bytes32 => uint8)"
+          },
+          "t_uint8": {
+            "label": "uint8"
+          },
+          "t_mapping(t_bytes32,t_struct(PegOutQuote)10194_storage)": {
+            "label": "mapping(bytes32 => struct QuotesV2.PegOutQuote)"
+          },
+          "t_struct(PegOutQuote)10194_storage": {
+            "label": "struct QuotesV2.PegOutQuote",
+            "members": [
+              {
+                "label": "lbcAddress",
+                "type": "t_address"
+              },
+              {
+                "label": "lpRskAddress",
+                "type": "t_address"
+              },
+              {
+                "label": "btcRefundAddress",
+                "type": "t_bytes_storage"
+              },
+              {
+                "label": "rskRefundAddress",
+                "type": "t_address"
+              },
+              {
+                "label": "lpBtcAddress",
+                "type": "t_bytes_storage"
+              },
+              {
+                "label": "callFee",
+                "type": "t_uint256"
+              },
+              {
+                "label": "penaltyFee",
+                "type": "t_uint256"
+              },
+              {
+                "label": "nonce",
+                "type": "t_int64"
+              },
+              {
+                "label": "deposityAddress",
+                "type": "t_bytes_storage"
+              },
+              {
+                "label": "value",
+                "type": "t_uint256"
+              },
+              {
+                "label": "agreementTimestamp",
+                "type": "t_uint32"
+              },
+              {
+                "label": "depositDateLimit",
+                "type": "t_uint32"
+              },
+              {
+                "label": "depositConfirmations",
+                "type": "t_uint16"
+              },
+              {
+                "label": "transferConfirmations",
+                "type": "t_uint16"
+              },
+              {
+                "label": "transferTime",
+                "type": "t_uint32"
+              },
+              {
+                "label": "expireDate",
+                "type": "t_uint32"
+              },
+              {
+                "label": "expireBlock",
+                "type": "t_uint32"
+              },
+              {
+                "label": "productFeeAmount",
+                "type": "t_uint256"
+              },
+              {
+                "label": "gasFee",
+                "type": "t_uint256"
+              }
+            ]
+          },
+          "t_bytes_storage": {
+            "label": "bytes"
+          },
+          "t_int64": {
+            "label": "int64"
+          },
+          "t_uint16": {
+            "label": "uint16"
+          },
+          "t_mapping(t_bytes32,t_struct(PegoutRecord)7043_storage)": {
+            "label": "mapping(bytes32 => struct LiquidityBridgeContractV2.PegoutRecord)"
+          },
+          "t_struct(PegoutRecord)7043_storage": {
+            "label": "struct LiquidityBridgeContractV2.PegoutRecord",
+            "members": [
+              {
+                "label": "depositTimestamp",
+                "type": "t_uint256"
+              },
+              {
+                "label": "completed",
+                "type": "t_bool"
+              }
+            ]
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]"
+          }
+        }
+      }
+    },
+    "de90dd3d12b4653b2a7cdd2ca09d55124d2c4317496e6096974aebc7ebff0693": {
+      "address": "0x90c50e5F697C7099D12B51E841Ce173A45Ee0EC1",
+      "txHash": "0xa9e38a973bb5dabae1808816bc17a6cc23e6026a3be217918ce981e51d0c9457",
+      "layout": {
+        "solcVersion": "0.8.18",
+        "storage": [
+          {
+            "contract": "Initializable",
+            "label": "_initialized",
+            "type": "t_uint8",
+            "src": "../@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:62",
+            "retypedFrom": "bool"
+          },
+          {
+            "contract": "Initializable",
+            "label": "_initializing",
+            "type": "t_bool",
+            "src": "../@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:67"
+          },
+          {
+            "contract": "ContextUpgradeable",
+            "label": "__gap",
+            "type": "t_array(t_uint256)50_storage",
+            "src": "../@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol:36"
+          },
+          {
+            "contract": "OwnableUpgradeable",
+            "label": "_owner",
+            "type": "t_address",
+            "src": "../@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:22"
+          },
+          {
+            "contract": "OwnableUpgradeable",
+            "label": "__gap",
+            "type": "t_array(t_uint256)49_storage",
+            "src": "../@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:94"
+          },
+          {
+            "contract": "ReentrancyGuardUpgradeable",
+            "label": "_status",
+            "type": "t_uint256",
+            "src": "../@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol:38"
+          },
+          {
+            "contract": "ReentrancyGuardUpgradeable",
+            "label": "__gap",
+            "type": "t_array(t_uint256)49_storage",
+            "src": "../@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol:80"
+          },
+          {
+            "contract": "LiquidityBridgeContract",
+            "label": "bridge",
+            "type": "t_contract(Bridge)3208",
+            "src": "../project:/contracts/LiquidityBridgeContract.sol:99"
+          },
+          {
+            "contract": "LiquidityBridgeContract",
+            "label": "balances",
+            "type": "t_mapping(t_address,t_uint256)",
+            "src": "../project:/contracts/LiquidityBridgeContract.sol:100"
+          },
+          {
+            "contract": "LiquidityBridgeContract",
+            "label": "collateral",
+            "type": "t_mapping(t_address,t_uint256)",
+            "src": "../project:/contracts/LiquidityBridgeContract.sol:101"
+          },
+          {
+            "contract": "LiquidityBridgeContract",
+            "label": "pegoutCollateral",
+            "type": "t_mapping(t_address,t_uint256)",
+            "src": "../project:/contracts/LiquidityBridgeContract.sol:102"
+          },
+          {
+            "contract": "LiquidityBridgeContract",
+            "label": "liquidityProviders",
+            "type": "t_mapping(t_uint256,t_struct(LiquidityProvider)4169_storage)",
+            "src": "../project:/contracts/LiquidityBridgeContract.sol:103"
+          },
+          {
+            "contract": "LiquidityBridgeContract",
+            "label": "callRegistry",
+            "type": "t_mapping(t_bytes32,t_struct(Registry)4151_storage)",
+            "src": "../project:/contracts/LiquidityBridgeContract.sol:104"
+          },
+          {
+            "contract": "LiquidityBridgeContract",
+            "label": "resignationBlockNum",
+            "type": "t_mapping(t_address,t_uint256)",
+            "src": "../project:/contracts/LiquidityBridgeContract.sol:105"
+          },
+          {
+            "contract": "LiquidityBridgeContract",
+            "label": "minCollateral",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContract.sol:107"
+          },
+          {
+            "contract": "LiquidityBridgeContract",
+            "label": "minPegIn",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContract.sol:108"
+          },
+          {
+            "contract": "LiquidityBridgeContract",
+            "label": "rewardP",
+            "type": "t_uint32",
+            "src": "../project:/contracts/LiquidityBridgeContract.sol:110"
+          },
+          {
+            "contract": "LiquidityBridgeContract",
+            "label": "resignDelayInBlocks",
+            "type": "t_uint32",
+            "src": "../project:/contracts/LiquidityBridgeContract.sol:111"
+          },
+          {
+            "contract": "LiquidityBridgeContract",
+            "label": "dust",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContract.sol:112"
+          },
+          {
+            "contract": "LiquidityBridgeContract",
+            "label": "providerId",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContract.sol:113"
+          },
+          {
+            "contract": "LiquidityBridgeContract",
+            "label": "btcBlockTime",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContract.sol:115"
+          },
+          {
+            "contract": "LiquidityBridgeContract",
+            "label": "mainnet",
+            "type": "t_bool",
+            "src": "../project:/contracts/LiquidityBridgeContract.sol:116"
+          },
+          {
+            "contract": "LiquidityBridgeContract",
+            "label": "processedQuotes",
+            "type": "t_mapping(t_bytes32,t_uint8)",
+            "src": "../project:/contracts/LiquidityBridgeContract.sol:118"
+          },
+          {
+            "contract": "LiquidityBridgeContract",
+            "label": "registeredPegoutQuotes",
+            "type": "t_mapping(t_bytes32,t_struct(PegOutQuote)9919_storage)",
+            "src": "../project:/contracts/LiquidityBridgeContract.sol:119"
+          },
+          {
+            "contract": "LiquidityBridgeContract",
+            "label": "pegoutRegistry",
+            "type": "t_mapping(t_bytes32,t_struct(PegoutRecord)4156_storage)",
+            "src": "../project:/contracts/LiquidityBridgeContract.sol:120"
+          }
+        ],
+        "types": {
+          "t_contract(Bridge)3208": {
+            "label": "contract Bridge"
+          },
+          "t_mapping(t_address,t_uint256)": {
+            "label": "mapping(address => uint256)"
+          },
+          "t_address": {
+            "label": "address"
+          },
+          "t_uint256": {
+            "label": "uint256"
+          },
+          "t_mapping(t_uint256,t_struct(LiquidityProvider)4169_storage)": {
+            "label": "mapping(uint256 => struct LiquidityBridgeContract.LiquidityProvider)"
+          },
+          "t_struct(LiquidityProvider)4169_storage": {
+            "label": "struct LiquidityBridgeContract.LiquidityProvider",
+            "members": [
+              {
+                "label": "id",
+                "type": "t_uint256"
+              },
+              {
+                "label": "provider",
+                "type": "t_address"
+              },
+              {
+                "label": "name",
+                "type": "t_string_storage"
+              },
+              {
+                "label": "apiBaseUrl",
+                "type": "t_string_storage"
+              },
+              {
+                "label": "status",
+                "type": "t_bool"
+              },
+              {
+                "label": "providerType",
+                "type": "t_string_storage"
+              }
+            ]
+          },
+          "t_string_storage": {
+            "label": "string"
+          },
+          "t_bool": {
+            "label": "bool"
+          },
+          "t_mapping(t_bytes32,t_struct(Registry)4151_storage)": {
+            "label": "mapping(bytes32 => struct LiquidityBridgeContract.Registry)"
+          },
+          "t_bytes32": {
+            "label": "bytes32"
+          },
+          "t_struct(Registry)4151_storage": {
+            "label": "struct LiquidityBridgeContract.Registry",
+            "members": [
+              {
+                "label": "timestamp",
+                "type": "t_uint32"
+              },
+              {
+                "label": "success",
+                "type": "t_bool"
+              }
+            ]
+          },
+          "t_uint32": {
+            "label": "uint32"
+          },
+          "t_mapping(t_bytes32,t_uint8)": {
+            "label": "mapping(bytes32 => uint8)"
+          },
+          "t_uint8": {
+            "label": "uint8"
+          },
+          "t_mapping(t_bytes32,t_struct(PegOutQuote)9919_storage)": {
+            "label": "mapping(bytes32 => struct Quotes.PegOutQuote)"
+          },
+          "t_struct(PegOutQuote)9919_storage": {
+            "label": "struct Quotes.PegOutQuote",
+            "members": [
+              {
+                "label": "lbcAddress",
+                "type": "t_address"
+              },
+              {
+                "label": "lpRskAddress",
+                "type": "t_address"
+              },
+              {
+                "label": "btcRefundAddress",
+                "type": "t_bytes_storage"
+              },
+              {
+                "label": "rskRefundAddress",
+                "type": "t_address"
+              },
+              {
+                "label": "lpBtcAddress",
+                "type": "t_bytes_storage"
+              },
+              {
+                "label": "callFee",
+                "type": "t_uint256"
+              },
+              {
+                "label": "penaltyFee",
+                "type": "t_uint256"
+              },
+              {
+                "label": "nonce",
+                "type": "t_int64"
+              },
+              {
+                "label": "deposityAddress",
+                "type": "t_bytes_storage"
+              },
+              {
+                "label": "value",
+                "type": "t_uint256"
+              },
+              {
+                "label": "agreementTimestamp",
+                "type": "t_uint32"
+              },
+              {
+                "label": "depositDateLimit",
+                "type": "t_uint32"
+              },
+              {
+                "label": "depositConfirmations",
+                "type": "t_uint16"
+              },
+              {
+                "label": "transferConfirmations",
+                "type": "t_uint16"
+              },
+              {
+                "label": "transferTime",
+                "type": "t_uint32"
+              },
+              {
+                "label": "expireDate",
+                "type": "t_uint32"
+              },
+              {
+                "label": "expireBlock",
+                "type": "t_uint32"
+              }
+            ]
+          },
+          "t_bytes_storage": {
+            "label": "bytes"
+          },
+          "t_int64": {
+            "label": "int64"
+          },
+          "t_uint16": {
+            "label": "uint16"
+          },
+          "t_mapping(t_bytes32,t_struct(PegoutRecord)4156_storage)": {
+            "label": "mapping(bytes32 => struct LiquidityBridgeContract.PegoutRecord)"
+          },
+          "t_struct(PegoutRecord)4156_storage": {
+            "label": "struct LiquidityBridgeContract.PegoutRecord",
+            "members": [
+              {
+                "label": "depositTimestamp",
+                "type": "t_uint256"
+              },
+              {
+                "label": "completed",
+                "type": "t_bool"
+              }
+            ]
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]"
+          }
+        }
+      }
+    },
+    "a6306b14fac13762855c6923e2f46ced9d2052b61c6997e8d6dc956801cd1180": {
+      "address": "0x89539dC869C819Fc57EbCbEaE4A0A6E464E731D9",
+      "txHash": "0x4dd58e6be860b01a7e88dcc7092f3003d55a91b0f3bdcc84cfe91b55559821b2",
+      "layout": {
+        "solcVersion": "0.8.18",
+        "storage": [
+          {
+            "contract": "Initializable",
+            "label": "_initialized",
+            "type": "t_uint8",
+            "src": "../@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:62",
+            "retypedFrom": "bool"
+          },
+          {
+            "contract": "Initializable",
+            "label": "_initializing",
+            "type": "t_bool",
+            "src": "../@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:67"
+          },
+          {
+            "contract": "ContextUpgradeable",
+            "label": "__gap",
+            "type": "t_array(t_uint256)50_storage",
+            "src": "../@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol:36"
+          },
+          {
+            "contract": "OwnableUpgradeable",
+            "label": "_owner",
+            "type": "t_address",
+            "src": "../@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:22"
+          },
+          {
+            "contract": "OwnableUpgradeable",
+            "label": "__gap",
+            "type": "t_array(t_uint256)49_storage",
+            "src": "../@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:94"
+          },
+          {
+            "contract": "ReentrancyGuardUpgradeable",
+            "label": "_status",
+            "type": "t_uint256",
+            "src": "../@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol:38"
+          },
+          {
+            "contract": "ReentrancyGuardUpgradeable",
+            "label": "__gap",
+            "type": "t_array(t_uint256)49_storage",
+            "src": "../@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol:80"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "bridge",
+            "type": "t_contract(Bridge)3208",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:92"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "balances",
+            "type": "t_mapping(t_address,t_uint256)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:93"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "collateral",
+            "type": "t_mapping(t_address,t_uint256)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:94"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "pegoutCollateral",
+            "type": "t_mapping(t_address,t_uint256)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:95"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "liquidityProviders",
+            "type": "t_mapping(t_uint256,t_struct(LiquidityProvider)7056_storage)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:96"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "callRegistry",
+            "type": "t_mapping(t_bytes32,t_struct(Registry)7038_storage)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:97"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "resignationBlockNum",
+            "type": "t_mapping(t_address,t_uint256)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:98"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "minCollateral",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:100"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "minPegIn",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:101"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "rewardP",
+            "type": "t_uint32",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:103"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "resignDelayInBlocks",
+            "type": "t_uint32",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:104"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "dust",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:105"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "providerId",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:106"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "btcBlockTime",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:108"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "mainnet",
+            "type": "t_bool",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:109"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "processedQuotes",
+            "type": "t_mapping(t_bytes32,t_uint8)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:111"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "registeredPegoutQuotes",
+            "type": "t_mapping(t_bytes32,t_struct(PegOutQuote)10194_storage)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:112"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "pegoutRegistry",
+            "type": "t_mapping(t_bytes32,t_struct(PegoutRecord)7043_storage)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:113"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "productFeePercentage",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:115"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "daoFeeCollectorAddress",
+            "type": "t_address",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:116"
+          }
+        ],
+        "types": {
+          "t_contract(Bridge)3208": {
+            "label": "contract Bridge"
+          },
+          "t_mapping(t_address,t_uint256)": {
+            "label": "mapping(address => uint256)"
+          },
+          "t_address": {
+            "label": "address"
+          },
+          "t_uint256": {
+            "label": "uint256"
+          },
+          "t_mapping(t_uint256,t_struct(LiquidityProvider)7056_storage)": {
+            "label": "mapping(uint256 => struct LiquidityBridgeContractV2.LiquidityProvider)"
+          },
+          "t_struct(LiquidityProvider)7056_storage": {
+            "label": "struct LiquidityBridgeContractV2.LiquidityProvider",
+            "members": [
+              {
+                "label": "id",
+                "type": "t_uint256"
+              },
+              {
+                "label": "provider",
+                "type": "t_address"
+              },
+              {
+                "label": "name",
+                "type": "t_string_storage"
+              },
+              {
+                "label": "apiBaseUrl",
+                "type": "t_string_storage"
+              },
+              {
+                "label": "status",
+                "type": "t_bool"
+              },
+              {
+                "label": "providerType",
+                "type": "t_string_storage"
+              }
+            ]
+          },
+          "t_string_storage": {
+            "label": "string"
+          },
+          "t_bool": {
+            "label": "bool"
+          },
+          "t_mapping(t_bytes32,t_struct(Registry)7038_storage)": {
+            "label": "mapping(bytes32 => struct LiquidityBridgeContractV2.Registry)"
+          },
+          "t_bytes32": {
+            "label": "bytes32"
+          },
+          "t_struct(Registry)7038_storage": {
+            "label": "struct LiquidityBridgeContractV2.Registry",
+            "members": [
+              {
+                "label": "timestamp",
+                "type": "t_uint32"
+              },
+              {
+                "label": "success",
+                "type": "t_bool"
+              }
+            ]
+          },
+          "t_uint32": {
+            "label": "uint32"
+          },
+          "t_mapping(t_bytes32,t_uint8)": {
+            "label": "mapping(bytes32 => uint8)"
+          },
+          "t_uint8": {
+            "label": "uint8"
+          },
+          "t_mapping(t_bytes32,t_struct(PegOutQuote)10194_storage)": {
+            "label": "mapping(bytes32 => struct QuotesV2.PegOutQuote)"
+          },
+          "t_struct(PegOutQuote)10194_storage": {
+            "label": "struct QuotesV2.PegOutQuote",
+            "members": [
+              {
+                "label": "lbcAddress",
+                "type": "t_address"
+              },
+              {
+                "label": "lpRskAddress",
+                "type": "t_address"
+              },
+              {
+                "label": "btcRefundAddress",
+                "type": "t_bytes_storage"
+              },
+              {
+                "label": "rskRefundAddress",
+                "type": "t_address"
+              },
+              {
+                "label": "lpBtcAddress",
+                "type": "t_bytes_storage"
+              },
+              {
+                "label": "callFee",
+                "type": "t_uint256"
+              },
+              {
+                "label": "penaltyFee",
+                "type": "t_uint256"
+              },
+              {
+                "label": "nonce",
+                "type": "t_int64"
+              },
+              {
+                "label": "deposityAddress",
+                "type": "t_bytes_storage"
+              },
+              {
+                "label": "value",
+                "type": "t_uint256"
+              },
+              {
+                "label": "agreementTimestamp",
+                "type": "t_uint32"
+              },
+              {
+                "label": "depositDateLimit",
+                "type": "t_uint32"
+              },
+              {
+                "label": "depositConfirmations",
+                "type": "t_uint16"
+              },
+              {
+                "label": "transferConfirmations",
+                "type": "t_uint16"
+              },
+              {
+                "label": "transferTime",
+                "type": "t_uint32"
+              },
+              {
+                "label": "expireDate",
+                "type": "t_uint32"
+              },
+              {
+                "label": "expireBlock",
+                "type": "t_uint32"
+              },
+              {
+                "label": "productFeeAmount",
+                "type": "t_uint256"
+              },
+              {
+                "label": "gasFee",
+                "type": "t_uint256"
+              }
+            ]
+          },
+          "t_bytes_storage": {
+            "label": "bytes"
+          },
+          "t_int64": {
+            "label": "int64"
+          },
+          "t_uint16": {
+            "label": "uint16"
+          },
+          "t_mapping(t_bytes32,t_struct(PegoutRecord)7043_storage)": {
+            "label": "mapping(bytes32 => struct LiquidityBridgeContractV2.PegoutRecord)"
+          },
+          "t_struct(PegoutRecord)7043_storage": {
+            "label": "struct LiquidityBridgeContractV2.PegoutRecord",
+            "members": [
+              {
+                "label": "depositTimestamp",
+                "type": "t_uint256"
+              },
+              {
+                "label": "completed",
+                "type": "t_bool"
+              }
+            ]
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]"
+          }
+        }
+      }
+    },
+    "5ffe2a9b5a2f22507cc01d0ed0d7f87f619d0131ab9fcab14c15e300ed69c22d": {
+      "address": "0x564325059094B17E1726077011cFFbEC97ba7D47",
+      "txHash": "0x935ba2ed2999e796d09f2d3c3ccd37c40009662c2dd373d17d7e6e209d601bb5",
+      "layout": {
+        "solcVersion": "0.8.18",
+        "storage": [
+          {
+            "contract": "Initializable",
+            "label": "_initialized",
+            "type": "t_uint8",
+            "src": "../@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:62",
+            "retypedFrom": "bool"
+          },
+          {
+            "contract": "Initializable",
+            "label": "_initializing",
+            "type": "t_bool",
+            "src": "../@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:67"
+          },
+          {
+            "contract": "ContextUpgradeable",
+            "label": "__gap",
+            "type": "t_array(t_uint256)50_storage",
+            "src": "../@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol:36"
+          },
+          {
+            "contract": "OwnableUpgradeable",
+            "label": "_owner",
+            "type": "t_address",
+            "src": "../@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:22"
+          },
+          {
+            "contract": "OwnableUpgradeable",
+            "label": "__gap",
+            "type": "t_array(t_uint256)49_storage",
+            "src": "../@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:94"
+          },
+          {
+            "contract": "ReentrancyGuardUpgradeable",
+            "label": "_status",
+            "type": "t_uint256",
+            "src": "../@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol:38"
+          },
+          {
+            "contract": "ReentrancyGuardUpgradeable",
+            "label": "__gap",
+            "type": "t_array(t_uint256)49_storage",
+            "src": "../@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol:80"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "bridge",
+            "type": "t_contract(Bridge)3208",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:92"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "balances",
+            "type": "t_mapping(t_address,t_uint256)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:93"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "collateral",
+            "type": "t_mapping(t_address,t_uint256)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:94"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "pegoutCollateral",
+            "type": "t_mapping(t_address,t_uint256)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:95"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "liquidityProviders",
+            "type": "t_mapping(t_uint256,t_struct(LiquidityProvider)7056_storage)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:96"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "callRegistry",
+            "type": "t_mapping(t_bytes32,t_struct(Registry)7038_storage)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:97"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "resignationBlockNum",
+            "type": "t_mapping(t_address,t_uint256)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:98"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "minCollateral",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:100"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "minPegIn",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:101"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "rewardP",
+            "type": "t_uint32",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:103"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "resignDelayInBlocks",
+            "type": "t_uint32",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:104"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "dust",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:105"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "providerId",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:106"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "btcBlockTime",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:108"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "mainnet",
+            "type": "t_bool",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:109"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "processedQuotes",
+            "type": "t_mapping(t_bytes32,t_uint8)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:111"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "registeredPegoutQuotes",
+            "type": "t_mapping(t_bytes32,t_struct(PegOutQuote)10194_storage)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:112"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "pegoutRegistry",
+            "type": "t_mapping(t_bytes32,t_struct(PegoutRecord)7043_storage)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:113"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "productFeePercentage",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:115"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "daoFeeCollectorAddress",
+            "type": "t_address",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:116"
+          }
+        ],
+        "types": {
+          "t_contract(Bridge)3208": {
+            "label": "contract Bridge"
+          },
+          "t_mapping(t_address,t_uint256)": {
+            "label": "mapping(address => uint256)"
+          },
+          "t_address": {
+            "label": "address"
+          },
+          "t_uint256": {
+            "label": "uint256"
+          },
+          "t_mapping(t_uint256,t_struct(LiquidityProvider)7056_storage)": {
+            "label": "mapping(uint256 => struct LiquidityBridgeContractV2.LiquidityProvider)"
+          },
+          "t_struct(LiquidityProvider)7056_storage": {
+            "label": "struct LiquidityBridgeContractV2.LiquidityProvider",
+            "members": [
+              {
+                "label": "id",
+                "type": "t_uint256"
+              },
+              {
+                "label": "provider",
+                "type": "t_address"
+              },
+              {
+                "label": "name",
+                "type": "t_string_storage"
+              },
+              {
+                "label": "apiBaseUrl",
+                "type": "t_string_storage"
+              },
+              {
+                "label": "status",
+                "type": "t_bool"
+              },
+              {
+                "label": "providerType",
+                "type": "t_string_storage"
+              }
+            ]
+          },
+          "t_string_storage": {
+            "label": "string"
+          },
+          "t_bool": {
+            "label": "bool"
+          },
+          "t_mapping(t_bytes32,t_struct(Registry)7038_storage)": {
+            "label": "mapping(bytes32 => struct LiquidityBridgeContractV2.Registry)"
+          },
+          "t_bytes32": {
+            "label": "bytes32"
+          },
+          "t_struct(Registry)7038_storage": {
+            "label": "struct LiquidityBridgeContractV2.Registry",
+            "members": [
+              {
+                "label": "timestamp",
+                "type": "t_uint32"
+              },
+              {
+                "label": "success",
+                "type": "t_bool"
+              }
+            ]
+          },
+          "t_uint32": {
+            "label": "uint32"
+          },
+          "t_mapping(t_bytes32,t_uint8)": {
+            "label": "mapping(bytes32 => uint8)"
+          },
+          "t_uint8": {
+            "label": "uint8"
+          },
+          "t_mapping(t_bytes32,t_struct(PegOutQuote)10194_storage)": {
+            "label": "mapping(bytes32 => struct QuotesV2.PegOutQuote)"
+          },
+          "t_struct(PegOutQuote)10194_storage": {
+            "label": "struct QuotesV2.PegOutQuote",
+            "members": [
+              {
+                "label": "lbcAddress",
+                "type": "t_address"
+              },
+              {
+                "label": "lpRskAddress",
+                "type": "t_address"
+              },
+              {
+                "label": "btcRefundAddress",
+                "type": "t_bytes_storage"
+              },
+              {
+                "label": "rskRefundAddress",
+                "type": "t_address"
+              },
+              {
+                "label": "lpBtcAddress",
+                "type": "t_bytes_storage"
+              },
+              {
+                "label": "callFee",
+                "type": "t_uint256"
+              },
+              {
+                "label": "penaltyFee",
+                "type": "t_uint256"
+              },
+              {
+                "label": "nonce",
+                "type": "t_int64"
+              },
+              {
+                "label": "deposityAddress",
+                "type": "t_bytes_storage"
+              },
+              {
+                "label": "value",
+                "type": "t_uint256"
+              },
+              {
+                "label": "agreementTimestamp",
+                "type": "t_uint32"
+              },
+              {
+                "label": "depositDateLimit",
+                "type": "t_uint32"
+              },
+              {
+                "label": "depositConfirmations",
+                "type": "t_uint16"
+              },
+              {
+                "label": "transferConfirmations",
+                "type": "t_uint16"
+              },
+              {
+                "label": "transferTime",
+                "type": "t_uint32"
+              },
+              {
+                "label": "expireDate",
+                "type": "t_uint32"
+              },
+              {
+                "label": "expireBlock",
+                "type": "t_uint32"
+              },
+              {
+                "label": "productFeeAmount",
+                "type": "t_uint256"
+              },
+              {
+                "label": "gasFee",
+                "type": "t_uint256"
+              }
+            ]
+          },
+          "t_bytes_storage": {
+            "label": "bytes"
+          },
+          "t_int64": {
+            "label": "int64"
+          },
+          "t_uint16": {
+            "label": "uint16"
+          },
+          "t_mapping(t_bytes32,t_struct(PegoutRecord)7043_storage)": {
+            "label": "mapping(bytes32 => struct LiquidityBridgeContractV2.PegoutRecord)"
+          },
+          "t_struct(PegoutRecord)7043_storage": {
+            "label": "struct LiquidityBridgeContractV2.PegoutRecord",
+            "members": [
+              {
+                "label": "depositTimestamp",
+                "type": "t_uint256"
+              },
+              {
+                "label": "completed",
+                "type": "t_bool"
+              }
+            ]
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]"
+          }
+        }
+      }
+    },
+    "8b4f1f176622aeaac1341bc4d3b6ee12f20999a4702cee3743f0f7965b209945": {
+      "address": "0x3F4922c8008F99D07937e19513f7C0157BA96B84",
+      "txHash": "0x43aff19b439cac0fa025d0312b183f58f8b7eb584be4cb54bb65fe681c5e3e27",
+      "layout": {
+        "solcVersion": "0.8.18",
+        "storage": [
+          {
+            "contract": "Initializable",
+            "label": "_initialized",
+            "type": "t_uint8",
+            "src": "../@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:62",
+            "retypedFrom": "bool"
+          },
+          {
+            "contract": "Initializable",
+            "label": "_initializing",
+            "type": "t_bool",
+            "src": "../@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:67"
+          },
+          {
+            "contract": "ContextUpgradeable",
+            "label": "__gap",
+            "type": "t_array(t_uint256)50_storage",
+            "src": "../@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol:36"
+          },
+          {
+            "contract": "OwnableUpgradeable",
+            "label": "_owner",
+            "type": "t_address",
+            "src": "../@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:22"
+          },
+          {
+            "contract": "OwnableUpgradeable",
+            "label": "__gap",
+            "type": "t_array(t_uint256)49_storage",
+            "src": "../@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:94"
+          },
+          {
+            "contract": "ReentrancyGuardUpgradeable",
+            "label": "_status",
+            "type": "t_uint256",
+            "src": "../@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol:38"
+          },
+          {
+            "contract": "ReentrancyGuardUpgradeable",
+            "label": "__gap",
+            "type": "t_array(t_uint256)49_storage",
+            "src": "../@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol:80"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "bridge",
+            "type": "t_contract(Bridge)3208",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:92"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "balances",
+            "type": "t_mapping(t_address,t_uint256)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:93"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "collateral",
+            "type": "t_mapping(t_address,t_uint256)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:94"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "pegoutCollateral",
+            "type": "t_mapping(t_address,t_uint256)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:95"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "liquidityProviders",
+            "type": "t_mapping(t_uint256,t_struct(LiquidityProvider)7056_storage)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:96"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "callRegistry",
+            "type": "t_mapping(t_bytes32,t_struct(Registry)7038_storage)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:97"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "resignationBlockNum",
+            "type": "t_mapping(t_address,t_uint256)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:98"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "minCollateral",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:100"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "minPegIn",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:101"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "rewardP",
+            "type": "t_uint32",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:103"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "resignDelayInBlocks",
+            "type": "t_uint32",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:104"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "dust",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:105"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "providerId",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:106"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "btcBlockTime",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:108"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "mainnet",
+            "type": "t_bool",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:109"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "processedQuotes",
+            "type": "t_mapping(t_bytes32,t_uint8)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:111"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "registeredPegoutQuotes",
+            "type": "t_mapping(t_bytes32,t_struct(PegOutQuote)10194_storage)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:112"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "pegoutRegistry",
+            "type": "t_mapping(t_bytes32,t_struct(PegoutRecord)7043_storage)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:113"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "productFeePercentage",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:115"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "daoFeeCollectorAddress",
+            "type": "t_address",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:116"
+          }
+        ],
+        "types": {
+          "t_contract(Bridge)3208": {
+            "label": "contract Bridge"
+          },
+          "t_mapping(t_address,t_uint256)": {
+            "label": "mapping(address => uint256)"
+          },
+          "t_address": {
+            "label": "address"
+          },
+          "t_uint256": {
+            "label": "uint256"
+          },
+          "t_mapping(t_uint256,t_struct(LiquidityProvider)7056_storage)": {
+            "label": "mapping(uint256 => struct LiquidityBridgeContractV2.LiquidityProvider)"
+          },
+          "t_struct(LiquidityProvider)7056_storage": {
+            "label": "struct LiquidityBridgeContractV2.LiquidityProvider",
+            "members": [
+              {
+                "label": "id",
+                "type": "t_uint256"
+              },
+              {
+                "label": "provider",
+                "type": "t_address"
+              },
+              {
+                "label": "name",
+                "type": "t_string_storage"
+              },
+              {
+                "label": "apiBaseUrl",
+                "type": "t_string_storage"
+              },
+              {
+                "label": "status",
+                "type": "t_bool"
+              },
+              {
+                "label": "providerType",
+                "type": "t_string_storage"
+              }
+            ]
+          },
+          "t_string_storage": {
+            "label": "string"
+          },
+          "t_bool": {
+            "label": "bool"
+          },
+          "t_mapping(t_bytes32,t_struct(Registry)7038_storage)": {
+            "label": "mapping(bytes32 => struct LiquidityBridgeContractV2.Registry)"
+          },
+          "t_bytes32": {
+            "label": "bytes32"
+          },
+          "t_struct(Registry)7038_storage": {
+            "label": "struct LiquidityBridgeContractV2.Registry",
+            "members": [
+              {
+                "label": "timestamp",
+                "type": "t_uint32"
+              },
+              {
+                "label": "success",
+                "type": "t_bool"
+              }
+            ]
+          },
+          "t_uint32": {
+            "label": "uint32"
+          },
+          "t_mapping(t_bytes32,t_uint8)": {
+            "label": "mapping(bytes32 => uint8)"
+          },
+          "t_uint8": {
+            "label": "uint8"
+          },
+          "t_mapping(t_bytes32,t_struct(PegOutQuote)10194_storage)": {
+            "label": "mapping(bytes32 => struct QuotesV2.PegOutQuote)"
+          },
+          "t_struct(PegOutQuote)10194_storage": {
+            "label": "struct QuotesV2.PegOutQuote",
+            "members": [
+              {
+                "label": "lbcAddress",
+                "type": "t_address"
+              },
+              {
+                "label": "lpRskAddress",
+                "type": "t_address"
+              },
+              {
+                "label": "btcRefundAddress",
+                "type": "t_bytes_storage"
+              },
+              {
+                "label": "rskRefundAddress",
+                "type": "t_address"
+              },
+              {
+                "label": "lpBtcAddress",
+                "type": "t_bytes_storage"
+              },
+              {
+                "label": "callFee",
+                "type": "t_uint256"
+              },
+              {
+                "label": "penaltyFee",
+                "type": "t_uint256"
+              },
+              {
+                "label": "nonce",
+                "type": "t_int64"
+              },
+              {
+                "label": "deposityAddress",
+                "type": "t_bytes_storage"
+              },
+              {
+                "label": "value",
+                "type": "t_uint256"
+              },
+              {
+                "label": "agreementTimestamp",
+                "type": "t_uint32"
+              },
+              {
+                "label": "depositDateLimit",
+                "type": "t_uint32"
+              },
+              {
+                "label": "depositConfirmations",
+                "type": "t_uint16"
+              },
+              {
+                "label": "transferConfirmations",
+                "type": "t_uint16"
+              },
+              {
+                "label": "transferTime",
+                "type": "t_uint32"
+              },
+              {
+                "label": "expireDate",
+                "type": "t_uint32"
+              },
+              {
+                "label": "expireBlock",
+                "type": "t_uint32"
+              },
+              {
+                "label": "productFeeAmount",
+                "type": "t_uint256"
+              },
+              {
+                "label": "gasFee",
+                "type": "t_uint256"
+              }
+            ]
+          },
+          "t_bytes_storage": {
+            "label": "bytes"
+          },
+          "t_int64": {
+            "label": "int64"
+          },
+          "t_uint16": {
+            "label": "uint16"
+          },
+          "t_mapping(t_bytes32,t_struct(PegoutRecord)7043_storage)": {
+            "label": "mapping(bytes32 => struct LiquidityBridgeContractV2.PegoutRecord)"
+          },
+          "t_struct(PegoutRecord)7043_storage": {
+            "label": "struct LiquidityBridgeContractV2.PegoutRecord",
+            "members": [
+              {
+                "label": "depositTimestamp",
+                "type": "t_uint256"
+              },
+              {
+                "label": "completed",
+                "type": "t_bool"
+              }
+            ]
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]"
+          }
+        }
+      }
+    },
+    "96bf787691c8d0c60953d0ff1f876c77b78b54c1a4236d0bdb250d9583e1e515": {
+      "address": "0x7C86686CF7bb15A10474D4B7fF90eaF74d121b4F",
+      "txHash": "0x16401e777ea882d5b15d94707d940ac40100e5be2d89b8c063e4bc148521ac34",
+      "layout": {
+        "solcVersion": "0.8.18",
+        "storage": [
+          {
+            "contract": "Initializable",
+            "label": "_initialized",
+            "type": "t_uint8",
+            "src": "../@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:62",
+            "retypedFrom": "bool"
+          },
+          {
+            "contract": "Initializable",
+            "label": "_initializing",
+            "type": "t_bool",
+            "src": "../@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:67"
+          },
+          {
+            "contract": "ContextUpgradeable",
+            "label": "__gap",
+            "type": "t_array(t_uint256)50_storage",
+            "src": "../@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol:36"
+          },
+          {
+            "contract": "OwnableUpgradeable",
+            "label": "_owner",
+            "type": "t_address",
+            "src": "../@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:22"
+          },
+          {
+            "contract": "OwnableUpgradeable",
+            "label": "__gap",
+            "type": "t_array(t_uint256)49_storage",
+            "src": "../@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:94"
+          },
+          {
+            "contract": "ReentrancyGuardUpgradeable",
+            "label": "_status",
+            "type": "t_uint256",
+            "src": "../@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol:38"
+          },
+          {
+            "contract": "ReentrancyGuardUpgradeable",
+            "label": "__gap",
+            "type": "t_array(t_uint256)49_storage",
+            "src": "../@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol:80"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "bridge",
+            "type": "t_contract(Bridge)3208",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:92"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "balances",
+            "type": "t_mapping(t_address,t_uint256)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:93"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "collateral",
+            "type": "t_mapping(t_address,t_uint256)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:94"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "pegoutCollateral",
+            "type": "t_mapping(t_address,t_uint256)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:95"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "liquidityProviders",
+            "type": "t_mapping(t_uint256,t_struct(LiquidityProvider)7056_storage)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:96"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "callRegistry",
+            "type": "t_mapping(t_bytes32,t_struct(Registry)7038_storage)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:97"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "resignationBlockNum",
+            "type": "t_mapping(t_address,t_uint256)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:98"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "minCollateral",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:100"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "minPegIn",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:101"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "rewardP",
+            "type": "t_uint32",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:103"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "resignDelayInBlocks",
+            "type": "t_uint32",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:104"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "dust",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:105"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "providerId",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:106"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "btcBlockTime",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:108"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "mainnet",
+            "type": "t_bool",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:109"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "processedQuotes",
+            "type": "t_mapping(t_bytes32,t_uint8)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:111"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "registeredPegoutQuotes",
+            "type": "t_mapping(t_bytes32,t_struct(PegOutQuote)10194_storage)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:112"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "pegoutRegistry",
+            "type": "t_mapping(t_bytes32,t_struct(PegoutRecord)7043_storage)",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:113"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "productFeePercentage",
+            "type": "t_uint256",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:115"
+          },
+          {
+            "contract": "LiquidityBridgeContractV2",
+            "label": "daoFeeCollectorAddress",
+            "type": "t_address",
+            "src": "../project:/contracts/LiquidityBridgeContractV2.sol:116"
+          }
+        ],
+        "types": {
+          "t_contract(Bridge)3208": {
+            "label": "contract Bridge"
+          },
+          "t_mapping(t_address,t_uint256)": {
+            "label": "mapping(address => uint256)"
+          },
+          "t_address": {
+            "label": "address"
+          },
+          "t_uint256": {
+            "label": "uint256"
+          },
+          "t_mapping(t_uint256,t_struct(LiquidityProvider)7056_storage)": {
+            "label": "mapping(uint256 => struct LiquidityBridgeContractV2.LiquidityProvider)"
+          },
+          "t_struct(LiquidityProvider)7056_storage": {
+            "label": "struct LiquidityBridgeContractV2.LiquidityProvider",
+            "members": [
+              {
+                "label": "id",
+                "type": "t_uint256"
+              },
+              {
+                "label": "provider",
+                "type": "t_address"
+              },
+              {
+                "label": "name",
+                "type": "t_string_storage"
+              },
+              {
+                "label": "apiBaseUrl",
+                "type": "t_string_storage"
+              },
+              {
+                "label": "status",
+                "type": "t_bool"
+              },
+              {
+                "label": "providerType",
+                "type": "t_string_storage"
+              }
+            ]
+          },
+          "t_string_storage": {
+            "label": "string"
+          },
+          "t_bool": {
+            "label": "bool"
+          },
+          "t_mapping(t_bytes32,t_struct(Registry)7038_storage)": {
+            "label": "mapping(bytes32 => struct LiquidityBridgeContractV2.Registry)"
+          },
+          "t_bytes32": {
+            "label": "bytes32"
+          },
+          "t_struct(Registry)7038_storage": {
+            "label": "struct LiquidityBridgeContractV2.Registry",
+            "members": [
+              {
+                "label": "timestamp",
+                "type": "t_uint32"
+              },
+              {
+                "label": "success",
+                "type": "t_bool"
+              }
+            ]
+          },
+          "t_uint32": {
+            "label": "uint32"
+          },
+          "t_mapping(t_bytes32,t_uint8)": {
+            "label": "mapping(bytes32 => uint8)"
+          },
+          "t_uint8": {
+            "label": "uint8"
+          },
+          "t_mapping(t_bytes32,t_struct(PegOutQuote)10194_storage)": {
+            "label": "mapping(bytes32 => struct QuotesV2.PegOutQuote)"
+          },
+          "t_struct(PegOutQuote)10194_storage": {
+            "label": "struct QuotesV2.PegOutQuote",
+            "members": [
+              {
+                "label": "lbcAddress",
+                "type": "t_address"
+              },
+              {
+                "label": "lpRskAddress",
+                "type": "t_address"
+              },
+              {
+                "label": "btcRefundAddress",
+                "type": "t_bytes_storage"
+              },
+              {
+                "label": "rskRefundAddress",
+                "type": "t_address"
+              },
+              {
+                "label": "lpBtcAddress",
+                "type": "t_bytes_storage"
+              },
+              {
+                "label": "callFee",
+                "type": "t_uint256"
+              },
+              {
+                "label": "penaltyFee",
+                "type": "t_uint256"
+              },
+              {
+                "label": "nonce",
+                "type": "t_int64"
+              },
+              {
+                "label": "deposityAddress",
+                "type": "t_bytes_storage"
+              },
+              {
+                "label": "value",
+                "type": "t_uint256"
+              },
+              {
+                "label": "agreementTimestamp",
+                "type": "t_uint32"
+              },
+              {
+                "label": "depositDateLimit",
+                "type": "t_uint32"
+              },
+              {
+                "label": "depositConfirmations",
+                "type": "t_uint16"
+              },
+              {
+                "label": "transferConfirmations",
+                "type": "t_uint16"
+              },
+              {
+                "label": "transferTime",
+                "type": "t_uint32"
+              },
+              {
+                "label": "expireDate",
+                "type": "t_uint32"
+              },
+              {
+                "label": "expireBlock",
+                "type": "t_uint32"
+              },
+              {
+                "label": "productFeeAmount",
+                "type": "t_uint256"
+              },
+              {
+                "label": "gasFee",
+                "type": "t_uint256"
+              }
+            ]
+          },
+          "t_bytes_storage": {
+            "label": "bytes"
+          },
+          "t_int64": {
+            "label": "int64"
+          },
+          "t_uint16": {
+            "label": "uint16"
+          },
+          "t_mapping(t_bytes32,t_struct(PegoutRecord)7043_storage)": {
+            "label": "mapping(bytes32 => struct LiquidityBridgeContractV2.PegoutRecord)"
+          },
+          "t_struct(PegoutRecord)7043_storage": {
+            "label": "struct LiquidityBridgeContractV2.PegoutRecord",
+            "members": [
+              {
+                "label": "depositTimestamp",
+                "type": "t_uint256"
+              },
+              {
+                "label": "completed",
+                "type": "t_bool"
+              }
+            ]
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]"
+          }
+        }
+      }
+    },
+    "285be4463945dfa4ef8c533dcfba8e4083b4ba972bd1d4aaae1f04bbea8c7987": {
+      "address": "0x7a1EA7CD2d13C92AF0FCF0C68e98f200FD1F135B",
+      "txHash": "0x26bff230e1cf8df66321e6b7e4659a604ff94b28996f089fcee0d947ed87f8ed",
       "layout": {
         "solcVersion": "0.8.18",
         "storage": [
