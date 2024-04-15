@@ -616,7 +616,6 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
 
   it("should transfer value for user", async () => {
     let rskRefundAddress = accounts[2];
-    const daoFeeCollectorInitialBalance = await web3.eth.getBalance(accounts[8]);
     let destAddr = accounts[1];
     let lbcAddress = instance.address;
     let quote = utils.getTestQuote(
@@ -714,14 +713,11 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       success: true,
       quoteHash: quoteHash,
     });
-    const daoFeeCollectorFinalBalance = await web3.eth.getBalance(accounts[8]);
     expect(peginAmount).to.be.a.bignumber.eq(amount);
     expect(usrBal).to.be.a.bignumber.eq(quote.val);
     expect(lbcBal).to.be.a.bignumber.eq(peginAmount.sub(quote.productFeeAmount));
     expect(lpBal).to.be.a.bignumber.eq(peginAmount.sub(quote.productFeeAmount));
     expect(finalLPDeposit).to.be.a.bignumber.eq(initialLPDeposit);
-    expect(daoFeeCollectorFinalBalance).to.be.a.bignumber.eq(
-        web3.utils.toBN(daoFeeCollectorInitialBalance).add(quote.productFeeAmount));
   });
 
   it("Should not generate transaction to DAO when product fee is 0 in registerPegIn", async () => {
@@ -849,7 +845,6 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       value: web3.utils.toWei("30000", "wei"),
       from: liquidityProviderRskAddress,
     });
-    const daoFeeCollectorBefore = await web3.eth.getBalance(accounts[8]);
     const blockHeaderHash =
       "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326";
     const partialMerkleTree =
@@ -915,12 +910,13 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
     );
     const usedInGas = refund.receipt.gasUsed * refund.receipt.effectiveGasPrice;
     const refundedAmount = quote.value.add(quote.callFee);
-    const daoFeeCollectorAfter = await web3.eth.getBalance(accounts[8]);
-
+    truffleAssertions.eventEmitted(refund, "DaoFeeSent", {
+      quoteHash: quoteHash,
+      amount: quote.productFeeAmount
+    });
     expect(lpBalanceAfter).to.be.a.bignumber.eq(
       web3.utils.toBN(lpBalanceBefore).add(refundedAmount).sub(web3.utils.toBN(usedInGas))
     );
-    expect(web3.utils.toBN(daoFeeCollectorBefore).add(quote.productFeeAmount)).to.be.a.bignumber.eq(web3.utils.toBN(daoFeeCollectorAfter))
     truffleAssertions.eventEmitted(refund, "PegOutRefunded");
   });
 

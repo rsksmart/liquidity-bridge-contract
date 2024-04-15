@@ -125,14 +125,6 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         _;
     }
 
-    function initializeV2(
-        uint256 _productFeePercentage,
-        address _daoFeeCollectorAddress
-    ) public {
-        productFeePercentage = _productFeePercentage;
-        daoFeeCollectorAddress = _daoFeeCollectorAddress;
-    }
-
     modifier onlyOwnerAndProvider(uint _providerId) {
         require(
             msg.sender == owner() ||
