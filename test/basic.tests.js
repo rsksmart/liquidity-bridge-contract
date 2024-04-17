@@ -1244,9 +1244,9 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       quoteHash: quoteHash,
       amount: value,
     });
-    // check that stores quote
-    const storedQuote = await instance.getRegisteredPegOutQuote(quoteHash)
-    expect(storedQuote.lbcAddress).to.not.be.eq('0x0000000000000000000000000000000000000000')
+    // deposit again an expect an error to ensure quote is stored
+    const failedTx = instance.depositPegout(quote, signature, { value: value.toNumber() });
+    await truffleAssertions.reverts(failedTx, "LBC028");
   });
 
   it("Should not allow to deposit less than total required on pegout", async () => {
@@ -2019,5 +2019,68 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       instance.hashQuote(utils.asArray(quote)),
       "LBC071"
     );
+  })
+
+  it('Should update the liquidity provider information correctly', async () => {
+    const providerAddress = accounts[9]
+    const maxId = await instance.getProviderIds()
+    const ids = Array.from({length: maxId.toNumber()}, (_, i) => i + 1)
+    let provider = await instance.getProviders(ids).then(result => result.at(0))
+
+    const initialState = {
+      id: provider.id,
+      provider: provider.provider,
+      name: provider.name,
+      apiBaseUrl: provider.apiBaseUrl,
+      status: provider.status,
+      providerType: provider.providerType
+    }
+
+    const newName = 'modified name'
+    const newApiBaseUrl = 'https://modified.com'
+
+    const tx = await instance.updateProvider(newName, newApiBaseUrl, { from: providerAddress })
+    truffleAssertions.eventEmitted(tx, "ProviderUpdate", {
+      providerAddress: providerAddress,
+      name: newName,
+      url: newApiBaseUrl
+    });
+
+    provider = await instance.getProviders(ids).then(result => result.at(0))
+    const finalState = {
+      id: provider.id,
+      provider: provider.provider,
+      name: provider.name,
+      apiBaseUrl: provider.apiBaseUrl,
+      status: provider.status,
+      providerType: provider.providerType
+    }
+
+    expect(initialState.id).to.eq(finalState.id)
+    expect(initialState.provider).to.eq(finalState.provider)
+    expect(initialState.status).to.eq(finalState.status)
+    expect(initialState.providerType).to.eq(finalState.providerType)
+    expect(initialState.name).to.not.eq(finalState.name)
+    expect(initialState.apiBaseUrl).to.not.eq(finalState.apiBaseUrl)
+    expect(finalState.name).to.eq(newName)
+    expect(finalState.apiBaseUrl).to.eq(newApiBaseUrl)
+  })
+
+  it('Should fail if unregistered provider updates his information', async () => {
+    const providerAddress = accounts[8]
+    const newName = 'not-existing name'
+    const newApiBaseUrl = 'https://not-existing.com'
+    const tx = instance.updateProvider(newName, newApiBaseUrl, { from: providerAddress })
+    await truffleAssertions.reverts(tx, "LBC001");
+  })
+
+  it('Should fail if provider makes update with invalid information', async () => {
+    const providerAddress = accounts[9]
+    const newName = 'any name'
+    const newApiBaseUrl = 'https://any.com'
+    const wrongName = instance.updateProvider('', newApiBaseUrl, { from: providerAddress })
+    await truffleAssertions.reverts(wrongName, "LBC076");
+    const wrongUrl = instance.updateProvider(newName, '', { from: providerAddress })
+    await truffleAssertions.reverts(wrongUrl, "LBC076");
   })
 });
