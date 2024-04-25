@@ -39,19 +39,5 @@ module.exports = async function (deployer, network, accounts) {
         { deployer, unsafeAllowLinkedLibraries: true }
     );
 
-    let daoFeeCollectorAddress = '';
-
-    if(network === 'ganache' || network === 'rskRegtest' || network === 'test') {
-        daoFeeCollectorAddress = accounts[8];
-    } else if(network === 'rskTestnet' || network === 'rskDevelopment') {
-        daoFeeCollectorAddress = FEE_COLLECTOR_TESTNET_ADDRESS;
-    } else if(network === 'rskMainnet'){
-        daoFeeCollectorAddress = FEE_COLLECTOR_MAINNET_ADDRESS;
-    } else {
-        throw new Error('Unknown network');
-    }
-
-    await response.initializeV2(DAO_FEE_PERCENTAGE, daoFeeCollectorAddress);
-
     console.log("Upgraded", response.address);
 };
