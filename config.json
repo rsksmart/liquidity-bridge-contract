@@ -114,23 +114,23 @@
   },
   "rskDevelopment": {
     "Migrations": {
-      "address": "0x3820D53544F71976D941f592B7AC293cf098D050",
+      "address": "0x2d8c94ee59ff42992141400d8f60fC9Ac651aFA6",
       "deployed": true
     },
     "SignatureValidator": {
-      "address": "0x440E8434607C8DA2eF66d37719e0db74a7Df087C",
+      "address": "0xe90bAe63CB58f7da3915C8478aD1823BC8A3BEb5",
       "deployed": true
     },
     "Quotes": {
-      "address": "0xE9e9d5677702794ECfFdD62D0b5C1787f9253630",
+      "address": "0x93BdAd53B914179861d1F112E28C7399cd4DDAE3",
       "deployed": true
     },
     "BtcUtils": {
-      "address": "0x5F086180eB5F389A3f2217E8db759F3fD84F4dD0",
+      "address": "0xa3B9cE3AD80BB952c56d027C04FDa534DfA5b7DF",
       "deployed": true
     },
     "LiquidityBridgeContract": {
-      "address": "0x8663e687836De3091C85DAe06620741369b65f35",
+      "address": "0x18D8212bC00106b93070123f325021C723D503a3",
       "deployed": true
     }
   }
