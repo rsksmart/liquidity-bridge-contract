@@ -88,6 +88,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         address userAddress
     );
     event DaoFeeSent(bytes32 indexed quoteHash, uint256 amount);
+    event ProviderUpdate(address indexed providerAddress, string name, string url);
 
     Bridge public bridge;
     mapping(address => uint256) private balances;
@@ -171,12 +172,6 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
 
     function getDustThreshold() external view returns (uint) {
         return dust;
-    }
-
-    function getRegisteredPegOutQuote(
-        bytes32 quoteHash
-    ) external view returns (QuotesV2.PegOutQuote memory) {
-        return registeredPegoutQuotes[quoteHash];
     }
 
     function isPegOutQuoteCompleted(bytes32 quoteHash) external view returns (bool) {
@@ -958,5 +953,20 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
             require(daoSuccess, "LBC074");
             emit DaoFeeSent(quoteHash, amount);
         }
+    }
+
+    function updateProvider(string memory _name, string memory _url) external {
+        require(bytes(_name).length > 0 && bytes(_url).length > 0, "LBC076");
+        LiquidityProvider storage lp;
+        for (uint i = 1; i <= providerId; i++) {
+            lp = liquidityProviders[i];
+            if (msg.sender == lp.provider) {
+                lp.name = _name;
+                lp.apiBaseUrl = _url;
+                emit ProviderUpdate(msg.sender, lp.name, lp.apiBaseUrl);
+                return;
+            }
+        }
+        revert("LBC001");
     }
 }
