@@ -28,7 +28,8 @@
         }
       ],
       "stateMutability": "pure",
-      "type": "function"
+      "type": "function",
+      "constant": true
     }
   ],
   "metadata": "{\"compiler\":{\"version\":\"0.8.18+commit.87f61d96\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"},{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"name\":\"verify\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"pure\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"project:/contracts/SignatureValidatorMock.sol\":\"SignatureValidatorMock\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":1},\"remappings\":[]},\"sources\":{\"project:/contracts/SignatureValidatorMock.sol\":{\"keccak256\":\"0xdae40197493025b24e196016a0649564db23687885dc51bd49b23bfff3bd0adc\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://00532eef3ea356a7295b6fd397275db628afd80bd07441c147a7eafee88500ad\",\"dweb:/ipfs/QmQm3NHuXseNGMfUL1XJ6q1JmLkQXpFRLHx6cPkWsGno9X\"]}},\"version\":1}",
@@ -1725,9 +1726,17 @@
     "name": "solc",
     "version": "0.8.18+commit.87f61d96.Emscripten.clang"
   },
-  "networks": {},
+  "networks": {
+    "31": {
+      "events": {},
+      "links": {},
+      "address": "0x440E8434607C8DA2eF66d37719e0db74a7Df087C",
+      "transactionHash": "0x1d57e9395db9368c6f24adfd24f8767728a50b6ea2de21aeac23306720523054"
+    }
+  },
   "schemaVersion": "3.4.13",
-  "updatedAt": "2024-02-27T21:36:42.722Z",
+  "updatedAt": "2024-03-08T19:22:25.425Z",
+  "networkType": "ethereum",
   "devdoc": {
     "kind": "dev",
     "methods": {},

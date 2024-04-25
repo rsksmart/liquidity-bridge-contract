@@ -111,5 +111,27 @@
       "address": "0x11D50Bcaff24425FC0b8E60a6818C5c455082bE7",
       "deployed": true
     }
+  },
+  "rskDevelopment": {
+    "Migrations": {
+      "address": "0x2d8c94ee59ff42992141400d8f60fC9Ac651aFA6",
+      "deployed": true
+    },
+    "SignatureValidator": {
+      "address": "0xe90bAe63CB58f7da3915C8478aD1823BC8A3BEb5",
+      "deployed": true
+    },
+    "Quotes": {
+      "address": "0x93BdAd53B914179861d1F112E28C7399cd4DDAE3",
+      "deployed": true
+    },
+    "BtcUtils": {
+      "address": "0xa3B9cE3AD80BB952c56d027C04FDa534DfA5b7DF",
+      "deployed": true
+    },
+    "LiquidityBridgeContract": {
+      "address": "0x18D8212bC00106b93070123f325021C723D503a3",
+      "deployed": true
+    }
   }
 }
