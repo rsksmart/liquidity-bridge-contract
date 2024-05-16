@@ -708,7 +708,10 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
             "LBC049"
         );
         require(quote.value <= outputs[PAY_TO_ADDRESS_OUTPUT].value * (10**10), "LBC067"); // satoshi to wei
-        bytes memory btcTxDestination = BtcUtils.parsePayToPubKeyHash(outputs[PAY_TO_ADDRESS_OUTPUT].pkScript, mainnet);
+        bytes memory btcTxDestination = BtcUtils.outputScriptToAddress(
+            outputs[PAY_TO_ADDRESS_OUTPUT].pkScript,
+            mainnet
+        );
         require(keccak256(quote.deposityAddress) == keccak256(btcTxDestination), "LBC068");
 
         if (
