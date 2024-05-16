@@ -800,31 +800,35 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       lpAddress
     );
     let initialLBCBalance = await web3.eth.getBalance(lbcAddress);
-    let initialLPCol = await instance.getCollateral(
-      lpAddress
-    );
-
+    const initialPeginCollateral = await instance.getCollateral(lpAddress);
+    const initialPegoutCollateral = await instance.getPegoutCollateral(lpAddress);
+    const totalInitialCollateral = web3.utils.toBN(initialPeginCollateral.add(initialPegoutCollateral));
     let resignTx = await instance.resign({ from: lpAddress });
     let withdrawTx = await instance.withdraw(initialLPBalance, { from: lpAddress });
 
-    let finalLPBalance = await instance.getBalance(lpAddress);
-    let currentLBCBalance = await web3.eth.getBalance(lbcAddress);
+    const lpBalanceAfterResign = await instance.getBalance(lpAddress);
+    const lbcBalanceAfterResign = await web3.eth.getBalance(lbcAddress);
 
     let lbcCurrBal = web3.utils
       .toBN(initialLBCBalance)
-      .sub(web3.utils.toBN(currentLBCBalance));
+      .sub(web3.utils.toBN(lbcBalanceAfterResign));
     expect(initialLPBalance).to.be.a.bignumber.eq(lbcCurrBal);
-    expect(finalLPBalance).to.be.a.bignumber.eq(web3.utils.toBN(0));
+    expect(lpBalanceAfterResign).to.be.a.bignumber.eq(web3.utils.toBN(0));
 
     await utils.mineBlocks(utils.RESIGN_DELAY_BLOCKS);
 
-    let withdrawCollateralTx = await instance.withdrawCollateral({ from: lpAddress });
+    const initialLpRbtc = await web3.eth.getBalance(lpAddress).then(res => web3.utils.toBN(res));
+    const withdrawCollateralTx = await instance.withdrawCollateral({ from: lpAddress });
+    const finalLpRbtc = await web3.eth.getBalance(lpAddress).then(res => web3.utils.toBN(res));
+    const withdrawCollateralGas = web3.utils.toBN(withdrawCollateralTx.receipt.cumulativeGasUsed).mul(web3.utils.toBN(withdrawCollateralTx.receipt.effectiveGasPrice))
 
-    let finalLPCol = await instance.getCollateral(lpAddress);
-    let finalLBCBalance = await web3.eth.getBalance(lbcAddress);
-    let lbcBal = web3.utils
-      .toBN(currentLBCBalance)
-      .sub(web3.utils.toBN(finalLBCBalance));
+    const finalLpPeginCollateral = await instance.getCollateral(lpAddress);
+    const finalLpPegoutCollateral = await instance.getPegoutCollateral(lpAddress);
+    const totalFinalCollateral = finalLpPeginCollateral.add(finalLpPegoutCollateral);
+    const finalLbcBalance = await web3.eth.getBalance(lbcAddress);
+    const lbcCollateral = web3.utils
+      .toBN(lbcBalanceAfterResign)
+      .sub(web3.utils.toBN(finalLbcBalance));
     truffleAssertions.eventEmitted(resignTx, "Resigned", {
       from: lpAddress,
     });
@@ -834,10 +838,11 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
     });
     truffleAssertions.eventEmitted(withdrawCollateralTx, "WithdrawCollateral", {
       from: lpAddress,
-      amount: initialLPCol,
+      amount: web3.utils.toBN(totalInitialCollateral.toString()),
     });
-    expect(lbcBal).to.be.a.bignumber.eq(initialLPCol);
-    expect(web3.utils.toBN(0)).to.be.a.bignumber.eq(finalLPCol);
+    expect(lbcCollateral).to.be.a.bignumber.eq(totalInitialCollateral);
+    expect(web3.utils.toBN(0)).to.be.a.bignumber.eq(totalFinalCollateral);
+    expect(finalLpRbtc.sub(initialLpRbtc).add(withdrawCollateralGas)).to.be.a.bignumber.eq(totalInitialCollateral);
   });
 
   it("Should refundPegOut", async () => {
@@ -1368,7 +1373,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       );
     await instance.resign({ from: lpAddress });
     await utils.mineBlocks(utils.RESIGN_DELAY_BLOCKS);
-    await instance.withdrawPegoutCollateral({ from: lpAddress });
+    await instance.withdrawCollateral({ from: lpAddress });
     const quoteHash = await instance.hashPegoutQuote(quote);
     const signature = await web3.eth.sign(quoteHash, lpAddress);
     const tx = instance.depositPegout(quote, signature, { value: web3.utils.toBN("500"), from: lpAddress });

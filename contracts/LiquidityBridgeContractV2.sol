@@ -58,7 +58,6 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
     event PegoutCollateralIncrease(address from, uint256 amount);
     event Withdrawal(address from, uint256 amount);
     event WithdrawCollateral(address from, uint256 amount);
-    event PegoutWithdrawCollateral(address from, uint256 amount);
     event Resigned(address from);
     event CallForUser(
         address indexed from,
@@ -313,34 +312,20 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
     /**
         @dev Used to withdraw the locked collateral
      */
-    function withdrawCollateral() external {
+    function withdrawCollateral() external nonReentrant {
         require(resignationBlockNum[msg.sender] > 0, "LBC021");
         require(
             block.number - resignationBlockNum[msg.sender] >=
             resignDelayInBlocks,
             "LBC022"
         );
-        uint amount = collateral[msg.sender];
+        uint amount = collateral[msg.sender] + pegoutCollateral[msg.sender];
+        pegoutCollateral[msg.sender] = 0;
         collateral[msg.sender] = 0;
         resignationBlockNum[msg.sender] = 0;
         (bool success,) = msg.sender.call{value: amount}("");
         require(success, "LBC020");
         emit WithdrawCollateral(msg.sender, amount);
-    }
-
-    function withdrawPegoutCollateral() external {
-        require(resignationBlockNum[msg.sender] > 0, "LBC021");
-        require(
-            block.number - resignationBlockNum[msg.sender] >=
-            resignDelayInBlocks,
-            "LBC022"
-        );
-        uint amount = pegoutCollateral[msg.sender];
-        pegoutCollateral[msg.sender] = 0;
-        resignationBlockNum[msg.sender] = 0;
-        (bool success,) = msg.sender.call{value: amount}("");
-        require(success, "LBC020");
-        emit PegoutWithdrawCollateral(msg.sender, amount);
     }
 
     /**
