@@ -44,7 +44,7 @@
   "dependencies": {
     "@openzeppelin/contracts": "^4.8.0",
     "@openzeppelin/contracts-upgradeable": "^4.8.2",
-    "@rsksmart/btc-transaction-solidity-helper": "^0.1.0",
+    "@rsksmart/btc-transaction-solidity-helper": "^0.1.1",
     "@truffle/hdwallet-provider": "^2.1.3",
     "chai": "^4.3.4",
     "chai-bn": "^0.3.0",
