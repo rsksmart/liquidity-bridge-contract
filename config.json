@@ -126,11 +126,15 @@
       "deployed": true
     },
     "BtcUtils": {
-      "address": "0xa3B9cE3AD80BB952c56d027C04FDa534DfA5b7DF",
+      "address": "0x1a11730F3853EA233D22A57459d361481690cfdD",
       "deployed": true
     },
     "LiquidityBridgeContract": {
       "address": "0x18D8212bC00106b93070123f325021C723D503a3",
+      "deployed": true
+    },
+    "QuotesV2": {
+      "address": "0xbdD04fED2A63D79b3342c2d8cf5478b96a2A1EB5",
       "deployed": true
     }
   }
