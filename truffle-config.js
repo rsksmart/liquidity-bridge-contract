@@ -46,6 +46,8 @@ module.exports = {
       }),
       network_id: 31,
       deploymentPollingInterval: 30000,
+      networkCheckTimeout: 10000,
+      timeoutBlocks: 200
     },
     rskTestnet: {
       provider: () => new HDWalletProvider({
@@ -56,6 +58,8 @@ module.exports = {
       }),
       network_id: 31,
       deploymentPollingInterval: 30000,
+      networkCheckTimeout: 10000,
+      timeoutBlocks: 200
     },
     rskMainnet: {
       provider: () => new HDWalletProvider({
@@ -66,6 +70,8 @@ module.exports = {
       }),
       network_id: 30,
       deploymentPollingInterval: 30000,
+      networkCheckTimeout: 10000,
+      timeoutBlocks: 200
     }
   },
   compilers: {
