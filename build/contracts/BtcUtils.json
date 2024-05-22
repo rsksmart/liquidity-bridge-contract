@@ -40,8 +40,7 @@
         }
       ],
       "stateMutability": "pure",
-      "type": "function",
-      "constant": true
+      "type": "function"
     },
     {
       "inputs": [
@@ -65,8 +64,7 @@
         }
       ],
       "stateMutability": "pure",
-      "type": "function",
-      "constant": true
+      "type": "function"
     },
     {
       "inputs": [
@@ -85,8 +83,7 @@
         }
       ],
       "stateMutability": "pure",
-      "type": "function",
-      "constant": true
+      "type": "function"
     },
     {
       "inputs": [
@@ -105,8 +102,7 @@
         }
       ],
       "stateMutability": "pure",
-      "type": "function",
-      "constant": true
+      "type": "function"
     },
     {
       "inputs": [
@@ -130,8 +126,7 @@
         }
       ],
       "stateMutability": "pure",
-      "type": "function",
-      "constant": true
+      "type": "function"
     },
     {
       "inputs": [
@@ -155,8 +150,7 @@
         }
       ],
       "stateMutability": "pure",
-      "type": "function",
-      "constant": true
+      "type": "function"
     },
     {
       "inputs": [
@@ -175,8 +169,7 @@
         }
       ],
       "stateMutability": "pure",
-      "type": "function",
-      "constant": true
+      "type": "function"
     },
     {
       "inputs": [
@@ -195,8 +188,7 @@
         }
       ],
       "stateMutability": "pure",
-      "type": "function",
-      "constant": true
+      "type": "function"
     },
     {
       "inputs": [
@@ -215,8 +207,7 @@
         }
       ],
       "stateMutability": "pure",
-      "type": "function",
-      "constant": true
+      "type": "function"
     },
     {
       "inputs": [
@@ -245,8 +236,7 @@
         }
       ],
       "stateMutability": "pure",
-      "type": "function",
-      "constant": true
+      "type": "function"
     },
     {
       "inputs": [
@@ -270,8 +260,7 @@
         }
       ],
       "stateMutability": "pure",
-      "type": "function",
-      "constant": true
+      "type": "function"
     }
   ],
   "metadata": "{\"compiler\":{\"version\":\"0.8.18+commit.87f61d96\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"header\",\"type\":\"bytes\"}],\"name\":\"getBtcBlockTimestamp\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"rawTx\",\"type\":\"bytes\"}],\"name\":\"getOutputs\",\"outputs\":[{\"components\":[{\"internalType\":\"uint64\",\"name\":\"value\",\"type\":\"uint64\"},{\"internalType\":\"bytes\",\"name\":\"pkScript\",\"type\":\"bytes\"},{\"internalType\":\"uint256\",\"name\":\"scriptSize\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"totalSize\",\"type\":\"uint256\"}],\"internalType\":\"struct BtcUtils.TxRawOutput[]\",\"name\":\"\",\"type\":\"tuple[]\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"script\",\"type\":\"bytes\"},{\"internalType\":\"bool\",\"name\":\"mainnet\",\"type\":\"bool\"}],\"name\":\"getP2SHAddressFromScript\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"btcTx\",\"type\":\"bytes\"}],\"name\":\"hashBtcTx\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"pkScript\",\"type\":\"bytes\"}],\"name\":\"isP2PKHOutput\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"pkScript\",\"type\":\"bytes\"}],\"name\":\"isP2SHOutput\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"outputScript\",\"type\":\"bytes\"},{\"internalType\":\"bool\",\"name\":\"mainnet\",\"type\":\"bool\"}],\"name\":\"outputScriptToAddress\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"outputScript\",\"type\":\"bytes\"}],\"name\":\"parseNullDataScript\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"outputScript\",\"type\":\"bytes\"},{\"internalType\":\"bool\",\"name\":\"mainnet\",\"type\":\"bool\"}],\"name\":\"parsePayToPubKeyHash\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"outputScript\",\"type\":\"bytes\"},{\"internalType\":\"bool\",\"name\":\"mainnet\",\"type\":\"bool\"}],\"name\":\"parsePayToScriptHash\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"p2sh\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"script\",\"type\":\"bytes\"},{\"internalType\":\"bool\",\"name\":\"mainnet\",\"type\":\"bool\"}],\"name\":\"validateP2SHAdress\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"pure\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{\"getBtcBlockTimestamp(bytes)\":{\"details\":\"Gets the timestamp of a Bitcoin block header\",\"params\":{\"header\":\"The block header\"},\"returns\":{\"_0\":\"The timestamp of the block header\"}},\"getOutputs(bytes)\":{\"params\":{\"rawTx\":\"the raw transaction\"},\"returns\":{\"_0\":\"An array of `TxRawOutput` with the outputs of the transaction\"}},\"getP2SHAddressFromScript(bytes,bool)\":{\"params\":{\"mainnet\":\"flag to specify if the output should be a mainnet address\",\"script\":\"the script to generate the address from\"},\"returns\":{\"_0\":\"The address generate from the script\"}},\"hashBtcTx(bytes)\":{\"params\":{\"btcTx\":\"the transaction to hash\"},\"returns\":{\"_0\":\"The transaction id \"}},\"isP2PKHOutput(bytes)\":{\"params\":{\"pkScript\":\"the fragment of the raw transaction containing the raw output script\"},\"returns\":{\"_0\":\"Whether the script has a pay-to-public-key-hash output structure or not\"}},\"isP2SHOutput(bytes)\":{\"params\":{\"pkScript\":\"the fragment of the raw transaction containing the raw output script\"},\"returns\":{\"_0\":\"Whether the script has a pay-to-script-hash output structure or not\"}},\"outputScriptToAddress(bytes,bool)\":{\"params\":{\"mainnet\":\"if the address to generate is from mainnet or testnet\",\"outputScript\":\"the fragment of the raw transaction containing the raw output script\"},\"returns\":{\"_0\":\"The address bytes regarless of the output script type\"}},\"parseNullDataScript(bytes)\":{\"params\":{\"outputScript\":\"the fragment of the raw transaction containing the raw output script \"},\"returns\":{\"_0\":\"The content embedded inside the script\"}},\"parsePayToPubKeyHash(bytes,bool)\":{\"params\":{\"mainnet\":\"if the address to generate is from mainnet or testnet \",\"outputScript\":\"the fragment of the raw transaction containing the raw output script\"},\"returns\":{\"_0\":\"The address generated using the receiver's public key hash\"}},\"parsePayToScriptHash(bytes,bool)\":{\"params\":{\"mainnet\":\"if the address to generate is from mainnet or testnet\",\"outputScript\":\"the fragment of the raw transaction containing the raw output script\"},\"returns\":{\"_0\":\"The address generated using the script hash\"}},\"validateP2SHAdress(bytes,bytes,bool)\":{\"params\":{\"mainnet\":\"flag to specify if its a mainnet address\",\"p2sh\":\"the pay-to-script-hash address\",\"script\":\"the script to check\"},\"returns\":{\"_0\":\"Whether the address belongs to the script or not\"}}},\"title\":\"BtcUtils\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{\"getOutputs(bytes)\":{\"notice\":\"Parse a raw transaction to get an array of its outputs in a structured representation\"},\"getP2SHAddressFromScript(bytes,bool)\":{\"notice\":\"Generate a pay-to-script-hash address from a script, the resulting byte array already contains the 4 checksum bytes at the end of it\"},\"hashBtcTx(bytes)\":{\"notice\":\"Hash a bitcoin raw transaction to get its id (reversed double sha256)\"},\"isP2PKHOutput(bytes)\":{\"notice\":\"Check if a raw output script is a pay-to-public-key-hash output\"},\"isP2SHOutput(bytes)\":{\"notice\":\"Check if a raw output script is a pay-to-script-hash output\"},\"outputScriptToAddress(bytes,bool)\":{\"notice\":\"Parse a raw output script whose type is not known by the consumer. The function will return the corresponding address if the type of the script is supported or an error if not. For the addresses that are encoded with base58check the checksum bytes are not included in the resulting byte array\"},\"parseNullDataScript(bytes)\":{\"notice\":\"Parse a raw null-data output script to get its content\"},\"parsePayToPubKeyHash(bytes,bool)\":{\"notice\":\"Parse a raw pay-to-public-key-hash output script to get the corresponding address, the resulting byte array doesn't include the checksum bytes of the base58check encoding at the end\"},\"parsePayToScriptHash(bytes,bool)\":{\"notice\":\"Parse a raw pay-to-script-hash output script to get the corresponding address, the resulting byte array doesn't include the checksum bytes of the base58check encoding at the end\"},\"validateP2SHAdress(bytes,bytes,bool)\":{\"notice\":\"Check if a pay-to-script-hash address belogs to a specific script, expects the address bytes to include the 4 checksum bytes at the end\"}},\"notice\":\"This library contains functionality to make easier to work with Bitcoin transactions in Solidity.This library is based in this document:   https://developer.bitcoin.org/reference/transactions.html#raw-transaction-format\",\"version\":1}},\"settings\":{\"compilationTarget\":{\"@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol\":\"BtcUtils\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":1},\"remappings\":[]},\"sources\":{\"@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol\":{\"keccak256\":\"0x0dc781715e8c751a32cc8a6cb062c0aa315dac2d14f9e00cf93d3aec0ae295e8\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://1dc434f8cc19e5ddf589ec5bab31427e9b0a0eb990e00a217fdfeca7223cf4f9\",\"dweb:/ipfs/QmUpkMKeG7ncvyxpye4Z1izF2NvRK4rJ2nt6fof9TbPsvc\"]},\"@rsksmart/btc-transaction-solidity-helper/contracts/OpCodes.sol\":{\"keccak256\":\"0x74d384b5e0ce7b5be1cb5d1446b40e788a0b3e13522aaa583d73a554c835c4d8\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://e94fc123058c5e2cc8cd4635f12bcba195b8b57fef895980c519130f44aa5d17\",\"dweb:/ipfs/QmVhqvcmMhvwYeuYgheTFVBo3EHBKuyYpthdhQRwTdBfx4\"]}},\"version\":1}",
@@ -24254,16 +24243,9 @@
     "name": "solc",
     "version": "0.8.18+commit.87f61d96.Emscripten.clang"
   },
-  "networks": {
-    "31": {
-      "events": {},
-      "links": {},
-      "address": "0x1a11730F3853EA233D22A57459d361481690cfdD",
-      "transactionHash": "0x852a97e26a0472436fcf16b72888a7ce19c64d38e03bf8fcb8119f5dbfc4c8a9"
-    }
-  },
+  "networks": {},
   "schemaVersion": "3.4.13",
-  "updatedAt": "2024-05-22T06:55:55.723Z",
+  "updatedAt": "2024-05-22T07:27:09.311Z",
   "networkType": "ethereum",
   "devdoc": {
     "kind": "dev",

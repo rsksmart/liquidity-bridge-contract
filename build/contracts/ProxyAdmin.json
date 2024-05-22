@@ -5459,7 +5459,7 @@
   },
   "networks": {},
   "schemaVersion": "3.4.13",
-  "updatedAt": "2024-05-21T23:47:25.230Z",
+  "updatedAt": "2024-05-22T07:27:05.108Z",
   "devdoc": {
     "details": "This is an auxiliary contract meant to be assigned as the admin of a {TransparentUpgradeableProxy}. For an explanation of why you would want to use this see the documentation for {TransparentUpgradeableProxy}.",
     "kind": "dev",
