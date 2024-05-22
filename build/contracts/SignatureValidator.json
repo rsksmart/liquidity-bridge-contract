@@ -28,7 +28,8 @@
         }
       ],
       "stateMutability": "pure",
-      "type": "function"
+      "type": "function",
+      "constant": true
     }
   ],
   "metadata": "{\"compiler\":{\"version\":\"0.8.18+commit.87f61d96\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"addr\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"quoteHash\",\"type\":\"bytes32\"},{\"internalType\":\"bytes\",\"name\":\"signature\",\"type\":\"bytes\"}],\"name\":\"verify\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"pure\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{\"verify(address,bytes32,bytes)\":{\"details\":\"Verfies signature against address\",\"params\":{\"addr\":\"The signing address\",\"quoteHash\":\"The hash of the signed data\",\"signature\":\"The signature containing v, r and s\"},\"returns\":{\"_0\":\"True if the signature is valid, false otherwise.\"}}},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"project:/contracts/SignatureValidator.sol\":\"SignatureValidator\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":1},\"remappings\":[]},\"sources\":{\"project:/contracts/SignatureValidator.sol\":{\"keccak256\":\"0x9d72920dd5ff2891c8dd3b3a814c1b108e82fcc6dfd849c96842e88c01d25b2c\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://8df1167e9def35ced4a620e3fa1e6d148bc7c1fb995378bf12dabef250b3be65\",\"dweb:/ipfs/QmZJJchWvzUeMb68VPHFGnMXBx7aMhK5GqJy8ECDx2rf58\"]}},\"version\":1}",
@@ -2105,7 +2106,7 @@
   "sourceMap": "58:913:29:-:0;;;;;;;;;;;;;;;-1:-1:-1;;;58:913:29;;;;;;;;;;;;;;;;;",
   "deployedSourceMap": "58:913:29:-:0;;;;;;;;;;;;;;;;;;;;;;;;373:596;;;;;;:::i;:::-;;:::i;:::-;;;1487:14:32;;1480:22;1462:41;;1450:2;1435:18;373:596:29;;;;;;;;593:4;578:20;;;572:27;638:4;623:20;;;617:27;691:4;676:20;;670:27;770:56;;;;;;;;;;-1:-1:-1;;;770:56:29;;;;869:35;;467:4;;617:27;;662:36;;;;467:4;;869:35;;770:56;;894:9;;869:35;;:::i;:::-;;;;-1:-1:-1;;869:35:29;;;;;;;;;859:46;;869:35;859:46;;;;922:32;;;;;;;;;2202:25:32;;;2275:4;2263:17;;2243:18;;;2236:45;;;;2297:18;;;2290:34;;;2340:18;;;2333:34;;;859:46:29;-1:-1:-1;;;;;;922:40:29;;;:32;;2174:19:32;;922:32:29;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;-1:-1:-1;;;;;922:40:29;;915:47;;;;;;;373:596;;;;;:::o;14:127:32:-;75:10;70:3;66:20;63:1;56:31;106:4;103:1;96:15;130:4;127:1;120:15;146:1163;232:6;240;248;301:2;289:9;280:7;276:23;272:32;269:52;;;317:1;314;307:12;269:52;343:23;;-1:-1:-1;;;;;395:31:32;;385:42;;375:70;;441:1;438;431:12;375:70;464:5;-1:-1:-1;516:2:32;501:18;;488:32;;-1:-1:-1;571:2:32;556:18;;543:32;-1:-1:-1;;;;;624:14:32;;;621:34;;;651:1;648;641:12;621:34;689:6;678:9;674:22;664:32;;734:7;727:4;723:2;719:13;715:27;705:55;;756:1;753;746:12;705:55;792:2;779:16;814:2;810;807:10;804:36;;;820:18;;:::i;:::-;895:2;889:9;863:2;949:13;;-1:-1:-1;;945:22:32;;;969:2;941:31;937:40;925:53;;;993:18;;;1013:22;;;990:46;987:72;;;1039:18;;:::i;:::-;1079:10;1075:2;1068:22;1114:2;1106:6;1099:18;1154:7;1149:2;1144;1140;1136:11;1132:20;1129:33;1126:53;;;1175:1;1172;1165:12;1126:53;1231:2;1226;1222;1218:11;1213:2;1205:6;1201:15;1188:46;1276:1;1271:2;1266;1258:6;1254:15;1250:24;1243:35;1297:6;1287:16;;;;;;;146:1163;;;;;:::o;1514:456::-;1671:3;1709:6;1703:13;1734:1;1744:129;1758:6;1755:1;1752:13;1744:129;;;1856:4;1840:14;;;1836:25;;1830:32;1817:11;;;1810:53;1773:12;1744:129;;;-1:-1:-1;1892:16:32;;;;1917:18;;;-1:-1:-1;1959:4:32;1951:13;;1514:456;-1:-1:-1;1514:456:32:o",
   "source": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.18;\n\nlibrary SignatureValidator {\n    /**\n        @dev Verfies signature against address\n        @param addr The signing address\n        @param quoteHash The hash of the signed data\n        @param signature The signature containing v, r and s\n        @return True if the signature is valid, false otherwise.\n     */\n    function verify(address addr, bytes32 quoteHash, bytes memory signature) public pure returns (bool) {\n        bytes32 r;\n        bytes32 s;\n        uint8 v;\n     \n        assembly {\n            r := mload(add(signature, 0x20))\n            s := mload(add(signature, 0x40))\n            v := byte(0, mload(add(signature, 0x60)))\n        }\n        // TODO use EIP712 compatible format instead\n        bytes memory prefix = \"\\x19Ethereum Signed Message:\\n32\";\n        bytes32 prefixedHash = keccak256(abi.encodePacked(prefix, quoteHash));\n        return ecrecover(prefixedHash, v, r, s) == addr;\n    }\n}\n",
-  "sourcePath": "/Users/luischavez/iov/liquidity-bridge-contract/contracts/SignatureValidator.sol",
+  "sourcePath": "/Users/guilhermesoares/Desktop/RskCodebase/liquidity-bridge-contract/contracts/SignatureValidator.sol",
   "ast": {
     "absolutePath": "project:/contracts/SignatureValidator.sol",
     "exportedSymbols": {
@@ -2968,7 +2969,7 @@
   },
   "networks": {},
   "schemaVersion": "3.4.13",
-  "updatedAt": "2024-05-22T07:27:09.302Z",
+  "updatedAt": "2024-05-22T08:30:50.003Z",
   "networkType": "ethereum",
   "devdoc": {
     "kind": "dev",
