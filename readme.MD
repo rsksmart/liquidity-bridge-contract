@@ -145,6 +145,14 @@ Retrieves the information of a group of liquidity providers
 #### Return value
     Array with the information of the requested LPs
 
+### **getProvider**
+    function getProvider(address providerAddress) external view returns (LiquidityProvider memory)
+Retrieves the information of a specific liquidity provider, regardless if it has resigned or has been disabled
+#### Parameters
+    * providerAddress: address of the provider to fetch
+#### Return value
+    Information of the requested LP
+
 ### **withdrawCollateral**
     function withdrawCollateral() external
 Used to withdraw the locked collateral. It is only for LPs who have resigned
