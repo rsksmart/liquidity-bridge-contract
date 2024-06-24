@@ -2117,14 +2117,14 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       await instance.setProviderStatus(7, false);
       /**
        * Providers statuses per account:
-       * 0 - active
-       * 1 - disabled
+       * 0 - disabled
+       * 1 - active
        * 2 - active
-       * 3 - resigned but active
+       * 3 - resigned and disabled
        * 4 - active
        * 5 - resigned but active
        * 6 - resigned but active
-       * 7 - resigned and disabled
+       * 7 - resigned but active
        * 8 - Not a provider
        * 9 - active
        */
@@ -2141,24 +2141,24 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       expect(utils.parseLiquidityProvider(result[1])).to.deep.equal({
         id: 3,
         provider: accounts[4],
-        name: "modified name",
-        apiBaseUrl: "https://modified.com",
+        name: "First contract",
+        apiBaseUrl: "http://localhost/api",
         status: true,
         providerType: "both"
       });
       expect(utils.parseLiquidityProvider(result[2])).to.deep.equal({
         id: 4,
-        provider: accounts[2],
-        name: "modified name",
-        apiBaseUrl: "https://modified.com",
+        provider: accounts[1],
+        name: "First contract",
+        apiBaseUrl: "http://localhost/api",
         status: true,
         providerType: "both"
       });
       expect(utils.parseLiquidityProvider(result[3])).to.deep.equal({
         id: 5,
-        provider: accounts[3],
-        name: "modified name",
-        apiBaseUrl: "https://modified.com",
+        provider: accounts[2],
+        name: "Second contract",
+        apiBaseUrl: "http://localhost/api",
         status: true,
         providerType: "both"
       });
