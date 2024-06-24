@@ -173,7 +173,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
     let currAddr2 = accounts[2];
 
     let tx2 = await instance.register(
-      "First contract",
+      "Second contract",
       "http://localhost/api",
       true,
       "both",
@@ -188,7 +188,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       from: currAddr2,
       amount: utils.LP_COLLATERAL,
     });
-    let providers = await instance.getProviders(providerList);
+    let providers = await instance.getProviders();
     expect(providers.length).to.be.greaterThan(0);
     expect(accounts).to.includes(providers[0].provider);
     expect(accounts).to.includes(providers[1].provider);
@@ -199,19 +199,44 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
     expect(providerId.toNumber() == providerList.length);
   });
   it("should disable provider", async () => {
-    await instance.setProviderStatus(1, false, { from: accounts[0] });
-    let provider = await instance.getProviders([1]);
-    assert.equal(provider[0].status, false, "Provider status should be false");
+    const providerAddress = accounts[0];
+    await instance.setProviderStatus(1, false, { from: providerAddress });
+    const provider = await instance.getProvider(providerAddress);
+    assert.equal(provider.status, false, "Provider status should be false");
   });
+  describe("function getProvider should", () => {
+    it("should fail if provider does not exist", async () => {
+      await truffleAssertions.reverts(
+        instance.getProvider(accounts[8]),
+        "LBC001"
+      );
+    })
+    it("should return correct state of the provider", async () => {
+      let provider = await instance.getProvider(accounts[0]);
+      expect(provider.status).to.be.false;
+      expect(provider.name).to.be.equal("First contract");
+      expect(provider.apiBaseUrl).to.be.equal("http://localhost/api");
+      expect(provider.provider).to.be.equal(accounts[0]);
+      expect(provider.providerType).to.be.equal("both");
+      provider = await instance.getProvider(accounts[2]);
+      expect(provider.status).to.be.true;
+      expect(provider.name).to.be.equal("Second contract");
+      expect(provider.apiBaseUrl).to.be.equal("http://localhost/api");
+      expect(provider.provider).to.be.equal(accounts[2]);
+      expect(provider.providerType).to.be.equal("both");
+    })
+  })
   it("should enable provider", async () => {
-    await instance.setProviderStatus(1, true, { from: accounts[0] });
-    let provider = await instance.getProviders([1]);
-    assert.equal(provider[0].status, true, "Provider status should be false");
+    const providerAddress = accounts[0];
+    await instance.setProviderStatus(1, true, { from: providerAddress });
+    const provider = await instance.getProvider(providerAddress);
+    assert.equal(provider.status, true, "Provider status should be false");
   });
   it("should disable provider as provider owner", async () => {
-    await instance.setProviderStatus(1, false, { from: accounts[0] });
-    let provider = await instance.getProviders([1]);
-    assert.equal(provider[0].status, false, "Provider status should be false");
+    const providerAddress = accounts[0];
+    await instance.setProviderStatus(1, false);
+    const provider = await instance.getProvider(providerAddress);
+    assert.equal(provider.status, false, "Provider status should be false");
   });
   it("should fail disabling provider as non owners", async () => {
     await truffleAssertions.reverts(
@@ -2028,9 +2053,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
 
   it('Should update the liquidity provider information correctly', async () => {
     const providerAddress = accounts[9]
-    const maxId = await instance.getProviderIds()
-    const ids = Array.from({length: maxId.toNumber()}, (_, i) => i + 1)
-    let provider = await instance.getProviders(ids).then(result => result.at(0))
+    let provider = await instance.getProviders().then(result => result.at(0))
 
     const initialState = {
       id: provider.id,
@@ -2051,7 +2074,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       url: newApiBaseUrl
     });
 
-    provider = await instance.getProviders(ids).then(result => result.at(0))
+    provider = await instance.getProviders().then(result => result.at(0))
     const finalState = {
       id: provider.id,
       provider: provider.provider,
@@ -2088,4 +2111,57 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
     const wrongUrl = instance.updateProvider(newName, '', { from: providerAddress })
     await truffleAssertions.reverts(wrongUrl, "LBC076");
   })
+
+  describe("Function getProviders should", () => {
+    it("list enabled and not resigned providers only", async () => {
+      await instance.setProviderStatus(7, false);
+      /**
+       * Providers statuses per account:
+       * 0 - active
+       * 1 - disabled
+       * 2 - active
+       * 3 - resigned but active
+       * 4 - active
+       * 5 - resigned but active
+       * 6 - resigned but active
+       * 7 - resigned and disabled
+       * 8 - Not a provider
+       * 9 - active
+       */
+      const result = await instance.getProviders();
+      expect(result.length).to.eq(4);
+      expect(utils.parseLiquidityProvider(result[0])).to.deep.equal({
+        id: 2,
+        provider: accounts[9],
+        name: "modified name",
+        apiBaseUrl: "https://modified.com",
+        status: true,
+        providerType: "both"
+      });
+      expect(utils.parseLiquidityProvider(result[1])).to.deep.equal({
+        id: 3,
+        provider: accounts[4],
+        name: "modified name",
+        apiBaseUrl: "https://modified.com",
+        status: true,
+        providerType: "both"
+      });
+      expect(utils.parseLiquidityProvider(result[2])).to.deep.equal({
+        id: 4,
+        provider: accounts[2],
+        name: "modified name",
+        apiBaseUrl: "https://modified.com",
+        status: true,
+        providerType: "both"
+      });
+      expect(utils.parseLiquidityProvider(result[3])).to.deep.equal({
+        id: 5,
+        provider: accounts[3],
+        name: "modified name",
+        apiBaseUrl: "https://modified.com",
+        status: true,
+        providerType: "both"
+      });
+    })
+  });
 });

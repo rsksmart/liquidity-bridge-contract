@@ -155,6 +155,17 @@ async function mineBlocks (blocks) {
   }
 };
 
+function parseLiquidityProvider(contractLp) {
+  return {
+    id: parseInt(contractLp.id),
+    provider: contractLp.provider,
+    name: contractLp.name,
+    apiBaseUrl: contractLp.apiBaseUrl,
+    status: contractLp.status,
+    providerType: contractLp.providerType,
+  };
+}
+
 module.exports = {
   getTestQuote,
   getTestPegOutQuote,
@@ -166,5 +177,6 @@ module.exports = {
   reverseHexBytes,
   generateRawTx,
   mineBlocks,
-  RESIGN_DELAY_BLOCKS
+  RESIGN_DELAY_BLOCKS,
+  parseLiquidityProvider
 };
