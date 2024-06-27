@@ -870,84 +870,87 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
     expect(finalLpRbtc.sub(initialLpRbtc).add(withdrawCollateralGas)).to.be.a.bignumber.eq(totalInitialCollateral);
   });
 
-  it("Should refundPegOut", async () => {
-    await instance.addPegoutCollateral({
-      value: web3.utils.toWei("30000", "wei"),
-      from: liquidityProviderRskAddress,
+  ["p2pkh", "p2sh", "p2wpkh", "p2wsh", "p2tr"].forEach((scriptType) => {
+    it(`Should refundPegOut for a ${scriptType.toUpperCase()} transaction `, async () => {
+      await instance.addPegoutCollateral({
+        value: web3.utils.toWei("30000", "wei"),
+        from: liquidityProviderRskAddress,
+      });
+      const blockHeaderHash =
+        "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326";
+      const partialMerkleTree =
+        "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb426";
+      const merkleBranchHashes = [
+        "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326",
+      ];
+
+      const getBalances = () =>
+        Promise.all([
+          instance.getBalance(liquidityProviderRskAddress),
+          web3.eth.getBalance(instance.address),
+        ]);
+
+      const [userPegInBalanceBefore, contractBalanceBefore] = await getBalances();
+
+      let quote = utils.getTestPegOutQuote(
+        instance.address, //lbc address
+        liquidityProviderRskAddress,
+        accounts[2],
+        web3.utils.toBN(1),
+        scriptType
+      );
+      quote.transferConfirmations = 0;
+
+      // configure mocked block on mockBridge
+      const firstConfirmationTime = utils.reverseHexBytes(
+        web3.utils.toHex(quote.agreementTimestamp + 100).substring(2)
+      );
+      const firstHeader =
+        "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" +
+        firstConfirmationTime +
+        "0000000000000000";
+      await bridgeMockInstance.setHeaderByHash(blockHeaderHash, firstHeader);
+
+      const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
+      const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
+      const msgValue = quote.value.add(quote.callFee).add(quote.productFeeAmount).add(quote.gasFee);
+      const pegOut = await instance.depositPegout(utils.asArray(quote), signature, {
+        value: msgValue.toNumber()
+      });
+      await truffleAssertions.eventEmitted(pegOut, "PegOutDeposit");
+
+      const btcTx = await utils.generateRawTx(instance, quote, scriptType);
+      const [userPegInBalanceAfter, contractBalanceAfter] = await getBalances();
+
+      expect(userPegInBalanceBefore.toString()).to.be.eq(
+        userPegInBalanceAfter.toString()
+      );
+      expect(+contractBalanceAfter).to.be.eq(+contractBalanceBefore + msgValue.toNumber());
+
+      const lpBalanceBefore = await web3.eth.getBalance(
+        liquidityProviderRskAddress
+      );
+      const refund = await instance.refundPegOut(
+        quoteHash,
+        btcTx,
+        blockHeaderHash,
+        partialMerkleTree,
+        merkleBranchHashes
+      );
+      const lpBalanceAfter = await web3.eth.getBalance(
+        liquidityProviderRskAddress
+      );
+      const usedInGas = refund.receipt.gasUsed * refund.receipt.effectiveGasPrice;
+      const refundedAmount = quote.value.add(quote.callFee);
+      truffleAssertions.eventEmitted(refund, "DaoFeeSent", {
+        quoteHash: quoteHash,
+        amount: quote.productFeeAmount
+      });
+      expect(lpBalanceAfter).to.be.a.bignumber.eq(
+        web3.utils.toBN(lpBalanceBefore).add(refundedAmount).sub(web3.utils.toBN(usedInGas))
+      );
+      truffleAssertions.eventEmitted(refund, "PegOutRefunded");
     });
-    const blockHeaderHash =
-      "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326";
-    const partialMerkleTree =
-      "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb426";
-    const merkleBranchHashes = [
-      "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326",
-    ];
-
-    const getBalances = () =>
-      Promise.all([
-        instance.getBalance(liquidityProviderRskAddress),
-        web3.eth.getBalance(instance.address),
-      ]);
-
-    const [userPegInBalanceBefore, contractBalanceBefore] = await getBalances();
-
-    let quote = utils.getTestPegOutQuote(
-      instance.address, //lbc address
-      liquidityProviderRskAddress,
-      accounts[2],
-      web3.utils.toBN(1)
-    );
-    quote.transferConfirmations = 0;
-
-    // configure mocked block on mockBridge
-    const firstConfirmationTime = utils.reverseHexBytes(
-      web3.utils.toHex(quote.agreementTimestamp + 100).substring(2)
-    );
-    const firstHeader =
-      "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" +
-      firstConfirmationTime +
-      "0000000000000000";
-    await bridgeMockInstance.setHeaderByHash(blockHeaderHash, firstHeader);
-
-    const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
-    const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
-    const msgValue = quote.value.add(quote.callFee).add(quote.productFeeAmount).add(quote.gasFee);
-    const pegOut = await instance.depositPegout(utils.asArray(quote), signature, {
-      value: msgValue.toNumber()
-    });
-    await truffleAssertions.eventEmitted(pegOut, "PegOutDeposit");
-
-    const btcTx = await utils.generateRawTx(instance, quote);
-    const [userPegInBalanceAfter, contractBalanceAfter] = await getBalances();
-
-    expect(userPegInBalanceBefore.toString()).to.be.eq(
-      userPegInBalanceAfter.toString()
-    );
-    expect(+contractBalanceAfter).to.be.eq(+contractBalanceBefore + msgValue.toNumber());
-
-    const lpBalanceBefore = await web3.eth.getBalance(
-      liquidityProviderRskAddress
-    );
-    const refund = await instance.refundPegOut(
-      quoteHash,
-      btcTx,
-      blockHeaderHash,
-      partialMerkleTree,
-      merkleBranchHashes
-    );
-    const lpBalanceAfter = await web3.eth.getBalance(
-      liquidityProviderRskAddress
-    );
-    const usedInGas = refund.receipt.gasUsed * refund.receipt.effectiveGasPrice;
-    const refundedAmount = quote.value.add(quote.callFee);
-    truffleAssertions.eventEmitted(refund, "DaoFeeSent", {
-      quoteHash: quoteHash,
-      amount: quote.productFeeAmount
-    });
-    expect(lpBalanceAfter).to.be.a.bignumber.eq(
-      web3.utils.toBN(lpBalanceBefore).add(refundedAmount).sub(web3.utils.toBN(usedInGas))
-    );
-    truffleAssertions.eventEmitted(refund, "PegOutRefunded");
   });
 
   it("Should not generate transaction to DAO when product fee is 0 in refundPegOut", async () => {
@@ -1601,7 +1604,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
     await truffleAssertions.eventEmitted(pegOut, "PegOutDeposit");
 
     let incorrectSizeByteTx = await utils.generateRawTx(instance, quote);
-    incorrectSizeByteTx = web3.utils.bytesToHex(incorrectSizeByteTx).replace("6a20", "6a40");
+    incorrectSizeByteTx = incorrectSizeByteTx.replace("6a20", "6a40");
     await truffleAssertions.reverts(
       instance.refundPegOut(
         quoteHash,
@@ -1614,8 +1617,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
     );
         
     let incorrectHashSizeTx = await utils.generateRawTx(instance, quote);
-    incorrectHashSizeTx = web3.utils.bytesToHex(incorrectHashSizeTx)
-      .replace("226a20"+quoteHash.slice(2), "216a19"+quoteHash.slice(2, -2));
+    incorrectHashSizeTx = incorrectHashSizeTx.replace("226a20"+quoteHash.slice(2), "216a19"+quoteHash.slice(2, -2));
     await truffleAssertions.reverts(
       instance.refundPegOut(
         quoteHash,
@@ -1684,8 +1686,9 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       web3.utils.toBN(1)
     );
     quote.transferConfirmations = 0;
-    quote.deposityAddress = "0x000000000000000000000000000000000000000000"; // any wrong destination
-
+    quote.deposityAddress = bs58check.decode("msMgk6qaS5sso4CTao22VaUY8rbFPp3ThT");
+    const errorQuote = structuredClone(quote)
+    errorQuote.deposityAddress = bs58check.decode("mfWxJ45yp2SFn7UciZyNpvDKrzbhyfKrY8"); // any wrong destination
     // configure mocked block on mockBridge
     const firstConfirmationTime = utils.reverseHexBytes(
       web3.utils.toHex(quote.agreementTimestamp + 300).substring(2)
@@ -1703,7 +1706,9 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       value: msgValue.toNumber()
     });
     await truffleAssertions.eventEmitted(pegOut, "PegOutDeposit");
-    const btcTx = await utils.generateRawTx(instance, quote);
+    let btcTx = await utils.generateRawTx(instance, errorQuote);
+    const errorQuoteHash = await instance.hashPegoutQuote(utils.asArray(errorQuote));
+    btcTx = btcTx.replace(errorQuoteHash.slice(2), quoteHash.slice(2));
 
     await truffleAssertions.reverts(
       instance.refundPegOut(
