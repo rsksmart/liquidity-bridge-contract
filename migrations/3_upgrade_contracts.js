@@ -20,10 +20,19 @@ module.exports = async function (deployer, network, accounts) {
     );
     await deployer.link(signatureValidatorLib, LiquidityBridgeContractV2);
 
-    await deployer.deploy(QuotesV2);
-    await deployer.link(QuotesV2, LiquidityBridgeContractV2);
-    const quotesInstance = await QuotesV2.deployed();
-    console.log("QuotesV2 deployed at:", quotesInstance.address);
+    await deploy("QuotesV2", network, async (state) => {
+      await deployer.deploy(QuotesV2);
+      await deployer.link(QuotesV2, LiquidityBridgeContractV2);
+      const response = await QuotesV2.deployed();
+      state.address = response.address;
+      console.log("QuotesV2 deployed at:", response.address);
+    });
+
+    config = read();
+    const quotesV2Lib = await QuotesV2.at(
+        config[network]["QuotesV2"].address
+    );
+    await deployer.link(quotesV2Lib, LiquidityBridgeContractV2);
 
     const btcUtilsLib = await BtcUtils.at(
         config[network]["BtcUtils"].address
@@ -38,20 +47,6 @@ module.exports = async function (deployer, network, accounts) {
         LiquidityBridgeContractV2,
         { deployer, unsafeAllowLinkedLibraries: true }
     );
-
-    let daoFeeCollectorAddress = '';
-
-    if(network === 'ganache' || network === 'rskRegtest' || network === 'test') {
-        daoFeeCollectorAddress = accounts[8];
-    } else if(network === 'rskTestnet') {
-        daoFeeCollectorAddress = FEE_COLLECTOR_TESTNET_ADDRESS;
-    } else if(network === 'rskMainnet'){
-        daoFeeCollectorAddress = FEE_COLLECTOR_MAINNET_ADDRESS;
-    } else {
-        throw new Error('Unknown network');
-    }
-
-    await response.initializeV2(DAO_FEE_PERCENTAGE, daoFeeCollectorAddress);
 
     console.log("Upgraded", response.address);
 };

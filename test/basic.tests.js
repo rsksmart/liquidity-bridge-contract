@@ -616,7 +616,6 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
 
   it("should transfer value for user", async () => {
     let rskRefundAddress = accounts[2];
-    const daoFeeCollectorInitialBalance = await web3.eth.getBalance(accounts[8]);
     let destAddr = accounts[1];
     let lbcAddress = instance.address;
     let quote = utils.getTestQuote(
@@ -714,14 +713,11 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       success: true,
       quoteHash: quoteHash,
     });
-    const daoFeeCollectorFinalBalance = await web3.eth.getBalance(accounts[8]);
     expect(peginAmount).to.be.a.bignumber.eq(amount);
     expect(usrBal).to.be.a.bignumber.eq(quote.val);
     expect(lbcBal).to.be.a.bignumber.eq(peginAmount.sub(quote.productFeeAmount));
     expect(lpBal).to.be.a.bignumber.eq(peginAmount.sub(quote.productFeeAmount));
     expect(finalLPDeposit).to.be.a.bignumber.eq(initialLPDeposit);
-    expect(daoFeeCollectorFinalBalance).to.be.a.bignumber.eq(
-        web3.utils.toBN(daoFeeCollectorInitialBalance).add(quote.productFeeAmount));
   });
 
   it("Should not generate transaction to DAO when product fee is 0 in registerPegIn", async () => {
@@ -804,31 +800,35 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       lpAddress
     );
     let initialLBCBalance = await web3.eth.getBalance(lbcAddress);
-    let initialLPCol = await instance.getCollateral(
-      lpAddress
-    );
-
+    const initialPeginCollateral = await instance.getCollateral(lpAddress);
+    const initialPegoutCollateral = await instance.getPegoutCollateral(lpAddress);
+    const totalInitialCollateral = web3.utils.toBN(initialPeginCollateral.add(initialPegoutCollateral));
     let resignTx = await instance.resign({ from: lpAddress });
     let withdrawTx = await instance.withdraw(initialLPBalance, { from: lpAddress });
 
-    let finalLPBalance = await instance.getBalance(lpAddress);
-    let currentLBCBalance = await web3.eth.getBalance(lbcAddress);
+    const lpBalanceAfterResign = await instance.getBalance(lpAddress);
+    const lbcBalanceAfterResign = await web3.eth.getBalance(lbcAddress);
 
     let lbcCurrBal = web3.utils
       .toBN(initialLBCBalance)
-      .sub(web3.utils.toBN(currentLBCBalance));
+      .sub(web3.utils.toBN(lbcBalanceAfterResign));
     expect(initialLPBalance).to.be.a.bignumber.eq(lbcCurrBal);
-    expect(finalLPBalance).to.be.a.bignumber.eq(web3.utils.toBN(0));
+    expect(lpBalanceAfterResign).to.be.a.bignumber.eq(web3.utils.toBN(0));
 
     await utils.mineBlocks(utils.RESIGN_DELAY_BLOCKS);
 
-    let withdrawCollateralTx = await instance.withdrawCollateral({ from: lpAddress });
+    const initialLpRbtc = await web3.eth.getBalance(lpAddress).then(res => web3.utils.toBN(res));
+    const withdrawCollateralTx = await instance.withdrawCollateral({ from: lpAddress });
+    const finalLpRbtc = await web3.eth.getBalance(lpAddress).then(res => web3.utils.toBN(res));
+    const withdrawCollateralGas = web3.utils.toBN(withdrawCollateralTx.receipt.cumulativeGasUsed).mul(web3.utils.toBN(withdrawCollateralTx.receipt.effectiveGasPrice))
 
-    let finalLPCol = await instance.getCollateral(lpAddress);
-    let finalLBCBalance = await web3.eth.getBalance(lbcAddress);
-    let lbcBal = web3.utils
-      .toBN(currentLBCBalance)
-      .sub(web3.utils.toBN(finalLBCBalance));
+    const finalLpPeginCollateral = await instance.getCollateral(lpAddress);
+    const finalLpPegoutCollateral = await instance.getPegoutCollateral(lpAddress);
+    const totalFinalCollateral = finalLpPeginCollateral.add(finalLpPegoutCollateral);
+    const finalLbcBalance = await web3.eth.getBalance(lbcAddress);
+    const lbcCollateral = web3.utils
+      .toBN(lbcBalanceAfterResign)
+      .sub(web3.utils.toBN(finalLbcBalance));
     truffleAssertions.eventEmitted(resignTx, "Resigned", {
       from: lpAddress,
     });
@@ -838,10 +838,11 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
     });
     truffleAssertions.eventEmitted(withdrawCollateralTx, "WithdrawCollateral", {
       from: lpAddress,
-      amount: initialLPCol,
+      amount: web3.utils.toBN(totalInitialCollateral.toString()),
     });
-    expect(lbcBal).to.be.a.bignumber.eq(initialLPCol);
-    expect(web3.utils.toBN(0)).to.be.a.bignumber.eq(finalLPCol);
+    expect(lbcCollateral).to.be.a.bignumber.eq(totalInitialCollateral);
+    expect(web3.utils.toBN(0)).to.be.a.bignumber.eq(totalFinalCollateral);
+    expect(finalLpRbtc.sub(initialLpRbtc).add(withdrawCollateralGas)).to.be.a.bignumber.eq(totalInitialCollateral);
   });
 
   it("Should refundPegOut", async () => {
@@ -849,7 +850,6 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       value: web3.utils.toWei("30000", "wei"),
       from: liquidityProviderRskAddress,
     });
-    const daoFeeCollectorBefore = await web3.eth.getBalance(accounts[8]);
     const blockHeaderHash =
       "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326";
     const partialMerkleTree =
@@ -915,12 +915,13 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
     );
     const usedInGas = refund.receipt.gasUsed * refund.receipt.effectiveGasPrice;
     const refundedAmount = quote.value.add(quote.callFee);
-    const daoFeeCollectorAfter = await web3.eth.getBalance(accounts[8]);
-
+    truffleAssertions.eventEmitted(refund, "DaoFeeSent", {
+      quoteHash: quoteHash,
+      amount: quote.productFeeAmount
+    });
     expect(lpBalanceAfter).to.be.a.bignumber.eq(
       web3.utils.toBN(lpBalanceBefore).add(refundedAmount).sub(web3.utils.toBN(usedInGas))
     );
-    expect(web3.utils.toBN(daoFeeCollectorBefore).add(quote.productFeeAmount)).to.be.a.bignumber.eq(web3.utils.toBN(daoFeeCollectorAfter))
     truffleAssertions.eventEmitted(refund, "PegOutRefunded");
   });
 
@@ -1248,9 +1249,9 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       quoteHash: quoteHash,
       amount: value,
     });
-    // check that stores quote
-    const storedQuote = await instance.getRegisteredPegOutQuote(quoteHash)
-    expect(storedQuote.lbcAddress).to.not.be.eq('0x0000000000000000000000000000000000000000')
+    // deposit again an expect an error to ensure quote is stored
+    const failedTx = instance.depositPegout(quote, signature, { value: value.toNumber() });
+    await truffleAssertions.reverts(failedTx, "LBC028");
   });
 
   it("Should not allow to deposit less than total required on pegout", async () => {
@@ -1372,7 +1373,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       );
     await instance.resign({ from: lpAddress });
     await utils.mineBlocks(utils.RESIGN_DELAY_BLOCKS);
-    await instance.withdrawPegoutCollateral({ from: lpAddress });
+    await instance.withdrawCollateral({ from: lpAddress });
     const quoteHash = await instance.hashPegoutQuote(quote);
     const signature = await web3.eth.sign(quoteHash, lpAddress);
     const tx = instance.depositPegout(quote, signature, { value: web3.utils.toBN("500"), from: lpAddress });
@@ -2023,5 +2024,68 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       instance.hashQuote(utils.asArray(quote)),
       "LBC071"
     );
+  })
+
+  it('Should update the liquidity provider information correctly', async () => {
+    const providerAddress = accounts[9]
+    const maxId = await instance.getProviderIds()
+    const ids = Array.from({length: maxId.toNumber()}, (_, i) => i + 1)
+    let provider = await instance.getProviders(ids).then(result => result.at(0))
+
+    const initialState = {
+      id: provider.id,
+      provider: provider.provider,
+      name: provider.name,
+      apiBaseUrl: provider.apiBaseUrl,
+      status: provider.status,
+      providerType: provider.providerType
+    }
+
+    const newName = 'modified name'
+    const newApiBaseUrl = 'https://modified.com'
+
+    const tx = await instance.updateProvider(newName, newApiBaseUrl, { from: providerAddress })
+    truffleAssertions.eventEmitted(tx, "ProviderUpdate", {
+      providerAddress: providerAddress,
+      name: newName,
+      url: newApiBaseUrl
+    });
+
+    provider = await instance.getProviders(ids).then(result => result.at(0))
+    const finalState = {
+      id: provider.id,
+      provider: provider.provider,
+      name: provider.name,
+      apiBaseUrl: provider.apiBaseUrl,
+      status: provider.status,
+      providerType: provider.providerType
+    }
+
+    expect(initialState.id).to.eq(finalState.id)
+    expect(initialState.provider).to.eq(finalState.provider)
+    expect(initialState.status).to.eq(finalState.status)
+    expect(initialState.providerType).to.eq(finalState.providerType)
+    expect(initialState.name).to.not.eq(finalState.name)
+    expect(initialState.apiBaseUrl).to.not.eq(finalState.apiBaseUrl)
+    expect(finalState.name).to.eq(newName)
+    expect(finalState.apiBaseUrl).to.eq(newApiBaseUrl)
+  })
+
+  it('Should fail if unregistered provider updates his information', async () => {
+    const providerAddress = accounts[8]
+    const newName = 'not-existing name'
+    const newApiBaseUrl = 'https://not-existing.com'
+    const tx = instance.updateProvider(newName, newApiBaseUrl, { from: providerAddress })
+    await truffleAssertions.reverts(tx, "LBC001");
+  })
+
+  it('Should fail if provider makes update with invalid information', async () => {
+    const providerAddress = accounts[9]
+    const newName = 'any name'
+    const newApiBaseUrl = 'https://any.com'
+    const wrongName = instance.updateProvider('', newApiBaseUrl, { from: providerAddress })
+    await truffleAssertions.reverts(wrongName, "LBC076");
+    const wrongUrl = instance.updateProvider(newName, '', { from: providerAddress })
+    await truffleAssertions.reverts(wrongUrl, "LBC076");
   })
 });

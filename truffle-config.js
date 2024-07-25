@@ -37,25 +37,41 @@ module.exports = {
       port: 4444,
       network_id: 78
     },
+    rskDevelopment: {
+      provider: () => new HDWalletProvider({
+        mnemonic,
+        providerOrUrl: process.env.TESTNET_RPC_URL,
+        derivationPath: "m/44'/60'/0'/0/",
+        pollingInterval: 30000,
+      }),
+      network_id: 31,
+      deploymentPollingInterval: 30000,
+      networkCheckTimeout: 10000,
+      timeoutBlocks: 200
+    },
     rskTestnet: {
       provider: () => new HDWalletProvider({
         mnemonic,
-        providerOrUrl: `https://public-node.testnet.rsk.co`,
+        providerOrUrl: process.env.TESTNET_RPC_URL,
         derivationPath: "m/44'/37310'/0'/0/",
         pollingInterval: 30000,
       }),
       network_id: 31,
       deploymentPollingInterval: 30000,
+      networkCheckTimeout: 10000,
+      timeoutBlocks: 200
     },
     rskMainnet: {
       provider: () => new HDWalletProvider({
         mnemonic,
-        providerOrUrl: `https://public-node.rsk.co`,
+        providerOrUrl: process.env.MAINNET_RPC_URL,
         derivationPath: "m/44'/137'/0'/0/",
         pollingInterval: 30000,
       }),
       network_id: 30,
       deploymentPollingInterval: 30000,
+      networkCheckTimeout: 10000,
+      timeoutBlocks: 200
     }
   },
   compilers: {
