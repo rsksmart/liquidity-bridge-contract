@@ -473,7 +473,7 @@
   "sourceMap": "58:220:31:-:0;;;;;;;;;;;;;;;;;;;",
   "deployedSourceMap": "58:220:31:-:0;;;;;;;;;;;;;;;;;;;;;;;;245:11;;;;244:12;236:33;;;;-1:-1:-1;;;236:33:31;;216:2:32;236:33:31;;;198:21:32;255:1;235:18;;;228:29;-1:-1:-1;;;273:18:32;;;266:38;321:18;;236:33:31;;;;;;;;58:220;;;;;116:77;;;;;;;;;;-1:-1:-1;116:77:31;;;;;:::i;:::-;169:11;:17;;-1:-1:-1;;169:17:31;;;;;;;;;;116:77;350:273:32;406:6;459:2;447:9;438:7;434:23;430:32;427:52;;;475:1;472;465:12;427:52;514:9;501:23;567:5;560:13;553:21;546:5;543:32;533:60;;589:1;586;579:12;533:60;612:5;350:273;-1:-1:-1;;;350:273:32:o",
   "source": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.18;\n\ncontract WalletMock {\n\n    bool private rejectFunds;\n\n    function setRejectFunds(bool val) external {\n        rejectFunds = val;\n    }\n\n    receive() external payable {\n        require(!rejectFunds, \"rejected\");\n    }\n}\n",
-  "sourcePath": "/Users/guilhermesoares/Desktop/RskCodebase/liquidity-bridge-contract/contracts/WalletMock.sol",
+  "sourcePath": "/Users/guilhermesoares/WebstormProjects/Rootstock/liquidity-bridge-contract/contracts/WalletMock.sol",
   "ast": {
     "absolutePath": "project:/contracts/WalletMock.sol",
     "exportedSymbols": {
@@ -782,7 +782,7 @@
   },
   "networks": {},
   "schemaVersion": "3.4.13",
-  "updatedAt": "2024-05-22T08:24:03.702Z",
+  "updatedAt": "2024-07-25T13:24:32.219Z",
   "devdoc": {
     "kind": "dev",
     "methods": {},
