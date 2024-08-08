@@ -85604,19 +85604,19 @@
     "version": "0.8.18+commit.87f61d96.Emscripten.clang"
   },
   "networks": {
-    "31": {
+    "30": {
       "events": {},
       "links": {
-        "SignatureValidator": "0xA66B2938b6cC837821cF4Be27F7016951047E03D",
-        "QuotesV2": "0xC5173CAE944b9CB527B386A51c7353fEf0d4794c",
-        "BtcUtils": "0xfD7Db06dfB975f833C620e9BfBEBd57c7a00782C"
+        "SignatureValidator": "0xb107cc96A5CfC4Be502e9BBB1208dE4792044ba7",
+        "QuotesV2": "0x0123eF8Ae46F9FCBF67c706f73d46bCCE3df44F7",
+        "BtcUtils": "0x48841b09CD720355F8EE5164DEeFbB30535d825a"
       },
-      "address": "0xc2A630c053D12D63d32b025082f6Ba268db18300",
-      "transactionHash": "0x3e7535c7234e4cf2cd2f554b831fc71556685411ac6525f522a3ab91c6cc2d60"
+      "address": "0xAA9cAf1e3967600578727F975F283446A3Da6612",
+      "transactionHash": "0x98019ccb62d5536a786ab4ec83b5b2ab52294be811c85238bf11c1ed47ce3218"
     }
   },
   "schemaVersion": "3.4.13",
-  "updatedAt": "2024-07-25T13:42:45.965Z",
+  "updatedAt": "2024-08-08T08:56:36.740Z",
   "networkType": "ethereum",
   "devdoc": {
     "events": {
