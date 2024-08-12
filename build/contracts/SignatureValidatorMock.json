@@ -1508,7 +1508,7 @@
   "sourceMap": "58:427:30:-:0;;;;;;;;;;;;;;;-1:-1:-1;;;58:427:30;;;;;;;;;;;;;;;;;",
   "deployedSourceMap": "58:427:30:-:0;;;;;;;;;;;;;;;;;;;;;;;;95:388;;;;;;:::i;:::-;472:4;95:388;;;;;;;;;1487:14:32;;1480:22;1462:41;;1450:2;1435:18;95:388:30;;;;;;;14:127:32;75:10;70:3;66:20;63:1;56:31;106:4;103:1;96:15;130:4;127:1;120:15;146:1163;232:6;240;248;301:2;289:9;280:7;276:23;272:32;269:52;;;317:1;314;307:12;269:52;343:23;;-1:-1:-1;;;;;395:31:32;;385:42;;375:70;;441:1;438;431:12;375:70;464:5;-1:-1:-1;516:2:32;501:18;;488:32;;-1:-1:-1;571:2:32;556:18;;543:32;-1:-1:-1;;;;;624:14:32;;;621:34;;;651:1;648;641:12;621:34;689:6;678:9;674:22;664:32;;734:7;727:4;723:2;719:13;715:27;705:55;;756:1;753;746:12;705:55;792:2;779:16;814:2;810;807:10;804:36;;;820:18;;:::i;:::-;895:2;889:9;863:2;949:13;;-1:-1:-1;;945:22:32;;;969:2;941:31;937:40;925:53;;;993:18;;;1013:22;;;990:46;987:72;;;1039:18;;:::i;:::-;1079:10;1075:2;1068:22;1114:2;1106:6;1099:18;1154:7;1149:2;1144;1140;1136:11;1132:20;1129:33;1126:53;;;1175:1;1172;1165:12;1126:53;1231:2;1226;1222;1218:11;1213:2;1205:6;1201:15;1188:46;1276:1;1271:2;1266;1258:6;1254:15;1250:24;1243:35;1297:6;1287:16;;;;;;;146:1163;;;;;:::o",
   "source": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.18;\n\nlibrary SignatureValidatorMock {\n    function verify(address , bytes32 , bytes memory) public pure returns (bool) {\n        // This is mocked due to an issue with truffle evm that makes the\n        // ecrecover function to return address 0x000...0 as the signer\n        // when executing against RSK the issue doesn't happen, so the actual implementation\n        // uses the class and not this mock\n        return true;\n    }\n}\n",
-  "sourcePath": "/Users/guilhermesoares/Desktop/RskCodebase/liquidity-bridge-contract/contracts/SignatureValidatorMock.sol",
+  "sourcePath": "/Users/guilhermesoares/WebstormProjects/Rootstock/liquidity-bridge-contract/contracts/SignatureValidatorMock.sol",
   "ast": {
     "absolutePath": "project:/contracts/SignatureValidatorMock.sol",
     "exportedSymbols": {
@@ -1727,7 +1727,7 @@
   },
   "networks": {},
   "schemaVersion": "3.4.13",
-  "updatedAt": "2024-05-22T08:30:02.506Z",
+  "updatedAt": "2024-08-08T08:54:03.286Z",
   "networkType": "ethereum",
   "devdoc": {
     "kind": "dev",
