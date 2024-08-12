@@ -145,6 +145,10 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         require(msg.sender == address(bridge), "LBC007");
     }
 
+    function version() external pure returns (string memory) {
+        return "1.3.0";
+    }
+
     function getProviderIds() external view returns (uint) {
         return providerId;
     }
