@@ -58,7 +58,6 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
     event PegoutCollateralIncrease(address from, uint256 amount);
     event Withdrawal(address from, uint256 amount);
     event WithdrawCollateral(address from, uint256 amount);
-    event PegoutWithdrawCollateral(address from, uint256 amount);
     event Resigned(address from);
     event CallForUser(
         address indexed from,
@@ -88,6 +87,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         address userAddress
     );
     event DaoFeeSent(bytes32 indexed quoteHash, uint256 amount);
+    event ProviderUpdate(address indexed providerAddress, string name, string url);
 
     Bridge public bridge;
     mapping(address => uint256) private balances;
@@ -123,14 +123,6 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
     modifier onlyRegisteredForPegout() {
         require(isRegisteredForPegout(msg.sender), "LBC001");
         _;
-    }
-
-    function initializeV2(
-        uint256 _productFeePercentage,
-        address _daoFeeCollectorAddress
-    ) public {
-        productFeePercentage = _productFeePercentage;
-        daoFeeCollectorAddress = _daoFeeCollectorAddress;
     }
 
     modifier onlyOwnerAndProvider(uint _providerId) {
@@ -179,12 +171,6 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
 
     function getDustThreshold() external view returns (uint) {
         return dust;
-    }
-
-    function getRegisteredPegOutQuote(
-        bytes32 quoteHash
-    ) external view returns (QuotesV2.PegOutQuote memory) {
-        return registeredPegoutQuotes[quoteHash];
     }
 
     function isPegOutQuoteCompleted(bytes32 quoteHash) external view returns (bool) {
@@ -326,34 +312,20 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
     /**
         @dev Used to withdraw the locked collateral
      */
-    function withdrawCollateral() external {
+    function withdrawCollateral() external nonReentrant {
         require(resignationBlockNum[msg.sender] > 0, "LBC021");
         require(
             block.number - resignationBlockNum[msg.sender] >=
             resignDelayInBlocks,
             "LBC022"
         );
-        uint amount = collateral[msg.sender];
+        uint amount = collateral[msg.sender] + pegoutCollateral[msg.sender];
+        pegoutCollateral[msg.sender] = 0;
         collateral[msg.sender] = 0;
         resignationBlockNum[msg.sender] = 0;
         (bool success,) = msg.sender.call{value: amount}("");
         require(success, "LBC020");
         emit WithdrawCollateral(msg.sender, amount);
-    }
-
-    function withdrawPegoutCollateral() external {
-        require(resignationBlockNum[msg.sender] > 0, "LBC021");
-        require(
-            block.number - resignationBlockNum[msg.sender] >=
-            resignDelayInBlocks,
-            "LBC022"
-        );
-        uint amount = pegoutCollateral[msg.sender];
-        pegoutCollateral[msg.sender] = 0;
-        resignationBlockNum[msg.sender] = 0;
-        (bool success,) = msg.sender.call{value: amount}("");
-        require(success, "LBC020");
-        emit PegoutWithdrawCollateral(msg.sender, amount);
     }
 
     /**
@@ -721,7 +693,10 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
             "LBC049"
         );
         require(quote.value <= outputs[PAY_TO_ADDRESS_OUTPUT].value * (10**10), "LBC067"); // satoshi to wei
-        bytes memory btcTxDestination = BtcUtils.parsePayToPubKeyHash(outputs[PAY_TO_ADDRESS_OUTPUT].pkScript, mainnet);
+        bytes memory btcTxDestination = BtcUtils.outputScriptToAddress(
+            outputs[PAY_TO_ADDRESS_OUTPUT].pkScript,
+            mainnet
+        );
         require(keccak256(quote.deposityAddress) == keccak256(btcTxDestination), "LBC068");
 
         if (
@@ -966,5 +941,20 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
             require(daoSuccess, "LBC074");
             emit DaoFeeSent(quoteHash, amount);
         }
+    }
+
+    function updateProvider(string memory _name, string memory _url) external {
+        require(bytes(_name).length > 0 && bytes(_url).length > 0, "LBC076");
+        LiquidityProvider storage lp;
+        for (uint i = 1; i <= providerId; i++) {
+            lp = liquidityProviders[i];
+            if (msg.sender == lp.provider) {
+                lp.name = _name;
+                lp.apiBaseUrl = _url;
+                emit ProviderUpdate(msg.sender, lp.name, lp.apiBaseUrl);
+                return;
+            }
+        }
+        revert("LBC001");
     }
 }
