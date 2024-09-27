@@ -63,7 +63,7 @@ module.exports = {
     },
     rskMainnet: {
       provider: () => new HDWalletProvider({
-        mnemonic,
+        privateKeys: [process.env.MAINNET_SIGNER_PRIVATE_KEY],
         providerOrUrl: process.env.MAINNET_RPC_URL,
         derivationPath: "m/44'/137'/0'/0/",
         pollingInterval: 30000,
