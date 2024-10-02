@@ -117,10 +117,17 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       modifiedQuote.callFee = testCase.quote.callFee.mul(regtestMultiplier);
       const modifiedRefundAmount = web3.utils.toBN(testCase.refundAmount).mul(regtestMultiplier);
 
+      const refundAddressBalanceBefore = await web3.eth.getBalance(modifiedQuote.rskRefundAddress)
+        .then(result => web3.utils.toBN(result));
       const quoteHash = await instance.hashQuote(utils.asArray(modifiedQuote));
       await bridgeMockInstance.setPegin(quoteHash, { value: modifiedRefundAmount });
       const receipt = await instance.registerPegIn(utils.asArray(modifiedQuote), '0x'+testCase.signature, '0x'+testCase.btcRawTx, '0x'+testCase.pmt, testCase.height);
+      const refundAddressBalanceAfter = await web3.eth.getBalance(modifiedQuote.rskRefundAddress)
+        .then(result => web3.utils.toBN(result));
+
       expect(receipt.logs.length).to.be.eq(2);
+      expect(refundAddressBalanceAfter.sub(refundAddressBalanceBefore)).to.be.a.bignumber.eq(modifiedRefundAmount);
+
       truffleAssertions.eventEmitted(receipt, "Refund", {
         dest: testCase.quote.rskRefundAddress,
         amount: modifiedRefundAmount,
