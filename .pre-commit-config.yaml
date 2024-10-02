@@ -1,0 +1,35 @@
+repos:
+- repo: https://github.com/gitleaks/gitleaks
+  rev: v8.16.3
+  hooks:
+  - id: gitleaks
+- repo: https://github.com/jumanjihouse/pre-commit-hooks
+  rev: 3.0.0
+  hooks:
+  - id: shellcheck
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.4.0
+  hooks:
+    - id: "trailing-whitespace"
+    - id: "end-of-file-fixer"
+      exclude: '\.tf\.json$'
+    - id: "check-yaml"
+      args:
+        - "--unsafe"
+    - id: "check-executables-have-shebangs"
+    - id: "check-case-conflict"
+# Project specific
+- repo: local
+  hooks:
+    - id: code-style
+      name: Project Style Check
+      entry: npm run lint
+      language: system
+      types: [solidity]
+- repo: local
+  hooks:
+    - id: unit-tests
+      name: Project Unit Tests
+      entry: npm run test
+      language: system
+      types: [solidity, javascript]
