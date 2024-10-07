@@ -75,7 +75,7 @@ function getTestPegOutQuote(lbcAddress, lpRskAddress, rskRefundAddress, value, b
   }
 
   let valueToTransfer = value || web3.utils.toBN(0);
-  let callFee = web3.utils.toBN(1);
+  const callFee = web3.utils.toBN(2);
   let nonce = 0;
   let agreementTimestamp = 1661788988;
   let expireDate = Math.round(new Date().getTime() / 1000) + 3600;
@@ -86,7 +86,7 @@ function getTestPegOutQuote(lbcAddress, lpRskAddress, rskRefundAddress, value, b
   let transferConfirmations = 10;
   let penaltyFee = web3.utils.toBN(0);
   let productFeeAmount = web3.utils.toBN(1);
-  const gasFee = web3.utils.toBN(1);
+  const gasFee = web3.utils.toBN(42);
 
   let quote = {
     lbcAddress,
