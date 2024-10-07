@@ -29,6 +29,6 @@ jobs:
           target: .
 
       - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@85b07cf1e13dd512be7c27c37a33c5864c252fcc # v2
+        uses: github/codeql-action/upload-sarif@6db8d6351fd0be61f9ed8ebd12ccd35dcec51fea # v2
         with:
           sarif_file: ${{ steps.slither.outputs.sarif }}
