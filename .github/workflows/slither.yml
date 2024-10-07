@@ -1,15 +1,19 @@
 name: Slither Analysis
 on: [push]
+
+permissions:
+  contents: read
+
 jobs:
   analyze:
     runs-on: ubuntu-latest
     permissions:
       security-events: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Use Node.js 19.6.0
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v4.0.4
         with:
           node-version: '19.6.0'
 
@@ -17,7 +21,7 @@ jobs:
         run: npm ci
 
       - name: Run Slither
-        uses: crytic/slither-action@v0.3.0
+        uses: crytic/slither-action@6ef3a33e56de4e8f59488cf60858b5c1bf4967c0 # v0.3.0
         id: slither
         with:
           sarif: results.sarif
@@ -25,6 +29,6 @@ jobs:
           target: .
 
       - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@85b07cf1e13dd512be7c27c37a33c5864c252fcc # v2
         with:
           sarif_file: ${{ steps.slither.outputs.sarif }}
