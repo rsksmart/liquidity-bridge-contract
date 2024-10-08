@@ -730,7 +730,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         }
 
         (bool sent,) = quote.lpRskAddress.call{
-                value: quote.value + quote.callFee
+                value: quote.value + quote.callFee + quote.gasFee
             }("");
         require(sent, "LBC050");
 
