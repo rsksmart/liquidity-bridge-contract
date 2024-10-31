@@ -39,7 +39,7 @@ module.exports = {
     },
     rskDevelopment: {
       provider: () => new HDWalletProvider({
-        mnemonic,
+        privateKeys: [process.env.DEV_SIGNER_PRIVATE_KEY],
         providerOrUrl: process.env.TESTNET_RPC_URL,
         derivationPath: "m/44'/60'/0'/0/",
         pollingInterval: 30000,
