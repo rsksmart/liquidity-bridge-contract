@@ -890,7 +890,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
           web3.eth.getBalance(instance.address),
         ]);
 
-      const [userPegInBalanceBefore, contractBalanceBefore] = await getBalances();
+      const [lpBalanceBeforeDeposit, contractBalanceBefore] = await getBalances();
 
       let quote = utils.getTestPegOutQuote(
         instance.address, //lbc address
@@ -920,14 +920,14 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       await truffleAssertions.eventEmitted(pegOut, "PegOutDeposit");
 
       const btcTx = await utils.generateRawTx(instance, quote, scriptType);
-      const [userPegInBalanceAfter, contractBalanceAfter] = await getBalances();
+      const [lpBalanceAfterDeposit, contractBalanceAfter] = await getBalances();
 
-      expect(userPegInBalanceBefore.toString()).to.be.eq(
-        userPegInBalanceAfter.toString()
+      expect(lpBalanceBeforeDeposit.toString()).to.be.eq(
+        lpBalanceAfterDeposit.toString()
       );
       expect(+contractBalanceAfter).to.be.eq(+contractBalanceBefore + msgValue.toNumber());
 
-      const lpBalanceBefore = await web3.eth.getBalance(
+      const lpBalanceBeforeRefund = await web3.eth.getBalance(
         liquidityProviderRskAddress
       );
       const refund = await instance.refundPegOut(
@@ -937,19 +937,19 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
         partialMerkleTree,
         merkleBranchHashes
       );
-      const lpBalanceAfter = await web3.eth.getBalance(
+      const lpBalanceAfterRefund = await web3.eth.getBalance(
         liquidityProviderRskAddress
       );
       const usedInGas = refund.receipt.gasUsed * refund.receipt.effectiveGasPrice;
-      const refundedAmount = quote.value.add(quote.callFee);
+      const refundedAmount = quote.value.add(quote.callFee).add(quote.gasFee);
       truffleAssertions.eventEmitted(refund, "DaoFeeSent", {
         quoteHash: quoteHash,
         amount: quote.productFeeAmount
       });
-      expect(lpBalanceAfter).to.be.a.bignumber.eq(
-        web3.utils.toBN(lpBalanceBefore).add(refundedAmount).sub(web3.utils.toBN(usedInGas))
+      expect(lpBalanceAfterRefund).to.be.a.bignumber.eq(
+        web3.utils.toBN(lpBalanceBeforeRefund).add(refundedAmount).sub(web3.utils.toBN(usedInGas))
       );
-      truffleAssertions.eventEmitted(refund, "PegOutRefunded");
+      truffleAssertions.eventEmitted(refund, "PegOutRefunded", { quoteHash });
     });
   });
 
