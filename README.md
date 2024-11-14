@@ -1,4 +1,5 @@
 # Liquidity Bridge Contract
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/rsksmart/liquidity-bridge-contract/badge)](https://scorecard.dev/viewer/?uri=github.com/rsksmart/liquidity-bridge-contract)
 
 The Liquidity Bridge Contract (LBC) manages the interaction between users and liquidity providers (LP) in order to achieve fast peg-ins and peg-outs.
 
@@ -31,7 +32,7 @@ PegIn Quotes consist of:
         address lbcAddress;                     // the address of the LBC
         address liquidityProviderRskAddress;    // the RSK address of the LP
         bytes btcRefundAddress;                 // a user BTC refund address
-        address rskRefundAddress;               // a user RSK refund address 
+        address rskRefundAddress;               // a user RSK refund address
         bytes liquidityProviderBtcAddress;      // the BTC address of the LP
         uint callFee;                           // the fee charged by the LP
         uint penaltyFee;                        // the penalty that the LP pays if it fails to deliver the service
@@ -55,7 +56,7 @@ PegOut Quotes consist of:
         address lbcAddress;                     // the address of the LBC
         address lpRskAddress;                   // the RSK address of the LP
         bytes btcRefundAddress;                 // a user BTC refund address
-        address rskRefundAddress;               // a user RSK refund address 
+        address rskRefundAddress;               // a user RSK refund address
         bytes lpBtcAddress;                     // the BTC address of the LP
         uint callFee;                           // the fee charged by the LP
         uint penaltyFee;                        // the penalty that the LP pays if it fails to deliver the service
@@ -82,7 +83,7 @@ PegOut Quotes consist of:
     ) returns bool success
 
 This method performs a call on behalf of a user.
-#### Parameters 
+#### Parameters
     * quote: The quote that identifies the service
 #### Return value
     Boolean indicating whether the call was successful
@@ -104,7 +105,7 @@ This method requests the Bridge contract on RSK a refund for the service.
     * btcRawTransaction The peg-in transaction
     * partialMerkleTree The merkle tree path that proves transaction inclusion
     * height The block that contains the peg-in transaction
-#### Return value    
+#### Return value
     This method returns the amount transferred to the contract or an [error code](https://github.com/rsksmart/RSKIPs/blob/fast-bridge-alternative/IPs/RSKIP176.md#error-codes).
 
 ### **isOperational**
