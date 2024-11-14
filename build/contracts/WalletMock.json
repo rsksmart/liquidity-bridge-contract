@@ -478,15 +478,15 @@
     "absolutePath": "project:/contracts/WalletMock.sol",
     "exportedSymbols": {
       "WalletMock": [
-        11536
+        11539
       ]
     },
-    "id": 11537,
+    "id": 11540,
     "license": "MIT",
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 11513,
+        "id": 11516,
         "literals": [
           "solidity",
           "^",
@@ -503,9 +503,9 @@
         "contractDependencies": [],
         "contractKind": "contract",
         "fullyImplemented": true,
-        "id": 11536,
+        "id": 11539,
         "linearizedBaseContracts": [
-          11536
+          11539
         ],
         "name": "WalletMock",
         "nameLocation": "67:10:31",
@@ -513,12 +513,12 @@
         "nodes": [
           {
             "constant": false,
-            "id": 11515,
+            "id": 11518,
             "mutability": "mutable",
             "name": "rejectFunds",
             "nameLocation": "98:11:31",
             "nodeType": "VariableDeclaration",
-            "scope": 11536,
+            "scope": 11539,
             "src": "85:24:31",
             "stateVariable": true,
             "storageLocation": "default",
@@ -527,7 +527,7 @@
               "typeString": "bool"
             },
             "typeName": {
-              "id": 11514,
+              "id": 11517,
               "name": "bool",
               "nodeType": "ElementaryTypeName",
               "src": "85:4:31",
@@ -540,23 +540,23 @@
           },
           {
             "body": {
-              "id": 11524,
+              "id": 11527,
               "nodeType": "Block",
               "src": "159:34:31",
               "statements": [
                 {
                   "expression": {
-                    "id": 11522,
+                    "id": 11525,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": false,
                     "lValueRequested": false,
                     "leftHandSide": {
-                      "id": 11520,
+                      "id": 11523,
                       "name": "rejectFunds",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 11515,
+                      "referencedDeclaration": 11518,
                       "src": "169:11:31",
                       "typeDescriptions": {
                         "typeIdentifier": "t_bool",
@@ -566,11 +566,11 @@
                     "nodeType": "Assignment",
                     "operator": "=",
                     "rightHandSide": {
-                      "id": 11521,
+                      "id": 11524,
                       "name": "val",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 11517,
+                      "referencedDeclaration": 11520,
                       "src": "183:3:31",
                       "typeDescriptions": {
                         "typeIdentifier": "t_bool",
@@ -583,14 +583,14 @@
                       "typeString": "bool"
                     }
                   },
-                  "id": 11523,
+                  "id": 11526,
                   "nodeType": "ExpressionStatement",
                   "src": "169:17:31"
                 }
               ]
             },
             "functionSelector": "3eb9f753",
-            "id": 11525,
+            "id": 11528,
             "implemented": true,
             "kind": "function",
             "modifiers": [],
@@ -598,17 +598,17 @@
             "nameLocation": "125:14:31",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 11518,
+              "id": 11521,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 11517,
+                  "id": 11520,
                   "mutability": "mutable",
                   "name": "val",
                   "nameLocation": "145:3:31",
                   "nodeType": "VariableDeclaration",
-                  "scope": 11525,
+                  "scope": 11528,
                   "src": "140:8:31",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -617,7 +617,7 @@
                     "typeString": "bool"
                   },
                   "typeName": {
-                    "id": 11516,
+                    "id": 11519,
                     "name": "bool",
                     "nodeType": "ElementaryTypeName",
                     "src": "140:4:31",
@@ -632,12 +632,12 @@
               "src": "139:10:31"
             },
             "returnParameters": {
-              "id": 11519,
+              "id": 11522,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "159:0:31"
             },
-            "scope": 11536,
+            "scope": 11539,
             "src": "116:77:31",
             "stateMutability": "nonpayable",
             "virtual": false,
@@ -645,7 +645,7 @@
           },
           {
             "body": {
-              "id": 11534,
+              "id": 11537,
               "nodeType": "Block",
               "src": "226:50:31",
               "statements": [
@@ -653,7 +653,7 @@
                   "expression": {
                     "arguments": [
                       {
-                        "id": 11530,
+                        "id": 11533,
                         "isConstant": false,
                         "isLValue": false,
                         "isPure": false,
@@ -663,11 +663,11 @@
                         "prefix": true,
                         "src": "244:12:31",
                         "subExpression": {
-                          "id": 11529,
+                          "id": 11532,
                           "name": "rejectFunds",
                           "nodeType": "Identifier",
                           "overloadedDeclarations": [],
-                          "referencedDeclaration": 11515,
+                          "referencedDeclaration": 11518,
                           "src": "245:11:31",
                           "typeDescriptions": {
                             "typeIdentifier": "t_bool",
@@ -681,7 +681,7 @@
                       },
                       {
                         "hexValue": "72656a6563746564",
-                        "id": 11531,
+                        "id": 11534,
                         "isConstant": false,
                         "isLValue": false,
                         "isPure": true,
@@ -707,7 +707,7 @@
                           "typeString": "literal_string \"rejected\""
                         }
                       ],
-                      "id": 11528,
+                      "id": 11531,
                       "name": "require",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [
@@ -721,7 +721,7 @@
                         "typeString": "function (bool,string memory) pure"
                       }
                     },
-                    "id": 11532,
+                    "id": 11535,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": false,
@@ -737,13 +737,13 @@
                       "typeString": "tuple()"
                     }
                   },
-                  "id": 11533,
+                  "id": 11536,
                   "nodeType": "ExpressionStatement",
                   "src": "236:33:31"
                 }
               ]
             },
-            "id": 11535,
+            "id": 11538,
             "implemented": true,
             "kind": "receive",
             "modifiers": [],
@@ -751,25 +751,25 @@
             "nameLocation": "-1:-1:-1",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 11526,
+              "id": 11529,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "206:2:31"
             },
             "returnParameters": {
-              "id": 11527,
+              "id": 11530,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "226:0:31"
             },
-            "scope": 11536,
+            "scope": 11539,
             "src": "199:77:31",
             "stateMutability": "payable",
             "virtual": false,
             "visibility": "external"
           }
         ],
-        "scope": 11537,
+        "scope": 11540,
         "src": "58:220:31",
         "usedErrors": []
       }
@@ -782,7 +782,7 @@
   },
   "networks": {},
   "schemaVersion": "3.4.13",
-  "updatedAt": "2024-08-13T18:10:01.093Z",
+  "updatedAt": "2024-11-14T11:10:14.089Z",
   "devdoc": {
     "kind": "dev",
     "methods": {},
