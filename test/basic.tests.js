@@ -870,7 +870,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       instance.address, //lbc address
       liquidityProviderRskAddress,
       accounts[2],
-      web3.utils.toBN(1)
+      web3.utils.toBN("1000000000000001")
     );
     quote.transferConfirmations = 0;
 
@@ -925,6 +925,88 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
     truffleAssertions.eventEmitted(refund, "PegOutRefunded");
   });
 
+  it("Should refundPegOut with wrong rounding", async () => {
+    await instance.addPegoutCollateral({
+      value: web3.utils.toWei("30000", "wei"),
+      from: liquidityProviderRskAddress,
+    });
+    const blockHeaderHash =
+      "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326";
+    const partialMerkleTree =
+      "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb426";
+    const merkleBranchHashes = [
+      "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326",
+    ];
+
+    const getBalances = () =>
+      Promise.all([
+        instance.getBalance(liquidityProviderRskAddress),
+        web3.eth.getBalance(instance.address),
+      ]);
+
+    const [userPegInBalanceBefore, contractBalanceBefore] = await getBalances();
+
+    const now = Math.floor(Date.now() / 1000);
+    const quote = {
+      lbcAddress: instance.address,
+      liquidityProviderRskAddress: liquidityProviderRskAddress,
+      btcRefundAddress: bs58check.decode("2Mxo7RNBLYVxFhiz4MHbr1UyDWgzCReBRBx"),
+      rskRefundAddress: "0x399F56CD72CA88f3873b3698A395083A44a9A641",
+      lpBtcAddr: bs58check.decode("mfdi3vowMn2YRTSmXKTNvg4PWAZCaeLjHZ"),
+      callFee: web3.utils.toBN("300000000000000"),
+      penaltyFee: web3.utils.toBN("10000000000000"),
+      nonce: web3.utils.toBN("154806842258897340"),
+      depositAddr: bs58check.decode("2Mxo7RNBLYVxFhiz4MHbr1UyDWgzCReBRBx"),
+      value: web3.utils.toBN("72160329123080000"),
+      agreementTimestamp: now,
+      depositDateLimit: now + 3600,
+      depositConfirmations: 10,
+      transferConfirmations: 2,
+      transferTime: 3600,
+      expireDate: now + 10800,
+      expireBlocks: 6946482,
+      gasFee: web3.utils.toBN("11290000000000"),
+      productFeeAmount: web3.utils.toBN("0")
+    };
+
+    // configure mocked block on mockBridge
+    const firstConfirmationTime = utils.reverseHexBytes(
+      web3.utils.toHex(quote.agreementTimestamp + 100).substring(2)
+    );
+    const firstHeader =
+      "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" +
+      firstConfirmationTime +
+      "0000000000000000";
+    await bridgeMockInstance.setHeaderByHash(blockHeaderHash, firstHeader);
+
+    const quoteHash = await instance.hashPegoutQuote(utils.asArray(quote));
+    const signature = await web3.eth.sign(quoteHash, liquidityProviderRskAddress);
+    const msgValue = quote.value.add(quote.callFee).add(quote.productFeeAmount).add(quote.gasFee);
+    await instance.depositPegout(utils.asArray(quote), signature, { value: msgValue });
+
+    const btcTx = `0x0200000001c58d201925a80f49c3160bd97be969453d64c311d7c7a2c2c31318fdeedb8eb7020000006a47304402201944d92c0afd1524ac763c709269f70ca3a7597deffa8d732dad5fb1318ff5bc02205970622ade1d31212ad95ee62926d0acdf7e61e481c118acd02b9c9d29e9913b012102361cffc83b11d361119acd4e57c7103f94bce4ee990e3f2d3fac19017fe076bffdffffff03a01b6e000000000017a9143ce07516dd6c85b69b4abec139fbac01cf84fec0870000000000000000226a20${quoteHash.slice(2)}ba9db202000000001976a9140147059622479e482bc1bf7f7ca8433bbfc3a34888ac00000000`;
+    const [userPegInBalanceAfter, contractBalanceAfter] = await getBalances();
+
+    expect(userPegInBalanceBefore.toString()).to.be.eq(userPegInBalanceAfter.toString());
+    expect(contractBalanceAfter.toString()).to.be.eq(web3.utils.toBN(contractBalanceBefore).add(msgValue).toString());
+
+    const lpBalanceBefore = await web3.eth.getBalance(liquidityProviderRskAddress);
+    const refund = await instance.refundPegOut(
+      quoteHash,
+      btcTx,
+      blockHeaderHash,
+      partialMerkleTree,
+      merkleBranchHashes
+    );
+    const lpBalanceAfter = await web3.eth.getBalance(liquidityProviderRskAddress);
+    const usedInGas = refund.receipt.gasUsed * refund.receipt.effectiveGasPrice;
+    const refundedAmount = quote.value.add(quote.callFee);
+    expect(lpBalanceAfter).to.be.a.bignumber.eq(
+      web3.utils.toBN(lpBalanceBefore).add(refundedAmount).sub(web3.utils.toBN(usedInGas))
+    );
+    truffleAssertions.eventEmitted(refund, "PegOutRefunded");
+  });
+
   it("Should not generate transaction to DAO when product fee is 0 in refundPegOut", async () => {
     await instance.addPegoutCollateral({
       value: web3.utils.toWei("30000", "wei"),
@@ -943,7 +1025,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       instance.address, //lbc address
       liquidityProviderRskAddress,
       accounts[2],
-      web3.utils.toBN(1)
+      web3.utils.toBN("1000001234567899")
     );
     quote.transferConfirmations = 0;
     quote.productFeeAmount = web3.utils.toBN(0);
@@ -996,7 +1078,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       instance.address, //lbc address
       liquidityProviderRskAddress,
       accounts[2],
-      web3.utils.toBN(25)
+      web3.utils.toBN("1000000000000001")
     );
     quote.transferConfirmations = 0;
     quote.agreementTimestamp = Math.round(new Date().getTime() / 1000)
@@ -1050,7 +1132,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       instance.address,
       liquidityProviderRskAddress,
       accounts[2],
-      web3.utils.toBN(1)
+      web3.utils.toBN("1000000000000001")
     );
     quote.transferConfirmations = 0;
 
@@ -1078,7 +1160,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       instance.address, //lbc address
       liquidityProviderRskAddress,
       accounts[2],
-      web3.utils.toBN(1)
+      web3.utils.toBN("1000000000000000")
     );
     // so its expired after deposit
     quote.expireBlock = await web3.eth.getBlock("latest").then(block => block.number + 1);
@@ -1129,7 +1211,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       instance.address, //lbc address
       liquidityProviderRskAddress,
       accounts[2],
-      web3.utils.toBN(1)
+      web3.utils.toBN("1000000000000000")
     );
 
     // configure mocked block on mockBridge
@@ -1189,7 +1271,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       instance.address, //lbc address
       liquidityProviderRskAddress,
       accounts[4],
-      web3.utils.toBN(1)
+      web3.utils.toBN("1000000000000000")
     );
     quote.transferConfirmations = 0;
 
@@ -1235,7 +1317,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
         instance.address, //lbc address
         liquidityProviderRskAddress,
         accounts[2],
-        1
+        web3.utils.toBN("1000000000000000")
       );
     const value = web3.utils.toBN("500")
     const quoteHash = await instance.hashPegoutQuote(quote);
@@ -1279,7 +1361,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       instance.address, //lbc address
       liquidityProviderRskAddress,
       accounts[2],
-      1000
+      web3.utils.toBN("1000000000000000")
     );
 
     const quoteHash = await instance.hashPegoutQuote(quoteExpiredByBlocks);
@@ -1298,7 +1380,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       instance.address, //lbc address
       liquidityProviderRskAddress,
       accounts[2],
-      1000
+      web3.utils.toBN("1000000000000000")
     );
     quoteExpiredByTime.expireDate = quoteExpiredByTime.agreementTimestamp;
     const revertByTime = instance.depositPegout(
@@ -1315,7 +1397,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       instance.address, //lbc address
       liquidityProviderRskAddress,
       accounts[2],
-      1000
+      web3.utils.toBN("1000000000000000")
     );
 
     quote.depositDateLimit = quote.agreementTimestamp;
@@ -1369,7 +1451,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
         instance.address, //lbc address
         lpAddress,
         accounts[2],
-        web3.utils.toBN(3)
+        web3.utils.toBN("3000000000000000")
       );
     await instance.resign({ from: lpAddress });
     await utils.mineBlocks(utils.RESIGN_DELAY_BLOCKS);
@@ -1449,7 +1531,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       instance.address, //lbc address
       liquidityProviderRskAddress,
       accounts[1],
-      web3.utils.toBN(1)
+      web3.utils.toBN("1000000000000000")
     );
 
     // so its always expired
@@ -1503,7 +1585,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       instance.address, //lbc address
       liquidityProviderRskAddress,
       accounts[2],
-      web3.utils.toBN(1)
+      web3.utils.toBN("1000000000000000")
     );
     quote.transferConfirmations = 0;
 
@@ -1553,7 +1635,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       instance.address, //lbc address
       liquidityProviderRskAddress,
       accounts[2],
-      web3.utils.toBN(1)
+      web3.utils.toBN("1000000000000000")
     );
     quote.transferConfirmations = 0;
 
@@ -1587,7 +1669,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       ),
       "LBC075"
     );
-        
+
     let incorrectHashSizeTx = await utils.generateRawTx(instance, quote);
     incorrectHashSizeTx = web3.utils.bytesToHex(incorrectHashSizeTx)
       .replace("226a20"+quoteHash.slice(2), "216a19"+quoteHash.slice(2, -2));
@@ -1613,10 +1695,9 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       instance.address, //lbc address
       liquidityProviderRskAddress,
       accounts[2],
-      web3.utils.toBN(3)
+      web3.utils.toBN("1000010000000001")
     );
     quote.transferConfirmations = 0;
-    quote.value = web3.utils.toBN(5 * (10**10)); // any value that is not on the btc tx
     quote.callFee = web3.utils.toBN(1);
 
     // configure mocked block on mockBridge
@@ -1656,7 +1737,7 @@ contract("LiquidityBridgeContractV2.sol", async (accounts) => {
       instance.address, //lbc address
       liquidityProviderRskAddress,
       accounts[2],
-      web3.utils.toBN(1)
+      web3.utils.toBN("1000000000000000")
     );
     quote.transferConfirmations = 0;
     quote.deposityAddress = "0x000000000000000000000000000000000000000000"; // any wrong destination
