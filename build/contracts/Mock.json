@@ -61,9 +61,9 @@
       "type": "function"
     }
   ],
-  "metadata": "{\"compiler\":{\"version\":\"0.8.18+commit.87f61d96\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"balance\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address payable\",\"name\":\"lbcAddress\",\"type\":\"address\"}],\"name\":\"callRegister\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"check\",\"outputs\":[{\"internalType\":\"int256\",\"name\":\"\",\"type\":\"int256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"fail\",\"outputs\":[],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"int256\",\"name\":\"s\",\"type\":\"int256\"}],\"name\":\"set\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"project:/contracts/Mock.sol\":\"Mock\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":1},\"remappings\":[]},\"sources\":{\"@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol\":{\"keccak256\":\"0x359a1ab89b46b9aba7bcad3fb651924baf4893d15153049b9976b0fc9be1358e\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://e89863421b4014b96a4b62be76eb3b9f0a8afe9684664a6f389124c0964bfe5c\",\"dweb:/ipfs/Qmbk7xr1irpDuU1WdxXgxELBXxs61rHhCgod7heVcvFx16\"]},\"@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol\":{\"keccak256\":\"0x89be10e757d242e9b18d5a32c9fbe2019f6d63052bbe46397a430a1d60d7f794\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://f103ee2e4aecd37aac6ceefe670709cdd7613dee25fa2d4d9feaf7fc0aaa155e\",\"dweb:/ipfs/QmRiNZLoJk5k3HPMYGPGjZFd2ke1ZxjhJZkM45Ec9GH9hv\"]},\"@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol\":{\"keccak256\":\"0x2025ccf05f6f1f2fd4e078e552836f525a1864e3854ed555047cd732320ab29b\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://d27f4b23c2dee42394aebaf42bf238285230f472dfd3282a39c3f000ec28214f\",\"dweb:/ipfs/QmQa3DnvccwdWJeWrjgXPnFMTWbzWQWR39hVqC7eEwo2PC\"]},\"@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol\":{\"keccak256\":\"0x9c80f545915582e63fe206c6ce27cbe85a86fc10b9cd2a0e8c9488fb7c2ee422\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://310136ad60820af4177a11a61d77a3686faf5fca4942b600e08fc940db38396b\",\"dweb:/ipfs/QmbCzMNSTL7Zi7M4UCSqBrkHtp4jjxUnGbkneCZKdR1qeq\"]},\"@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol\":{\"keccak256\":\"0x75097e35253e7fb282ee4d7f27a80eaacfa759923185bf17302a89cbc059c5ef\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://8b06267c5f80bad727af3e48b1382333d591dad51376399ef2f6b0ee6d58bf95\",\"dweb:/ipfs/QmdU5La1agcQvghnfMpWZGDPz2TUDTCxUwTLKmuMRXBpAx\"]},\"@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol\":{\"keccak256\":\"0x0dc781715e8c751a32cc8a6cb062c0aa315dac2d14f9e00cf93d3aec0ae295e8\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://1dc434f8cc19e5ddf589ec5bab31427e9b0a0eb990e00a217fdfeca7223cf4f9\",\"dweb:/ipfs/QmUpkMKeG7ncvyxpye4Z1izF2NvRK4rJ2nt6fof9TbPsvc\"]},\"@rsksmart/btc-transaction-solidity-helper/contracts/OpCodes.sol\":{\"keccak256\":\"0x74d384b5e0ce7b5be1cb5d1446b40e788a0b3e13522aaa583d73a554c835c4d8\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://e94fc123058c5e2cc8cd4635f12bcba195b8b57fef895980c519130f44aa5d17\",\"dweb:/ipfs/QmVhqvcmMhvwYeuYgheTFVBo3EHBKuyYpthdhQRwTdBfx4\"]},\"project:/contracts/Bridge.sol\":{\"keccak256\":\"0xae192fa4fc0d6d395fd0c3912bc3affe86ddd4869f04501fbae0afe234d1becd\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://309436cba07567a3ee76e71d6a751023b436a17f7d83e291ef731318287756e6\",\"dweb:/ipfs/QmZTjw3hbY4ofptJmQwnLRGrBTQcv6yPgbY4WvMAwgkzGS\"]},\"project:/contracts/LiquidityBridgeContract.sol\":{\"keccak256\":\"0xffd1e9632f97e8d0a1daac7a5db03b7f5c345e80e08ecc2d2a113d36969fef7a\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://d95ff6c407622ceab5e821eb0ae0e1984812e5e517180c56f57f2891840d79a3\",\"dweb:/ipfs/QmS9sYi998BahXLHLW74qrf45icdLGmxXuNm7Y2SN9VZnF\"]},\"project:/contracts/Mock.sol\":{\"keccak256\":\"0x2c3e024eaf134bb6b12c48103c9b5e21f1d2b03b4d6ce1106a6ef924adf462cd\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://b836e99f6c17937d83f85bd6197e90e3534dba6e8fbfd1b23c0e0c283ddf8a24\",\"dweb:/ipfs/QmYrbtyjY4QTP1D9ap5VZCYMkMDidCWm7dgYHVuyqbKq6t\"]},\"project:/contracts/Quotes.sol\":{\"keccak256\":\"0x28948b37d73f110d9cfc6cc3505fa7f2309b2d8d588d90c4069df45b4acbe399\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://f2a824971a2421b56127e048a6b8a2d4ef4945b13e5f40cb266a19462c954e7f\",\"dweb:/ipfs/QmWm8YpQUwvqu4erUbsUZ1xz4PoVtJQiAX1Kh5Gezi32c1\"]},\"project:/contracts/SignatureValidator.sol\":{\"keccak256\":\"0x9d72920dd5ff2891c8dd3b3a814c1b108e82fcc6dfd849c96842e88c01d25b2c\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://8df1167e9def35ced4a620e3fa1e6d148bc7c1fb995378bf12dabef250b3be65\",\"dweb:/ipfs/QmZJJchWvzUeMb68VPHFGnMXBx7aMhK5GqJy8ECDx2rf58\"]}},\"version\":1}",
-  "bytecode": "0x608060405234801561001057600080fd5b50610276806100206000396000f3fe60806040526004361061004a5760003560e01c80631192fe621461004f578063919840ad14610064578063a9cc471814610087578063b69ef8a81461009c578063e5c19b2d146100b2575b600080fd5b61006261005d3660046101de565b6100c5565b005b34801561007057600080fd5b506000545b60405190815260200160405180910390f35b34801561009357600080fd5b506100626101aa565b3480156100a857600080fd5b5061007560015481565b6100626100c036600461020e565b600055565b60405163082e0aa360e31b81526080600480830191909152600e60848301526d119a5c9cdd0818dbdb9d1c9858dd60921b60a483015260c06024830152601460c483015273687474703a2f2f6c6f63616c686f73742f61706960601b60e4830152600160448301526101006064830152610104820152630c4dee8d60e31b61012482015281906001600160a01b0382169063417055189034906101440160206040518083038185885af1158015610180573d6000803e3d6000fd5b50505050506040513d601f19601f820116820180604052508101906101a59190610227565b505050565b60405162461bcd60e51b815260206004820152600560248201526432b93937b960d91b604482015260640160405180910390fd5b6000602082840312156101f057600080fd5b81356001600160a01b038116811461020757600080fd5b9392505050565b60006020828403121561022057600080fd5b5035919050565b60006020828403121561023957600080fd5b505191905056fea26469706673582212203ac043a870bb537b6ad66ad6d3310df7365fd49ebbfa160c7bb7afa4da33b8fc64736f6c63430008120033",
-  "deployedBytecode": "0x60806040526004361061004a5760003560e01c80631192fe621461004f578063919840ad14610064578063a9cc471814610087578063b69ef8a81461009c578063e5c19b2d146100b2575b600080fd5b61006261005d3660046101de565b6100c5565b005b34801561007057600080fd5b506000545b60405190815260200160405180910390f35b34801561009357600080fd5b506100626101aa565b3480156100a857600080fd5b5061007560015481565b6100626100c036600461020e565b600055565b60405163082e0aa360e31b81526080600480830191909152600e60848301526d119a5c9cdd0818dbdb9d1c9858dd60921b60a483015260c06024830152601460c483015273687474703a2f2f6c6f63616c686f73742f61706960601b60e4830152600160448301526101006064830152610104820152630c4dee8d60e31b61012482015281906001600160a01b0382169063417055189034906101440160206040518083038185885af1158015610180573d6000803e3d6000fd5b50505050506040513d601f19601f820116820180604052508101906101a59190610227565b505050565b60405162461bcd60e51b815260206004820152600560248201526432b93937b960d91b604482015260640160405180910390fd5b6000602082840312156101f057600080fd5b81356001600160a01b038116811461020757600080fd5b9392505050565b60006020828403121561022057600080fd5b5035919050565b60006020828403121561023957600080fd5b505191905056fea26469706673582212203ac043a870bb537b6ad66ad6d3310df7365fd49ebbfa160c7bb7afa4da33b8fc64736f6c63430008120033",
+  "metadata": "{\"compiler\":{\"version\":\"0.8.18+commit.87f61d96\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"balance\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address payable\",\"name\":\"lbcAddress\",\"type\":\"address\"}],\"name\":\"callRegister\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"check\",\"outputs\":[{\"internalType\":\"int256\",\"name\":\"\",\"type\":\"int256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"fail\",\"outputs\":[],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"int256\",\"name\":\"s\",\"type\":\"int256\"}],\"name\":\"set\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"project:/contracts/Mock.sol\":\"Mock\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":1},\"remappings\":[]},\"sources\":{\"@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol\":{\"keccak256\":\"0x359a1ab89b46b9aba7bcad3fb651924baf4893d15153049b9976b0fc9be1358e\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://e89863421b4014b96a4b62be76eb3b9f0a8afe9684664a6f389124c0964bfe5c\",\"dweb:/ipfs/Qmbk7xr1irpDuU1WdxXgxELBXxs61rHhCgod7heVcvFx16\"]},\"@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol\":{\"keccak256\":\"0x89be10e757d242e9b18d5a32c9fbe2019f6d63052bbe46397a430a1d60d7f794\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://f103ee2e4aecd37aac6ceefe670709cdd7613dee25fa2d4d9feaf7fc0aaa155e\",\"dweb:/ipfs/QmRiNZLoJk5k3HPMYGPGjZFd2ke1ZxjhJZkM45Ec9GH9hv\"]},\"@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol\":{\"keccak256\":\"0x2025ccf05f6f1f2fd4e078e552836f525a1864e3854ed555047cd732320ab29b\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://d27f4b23c2dee42394aebaf42bf238285230f472dfd3282a39c3f000ec28214f\",\"dweb:/ipfs/QmQa3DnvccwdWJeWrjgXPnFMTWbzWQWR39hVqC7eEwo2PC\"]},\"@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol\":{\"keccak256\":\"0x9c80f545915582e63fe206c6ce27cbe85a86fc10b9cd2a0e8c9488fb7c2ee422\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://310136ad60820af4177a11a61d77a3686faf5fca4942b600e08fc940db38396b\",\"dweb:/ipfs/QmbCzMNSTL7Zi7M4UCSqBrkHtp4jjxUnGbkneCZKdR1qeq\"]},\"@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol\":{\"keccak256\":\"0x75097e35253e7fb282ee4d7f27a80eaacfa759923185bf17302a89cbc059c5ef\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://8b06267c5f80bad727af3e48b1382333d591dad51376399ef2f6b0ee6d58bf95\",\"dweb:/ipfs/QmdU5La1agcQvghnfMpWZGDPz2TUDTCxUwTLKmuMRXBpAx\"]},\"@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol\":{\"keccak256\":\"0x7237a22e0d518b3499d81ca4918c038a168882e57a35af17d57afd61234c8512\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://8df4acd5a0609e279ddad58d0532a77fdc959688144e5bb7ccfc782db9236251\",\"dweb:/ipfs/QmbjJFBRm6JFPx9Jh34hX8N5rkgBxJ5kbdZsoJ3Tb4UyCa\"]},\"@rsksmart/btc-transaction-solidity-helper/contracts/OpCodes.sol\":{\"keccak256\":\"0x5996186b53b109f592341cfe164c6673346eafda66a2a496e6d5fcec5c74de5a\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://8d3073328ce73163fe8088b14bf39ba03f5f233604a0eb329bb64f2be73ff411\",\"dweb:/ipfs/QmScVLft2AL48D1Z93e3TDQbfZNh7sxJaeS23U4KPGsjTY\"]},\"project:/contracts/Bridge.sol\":{\"keccak256\":\"0xae192fa4fc0d6d395fd0c3912bc3affe86ddd4869f04501fbae0afe234d1becd\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://309436cba07567a3ee76e71d6a751023b436a17f7d83e291ef731318287756e6\",\"dweb:/ipfs/QmZTjw3hbY4ofptJmQwnLRGrBTQcv6yPgbY4WvMAwgkzGS\"]},\"project:/contracts/LiquidityBridgeContract.sol\":{\"keccak256\":\"0xffd1e9632f97e8d0a1daac7a5db03b7f5c345e80e08ecc2d2a113d36969fef7a\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://d95ff6c407622ceab5e821eb0ae0e1984812e5e517180c56f57f2891840d79a3\",\"dweb:/ipfs/QmS9sYi998BahXLHLW74qrf45icdLGmxXuNm7Y2SN9VZnF\"]},\"project:/contracts/Mock.sol\":{\"keccak256\":\"0x2c3e024eaf134bb6b12c48103c9b5e21f1d2b03b4d6ce1106a6ef924adf462cd\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://b836e99f6c17937d83f85bd6197e90e3534dba6e8fbfd1b23c0e0c283ddf8a24\",\"dweb:/ipfs/QmYrbtyjY4QTP1D9ap5VZCYMkMDidCWm7dgYHVuyqbKq6t\"]},\"project:/contracts/Quotes.sol\":{\"keccak256\":\"0x28948b37d73f110d9cfc6cc3505fa7f2309b2d8d588d90c4069df45b4acbe399\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://f2a824971a2421b56127e048a6b8a2d4ef4945b13e5f40cb266a19462c954e7f\",\"dweb:/ipfs/QmWm8YpQUwvqu4erUbsUZ1xz4PoVtJQiAX1Kh5Gezi32c1\"]},\"project:/contracts/SignatureValidator.sol\":{\"keccak256\":\"0x9d72920dd5ff2891c8dd3b3a814c1b108e82fcc6dfd849c96842e88c01d25b2c\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://8df1167e9def35ced4a620e3fa1e6d148bc7c1fb995378bf12dabef250b3be65\",\"dweb:/ipfs/QmZJJchWvzUeMb68VPHFGnMXBx7aMhK5GqJy8ECDx2rf58\"]}},\"version\":1}",
+  "bytecode": "0x608060405234801561001057600080fd5b50610276806100206000396000f3fe60806040526004361061004a5760003560e01c80631192fe621461004f578063919840ad14610064578063a9cc471814610087578063b69ef8a81461009c578063e5c19b2d146100b2575b600080fd5b61006261005d3660046101de565b6100c5565b005b34801561007057600080fd5b506000545b60405190815260200160405180910390f35b34801561009357600080fd5b506100626101aa565b3480156100a857600080fd5b5061007560015481565b6100626100c036600461020e565b600055565b60405163082e0aa360e31b81526080600480830191909152600e60848301526d119a5c9cdd0818dbdb9d1c9858dd60921b60a483015260c06024830152601460c483015273687474703a2f2f6c6f63616c686f73742f61706960601b60e4830152600160448301526101006064830152610104820152630c4dee8d60e31b61012482015281906001600160a01b0382169063417055189034906101440160206040518083038185885af1158015610180573d6000803e3d6000fd5b50505050506040513d601f19601f820116820180604052508101906101a59190610227565b505050565b60405162461bcd60e51b815260206004820152600560248201526432b93937b960d91b604482015260640160405180910390fd5b6000602082840312156101f057600080fd5b81356001600160a01b038116811461020757600080fd5b9392505050565b60006020828403121561022057600080fd5b5035919050565b60006020828403121561023957600080fd5b505191905056fea2646970667358221220e66553adedfbf6a7547bf6689c5c478faedcedbfc46e5ff1c63bd5d16dabe1ea64736f6c63430008120033",
+  "deployedBytecode": "0x60806040526004361061004a5760003560e01c80631192fe621461004f578063919840ad14610064578063a9cc471814610087578063b69ef8a81461009c578063e5c19b2d146100b2575b600080fd5b61006261005d3660046101de565b6100c5565b005b34801561007057600080fd5b506000545b60405190815260200160405180910390f35b34801561009357600080fd5b506100626101aa565b3480156100a857600080fd5b5061007560015481565b6100626100c036600461020e565b600055565b60405163082e0aa360e31b81526080600480830191909152600e60848301526d119a5c9cdd0818dbdb9d1c9858dd60921b60a483015260c06024830152601460c483015273687474703a2f2f6c6f63616c686f73742f61706960601b60e4830152600160448301526101006064830152610104820152630c4dee8d60e31b61012482015281906001600160a01b0382169063417055189034906101440160206040518083038185885af1158015610180573d6000803e3d6000fd5b50505050506040513d601f19601f820116820180604052508101906101a59190610227565b505050565b60405162461bcd60e51b815260206004820152600560248201526432b93937b960d91b604482015260640160405180910390fd5b6000602082840312156101f057600080fd5b81356001600160a01b038116811461020757600080fd5b9392505050565b60006020828403121561022057600080fd5b5035919050565b60006020828403121561023957600080fd5b505191905056fea2646970667358221220e66553adedfbf6a7547bf6689c5c478faedcedbfc46e5ff1c63bd5d16dabe1ea64736f6c63430008120033",
   "immutableReferences": {},
   "generatedSources": [],
   "deployedGeneratedSources": [
@@ -1544,15 +1544,15 @@
   "sourceMap": "99:605:26:-:0;;;;;;;;;;;;;;;;;;;",
   "deployedSourceMap": "99:605:26:-:0;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;399:303;;;;;;:::i;:::-;;:::i;:::-;;242:75;;;;;;;;;;-1:-1:-1;282:3:26;304:6;242:75;;;457:25:32;;;445:2;430:18;242:75:26;;;;;;;323:70;;;;;;;;;;;;;:::i;143:22::-;;;;;;;;;;;;;;;;172:64;;;;;;:::i;:::-;219:6;:10;172:64;399:303;551:144;;-1:-1:-1;;;551:144:26;;1285:3:32;551:144:26;;;;1267:22:32;;;;1326:2;1305:19;;;1298:31;-1:-1:-1;;;1345:19:32;;;1338:45;1421:3;1399:20;;;1392:33;1462:2;1441:19;;;1434:31;-1:-1:-1;;;1481:19:32;;;1474:51;661:4:26;1563:18:32;;;1556:50;1544:3;1622:18;;;1615:30;1661:18;;;1654:29;-1:-1:-1;;;1699:19:32;;;1692:35;530:10:26;;-1:-1:-1;;;;;551:12:26;;;;;571:9;;1744:19:32;;551:144:26;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;:::i;:::-;;466:236;399:303;:::o;323:70::-;363:23;;-1:-1:-1;;;363:23:26;;2165:2:32;363:23:26;;;2147:21:32;2204:1;2184:18;;;2177:29;-1:-1:-1;;;2222:18:32;;;2215:35;2267:18;;363:23:26;;;;;;;14:294:32;81:6;134:2;122:9;113:7;109:23;105:32;102:52;;;150:1;147;140:12;102:52;176:23;;-1:-1:-1;;;;;228:31:32;;218:42;;208:70;;274:1;271;264:12;208:70;297:5;14:294;-1:-1:-1;;;14:294:32:o;675:179::-;733:6;786:2;774:9;765:7;761:23;757:32;754:52;;;802:1;799;792:12;754:52;-1:-1:-1;825:23:32;;675:179;-1:-1:-1;675:179:32:o;1774:184::-;1844:6;1897:2;1885:9;1876:7;1872:23;1868:32;1865:52;;;1913:1;1910;1903:12;1865:52;-1:-1:-1;1936:16:32;;1774:184;-1:-1:-1;1774:184:32:o",
   "source": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.18;\n\nimport \"./LiquidityBridgeContract.sol\";\n\ncontract Mock {\n    int private status;\n    uint256 public balance;\n\n    function set(int s) external payable {\n        status = s;\n    }\n\n    function check() external view returns (int) {\n        return status;\n    }\n\n    function fail() external pure {\n        require(false, \"error\");\n    }\n\n    function callRegister(address payable lbcAddress) external payable {\n        LiquidityBridgeContract lbc = LiquidityBridgeContract(lbcAddress);\n        lbc.register{value: msg.value}(\n            \"First contract\",\n            \"http://localhost/api\",\n            true,\n            \"both\"\n        );\n    }\n}\n",
-  "sourcePath": "/Users/guilhermesoares/WebstormProjects/Rootstock/liquidity-bridge-contract/contracts/Mock.sol",
+  "sourcePath": "/Users/luischavez/iov/liquidity-bridge-contract/contracts/Mock.sol",
   "ast": {
     "absolutePath": "project:/contracts/Mock.sol",
     "exportedSymbols": {
       "Bridge": [
-        3652
+        4173
       ],
       "BtcUtils": [
-        3228
+        3743
       ],
       "ContextUpgradeable": [
         767
@@ -1561,33 +1561,33 @@
         301
       ],
       "LiquidityBridgeContract": [
-        7377
+        7898
       ],
       "Mock": [
-        10289
+        10853
       ],
       "OpCodes": [
-        3249
+        3770
       ],
       "OwnableUpgradeable": [
         132
       ],
       "Quotes": [
-        10556
+        11120
       ],
       "ReentrancyGuardUpgradeable": [
         386
       ],
       "SignatureValidator": [
-        10898
+        11462
       ]
     },
-    "id": 10290,
+    "id": 10854,
     "license": "MIT",
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 10231,
+        "id": 10795,
         "literals": [
           "solidity",
           "^",
@@ -1600,11 +1600,11 @@
       {
         "absolutePath": "project:/contracts/LiquidityBridgeContract.sol",
         "file": "./LiquidityBridgeContract.sol",
-        "id": 10232,
+        "id": 10796,
         "nameLocation": "-1:-1:-1",
         "nodeType": "ImportDirective",
-        "scope": 10290,
-        "sourceUnit": 7378,
+        "scope": 10854,
+        "sourceUnit": 7899,
         "src": "58:39:26",
         "symbolAliases": [],
         "unitAlias": ""
@@ -1616,9 +1616,9 @@
         "contractDependencies": [],
         "contractKind": "contract",
         "fullyImplemented": true,
-        "id": 10289,
+        "id": 10853,
         "linearizedBaseContracts": [
-          10289
+          10853
         ],
         "name": "Mock",
         "nameLocation": "108:4:26",
@@ -1626,12 +1626,12 @@
         "nodes": [
           {
             "constant": false,
-            "id": 10234,
+            "id": 10798,
             "mutability": "mutable",
             "name": "status",
             "nameLocation": "131:6:26",
             "nodeType": "VariableDeclaration",
-            "scope": 10289,
+            "scope": 10853,
             "src": "119:18:26",
             "stateVariable": true,
             "storageLocation": "default",
@@ -1640,7 +1640,7 @@
               "typeString": "int256"
             },
             "typeName": {
-              "id": 10233,
+              "id": 10797,
               "name": "int",
               "nodeType": "ElementaryTypeName",
               "src": "119:3:26",
@@ -1654,12 +1654,12 @@
           {
             "constant": false,
             "functionSelector": "b69ef8a8",
-            "id": 10236,
+            "id": 10800,
             "mutability": "mutable",
             "name": "balance",
             "nameLocation": "158:7:26",
             "nodeType": "VariableDeclaration",
-            "scope": 10289,
+            "scope": 10853,
             "src": "143:22:26",
             "stateVariable": true,
             "storageLocation": "default",
@@ -1668,7 +1668,7 @@
               "typeString": "uint256"
             },
             "typeName": {
-              "id": 10235,
+              "id": 10799,
               "name": "uint256",
               "nodeType": "ElementaryTypeName",
               "src": "143:7:26",
@@ -1681,23 +1681,23 @@
           },
           {
             "body": {
-              "id": 10245,
+              "id": 10809,
               "nodeType": "Block",
               "src": "209:27:26",
               "statements": [
                 {
                   "expression": {
-                    "id": 10243,
+                    "id": 10807,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": false,
                     "lValueRequested": false,
                     "leftHandSide": {
-                      "id": 10241,
+                      "id": 10805,
                       "name": "status",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 10234,
+                      "referencedDeclaration": 10798,
                       "src": "219:6:26",
                       "typeDescriptions": {
                         "typeIdentifier": "t_int256",
@@ -1707,11 +1707,11 @@
                     "nodeType": "Assignment",
                     "operator": "=",
                     "rightHandSide": {
-                      "id": 10242,
+                      "id": 10806,
                       "name": "s",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 10238,
+                      "referencedDeclaration": 10802,
                       "src": "228:1:26",
                       "typeDescriptions": {
                         "typeIdentifier": "t_int256",
@@ -1724,14 +1724,14 @@
                       "typeString": "int256"
                     }
                   },
-                  "id": 10244,
+                  "id": 10808,
                   "nodeType": "ExpressionStatement",
                   "src": "219:10:26"
                 }
               ]
             },
             "functionSelector": "e5c19b2d",
-            "id": 10246,
+            "id": 10810,
             "implemented": true,
             "kind": "function",
             "modifiers": [],
@@ -1739,17 +1739,17 @@
             "nameLocation": "181:3:26",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 10239,
+              "id": 10803,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 10238,
+                  "id": 10802,
                   "mutability": "mutable",
                   "name": "s",
                   "nameLocation": "189:1:26",
                   "nodeType": "VariableDeclaration",
-                  "scope": 10246,
+                  "scope": 10810,
                   "src": "185:5:26",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -1758,7 +1758,7 @@
                     "typeString": "int256"
                   },
                   "typeName": {
-                    "id": 10237,
+                    "id": 10801,
                     "name": "int",
                     "nodeType": "ElementaryTypeName",
                     "src": "185:3:26",
@@ -1773,12 +1773,12 @@
               "src": "184:7:26"
             },
             "returnParameters": {
-              "id": 10240,
+              "id": 10804,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "209:0:26"
             },
-            "scope": 10289,
+            "scope": 10853,
             "src": "172:64:26",
             "stateMutability": "payable",
             "virtual": false,
@@ -1786,32 +1786,32 @@
           },
           {
             "body": {
-              "id": 10253,
+              "id": 10817,
               "nodeType": "Block",
               "src": "287:30:26",
               "statements": [
                 {
                   "expression": {
-                    "id": 10251,
+                    "id": 10815,
                     "name": "status",
                     "nodeType": "Identifier",
                     "overloadedDeclarations": [],
-                    "referencedDeclaration": 10234,
+                    "referencedDeclaration": 10798,
                     "src": "304:6:26",
                     "typeDescriptions": {
                       "typeIdentifier": "t_int256",
                       "typeString": "int256"
                     }
                   },
-                  "functionReturnParameters": 10250,
-                  "id": 10252,
+                  "functionReturnParameters": 10814,
+                  "id": 10816,
                   "nodeType": "Return",
                   "src": "297:13:26"
                 }
               ]
             },
             "functionSelector": "919840ad",
-            "id": 10254,
+            "id": 10818,
             "implemented": true,
             "kind": "function",
             "modifiers": [],
@@ -1819,23 +1819,23 @@
             "nameLocation": "251:5:26",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 10247,
+              "id": 10811,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "256:2:26"
             },
             "returnParameters": {
-              "id": 10250,
+              "id": 10814,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 10249,
+                  "id": 10813,
                   "mutability": "mutable",
                   "name": "",
                   "nameLocation": "-1:-1:-1",
                   "nodeType": "VariableDeclaration",
-                  "scope": 10254,
+                  "scope": 10818,
                   "src": "282:3:26",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -1844,7 +1844,7 @@
                     "typeString": "int256"
                   },
                   "typeName": {
-                    "id": 10248,
+                    "id": 10812,
                     "name": "int",
                     "nodeType": "ElementaryTypeName",
                     "src": "282:3:26",
@@ -1858,7 +1858,7 @@
               ],
               "src": "281:5:26"
             },
-            "scope": 10289,
+            "scope": 10853,
             "src": "242:75:26",
             "stateMutability": "view",
             "virtual": false,
@@ -1866,7 +1866,7 @@
           },
           {
             "body": {
-              "id": 10262,
+              "id": 10826,
               "nodeType": "Block",
               "src": "353:40:26",
               "statements": [
@@ -1875,7 +1875,7 @@
                     "arguments": [
                       {
                         "hexValue": "66616c7365",
-                        "id": 10258,
+                        "id": 10822,
                         "isConstant": false,
                         "isLValue": false,
                         "isPure": true,
@@ -1891,7 +1891,7 @@
                       },
                       {
                         "hexValue": "6572726f72",
-                        "id": 10259,
+                        "id": 10823,
                         "isConstant": false,
                         "isLValue": false,
                         "isPure": true,
@@ -1917,7 +1917,7 @@
                           "typeString": "literal_string \"error\""
                         }
                       ],
-                      "id": 10257,
+                      "id": 10821,
                       "name": "require",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [
@@ -1931,7 +1931,7 @@
                         "typeString": "function (bool,string memory) pure"
                       }
                     },
-                    "id": 10260,
+                    "id": 10824,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": false,
@@ -1947,14 +1947,14 @@
                       "typeString": "tuple()"
                     }
                   },
-                  "id": 10261,
+                  "id": 10825,
                   "nodeType": "ExpressionStatement",
                   "src": "363:23:26"
                 }
               ]
             },
             "functionSelector": "a9cc4718",
-            "id": 10263,
+            "id": 10827,
             "implemented": true,
             "kind": "function",
             "modifiers": [],
@@ -1962,18 +1962,18 @@
             "nameLocation": "332:4:26",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 10255,
+              "id": 10819,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "336:2:26"
             },
             "returnParameters": {
-              "id": 10256,
+              "id": 10820,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "353:0:26"
             },
-            "scope": 10289,
+            "scope": 10853,
             "src": "323:70:26",
             "stateMutability": "pure",
             "virtual": false,
@@ -1981,62 +1981,62 @@
           },
           {
             "body": {
-              "id": 10287,
+              "id": 10851,
               "nodeType": "Block",
               "src": "466:236:26",
               "statements": [
                 {
                   "assignments": [
-                    10270
+                    10834
                   ],
                   "declarations": [
                     {
                       "constant": false,
-                      "id": 10270,
+                      "id": 10834,
                       "mutability": "mutable",
                       "name": "lbc",
                       "nameLocation": "500:3:26",
                       "nodeType": "VariableDeclaration",
-                      "scope": 10287,
+                      "scope": 10851,
                       "src": "476:27:26",
                       "stateVariable": false,
                       "storageLocation": "default",
                       "typeDescriptions": {
-                        "typeIdentifier": "t_contract$_LiquidityBridgeContract_$7377",
+                        "typeIdentifier": "t_contract$_LiquidityBridgeContract_$7898",
                         "typeString": "contract LiquidityBridgeContract"
                       },
                       "typeName": {
-                        "id": 10269,
+                        "id": 10833,
                         "nodeType": "UserDefinedTypeName",
                         "pathNode": {
-                          "id": 10268,
+                          "id": 10832,
                           "name": "LiquidityBridgeContract",
                           "nameLocations": [
                             "476:23:26"
                           ],
                           "nodeType": "IdentifierPath",
-                          "referencedDeclaration": 7377,
+                          "referencedDeclaration": 7898,
                           "src": "476:23:26"
                         },
-                        "referencedDeclaration": 7377,
+                        "referencedDeclaration": 7898,
                         "src": "476:23:26",
                         "typeDescriptions": {
-                          "typeIdentifier": "t_contract$_LiquidityBridgeContract_$7377",
+                          "typeIdentifier": "t_contract$_LiquidityBridgeContract_$7898",
                           "typeString": "contract LiquidityBridgeContract"
                         }
                       },
                       "visibility": "internal"
                     }
                   ],
-                  "id": 10274,
+                  "id": 10838,
                   "initialValue": {
                     "arguments": [
                       {
-                        "id": 10272,
+                        "id": 10836,
                         "name": "lbcAddress",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 10265,
+                        "referencedDeclaration": 10829,
                         "src": "530:10:26",
                         "typeDescriptions": {
                           "typeIdentifier": "t_address_payable",
@@ -2051,18 +2051,18 @@
                           "typeString": "address payable"
                         }
                       ],
-                      "id": 10271,
+                      "id": 10835,
                       "name": "LiquidityBridgeContract",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 7377,
+                      "referencedDeclaration": 7898,
                       "src": "506:23:26",
                       "typeDescriptions": {
-                        "typeIdentifier": "t_type$_t_contract$_LiquidityBridgeContract_$7377_$",
+                        "typeIdentifier": "t_type$_t_contract$_LiquidityBridgeContract_$7898_$",
                         "typeString": "type(contract LiquidityBridgeContract)"
                       }
                     },
-                    "id": 10273,
+                    "id": 10837,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": false,
@@ -2074,7 +2074,7 @@
                     "src": "506:35:26",
                     "tryCall": false,
                     "typeDescriptions": {
-                      "typeIdentifier": "t_contract$_LiquidityBridgeContract_$7377",
+                      "typeIdentifier": "t_contract$_LiquidityBridgeContract_$7898",
                       "typeString": "contract LiquidityBridgeContract"
                     }
                   },
@@ -2086,7 +2086,7 @@
                     "arguments": [
                       {
                         "hexValue": "466972737420636f6e7472616374",
-                        "id": 10281,
+                        "id": 10845,
                         "isConstant": false,
                         "isLValue": false,
                         "isPure": true,
@@ -2102,7 +2102,7 @@
                       },
                       {
                         "hexValue": "687474703a2f2f6c6f63616c686f73742f617069",
-                        "id": 10282,
+                        "id": 10846,
                         "isConstant": false,
                         "isLValue": false,
                         "isPure": true,
@@ -2118,7 +2118,7 @@
                       },
                       {
                         "hexValue": "74727565",
-                        "id": 10283,
+                        "id": 10847,
                         "isConstant": false,
                         "isLValue": false,
                         "isPure": true,
@@ -2134,7 +2134,7 @@
                       },
                       {
                         "hexValue": "626f7468",
-                        "id": 10284,
+                        "id": 10848,
                         "isConstant": false,
                         "isLValue": false,
                         "isPure": true,
@@ -2188,18 +2188,18 @@
                           }
                         ],
                         "expression": {
-                          "id": 10275,
+                          "id": 10839,
                           "name": "lbc",
                           "nodeType": "Identifier",
                           "overloadedDeclarations": [],
-                          "referencedDeclaration": 10270,
+                          "referencedDeclaration": 10834,
                           "src": "551:3:26",
                           "typeDescriptions": {
-                            "typeIdentifier": "t_contract$_LiquidityBridgeContract_$7377",
+                            "typeIdentifier": "t_contract$_LiquidityBridgeContract_$7898",
                             "typeString": "contract LiquidityBridgeContract"
                           }
                         },
-                        "id": 10277,
+                        "id": 10841,
                         "isConstant": false,
                         "isLValue": false,
                         "isPure": false,
@@ -2207,14 +2207,14 @@
                         "memberLocation": "555:8:26",
                         "memberName": "register",
                         "nodeType": "MemberAccess",
-                        "referencedDeclaration": 5289,
+                        "referencedDeclaration": 5810,
                         "src": "551:12:26",
                         "typeDescriptions": {
                           "typeIdentifier": "t_function_external_payable$_t_string_memory_ptr_$_t_string_memory_ptr_$_t_bool_$_t_string_memory_ptr_$returns$_t_uint256_$",
                           "typeString": "function (string memory,string memory,bool,string memory) payable external returns (uint256)"
                         }
                       },
-                      "id": 10280,
+                      "id": 10844,
                       "isConstant": false,
                       "isLValue": false,
                       "isPure": false,
@@ -2226,7 +2226,7 @@
                       "options": [
                         {
                           "expression": {
-                            "id": 10278,
+                            "id": 10842,
                             "name": "msg",
                             "nodeType": "Identifier",
                             "overloadedDeclarations": [],
@@ -2237,7 +2237,7 @@
                               "typeString": "msg"
                             }
                           },
-                          "id": 10279,
+                          "id": 10843,
                           "isConstant": false,
                           "isLValue": false,
                           "isPure": false,
@@ -2258,7 +2258,7 @@
                         "typeString": "function (string memory,string memory,bool,string memory) payable external returns (uint256)"
                       }
                     },
-                    "id": 10285,
+                    "id": 10849,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": false,
@@ -2274,14 +2274,14 @@
                       "typeString": "uint256"
                     }
                   },
-                  "id": 10286,
+                  "id": 10850,
                   "nodeType": "ExpressionStatement",
                   "src": "551:144:26"
                 }
               ]
             },
             "functionSelector": "1192fe62",
-            "id": 10288,
+            "id": 10852,
             "implemented": true,
             "kind": "function",
             "modifiers": [],
@@ -2289,17 +2289,17 @@
             "nameLocation": "408:12:26",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 10266,
+              "id": 10830,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 10265,
+                  "id": 10829,
                   "mutability": "mutable",
                   "name": "lbcAddress",
                   "nameLocation": "437:10:26",
                   "nodeType": "VariableDeclaration",
-                  "scope": 10288,
+                  "scope": 10852,
                   "src": "421:26:26",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -2308,7 +2308,7 @@
                     "typeString": "address payable"
                   },
                   "typeName": {
-                    "id": 10264,
+                    "id": 10828,
                     "name": "address",
                     "nodeType": "ElementaryTypeName",
                     "src": "421:15:26",
@@ -2324,19 +2324,19 @@
               "src": "420:28:26"
             },
             "returnParameters": {
-              "id": 10267,
+              "id": 10831,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "466:0:26"
             },
-            "scope": 10289,
+            "scope": 10853,
             "src": "399:303:26",
             "stateMutability": "payable",
             "virtual": false,
             "visibility": "external"
           }
         ],
-        "scope": 10290,
+        "scope": 10854,
         "src": "99:605:26",
         "usedErrors": []
       }
@@ -2349,7 +2349,7 @@
   },
   "networks": {},
   "schemaVersion": "3.4.13",
-  "updatedAt": "2024-08-08T08:54:03.271Z",
+  "updatedAt": "2024-11-26T16:54:05.268Z",
   "networkType": "ethereum",
   "devdoc": {
     "kind": "dev",
