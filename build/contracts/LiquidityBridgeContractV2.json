@@ -86062,7 +86062,7 @@
         "BtcUtils": "0x48841b09CD720355F8EE5164DEeFbB30535d825a"
       },
       "address": "0xAA9cAf1e3967600578727F975F283446A3Da6612",
-      "transactionHash": "0x98019ccb62d5536a786ab4ec83b5b2ab52294be811c85238bf11c1ed47ce3218"
+      "transactionHash": "0xc30f5ad3bd070b9d53ef5b2d0a71c599d21a930df398db9e0385b6db99e137b7"
     },
     "31": {
       "events": {},
@@ -86076,7 +86076,7 @@
     }
   },
   "schemaVersion": "3.4.13",
-  "updatedAt": "2024-11-26T16:55:34.896Z",
+  "updatedAt": "2024-11-27T16:13:03.185Z",
   "networkType": "ethereum",
   "devdoc": {
     "events": {
