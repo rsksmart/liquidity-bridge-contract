@@ -43,7 +43,7 @@
     "solidity-coverage": "^0.8.2"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^4.8.0",
+    "@openzeppelin/contracts": "^5.1.0",
     "@openzeppelin/contracts-upgradeable": "^4.8.2",
     "@rsksmart/btc-transaction-solidity-helper": "^0.1.1",
     "@truffle/hdwallet-provider": "^2.1.3",
