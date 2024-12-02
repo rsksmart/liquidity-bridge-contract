@@ -141,14 +141,18 @@ Registers msg.sender as a liquidity provider with msg.value as collateral
     The registered provider ID
 
 ### **getProviders**
-    function getProviders(
-        uint[] memory providerIds
-    ) external view returns (LiquidityProvider[] memory)
+    function getProviders() external view returns (LiquidityProvider[] memory)
 Retrieves the information of a group of liquidity providers
-#### Parametets
-    * providerIds: IDs of the providers to fetch
 #### Return value
     Array with the information of the requested LPs
+
+### **getProvider**
+    function getProvider(address providerAddress) external view returns (LiquidityProvider memory)
+Retrieves the information of a specific liquidity provider, regardless if it has resigned or has been disabled
+#### Parameters
+    * providerAddress: address of the provider to fetch
+#### Return value
+    Information of the requested LP
 
 ### **withdrawCollateral**
     function withdrawCollateral() external
