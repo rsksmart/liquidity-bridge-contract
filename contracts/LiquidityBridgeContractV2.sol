@@ -33,6 +33,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
     int16 constant public BRIDGE_GENERIC_ERROR = - 900;
     uint constant public PAY_TO_ADDRESS_OUTPUT = 0;
     uint constant public QUOTE_HASH_OUTPUT = 1;
+    uint constant public SAT_TO_WEI_CONVERSION = 10**10;
 
     struct Registry {
         uint32 timestamp;
@@ -707,7 +708,12 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
             ) >= int(uint256(quote.transferConfirmations)),
             "LBC049"
         );
-        require(quote.value <= outputs[PAY_TO_ADDRESS_OUTPUT].value * (10**10), "LBC067"); // satoshi to wei
+        uint requiredAmount = quote.value;
+        if (quote.value > SAT_TO_WEI_CONVERSION && (quote.value % SAT_TO_WEI_CONVERSION) != 0) {
+            requiredAmount = quote.value - (quote.value % SAT_TO_WEI_CONVERSION);
+        }
+        uint paidAmount = outputs[PAY_TO_ADDRESS_OUTPUT].value * SAT_TO_WEI_CONVERSION;
+        require(requiredAmount <= paidAmount, "LBC067");
         bytes memory btcTxDestination = BtcUtils.outputScriptToAddress(
             outputs[PAY_TO_ADDRESS_OUTPUT].pkScript,
             mainnet

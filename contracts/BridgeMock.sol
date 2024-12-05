@@ -11,14 +11,14 @@ contract BridgeMock is Bridge {
 
     receive() external payable override {}
     function registerFastBridgeBtcTransaction(
-        bytes memory , 
-        uint256 , 
-        bytes memory, 
-        bytes32 derivationArgumentsHash, 
-        bytes memory, 
+        bytes memory ,
+        uint256 ,
+        bytes memory,
+        bytes32 derivationArgumentsHash,
+        bytes memory,
         address payable liquidityBridgeContractAddress,
-        bytes memory , 
-        bool 
+        bytes memory ,
+        bool
     ) external override returns (int256) {
         uint256 amount = amounts[derivationArgumentsHash];
         amounts[derivationArgumentsHash] = 0;
@@ -115,7 +115,7 @@ contract BridgeMock is Bridge {
     function updateCollections (  ) external override {}
     function getMinimumLockTxValue (  ) external pure override returns (int256) {return int256(2);}
     function getBtcTransactionConfirmations ( bytes32 , bytes32, uint256 , bytes32[] calldata  )
-        external pure override returns (int256) {return int256(0);}
+        external pure override returns (int256) {return int256(2);}
     function getLockingCap (  ) external pure override returns (int256) {return int256(0);}
     function increaseLockingCap ( int256 ) external pure override returns (bool) {return false;}
     function registerBtcCoinbaseTransaction ( bytes calldata btcTxSerialized, bytes32 blockHash, bytes
@@ -135,5 +135,5 @@ contract BridgeMock is Bridge {
 
     function getBtcBlockchainParentBlockHeaderByHash ( bytes32) external pure override returns
         (bytes memory) {bytes memory b; return b;}
-   
+
 }
