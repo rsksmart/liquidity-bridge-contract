@@ -35,6 +35,3 @@ exports.deploy = async (name, network, act) => {
     }
     return this.read();
 }
-
-
-
