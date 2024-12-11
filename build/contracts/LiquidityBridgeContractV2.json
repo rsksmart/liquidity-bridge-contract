@@ -86176,16 +86176,16 @@
     "31": {
       "events": {},
       "links": {
-        "SignatureValidator": "0xe90bAe63CB58f7da3915C8478aD1823BC8A3BEb5",
-        "QuotesV2": "0xbdD04fED2A63D79b3342c2d8cf5478b96a2A1EB5",
-        "BtcUtils": "0x16007b17F644CD4163A048853B9493B9E1887974"
+        "SignatureValidator": "0xA66B2938b6cC837821cF4Be27F7016951047E03D",
+        "QuotesV2": "0xC5173CAE944b9CB527B386A51c7353fEf0d4794c",
+        "BtcUtils": "0x147F172c8a7434D10FDac6E2c8045116683f277B"
       },
-      "address": "0x18D8212bC00106b93070123f325021C723D503a3",
-      "transactionHash": "0x46d1b5ee38ff77d8a4a78acb9801cbb4dfb3de9ea13e66b5166a37e1e29aab45"
+      "address": "0xc2A630c053D12D63d32b025082f6Ba268db18300",
+      "transactionHash": "0xd56aa72d399d6427c35edc2763972feb81d9cc02bdd444a9cd62d5d8f36c288d"
     }
   },
   "schemaVersion": "3.4.13",
-  "updatedAt": "2024-12-02T15:49:23.645Z",
+  "updatedAt": "2024-12-10T18:55:01.658Z",
   "networkType": "ethereum",
   "devdoc": {
     "events": {
