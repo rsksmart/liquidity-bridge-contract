@@ -11,7 +11,7 @@ describe("LiquidityBridgeContract deployment process should", function () {
         proxyAddress = deployed.address;
         const lbc = await ethers.getContractAt('LiquidityBridgeContract', deployed.address);
         const result = await lbc.queryFilter(lbc.getEvent('Initialized'));
-        expect(deployed.deployed).to.be.true;
+        expect(deployed.deployed).to.be.eq(true);
         expect(result.length).length.equal(1);
     });
     it("upgrade proxy to LiquidityBridgeContractV2", async () => {
