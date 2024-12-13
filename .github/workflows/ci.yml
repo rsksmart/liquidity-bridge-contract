@@ -5,9 +5,9 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ master, Stable-Test, QA-Test ]
+    branches: [master, Stable-Test, QA-Test]
   pull_request:
-    branches: [ master, Stable-Test, QA-Test ]
+    branches: [master, Stable-Test, QA-Test]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -30,7 +30,7 @@ jobs:
       - name: Use Node.js 19.6.0
         uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v4.0.4
         with:
-          node-version: '19.6.0'
+          node-version: "19.6.0"
 
       - name: Install truffle
         run: npm install -g truffle

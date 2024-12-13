@@ -1,4 +1,5 @@
 # Liquidity Bridge Contract
+
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/rsksmart/liquidity-bridge-contract/badge)](https://scorecard.dev/viewer/?uri=github.com/rsksmart/liquidity-bridge-contract)
 
 The Liquidity Bridge Contract (LBC) manages the interaction between users and liquidity providers (LP) in order to achieve fast peg-ins and peg-outs.
@@ -10,7 +11,7 @@ The Liquidity Bridge Contract (LBC) manages the interaction between users and li
 3. After a number of confirmations, the LP performs a call in RSK on behalf of the user advancing the funds
 4. After the deposit achieves a number of additional confirmations, the Bridge contract refunds the LBC in RBTC. The LBC then pays the LP for the service.
 
-Note that the call performed by the LP can be a transfer of value to an account or a call to a contract method. This is specified by the ``value`` and ``data`` arguments of the call.
+Note that the call performed by the LP can be a transfer of value to an account or a call to a contract method. This is specified by the `value` and `data` arguments of the call.
 
 ## PegOut process
 
@@ -20,11 +21,12 @@ Note that the call performed by the LP can be a transfer of value to an account 
 4. After the deposit achieves a number of additional confirmations, the LP calls refundPegout function in LBC so the contract refunds the LP in RBTC and pay him for the service
 5. Once the LP has been refunded with RBTC he sends that RBTC to the Bridge contract to convert it to BTC and get the liquidity back
 
-
 ## Quote
+
 The quote structure defines the conditions of a service, and acts as a contract between users and LPs.
 
 ### PegIn Quote
+
 PegIn Quotes consist of:
 
     PeginQuote {
@@ -83,100 +85,149 @@ PegOut Quotes consist of:
     ) returns bool success
 
 This method performs a call on behalf of a user.
+
 #### Parameters
+
     * quote: The quote that identifies the service
+
 #### Return value
+
     Boolean indicating whether the call was successful
 
 ### **registerPegIn**
 
     function registerPegIn(
-		Quote quote,
+    	Quote quote,
         bytes signature,
         bytes btcRawTransaction,
         bytes partialMerkleTree,
         uint256 height
-	) returns int executionStatus
+    ) returns int executionStatus
 
 This method requests the Bridge contract on RSK a refund for the service.
+
 #### Parameters
+
     * quote The quote of the service
     * signature The signature of the quote
     * btcRawTransaction The peg-in transaction
     * partialMerkleTree The merkle tree path that proves transaction inclusion
     * height The block that contains the peg-in transaction
+
 #### Return value
+
     This method returns the amount transferred to the contract or an [error code](https://github.com/rsksmart/RSKIPs/blob/fast-bridge-alternative/IPs/RSKIP176.md#error-codes).
 
 ### **isOperational**
+
     function isOperational(address addr) external view returns (bool)
+
 Checks whether a liquidity provider can deliver a pegin service
+
 #### Parametets
+
     * addr: address of the liquidity provider
+
 #### Return value
+
     Whether the liquidity provider is registered and has enough locked collateral
 
 ### **isOperationalForPegout**
+
     function isOperationalForPegout(address addr) external view returns (bool)
+
 Checks whether a liquidity provider can deliver a pegout service
+
 #### Parametets
+
     * addr: address of the liquidity provider
+
 #### Return value
+
     Whether the liquidity provider is registered and has enough locked pegout collateral
 
 ### **register**
+
     function register(
             string memory _name,
             string memory _apiBaseUrl,
             bool _status,
             string memory _providerType
         ) external payable onlyEoa returns (uint)
+
 Registers msg.sender as a liquidity provider with msg.value as collateral
+
 #### Parametets
+
     * name: name of the LP
     * apiBaseUrl: url of this LP's Liquidity Provider Server instance
     * status: if the LP is active
     * providerType: if the LP allows pegin operations, pegout operations or both
+
 #### Return value
+
     The registered provider ID
 
 ### **getProviders**
+
     function getProviders() external view returns (LiquidityProvider[] memory)
+
 Retrieves the information of a group of liquidity providers
+
 #### Return value
+
     Array with the information of the requested LPs
 
 ### **getProvider**
+
     function getProvider(address providerAddress) external view returns (LiquidityProvider memory)
+
 Retrieves the information of a specific liquidity provider, regardless if it has resigned or has been disabled
+
 #### Parameters
+
     * providerAddress: address of the provider to fetch
+
 #### Return value
+
     Information of the requested LP
 
 ### **withdrawCollateral**
+
     function withdrawCollateral() external
+
 Used to withdraw the locked collateral. It is only for LPs who have resigned
 
 ### **resign**
+
     function resign() external
+
 Used to resign as a liquidity provider
 
 ### **addCollateral**
+
     function addCollateral() external payable
+
 Increases the amount of collateral of the sender
 
 ### **addPegoutCollateral**
+
     function addPegoutCollateral() external payable
+
 Increases the amount of pegout collateral of the sender
 
 ### **withdraw**
+
     function withdraw(uint256 amount) external
+
 Used by LPs to withdraw funds
+
 #### Parameters
+
     * amount: the amount to withdraw
 
 ### **refundPegOut**
+
     function refundPegOut(
         bytes32 quoteHash,
         bytes calldata btcTx,
@@ -184,8 +235,11 @@ Used by LPs to withdraw funds
         uint256 partialMerkleTree,
         bytes32[] memory merkleBranchHashes
     ) public
+
 Validates that the LP made the deposit of the service and applies the corresponding punishments if any apply
+
 #### Parametets
+
     * quoteHash: the hash of the pegout quote representing the service
     * btcTx: raw btc transaction
     * btcBlockHeaderHash: header of the block where the transaction was included
@@ -193,109 +247,150 @@ Validates that the LP made the deposit of the service and applies the correspond
     * merkleBranchHashes: merkleBranchHashes used by the bridge to validate transaction
 
 ### **refundUserPegOut**
+
     function refundUserPegOut(
         bytes32 quoteHash
     ) public
+
 Allows user to get his money back if LP didn't made the BTC deposit
+
 #### Parametets
+
     * quote: the hash of the pegout quote to be refunded
 
 ### **depositPegout**
+
     function depositPegout(
         PegOutQuote memory quote,
         bytes memory signature
     ) external payable
+
 Used by the user to deposit the payment of a pegout service
+
 #### Parametets
+
     * quote: the accepted pegout quote
     * signature: signature of the LP expressing commitment to pay for the quote
 
 ### **setProviderStatus**
+
     function setProviderStatus(
         uint _providerId,
         bool status
     ) external
+
 Enables or disables an specific liquidity provider
+
 #### Parametets
+
     * _providerId: the id of the provider to modify its status
     * status: the new status
 
 ### **updateProvider**
+
     function updateProvider(
         string memory _name,
         string memory _url
     ) external
+
 Updates the stored information about the LP (msg.sender)
+
 #### Parametets
+
     * _name: the new provider name
     * _url: the new LPS url
 
 ### **isPegOutQuoteCompleted**
+
     function isPegOutQuoteCompleted(
         bytes32 quoteHash
     ) external view returns (bool)
+
 Returns whether a given quote has been completed (refunded to the LP or the user) or not
+
 #### Parametets
+
     * quoteHash: hash of the pegout quote
 
 ### **deposit**
+
     function deposit() external payable
+
 Allows the LP to increase its balance by the msg.value amount
 
 ## **validatePeginDepositAddress**
+
     validatePeginDepositAddress(
         PeginQuote memory quote,
         bytes memory depositAddress
     ) external view returns (bool)
+
 Validates if a given BTC address is the derivate deposit address for a pegin quote
-    * quote: the quote of the pegin service
-    * depositAddress: the bytes of the deposit address to validate (should include the 4 bytes of the base58check checksum)
+_ quote: the quote of the pegin service
+_ depositAddress: the bytes of the deposit address to validate (should include the 4 bytes of the base58check checksum)
+
 #### Return value
+
     Whether the address is the correct deposit address for that quote or not
 
 ## **hashQuote**
+
     hashQuote(
         PeginQuote memory quote
     ) public view returns (bytes32)
-Calculates hash of a pegin quote. Besides calculation, this function also validates the quote.
-    * quote: the pegin quote to hash
+
+Calculates hash of a pegin quote. Besides calculation, this function also validates the quote. \* quote: the pegin quote to hash
+
 #### Return value
+
     The 32 bytes of the quote hash
 
 ## **hashPegoutQuote**
+
     hashPegoutQuote(
         PegOutQuote memory quote
     ) public view returns (bytes32)
-Calculates hash of a pegout quote. Besides calculation, this function also validates the quote.
-    * quote: the pegout quote to hash
+
+Calculates hash of a pegout quote. Besides calculation, this function also validates the quote. \* quote: the pegout quote to hash
+
 #### Return value
+
     The 32 bytes of the quote hash
 
 ## **getBalance**
+
     getBalance(
         address addr
     ) external view returns (uint256)
-Returns the amount of funds of a liquidity provider
-    * addr: The address of the liquidity provider
+
+Returns the amount of funds of a liquidity provider \* addr: The address of the liquidity provider
+
 #### Return value
+
     The balance of the liquidity provider
 
 ## **getCollateral**
+
     getCollateral(
         address addr
     ) external view returns (uint256)
-Returns the amount of pegin collateral locked by a liquidity provider
-    * addr: The address of the liquidity provider
+
+Returns the amount of pegin collateral locked by a liquidity provider \* addr: The address of the liquidity provider
+
 #### Return value
+
     The amount of locked collateral for pegin operations
 
 ## **getPegoutCollateral**
+
     getPegoutCollateral(
         address addr
     ) external view returns (uint256)
-Returns the amount of pegout collateral locked by a liquidity provider
-    * addr: The address of the liquidity provider
+
+Returns the amount of pegout collateral locked by a liquidity provider \* addr: The address of the liquidity provider
+
 #### Return value
+
     The amount of locked collateral for pegout operations
 
 ### Deploy and Upgrade
@@ -304,4 +399,5 @@ After the first dploy we don't have to change anymore the LiquidityBridgeContrac
 With that we can easily get back on any mistake and swicth version.
 
 #### Alphanet support
+
 If you're working in your own alphanet you must have an environment variable called `ALPHANET_RPC_URL` with the RPC server url so truffle can run all the necessary scripts.
