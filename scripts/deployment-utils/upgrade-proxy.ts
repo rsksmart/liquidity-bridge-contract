@@ -36,6 +36,15 @@ async function deployUpgradeLibraries(
   };
 }
 
+/**
+ * This function upgrades the LiquidityBridgeContract proxy contract to the LiquidityBridgeContractV2 version.
+ * it upgrades the proxy whose address is under the key "LiquidityBridgeContract" in the addresses.json file.
+ * It will also deploy and link the required libraries.
+ *
+ * @param network The network to deploy the contract to.
+ * @param opts Options object, currently only has a verbose flag.
+ *
+ */
 export async function upgradeLbcProxy(
   network: string,
   opts = { verbose: true }

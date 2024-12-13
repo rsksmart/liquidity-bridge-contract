@@ -86,6 +86,16 @@ function getInitParameters(
   }
 }
 
+/**
+ * This function deploys the LiquidityBridgeContract proxy and initializes it. This includes deploying
+ * the required libraries and linking them to the contract. The parameter values vary depending on the
+ * network and can be checked at {@link getInitParameters}.
+ *
+ * @param network The network to deploy the contract to.
+ * @param opts Options object, currently only has a verbose flag.
+ *
+ * @returns The address of the deployed proxy.
+ */
 export async function deployLbcProxy(
   network: string,
   opts = { verbose: true }
