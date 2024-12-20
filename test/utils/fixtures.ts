@@ -7,6 +7,17 @@ import { LP_COLLATERAL } from "./constants";
 
 /**
  * Fixture that deploys the LBC contract and upgrades it to the latest version.
+ * @returns { {
+ *   lbc: LiquidityBridgeContractV2,
+ *   lbcOwner: HardhatEthersSigner,
+ *   accounts: HardhatEthersSigner[],
+ *   bridgeMock: BridgeMock
+ * } }
+ * The returned object contains the following:
+ * - lbc: The LiquidityBridgeContractV2 contract instance. Connected to the account 0 of the hardhat network.
+ * - lbcOwner: The account 0 of the hardhat network.
+ * - accounts: The accounts 1 to 19 of the hardhat network.
+ * - bridgeMock: The BridgeMock contract instance. Connected to the account 0 of the hardhat network.
  */
 export async function deployLbcFixture() {
   const network = hre.network.name;
@@ -28,7 +39,24 @@ export async function deployLbcFixture() {
 }
 
 /**
- * Fixture that deploys the LBC contract and registers the last 3 ethers signers as liquidity providers.
+ * Fixture that deploys the LBC contract and registers the last 3 hardhat signers as liquidity providers.
+ * @returns { {
+ *  lbc: LiquidityBridgeContractV2,
+ *  liquidityProviders: {
+ *  signer: HardhatEthersSigner,
+ *    registerParams: Parameters<LiquidityBridgeContractV2["register"]>
+ *  }[],
+ *  lbcOwner: HardhatEthersSigner,
+ *  bridgeMock: BridgeMock,
+ *  accounts: HardhatEthersSigner[]
+ * } }
+ * The returned object contains the following:
+ * - lbc: The LiquidityBridgeContractV2 contract instance. Connected to the account 0 of the hardhat network.
+ * - liquidityProviders: An array of objects containing the signer and the parameters to register as a liquidity provider.
+ *   the signers of the liquidity providers are the last 3 signers of the hardhat network accounts.
+ * - lbcOwner: The account 0 of the hardhat network.
+ * - bridgeMock: The BridgeMock contract instance. Connected to the account 0 of the hardhat network.
+ * - accounts: The accounts 1 to 16 of the hardhat network.
  */
 export async function deployLbcWithProvidersFixture() {
   const network = hre.network.name;

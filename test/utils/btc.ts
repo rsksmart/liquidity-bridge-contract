@@ -39,6 +39,15 @@ export function getTestBtcAddress(addressType: BtcAddressType): BytesLike {
   }
 }
 
+/**
+ * Generates a raw BTC transaction paying to the address specified in the given quote.
+ * The transaction will have two outputs, one for the specified amount and one null data
+ * script output for the quote hash.
+ * @param lbc The LBC contract instance to hash the quote
+ * @param quote The pegout quote
+ * @param scriptType The type of the output script to generate
+ * @returns { Promise<string> } The raw BTC transaction
+ */
 export async function generateRawTx(
   lbc: LiquidityBridgeContractV2,
   quote: QuotesV2.PegOutQuoteStruct,
@@ -75,6 +84,9 @@ export async function generateRawTx(
   return btcTx;
 }
 
+/**
+ * Use this function to get hardcoded values to use as merkle proofs in tests
+ */
 export function getTestMerkleProof() {
   const blockHeaderHash =
     "0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326";

@@ -88,6 +88,11 @@ export function getTestPegoutQuote(args: {
   return quote;
 }
 
+/**
+ * Get the total value of a pegin or pegout quote
+ * @param quote The quote to get the total value of
+ * @returns { bigint } The total value of the quote
+ */
 export function totalValue(
   quote: QuotesV2.PeginQuoteStruct | QuotesV2.PegOutQuoteStruct
 ): bigint {
@@ -99,6 +104,14 @@ export function totalValue(
   );
 }
 
+/**
+ * Get mock bitcoin block headers for the given quote
+ * @param args.quote The quote to get the block headers for
+ * @param args.firstConfirmationSeconds The time in seconds for the first confirmation
+ * @param args.nConfirmationSeconds The time in seconds for the n-th confirmation
+ * @returns { firstConfirmationHeader, nConfirmationHeader } The block headers for the first and n-th confirmations.
+ * Their only populated field will be the block timestamp
+ */
 export function getBtcPaymentBlockHeaders(args: {
   quote: QuotesV2.PeginQuoteStruct | QuotesV2.PegOutQuoteStruct;
   firstConfirmationSeconds: number;
