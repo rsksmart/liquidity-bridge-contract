@@ -70,7 +70,7 @@ export async function createBalanceUpdateAssertion(args: {
   source: LiquidityBridgeContractV2 | Provider;
   address: string;
   message: string;
-}): Promise<(balanceUpdate: bigint) => void> {
+}): Promise<(balanceUpdate: bigint) => Promise<void>> {
   const { source, address, message } = args;
   const balanceNow = await source.getBalance(address);
   return async function (balanceUpdate: BigNumberish) {

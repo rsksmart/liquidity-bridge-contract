@@ -117,12 +117,12 @@ describe("LiquidityBridgeContractV2 registration process should", () => {
     const tx = await lbc.register(...REGISTER_LP_PARAMS);
     await tx.wait();
 
-    mockContract = await mockContract.connect(lpSigner);
+    mockContract = mockContract.connect(lpSigner);
     await expect(
       mockContract.callRegister(lbcAddress, { value: LP_COLLATERAL })
     ).to.revertedWith("LBC003");
 
-    mockContract = await mockContract.connect(notLpSigner);
+    mockContract = mockContract.connect(notLpSigner);
     await expect(
       mockContract.callRegister(lbcAddress, { value: LP_COLLATERAL })
     ).to.revertedWith("LBC003");

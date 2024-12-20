@@ -111,7 +111,7 @@ export async function deployLbcWithProvidersFixture() {
   ];
 
   for (const provider of liquidityProviders) {
-    lbc = await lbc.connect(provider.signer);
+    lbc = lbc.connect(provider.signer);
     const registerTx = await lbc.register(...provider.registerParams);
     await registerTx.wait();
   }

@@ -639,7 +639,7 @@ describe("LiquidityBridgeContractV2 pegin process should", () => {
     const lp = fixtureResult.liquidityProviders[0];
     const lbc = fixtureResult.lbc.connect(lp.signer);
     const bridgeMock = fixtureResult.bridgeMock;
-    type testCase = {
+    interface testCase {
       quote: QuotesV2.PeginQuoteStruct;
       quoteHash: string;
       signature: string;
@@ -647,7 +647,7 @@ describe("LiquidityBridgeContractV2 pegin process should", () => {
       pmt: string;
       height: number;
       refundAmount: string;
-    };
+    }
     const cases: testCase[] = [
       {
         quote: {

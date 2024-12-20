@@ -750,7 +750,7 @@ describe("LiquidityBridgeContractV2 pegout process should", () => {
   });
 
   it("parse raw btc transaction p2pkh script", async () => {
-    const btcUtilsAddress = await read()[hre.network.name]["BtcUtils"];
+    const btcUtilsAddress = read()[hre.network.name].BtcUtils;
     const BtcUtils = await ethers.getContractAt(
       "BtcUtils",
       btcUtilsAddress.address!
@@ -981,7 +981,7 @@ describe("LiquidityBridgeContractV2 pegout process should", () => {
   });
 
   it("parse btc raw transaction outputs correctly", async () => {
-    const btcUtilsAddress = await read()[hre.network.name]["BtcUtils"];
+    const btcUtilsAddress = read()[hre.network.name].BtcUtils;
     const BtcUtils = await ethers.getContractAt(
       "BtcUtils",
       btcUtilsAddress.address!

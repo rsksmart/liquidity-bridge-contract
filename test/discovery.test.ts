@@ -216,8 +216,9 @@ describe("LiquidityBridgeContractV2 provider discovery should", () => {
     for (const lp of newLps) {
       lbc = lbc.connect(lp.signer);
       const params: RegisterLpParams = [...REGISTER_LP_PARAMS];
-      params[0] = `LP account ${lp.accountIdx}`;
-      params[1] = `${params[1]}-account${lp.accountIdx}`;
+      params[0] = `LP account ${lp.accountIdx.toString()}`;
+      // eslint-disable-next-line @typescript-eslint/no-base-to-string
+      params[1] = `${params[1].toString()}-account${lp.accountIdx.toString()}`;
       const registerTx = await lbc.register(...params);
       await expect(registerTx).to.emit(lbc, "Register");
     }
