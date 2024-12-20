@@ -39,10 +39,15 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-      - name: Lint test and scripts
-        run: npm run lint:ts
       - name: Lint contracts
         run: npm run lint:sol
+
+      - name: Compile contracts
+        run: npm run compile
+
+      - name: Lint test and scripts
+        run: npm run lint:ts
+
       - name: Unit test smart contracts
         run: npm test
       # - name: Coverage report

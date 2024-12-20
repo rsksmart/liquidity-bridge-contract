@@ -4,7 +4,7 @@
   "description": "## registerFastBridgeBtcTransaction",
   "main": "index.js",
   "scripts": {
-    "compile": "npm run lint:sol && npx truffle compile --all",
+    "compile": "npm run lint:sol && npx hardhat compile",
     "test": "npx hardhat test",
     "test-regtest": "npm run compile && npx truffle test --network testRegtest",
     "test-ganache": "npm run compile && npx truffle test --network ganache",
