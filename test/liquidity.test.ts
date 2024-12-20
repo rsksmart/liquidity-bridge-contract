@@ -1,5 +1,4 @@
-import hre from "hardhat";
-import { ethers } from "hardhat";
+import hre, { ethers } from "hardhat";
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
 import { deployContract } from "../scripts/deployment-utils/utils";

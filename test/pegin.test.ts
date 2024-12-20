@@ -1,5 +1,4 @@
-import hre from "hardhat";
-import { ethers } from "hardhat";
+import hre, { ethers } from "hardhat";
 import { anyHex, anyNumber, ZERO_ADDRESS } from "./utils/constants";
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
@@ -639,7 +638,7 @@ describe("LiquidityBridgeContractV2 pegin process should", () => {
     const lp = fixtureResult.liquidityProviders[0];
     const lbc = fixtureResult.lbc.connect(lp.signer);
     const bridgeMock = fixtureResult.bridgeMock;
-    interface testCase {
+    interface TestCase {
       quote: QuotesV2.PeginQuoteStruct;
       quoteHash: string;
       signature: string;
@@ -648,7 +647,7 @@ describe("LiquidityBridgeContractV2 pegin process should", () => {
       height: number;
       refundAmount: string;
     }
-    const cases: testCase[] = [
+    const cases: TestCase[] = [
       {
         quote: {
           fedBtcAddress: bs58check

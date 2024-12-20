@@ -1,5 +1,4 @@
-import hre from "hardhat";
-import { ethers } from "hardhat";
+import hre, { ethers } from "hardhat";
 import { anyHex, ZERO_ADDRESS } from "./utils/constants";
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
