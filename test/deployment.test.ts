@@ -132,6 +132,18 @@ describe("LiquidityBridgeContract deployment process should", function () {
       );
       if (ok) {
         await expect(initializeTx).not.to.be.reverted;
+        const reinitializeTx = lbc.initialize(
+          parameters.bridge,
+          parameters.minCollateral,
+          parameters.minPegin,
+          value,
+          parameters.resignBlocks,
+          parameters.dustThreshold,
+          parameters.btcBlockTime,
+          parameters.mainnet
+        );
+        // check that only initializes once
+        await expect(reinitializeTx).to.be.reverted;
       } else {
         await expect(initializeTx).to.be.revertedWith("LBC004");
       }
