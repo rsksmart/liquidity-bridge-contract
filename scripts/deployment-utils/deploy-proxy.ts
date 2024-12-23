@@ -20,7 +20,7 @@ interface LiquidityBridgeContractLibraries {
   bridge: string;
 }
 
-const BRIDGE_ADDRESS = "0x0000000000000000000000000000000001000006";
+export const BRIDGE_ADDRESS = "0x0000000000000000000000000000000001000006";
 
 async function deployProxyLibraries(
   network: string
