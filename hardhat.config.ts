@@ -33,19 +33,19 @@ const config: HardhatUserConfig = {
       chainId: 33,
     },
     rskDevelopment: {
-      url: TESTNET_RPC_URL,
+      url: TESTNET_RPC_URL ?? "https://public-node.testnet.rsk.co",
       timeout: rpcDefaultTimeout,
       chainId: 31,
       accounts: getAccounts("development"),
     },
     rskTestnet: {
-      url: TESTNET_RPC_URL,
+      url: TESTNET_RPC_URL ?? "https://public-node.testnet.rsk.co",
       timeout: rpcDefaultTimeout,
       chainId: 31,
       accounts: getAccounts("testnet"),
     },
     rskMainnet: {
-      url: MAINNET_RPC_URL,
+      url: MAINNET_RPC_URL ?? "https://public-node.rsk.co",
       timeout: rpcDefaultTimeout,
       chainId: 30,
       accounts: getAccounts("mainnet"),

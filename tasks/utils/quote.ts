@@ -114,10 +114,10 @@ function parseBtcAddress(address: string): BytesLike {
   const TESTNET_P2WPKH = /^tb1q([ac-hj-np-z02-9]{38})$/;
   const REGTEST_P2WPKH = /^bcrt1q([ac-hj-np-z02-9]{38})$/;
 
-  const MAINNET_P2SH = /^[3]([a-km-zA-HJ-NP-Z1-9]{33,34})$/;
-  const TESTNET_P2SH = /^[2]([a-km-zA-HJ-NP-Z1-9]{33,34})$/;
+  const MAINNET_P2SH = /^3([a-km-zA-HJ-NP-Z1-9]{33,34})$/;
+  const TESTNET_P2SH = /^2([a-km-zA-HJ-NP-Z1-9]{33,34})$/;
 
-  const MAINNET_P2PKH = /^[1]([a-km-zA-HJ-NP-Z1-9]{25,34})$/;
+  const MAINNET_P2PKH = /^1([a-km-zA-HJ-NP-Z1-9]{25,34})$/;
   const TESTNET_P2PKH = /^[mn]([a-km-zA-HJ-NP-Z1-9]{25,34})$/;
 
   const bech32mRegex = [MAINNET_P2TR, TESTNET_P2TR, REGTEST_P2TR];
