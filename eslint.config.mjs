@@ -8,6 +8,7 @@ export default [
   { languageOptions: { globals: globals.node } },
   {
     ignores: [
+      "eslint.config.mjs",
       "typechain-types/*",
       "node_modules/*",
       "artifacts/*",
@@ -24,5 +25,19 @@ export default [
     ],
   },
   pluginJs.configs.recommended,
-  ...tseslint.configs.recommended,
+  ...tseslint.configs.strictTypeChecked,
+  ...tseslint.configs.stylisticTypeChecked,
+  {
+    rules: {
+      "@typescript-eslint/no-non-null-assertion": "off",
+    },
+  },
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
 ];
