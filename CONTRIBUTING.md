@@ -1,4 +1,5 @@
 # Contributing
+
 ## How to contribute to RSK
 
 These are mostly guidelines, not rules. Use your best judgment, and feel free to propose changes to this document in a pull request.
@@ -7,15 +8,15 @@ These are mostly guidelines, not rules. Use your best judgment, and feel free to
 
 Continued code reviews and audits are required for security. As such, we encourage interested security researchers to:
 
-* Review our code, even if no contributions are planned.
-* Publish their findings whichever way they choose, even if no particular bug or vulnerability was found. We can all learn from new sets of eyes and benefit from increased scrutiny.
+- Review our code, even if no contributions are planned.
+- Publish their findings whichever way they choose, even if no particular bug or vulnerability was found. We can all learn from new sets of eyes and benefit from increased scrutiny.
 
 ### Code contributions
 
 A code contribution process starts with someone identifying a need for writing code. If you're thinking about making your first contribution, we suggest you take a moment to get in touch and see how your idea fits in the development plan:
 
-* Is it a bug in our [issue tracker](https://github.com/rsksmart/liquidity-bridge-contract/issues)?
-* Is it a novel idea that should be proposed and discussed first?
+- Is it a bug in our [issue tracker](https://github.com/rsksmart/liquidity-bridge-contract/issues)?
+- Is it a novel idea that should be proposed and discussed first?
 
 #### Review process
 
@@ -30,9 +31,9 @@ We make use of GitHub Checks to ensure all changes meet a certain criteria:
 
 Since this is a security-sensitive project, we encourage everyone to be proactive and participate in the review process. To help collaboration we propose adhering to these conventions:
 
-* **Request changes** only for correctness and security issues.
-* **Comment** when leaving feedback without explicit approval or rejection. This is useful for design and implementation discussions.
-* **Approve** when changes look good from a correctness, security, design and implementation standpoint.
+- **Request changes** only for correctness and security issues.
+- **Comment** when leaving feedback without explicit approval or rejection. This is useful for design and implementation discussions.
+- **Approve** when changes look good from a correctness, security, design and implementation standpoint.
 
 All unit and integration tests pass without loss of coverage (e.g can't remove tests without writing equivalent or better ones).
 
@@ -46,7 +47,7 @@ When automatic code quality and security checks are ready in the pipeline for ex
 
 ### Pull request etiquette
 
-* Separate your changes into multiple commits
-* If your pull request gets too big, try to split it
-* Each commit should at least compile, and ideally pass all unit tests
-* Avoid merge commits, and always rebase your changes on top of `master`
+- Separate your changes into multiple commits
+- If your pull request gets too big, try to split it
+- Each commit should at least compile, and ideally pass all unit tests
+- Avoid merge commits, and always rebase your changes on top of `master`
