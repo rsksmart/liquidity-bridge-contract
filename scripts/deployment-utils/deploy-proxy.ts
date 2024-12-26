@@ -1,6 +1,7 @@
 import { ethers, upgrades } from "hardhat";
 import { deploy, DeployedContractInfo, LOCAL_NETWORK } from "./deploy";
 import { deployContract, REMOTE_NETWORKS, TEST_NETWORKS } from "./utils";
+import { BRIDGE_ADDRESS } from "./constants";
 
 interface LiquidityBridgeContractInitParams {
   bridgeAddress: string;
@@ -19,8 +20,6 @@ interface LiquidityBridgeContractLibraries {
   btcUtils: string;
   bridge: string;
 }
-
-export const BRIDGE_ADDRESS = "0x0000000000000000000000000000000001000006";
 
 async function deployProxyLibraries(
   network: string
