@@ -18,7 +18,7 @@
     "deploy-alphanet": "npm run lint:sol && npx truffle deploy --network alphanet",
     "deploy-localGanache": "npm run lint:sol && npx truffle deploy --network ganache",
     "contract-size": "npx truffle run contract-size",
-    "test:integration": "npx truffle test integration-test/* --bail --migrate-none --network",
+    "test:integration": "npx hardhat test integration-test/*.test.ts --bail --network",
     "prepare": "pip3 install pre-commit && pre-commit install"
   },
   "repository": {

@@ -13,11 +13,9 @@ export default [
       "node_modules/*",
       "artifacts/*",
       "cache/*",
-      "node_modules/*",
       // should be removed after completing the hardhat migration
       "migrations/*",
       "truffle*",
-      "integration-test/*",
       "testHashQuote.js",
       "testRefundPegout.js",
       "testRegisterPegout.js",
