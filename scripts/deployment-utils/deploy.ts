@@ -4,11 +4,13 @@ import { readFileSync, writeFileSync } from "fs";
  * Layout of the addresses.json file. Consist of a map of networks, each network has a map of
  * contracts and the value of that contract has the structure defined in {@link DeployedContractInfo}.
  */
+/* eslint-disable @typescript-eslint/consistent-indexed-object-style */
 export interface DeploymentConfig {
   [network: string]: {
     [contract: string]: DeployedContractInfo;
   };
 }
+/* eslint-enable @typescript-eslint/consistent-indexed-object-style */
 
 /**
  * This interface holds the information of a deployed contract in the addresses.json file.
@@ -44,7 +46,7 @@ const testConfig: DeploymentConfig = { [UNIT_TEST_NETWORK]: {} };
 export const read: () => DeploymentConfig = () =>
   Object.keys(testConfig[UNIT_TEST_NETWORK]).length > 0
     ? testConfig
-    : JSON.parse(readFileSync(ADDRESSES_FILE).toString());
+    : (JSON.parse(readFileSync(ADDRESSES_FILE).toString()) as DeploymentConfig);
 
 const write = (newConfig: DeploymentConfig) => {
   const oldConfig = read();
@@ -72,10 +74,12 @@ export const deploy: deployFunction = async (
 ) => {
   const oldConfig = read();
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!oldConfig[network]) {
     oldConfig[network] = {};
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!oldConfig[network][name]) {
     oldConfig[network][name] = { deployed: false };
   }
@@ -93,7 +97,8 @@ export const deploy: deployFunction = async (
     write(oldConfig);
   } else {
     console.warn(
-      `${name} has already be deployed [address: ${oldConfig[network][name].address}]. If you want to deploy it, please set deployed attribute to false on addresses.json file.`
+      `${name} has already be deployed [address: ${oldConfig[network][name]
+        .address!}]. If you want to deploy it, please set deployed attribute to false on addresses.json file.`
     );
   }
   return read()[network][name];

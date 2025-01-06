@@ -7,7 +7,7 @@ async function main() {
   console.info("LiquidityBridgeContract proxy upgraded successfully");
 }
 
-main().catch((error) => {
+main().catch((error: unknown) => {
   console.error(error);
   process.exitCode = 1;
 });
