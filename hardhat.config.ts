@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@openzeppelin/hardhat-upgrades";
+import "hardhat-contract-sizer";
 import "./tasks/get-versions";
 import "./tasks/btc-best-height";
 import "./tasks/hash-quote";
