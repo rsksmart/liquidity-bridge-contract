@@ -390,7 +390,7 @@ describe("LiquidityBridgeContractV2 pegout process should", () => {
     const { blockHeaderHash, partialMerkleTree, merkleBranchHashes } =
       getTestMerkleProof();
     // so its expired after deposit
-    quote.expireDate = Math.round(Date.now() / 1000) + 35;
+    quote.expireDate = BigInt(quote.agreementTimestamp) + 300n;
     quote.expireBlock = await ethers.provider
       .getBlockNumber()
       .then((result) => result + 10);
@@ -404,9 +404,9 @@ describe("LiquidityBridgeContractV2 pegout process should", () => {
       value: totalValue(quote),
     });
     await expect(depositTx).to.emit(lbc, "PegOutDeposit");
-    // increase 9 blocks and then 1 block that takes 50s to mine to force expiration
+    // increase 9 blocks and then 1 block that takes 500s to mine to force expiration
     await hardhatHelpers.mine(9);
-    await hardhatHelpers.time.increase(50);
+    await hardhatHelpers.time.increase(500);
 
     const refundUserTx = await lbc.refundUserPegOut(quoteHash);
     await expect(refundUserTx).to.emit(lbc, "PegOutUserRefunded");
@@ -1228,5 +1228,57 @@ describe("LiquidityBridgeContractV2 pegout process should", () => {
         );
       }
     }
+  });
+
+  it("penalize LP on pegout if the transfer was not made on time", async () => {
+    const fixtureResult = await loadFixture(deployLbcWithProvidersFixture);
+    const { accounts, liquidityProviders, bridgeMock } = fixtureResult;
+    let lbc = fixtureResult.lbc;
+    const user = accounts[3];
+    const provider = liquidityProviders[0];
+    const quote = getTestPegoutQuote({
+      lbcAddress: await lbc.getAddress(),
+      value: ethers.parseEther("0.5"),
+      refundAddress: user.address,
+      liquidityProvider: provider.signer,
+    });
+    const quoteHash = await lbc
+      .hashPegoutQuote(quote)
+      .then((hash) => getBytes(hash));
+    const signature = await provider.signer.signMessage(quoteHash);
+
+    lbc = lbc.connect(user);
+    const pegoutAmount = totalValue(quote);
+    const depositTx = await lbc.depositPegout(quote, signature, {
+      value: pegoutAmount,
+    });
+    await depositTx.wait();
+    await expect(depositTx).to.emit(lbc, "PegOutDeposit");
+    const BTC_BLOCK_TIME = 5400; // 1.5h
+    const expirationTime =
+      Number(quote.agreementTimestamp) +
+      Number(quote.transferTime) +
+      BTC_BLOCK_TIME;
+    const { firstConfirmationHeader } = getBtcPaymentBlockHeaders({
+      quote: quote,
+      firstConfirmationSeconds: expirationTime + 1,
+      nConfirmationSeconds: expirationTime + 600,
+    });
+    const { blockHeaderHash, merkleBranchHashes, partialMerkleTree } =
+      getTestMerkleProof();
+    await bridgeMock.setHeaderByHash(blockHeaderHash, firstConfirmationHeader);
+    const btcTx = await generateRawTx(lbc, quote);
+    lbc = lbc.connect(provider.signer);
+    const refundTx = await lbc.refundPegOut(
+      quoteHash,
+      btcTx,
+      blockHeaderHash,
+      partialMerkleTree,
+      merkleBranchHashes
+    );
+    await expect(refundTx).to.emit(lbc, "PegOutRefunded");
+    await expect(refundTx)
+      .to.emit(lbc, "Penalized")
+      .withArgs(provider.signer.address, quote.penaltyFee, quoteHash);
   });
 });

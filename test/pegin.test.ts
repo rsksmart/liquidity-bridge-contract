@@ -1,5 +1,10 @@
 import hre, { ethers } from "hardhat";
-import { anyHex, anyNumber, ZERO_ADDRESS } from "./utils/constants";
+import {
+  anyHex,
+  anyNumber,
+  LP_COLLATERAL,
+  ZERO_ADDRESS,
+} from "./utils/constants";
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
 import { deployContract } from "../scripts/deployment-utils/utils";
@@ -17,6 +22,8 @@ import {
 import * as bs58check from "bs58check";
 import bs58 from "bs58";
 import { QuotesV2 } from "../typechain-types";
+import { getTestMerkleProof } from "./utils/btc";
+import * as hardhatHelpers from "@nomicfoundation/hardhat-network-helpers";
 
 describe("LiquidityBridgeContractV2 pegin process should", () => {
   it("call contract for user", async () => {
@@ -540,7 +547,7 @@ describe("LiquidityBridgeContractV2 pegin process should", () => {
           productFeeAmount: BigInt("6000000000000000"),
           gasFee: BigInt("3000000000000000"),
         },
-        address: "2NF8GF7whNAJY28RfHr8vhPMpciNDXphruv",
+        address: "2Mvz5NDrXSSBCXzhrxnuo9TDS8Co4Wk1t8N",
       },
       {
         quote: {
@@ -572,7 +579,7 @@ describe("LiquidityBridgeContractV2 pegin process should", () => {
           productFeeAmount: BigInt("7000000000000000"),
           gasFee: BigInt("4000000000000000"),
         },
-        address: "2NAxWxN1WaX3rgota4G6Yy8PKxwkv6PRw5R",
+        address: "2Mxb4NdDaDBX4kjxhBrzjMG5WbCjok6LWab",
       },
       {
         quote: {
@@ -604,7 +611,7 @@ describe("LiquidityBridgeContractV2 pegin process should", () => {
           productFeeAmount: BigInt("8000000000000000"),
           gasFee: BigInt("5000000000000000"),
         },
-        address: "2NC5eXFxoQqbjVwdFL8LuP3Rrcy2SA6SS7j",
+        address: "2NCx9M8j7nZTp3GmP36CFvFgYNLBQwQPwDR",
       },
     ];
 
@@ -778,5 +785,979 @@ describe("LiquidityBridgeContractV2 pegin process should", () => {
         .to.emit(lbc, "PegInRegistered")
         .withArgs(quoteHash, modifiedRefundAmount);
     }
+  });
+
+  it("transfer value and refund remaining", async () => {
+    const fixtureResult = await loadFixture(deployLbcWithProvidersFixture);
+    const { liquidityProviders, bridgeMock, accounts } = fixtureResult;
+    let lbc = fixtureResult.lbc;
+    const provider = liquidityProviders[1];
+    lbc = lbc.connect(provider.signer);
+    const destinationAddress = accounts[1].address;
+    const rskRefundAddress = accounts[2].address;
+    const quote = getTestPeginQuote({
+      lbcAddress: await lbc.getAddress(),
+      liquidityProvider: provider.signer,
+      destinationAddress: destinationAddress,
+      refundAddress: rskRefundAddress,
+      value: ethers.parseEther("10"),
+    });
+
+    const { firstConfirmationHeader, nConfirmationHeader } =
+      getBtcPaymentBlockHeaders({
+        quote: quote,
+        firstConfirmationSeconds: 300,
+        nConfirmationSeconds: 600,
+      });
+    const { blockHeaderHash, partialMerkleTree } = getTestMerkleProof();
+    const height = 10;
+    const additionalFunds = 1000000000000n;
+    const peginAmount = totalValue(quote);
+    const quoteHash = await lbc.hashQuote(quote).then((hash) => getBytes(hash));
+    const signature = await provider.signer.signMessage(quoteHash);
+
+    await bridgeMock.setPegin(quoteHash, {
+      value: peginAmount + additionalFunds,
+    });
+    await bridgeMock.setHeader(height, firstConfirmationHeader);
+    await bridgeMock.setHeader(
+      height + Number(quote.depositConfirmations) - 1,
+      nConfirmationHeader
+    );
+
+    const destinationBalanceDiffAsserttion =
+      await createBalanceDifferenceAssertion({
+        source: ethers.provider,
+        address: destinationAddress,
+        expectedDiff: quote.value,
+        message: "Incorrect destination balance after pegin",
+      });
+    const lbcBalanceDiffAssertion = await createBalanceDifferenceAssertion({
+      source: ethers.provider,
+      address: await lbc.getAddress(),
+      expectedDiff: peginAmount - BigInt(quote.productFeeAmount),
+      message: "Incorrect LBC balance after pegin",
+    });
+    const lpBalanceDiffAfterCfuAssertion =
+      await createBalanceDifferenceAssertion({
+        source: lbc,
+        address: provider.signer.address,
+        expectedDiff: 0,
+        message: "Incorrect LP balance after call for user",
+      });
+    const refundBalanceDiffAssertion = await createBalanceDifferenceAssertion({
+      source: ethers.provider,
+      address: rskRefundAddress,
+      expectedDiff: additionalFunds,
+      message: "Incorrect refund address balance after refund",
+    });
+    const collateralAssertion = await createCollateralUpdateAssertion({
+      lbc: lbc,
+      address: provider.signer.address,
+      expectedDiff: 0,
+      message: "Incorrect collateral after pegin",
+      type: "pegin",
+    });
+
+    const cfuTx = await lbc.callForUser(quote, { value: quote.value });
+    await cfuTx.wait();
+
+    await lpBalanceDiffAfterCfuAssertion();
+    const lpBalanceDiffAfterRegisterAssertion =
+      await createBalanceDifferenceAssertion({
+        source: lbc,
+        address: provider.signer.address,
+        expectedDiff: peginAmount - BigInt(quote.productFeeAmount),
+        message: "Incorrect LP balance after register pegin",
+      });
+
+    const registerPeginResult = await lbc.registerPegIn.staticCall(
+      quote,
+      signature,
+      blockHeaderHash,
+      partialMerkleTree,
+      height
+    );
+    const registerPeginTx = await lbc.registerPegIn(
+      quote,
+      signature,
+      blockHeaderHash,
+      partialMerkleTree,
+      height
+    );
+
+    await expect(registerPeginTx)
+      .to.emit(lbc, "PegInRegistered")
+      .withArgs(quoteHash, peginAmount + additionalFunds);
+    await expect(registerPeginTx)
+      .to.emit(lbc, "Refund")
+      .withArgs(rskRefundAddress, additionalFunds, true, quoteHash);
+    expect(registerPeginResult).to.be.eq(peginAmount + additionalFunds);
+    await destinationBalanceDiffAsserttion();
+    await lbcBalanceDiffAssertion();
+    await lpBalanceDiffAfterRegisterAssertion();
+    await refundBalanceDiffAssertion();
+    await collateralAssertion();
+  });
+
+  it("refund remaining amount to LP in case refunding to quote.rskRefundAddress fails", async () => {
+    const fixtureResult = await loadFixture(deployLbcWithProvidersFixture);
+    const { liquidityProviders, bridgeMock, accounts } = fixtureResult;
+    const deploymentInfo = await deployContract("WalletMock", hre.network.name);
+    const walletMock = await ethers.getContractAt(
+      "WalletMock",
+      deploymentInfo.address
+    );
+    const walletMockAddress = await walletMock.getAddress();
+    await walletMock.setRejectFunds(true).then((tx) => tx.wait());
+    let lbc = fixtureResult.lbc;
+    const provider = liquidityProviders[0];
+    lbc = lbc.connect(provider.signer);
+    const destinationAddress = accounts[1].address;
+    const rskRefundAddress = walletMockAddress;
+    const quote = getTestPeginQuote({
+      lbcAddress: await lbc.getAddress(),
+      liquidityProvider: provider.signer,
+      destinationAddress: destinationAddress,
+      refundAddress: rskRefundAddress,
+      value: ethers.parseEther("10"),
+    });
+
+    const { firstConfirmationHeader, nConfirmationHeader } =
+      getBtcPaymentBlockHeaders({
+        quote: quote,
+        firstConfirmationSeconds: 300,
+        nConfirmationSeconds: 600,
+      });
+    const { blockHeaderHash, partialMerkleTree } = getTestMerkleProof();
+    const height = 10;
+    const additionalFunds = 1000000000000n;
+    const peginAmount = totalValue(quote);
+    const quoteHash = await lbc.hashQuote(quote).then((hash) => getBytes(hash));
+    const signature = await provider.signer.signMessage(quoteHash);
+
+    await bridgeMock.setPegin(quoteHash, {
+      value: peginAmount + additionalFunds,
+    });
+    await bridgeMock.setHeader(height, firstConfirmationHeader);
+    await bridgeMock.setHeader(
+      height + Number(quote.depositConfirmations) - 1,
+      nConfirmationHeader
+    );
+
+    const destinationBalanceDiffAssertion =
+      await createBalanceDifferenceAssertion({
+        source: ethers.provider,
+        address: destinationAddress,
+        expectedDiff: quote.value,
+        message: "Incorrect destination balance after pegin",
+      });
+    const lbcBalanceDiffAssertion = await createBalanceDifferenceAssertion({
+      source: ethers.provider,
+      address: await lbc.getAddress(),
+      expectedDiff:
+        peginAmount - BigInt(quote.productFeeAmount) + additionalFunds,
+      message: "Incorrect LBC balance after pegin",
+    });
+    const lpBalanceDiffAfterCfuAssertion =
+      await createBalanceDifferenceAssertion({
+        source: lbc,
+        address: provider.signer.address,
+        expectedDiff: 0,
+        message: "Incorrect LP balance after call for user",
+      });
+    const refundBalanceDiffAssertion = await createBalanceDifferenceAssertion({
+      source: ethers.provider,
+      address: rskRefundAddress,
+      expectedDiff: 0,
+      message: "Incorrect refund address balance after refund",
+    });
+    const collateralAssertion = await createCollateralUpdateAssertion({
+      lbc: lbc,
+      address: provider.signer.address,
+      expectedDiff: 0,
+      message: "Incorrect collateral after pegin",
+      type: "pegin",
+    });
+
+    const cfuTx = await lbc.callForUser(quote, { value: quote.value });
+    await cfuTx.wait();
+    await lpBalanceDiffAfterCfuAssertion();
+
+    const lpBalanceDiffAfterRegisterAssertion =
+      await createBalanceDifferenceAssertion({
+        source: lbc,
+        address: provider.signer.address,
+        expectedDiff:
+          peginAmount - BigInt(quote.productFeeAmount) + additionalFunds,
+        message: "Incorrect LP balance after register pegin",
+      });
+
+    const registerPeginResult = await lbc.registerPegIn.staticCall(
+      quote,
+      signature,
+      blockHeaderHash,
+      partialMerkleTree,
+      height
+    );
+
+    const registerPeginTx = await lbc.registerPegIn(
+      quote,
+      signature,
+      blockHeaderHash,
+      partialMerkleTree,
+      height
+    );
+    await expect(registerPeginTx)
+      .to.emit(lbc, "PegInRegistered")
+      .withArgs(quoteHash, peginAmount + additionalFunds);
+    await expect(registerPeginTx)
+      .to.emit(lbc, "Refund")
+      .withArgs(walletMockAddress, additionalFunds, false, quoteHash);
+    await expect(registerPeginTx)
+      .to.emit(lbc, "BalanceIncrease")
+      .withArgs(provider.signer.address, additionalFunds);
+    expect(registerPeginResult).to.be.eq(peginAmount + additionalFunds);
+    await destinationBalanceDiffAssertion();
+    await lbcBalanceDiffAssertion();
+    await lpBalanceDiffAfterRegisterAssertion();
+    await refundBalanceDiffAssertion();
+    await collateralAssertion();
+  });
+
+  it("refund user on failed call", async () => {
+    const fixtureResult = await loadFixture(deployLbcWithProvidersFixture);
+    const { liquidityProviders, bridgeMock, accounts } = fixtureResult;
+    const rskRefundAddress = accounts[2].address;
+    const provider = liquidityProviders[0];
+    const lbc = fixtureResult.lbc.connect(provider.signer);
+    const deploymentInfo = await deployContract("Mock", hre.network.name);
+    const mockContract = await ethers.getContractAt(
+      "Mock",
+      deploymentInfo.address
+    );
+    const mockAddress = await mockContract.getAddress();
+    const data = mockContract.interface.encodeFunctionData("fail");
+    const quote = getTestPeginQuote({
+      lbcAddress: await lbc.getAddress(),
+      liquidityProvider: provider.signer,
+      destinationAddress: mockAddress,
+      refundAddress: rskRefundAddress,
+      value: ethers.parseEther("10"),
+      data: data,
+    });
+
+    const { firstConfirmationHeader, nConfirmationHeader } =
+      getBtcPaymentBlockHeaders({
+        quote: quote,
+        firstConfirmationSeconds: 300,
+        nConfirmationSeconds: 600,
+      });
+    const { blockHeaderHash, partialMerkleTree } = getTestMerkleProof();
+    const height = 10;
+    const peginAmount = totalValue(quote);
+    const quoteHash = await lbc.hashQuote(quote).then((hash) => getBytes(hash));
+    const signature = await provider.signer.signMessage(quoteHash);
+    await bridgeMock.setPegin(quoteHash, { value: peginAmount });
+    await bridgeMock.setHeader(height, firstConfirmationHeader);
+    await bridgeMock.setHeader(
+      height + Number(quote.depositConfirmations) - 1,
+      nConfirmationHeader
+    );
+
+    const destinationBalanceDiffAssertion =
+      await createBalanceDifferenceAssertion({
+        source: ethers.provider,
+        address: mockAddress,
+        expectedDiff: 0,
+        message: "Incorrect refund balance after pegin",
+      });
+    const refundBalanceDiffAssertion = await createBalanceDifferenceAssertion({
+      source: ethers.provider,
+      address: rskRefundAddress,
+      expectedDiff: quote.value,
+      message: "Incorrect refund balance after pegin",
+    });
+    const lpBalanceDiffAfterCfuAssertion =
+      await createBalanceDifferenceAssertion({
+        source: lbc,
+        address: provider.signer.address,
+        expectedDiff: quote.value,
+        message: "Incorrect LP balance after call for user",
+      });
+    const collateralAssertion = await createCollateralUpdateAssertion({
+      lbc: lbc,
+      address: provider.signer.address,
+      expectedDiff: 0,
+      message: "Incorrect collateral after pegin",
+      type: "pegin",
+    });
+
+    await lbc
+      .callForUser(quote, { value: quote.value })
+      .then((tx) => tx.wait());
+    await lpBalanceDiffAfterCfuAssertion();
+
+    const lpBalanceDiffAfterRegisterAssertion =
+      await createBalanceDifferenceAssertion({
+        source: lbc,
+        address: provider.signer.address,
+        expectedDiff: BigInt(quote.callFee) + BigInt(quote.gasFee),
+        message: "Incorrect LP balance after register pegin",
+      });
+    const registerTx = await lbc.registerPegIn(
+      quote,
+      signature,
+      blockHeaderHash,
+      partialMerkleTree,
+      height
+    );
+    await expect(registerTx)
+      .to.emit(lbc, "Refund")
+      .withArgs(rskRefundAddress, quote.value, true, quoteHash);
+    await lpBalanceDiffAfterRegisterAssertion();
+    await refundBalanceDiffAssertion();
+    await collateralAssertion();
+    await destinationBalanceDiffAssertion();
+  });
+
+  it("refund user on missed call", async () => {
+    const fixtureResult = await loadFixture(deployLbcWithProvidersFixture);
+    const { liquidityProviders, bridgeMock, accounts } = fixtureResult;
+    const rskRefundAddress = accounts[2].address;
+    const provider = liquidityProviders[0];
+    const lbc = fixtureResult.lbc.connect(provider.signer);
+
+    const quote = getTestPeginQuote({
+      lbcAddress: await lbc.getAddress(),
+      liquidityProvider: provider.signer,
+      destinationAddress: accounts[1].address,
+      refundAddress: rskRefundAddress,
+      value: ethers.parseEther("10"),
+    });
+
+    const { firstConfirmationHeader, nConfirmationHeader } =
+      getBtcPaymentBlockHeaders({
+        quote: quote,
+        firstConfirmationSeconds: 300,
+        nConfirmationSeconds: 600,
+      });
+    const { blockHeaderHash, partialMerkleTree } = getTestMerkleProof();
+    const height = 10;
+    const peginAmount = totalValue(quote);
+    const quoteHash = await lbc.hashQuote(quote).then((hash) => getBytes(hash));
+    const signature = await provider.signer.signMessage(quoteHash);
+
+    await bridgeMock.setPegin(quoteHash, { value: peginAmount });
+    await bridgeMock.setHeader(height, firstConfirmationHeader);
+    await bridgeMock.setHeader(
+      height + Number(quote.depositConfirmations) - 1,
+      nConfirmationHeader
+    );
+    const rewardPercentage = await lbc.getRewardPercentage();
+    const reward = (BigInt(quote.penaltyFee) * rewardPercentage) / 100n;
+
+    const destinationBalanceDiffAssertion =
+      await createBalanceDifferenceAssertion({
+        source: ethers.provider,
+        address: accounts[1].address,
+        expectedDiff: 0,
+        message: "Incorrect refund balance after pegin",
+      });
+    const refundBalanceDiffAssertion = await createBalanceDifferenceAssertion({
+      source: ethers.provider,
+      address: rskRefundAddress,
+      expectedDiff:
+        BigInt(quote.value) + BigInt(quote.callFee) + BigInt(quote.gasFee),
+      message: "Incorrect refund balance after pegin",
+    });
+    const lpBalanceDiffAssertion = await createBalanceDifferenceAssertion({
+      source: lbc,
+      address: provider.signer.address,
+      expectedDiff: reward,
+      message: "Incorrect LP balance after call for user",
+    });
+    const collateralAssertion = await createCollateralUpdateAssertion({
+      lbc: lbc,
+      address: provider.signer.address,
+      expectedDiff: BigInt(quote.penaltyFee) * -1n,
+      message: "Incorrect collateral after pegin",
+      type: "pegin",
+    });
+    const lbcBalanceDiffAssertion = await createBalanceDifferenceAssertion({
+      source: ethers.provider,
+      address: await lbc.getAddress(),
+      expectedDiff: 0,
+      message: "Incorrect LBC balance after pegin",
+    });
+
+    const registerTx = await lbc.registerPegIn(
+      quote,
+      signature,
+      blockHeaderHash,
+      partialMerkleTree,
+      height
+    );
+    await expect(registerTx)
+      .to.emit(lbc, "Refund")
+      .withArgs(rskRefundAddress, peginAmount, true, quoteHash);
+    await destinationBalanceDiffAssertion();
+    await refundBalanceDiffAssertion();
+    await lpBalanceDiffAssertion();
+    await collateralAssertion();
+    await lbcBalanceDiffAssertion();
+  });
+
+  it("no one be refunded in registerPegIn on missed call in case refunding to quote.rskRefundAddress fails", async () => {
+    const fixtureResult = await loadFixture(deployLbcWithProvidersFixture);
+    const { liquidityProviders, bridgeMock, accounts } = fixtureResult;
+    const provider = liquidityProviders[0];
+    const deploymentInfo = await deployContract("WalletMock", hre.network.name);
+    const walletMock = await ethers.getContractAt(
+      "WalletMock",
+      deploymentInfo.address
+    );
+    const walletMockAddress = await walletMock.getAddress();
+    await walletMock.setRejectFunds(true).then((tx) => tx.wait());
+    const destinationAddress = accounts[1].address;
+    const registerCaller = accounts[2];
+    const lbc = fixtureResult.lbc.connect(registerCaller);
+    const quote = getTestPeginQuote({
+      lbcAddress: await lbc.getAddress(),
+      liquidityProvider: provider.signer,
+      destinationAddress: destinationAddress,
+      refundAddress: walletMockAddress,
+      value: ethers.parseEther("10"),
+    });
+    const peginAmount = totalValue(quote);
+    const quoteHash = await lbc.hashQuote(quote).then((hash) => getBytes(hash));
+    const signature = await provider.signer.signMessage(quoteHash);
+    const rewardPercentage = await lbc.getRewardPercentage();
+    const reward = (BigInt(quote.penaltyFee) * rewardPercentage) / 100n;
+    const { firstConfirmationHeader, nConfirmationHeader } =
+      getBtcPaymentBlockHeaders({
+        quote: quote,
+        firstConfirmationSeconds: 300,
+        nConfirmationSeconds: 600,
+      });
+    const { blockHeaderHash, partialMerkleTree } = getTestMerkleProof();
+    const height = 10;
+
+    await bridgeMock.setPegin(quoteHash, { value: peginAmount });
+    await bridgeMock.setHeader(10, firstConfirmationHeader);
+    await bridgeMock.setHeader(11, nConfirmationHeader);
+
+    const registerCallerBalanceDiffAssertion =
+      await createBalanceDifferenceAssertion({
+        source: lbc,
+        expectedDiff: reward,
+        address: registerCaller.address,
+        message: "Incorrect refund balance after pegin",
+      });
+    const collateralAssertion = await createCollateralUpdateAssertion({
+      lbc: lbc,
+      address: provider.signer.address,
+      expectedDiff: BigInt(quote.penaltyFee) * -1n,
+      message: "Incorrect collateral after pegin",
+      type: "pegin",
+    });
+    const refundBalanceDiffAssertion = await createBalanceDifferenceAssertion({
+      source: ethers.provider,
+      address: walletMockAddress,
+      expectedDiff: 0,
+      message: "Incorrect refund balance after pegin",
+    });
+    const lbcBalanceDiffAssertion = await createBalanceDifferenceAssertion({
+      source: ethers.provider,
+      address: await lbc.getAddress(),
+      expectedDiff: peginAmount - BigInt(quote.productFeeAmount),
+      message: "Incorrect LBC balance after pegin",
+    });
+
+    const registerTx = await lbc.registerPegIn(
+      quote,
+      signature,
+      blockHeaderHash,
+      partialMerkleTree,
+      height
+    );
+    await expect(registerTx)
+      .to.emit(lbc, "Refund")
+      .withArgs(
+        walletMockAddress,
+        peginAmount - BigInt(quote.productFeeAmount),
+        false,
+        quoteHash
+      );
+    await collateralAssertion();
+    await refundBalanceDiffAssertion();
+    await lbcBalanceDiffAssertion();
+    await registerCallerBalanceDiffAssertion();
+  });
+
+  it("not penalize with late deposit", async () => {
+    const fixtureResult = await loadFixture(deployLbcWithProvidersFixture);
+    const { liquidityProviders, bridgeMock, accounts } = fixtureResult;
+    const provider = liquidityProviders[0];
+    const lbc = fixtureResult.lbc.connect(provider.signer);
+    const refundAddress = accounts[2].address;
+    const quote = getTestPeginQuote({
+      lbcAddress: await lbc.getAddress(),
+      liquidityProvider: provider.signer,
+      destinationAddress: accounts[1].address,
+      refundAddress: refundAddress,
+      value: ethers.parseEther("10"),
+    });
+    quote.timeForDeposit = 1;
+
+    const quoteHash = await lbc.hashQuote(quote).then((hash) => getBytes(hash));
+    const peginAmount = totalValue(quote);
+    const signature = await provider.signer.signMessage(quoteHash);
+    const { firstConfirmationHeader, nConfirmationHeader } =
+      getBtcPaymentBlockHeaders({
+        quote: quote,
+        firstConfirmationSeconds: 300,
+        nConfirmationSeconds: 600,
+      });
+    const { blockHeaderHash, partialMerkleTree } = getTestMerkleProof();
+    const height = 10;
+
+    const collateralAssertion = await createCollateralUpdateAssertion({
+      lbc: lbc,
+      address: provider.signer.address,
+      expectedDiff: 0,
+      message: "Incorrect collateral after pegin",
+      type: "pegin",
+    });
+    const refundBalanceDiffAssertion = await createBalanceDifferenceAssertion({
+      source: ethers.provider,
+      address: refundAddress,
+      expectedDiff: peginAmount,
+      message: "Incorrect destination balance after pegin",
+    });
+    await bridgeMock.setPegin(quoteHash, { value: peginAmount });
+    await bridgeMock.setHeader(height, firstConfirmationHeader);
+    await bridgeMock.setHeader(
+      height + Number(quote.depositConfirmations) - 1,
+      nConfirmationHeader
+    );
+    const registerTx = await lbc.registerPegIn(
+      quote,
+      signature,
+      blockHeaderHash,
+      partialMerkleTree,
+      height
+    );
+    await expect(registerTx)
+      .to.emit(lbc, "PegInRegistered")
+      .withArgs(quoteHash, peginAmount);
+    await expect(registerTx).not.to.emit(lbc, "Penalized");
+    await collateralAssertion();
+    await refundBalanceDiffAssertion();
+  });
+
+  it("not penalize with insufficient deposit", async () => {
+    const fixtureResult = await loadFixture(deployLbcWithProvidersFixture);
+    const { liquidityProviders, bridgeMock, accounts } = fixtureResult;
+    const provider = liquidityProviders[0];
+    const lbc = fixtureResult.lbc.connect(provider.signer);
+    const refundAddress = accounts[2].address;
+    const quote = getTestPeginQuote({
+      lbcAddress: await lbc.getAddress(),
+      liquidityProvider: provider.signer,
+      destinationAddress: accounts[1].address,
+      refundAddress: refundAddress,
+      value: ethers.parseEther("10"),
+    });
+
+    const quoteHash = await lbc.hashQuote(quote).then((hash) => getBytes(hash));
+    const peginAmount = totalValue(quote);
+    const signature = await provider.signer.signMessage(quoteHash);
+    const { firstConfirmationHeader, nConfirmationHeader } =
+      getBtcPaymentBlockHeaders({
+        quote: quote,
+        firstConfirmationSeconds: 300,
+        nConfirmationSeconds: 600,
+      });
+    const { blockHeaderHash, partialMerkleTree } = getTestMerkleProof();
+    const height = 10;
+    const insufficientDeposit = peginAmount - 1n;
+    await bridgeMock.setPegin(quoteHash, { value: insufficientDeposit });
+    await bridgeMock.setHeader(height, firstConfirmationHeader);
+    await bridgeMock.setHeader(
+      height + Number(quote.depositConfirmations) - 1,
+      nConfirmationHeader
+    );
+    const collateralAssertion = await createCollateralUpdateAssertion({
+      lbc: lbc,
+      address: provider.signer.address,
+      expectedDiff: 0,
+      message: "Incorrect collateral after pegin",
+      type: "pegin",
+    });
+    const refundBalanceDiffAssertion = await createBalanceDifferenceAssertion({
+      source: ethers.provider,
+      address: refundAddress,
+      expectedDiff: insufficientDeposit,
+      message: "Incorrect destination balance after pegin",
+    });
+    const registerTx = await lbc.registerPegIn(
+      quote,
+      signature,
+      blockHeaderHash,
+      partialMerkleTree,
+      height
+    );
+    await expect(registerTx)
+      .to.emit(lbc, "PegInRegistered")
+      .withArgs(quoteHash, insufficientDeposit);
+    await expect(registerTx).not.to.emit(lbc, "Penalized");
+    await collateralAssertion();
+    await refundBalanceDiffAssertion();
+  });
+
+  it("should penalize on late call", async () => {
+    const fixtureResult = await loadFixture(deployLbcWithProvidersFixture);
+    const { liquidityProviders, bridgeMock, accounts } = fixtureResult;
+    const provider = liquidityProviders[0];
+    const lbc = fixtureResult.lbc.connect(provider.signer);
+    const destinationAddress = accounts[1].address;
+    const quote = getTestPeginQuote({
+      lbcAddress: await lbc.getAddress(),
+      liquidityProvider: provider.signer,
+      destinationAddress: destinationAddress,
+      refundAddress: accounts[2].address,
+      value: ethers.parseEther("10"),
+    });
+    quote.callTime = 1;
+    const peginAmount = totalValue(quote);
+    const quoteHash = await lbc.hashQuote(quote).then((hash) => getBytes(hash));
+    const signature = await provider.signer.signMessage(quoteHash);
+    const { firstConfirmationHeader, nConfirmationHeader } =
+      getBtcPaymentBlockHeaders({
+        quote: quote,
+        firstConfirmationSeconds: 100,
+        nConfirmationSeconds: 200,
+      });
+    const { blockHeaderHash, partialMerkleTree } = getTestMerkleProof();
+    const height = 10;
+    const rewardPercentage = await lbc.getRewardPercentage();
+    const reward = (BigInt(quote.penaltyFee) * rewardPercentage) / 100n;
+    await hardhatHelpers.time.increase(300);
+    await bridgeMock.setPegin(quoteHash, { value: peginAmount });
+    await bridgeMock.setHeader(height, firstConfirmationHeader);
+    await bridgeMock.setHeader(
+      height + Number(quote.depositConfirmations) - 1,
+      nConfirmationHeader
+    );
+    const collateralAssertion = await createCollateralUpdateAssertion({
+      lbc: lbc,
+      address: provider.signer.address,
+      expectedDiff: BigInt(quote.penaltyFee) * -1n,
+      message: "Incorrect collateral after pegin",
+      type: "pegin",
+    });
+    const destinationBalanceDiffAssertion =
+      await createBalanceDifferenceAssertion({
+        source: ethers.provider,
+        address: destinationAddress,
+        expectedDiff: quote.value,
+        message: "Incorrect destination balance after pegin",
+      });
+    const lpBalanceAssertion = await createBalanceDifferenceAssertion({
+      source: lbc,
+      address: provider.signer.address,
+      expectedDiff: reward + peginAmount,
+      message: "Incorrect LP balance after call for user",
+    });
+
+    await lbc
+      .callForUser(quote, { value: quote.value })
+      .then((tx) => tx.wait());
+
+    const registerTx = await lbc.registerPegIn(
+      quote,
+      signature,
+      blockHeaderHash,
+      partialMerkleTree,
+      height
+    );
+    await expect(registerTx)
+      .to.emit(lbc, "Penalized")
+      .withArgs(provider.signer.address, quote.penaltyFee, quoteHash);
+    await collateralAssertion();
+    await destinationBalanceDiffAssertion();
+    await lpBalanceAssertion();
+  });
+
+  it("not underflow when penalty is higher than collateral", async () => {
+    const fixtureResult = await loadFixture(deployLbcWithProvidersFixture);
+    const { liquidityProviders, bridgeMock, accounts } = fixtureResult;
+    const provider = liquidityProviders[0];
+    const lbc = fixtureResult.lbc.connect(provider.signer);
+    const destinationAddress = accounts[1].address;
+    const quote = getTestPeginQuote({
+      lbcAddress: await lbc.getAddress(),
+      liquidityProvider: provider.signer,
+      destinationAddress: destinationAddress,
+      refundAddress: accounts[2].address,
+      value: ethers.parseEther("10"),
+    });
+    quote.penaltyFee = LP_COLLATERAL + 1n;
+    quote.callTime = 1;
+    const peginAmount = totalValue(quote);
+    const quoteHash = await lbc.hashQuote(quote).then((hash) => getBytes(hash));
+    const signature = await provider.signer.signMessage(quoteHash);
+    const { firstConfirmationHeader, nConfirmationHeader } =
+      getBtcPaymentBlockHeaders({
+        quote: quote,
+        firstConfirmationSeconds: 100,
+        nConfirmationSeconds: 200,
+      });
+    const { blockHeaderHash, partialMerkleTree } = getTestMerkleProof();
+    const height = 10;
+    const rewardPercentage = await lbc.getRewardPercentage();
+    const reward = (BigInt(quote.penaltyFee / 2n) * rewardPercentage) / 100n;
+    await hardhatHelpers.time.increase(300);
+
+    const lpBalanceAssertion = await createBalanceDifferenceAssertion({
+      source: lbc,
+      address: provider.signer.address,
+      expectedDiff: reward + peginAmount - BigInt(quote.productFeeAmount),
+      message: "Incorrect LP balance after pegin",
+    });
+    const userBalanceAssertion = await createBalanceDifferenceAssertion({
+      source: ethers.provider,
+      address: destinationAddress,
+      expectedDiff: quote.value,
+      message: "Incorrect destination balance after pegin",
+    });
+    await bridgeMock.setPegin(quoteHash, { value: peginAmount });
+    await bridgeMock.setHeader(height, firstConfirmationHeader);
+    await bridgeMock.setHeader(
+      height + Number(quote.depositConfirmations) - 1,
+      nConfirmationHeader
+    );
+    await lbc
+      .callForUser(quote, { value: quote.value })
+      .then((tx) => tx.wait());
+    const registerTx = await lbc.registerPegIn(
+      quote,
+      signature,
+      blockHeaderHash,
+      partialMerkleTree,
+      height
+    );
+    await expect(registerTx)
+      .to.emit(lbc, "Penalized")
+      .withArgs(provider.signer.address, LP_COLLATERAL / 2n, quoteHash);
+    await lpBalanceAssertion();
+    await userBalanceAssertion();
+    await expect(
+      lbc.getCollateral(provider.signer.address)
+    ).to.eventually.be.eq(0);
+  });
+
+  it("should not allow attacker to steal funds", async () => {
+    const fixtureResult = await loadFixture(deployLbcWithProvidersFixture);
+    const { liquidityProviders, accounts, bridgeMock } = fixtureResult;
+    let { lbc } = fixtureResult;
+
+    // The attacker controls a liquidity provider and also a destination address
+    // Note that these could be the same address, separated for clarity
+    const attackingLP = liquidityProviders[0];
+    const attackerDestAddress = accounts[9];
+
+    const goodLP = liquidityProviders[1];
+    // Add funds from an innocent liquidity provider, note again this could be
+    // done by an attacker
+    lbc = lbc.connect(goodLP.signer);
+    await lbc.deposit({ value: ethers.parseEther("20") });
+
+    // The quote value in wei should be bigger than 2**63-1. 10 RBTC is a good approximation.
+    const quoteValue = ethers.parseEther("10");
+    // Let's create the evil quote.
+    const quote: QuotesV2.PeginQuoteStruct = {
+      fedBtcAddress: "0x0000000000000000000000000000000000000000",
+      btcRefundAddress: "0x000000000000000000000000000000000000000000",
+      liquidityProviderBtcAddress:
+        "0x000000000000000000000000000000000000000000",
+      rskRefundAddress: attackerDestAddress,
+      liquidityProviderRskAddress: attackerDestAddress,
+      data: "0x",
+      gasLimit: 30000,
+      callFee: 1n,
+      nonce: 1,
+      lbcAddress: await lbc.getAddress(),
+      agreementTimestamp: 1661788988,
+      timeForDeposit: 600,
+      callTime: 600,
+      depositConfirmations: 10,
+      penaltyFee: 0n,
+      callOnRegister: true,
+      productFeeAmount: 1,
+      gasFee: 1n,
+      value: quoteValue,
+      contractAddress: attackerDestAddress,
+    };
+    const btcRawTransaction = "0x0101";
+    const partialMerkleTree = "0x0202";
+    const height = 10;
+    // Let's now register our quote in the bridge... note that the
+    // value is only a hundred wei
+    const transferredInBTC = 100;
+    const quoteHash = await lbc.hashQuote(quote).then((hash) => getBytes(hash));
+    const signature = await attackingLP.signer.signMessage(quoteHash);
+    const { firstConfirmationHeader, nConfirmationHeader } =
+      getBtcPaymentBlockHeaders({
+        quote: quote,
+        firstConfirmationSeconds: 300,
+        nConfirmationSeconds: 600,
+      });
+    await bridgeMock.setHeader(height, firstConfirmationHeader);
+    await bridgeMock.setHeader(
+      height + Number(quote.depositConfirmations) - 1,
+      nConfirmationHeader
+    );
+    await bridgeMock.setPegin(quoteHash, { value: transferredInBTC });
+    lbc = lbc.connect(attackingLP.signer);
+    const registerTx = lbc.registerPegIn(
+      quote,
+      signature,
+      btcRawTransaction,
+      partialMerkleTree,
+      height
+    );
+    await expect(registerTx).to.be.revertedWith("LBC057");
+  });
+
+  it("pay with insufficient deposit that is not lower than (agreed amount - delta)", async () => {
+    const fixtureResult = await loadFixture(deployLbcWithProvidersFixture);
+    const { liquidityProviders, bridgeMock, accounts } = fixtureResult;
+    const provider = liquidityProviders[0];
+    const lbc = fixtureResult.lbc.connect(provider.signer);
+    const destinationAddress = accounts[1].address;
+    const quote = getTestPeginQuote({
+      lbcAddress: await lbc.getAddress(),
+      liquidityProvider: provider.signer,
+      destinationAddress: destinationAddress,
+      refundAddress: accounts[2].address,
+      value: ethers.parseEther("0.7"),
+    });
+    quote.callFee = ethers.parseEther("0.00001");
+    quote.gasFee = ethers.parseEther("0.00003");
+    const delta = totalValue(quote) / 10000n;
+    const peginAmount = totalValue(quote) - delta;
+    const quoteHash = await lbc.hashQuote(quote).then((hash) => getBytes(hash));
+    const signature = await provider.signer.signMessage(quoteHash);
+    const { firstConfirmationHeader, nConfirmationHeader } =
+      getBtcPaymentBlockHeaders({
+        quote: quote,
+        firstConfirmationSeconds: 100,
+        nConfirmationSeconds: 200,
+      });
+    const { blockHeaderHash, partialMerkleTree } = getTestMerkleProof();
+    const height = 10;
+    await bridgeMock.setHeader(height, firstConfirmationHeader);
+    await bridgeMock.setHeader(
+      height + Number(quote.depositConfirmations) + 1,
+      nConfirmationHeader
+    );
+    await bridgeMock.setPegin(quoteHash, { value: peginAmount });
+
+    const collateralAssertion = await createCollateralUpdateAssertion({
+      lbc: lbc,
+      address: provider.signer.address,
+      expectedDiff: 0,
+      message: "Incorrect collateral after pegin",
+      type: "pegin",
+    });
+    const lpBalanceAssertion = await createBalanceDifferenceAssertion({
+      source: lbc,
+      address: provider.signer.address,
+      expectedDiff: peginAmount,
+      message: "Incorrect LP balance after pegin",
+    });
+    const lbcBalanceAssertion = await createBalanceDifferenceAssertion({
+      source: ethers.provider,
+      address: await lbc.getAddress(),
+      expectedDiff: peginAmount,
+      message: "Incorrect LBC balance after pegin",
+    });
+    const destinationBalanceAssertion = await createBalanceDifferenceAssertion({
+      source: ethers.provider,
+      address: destinationAddress,
+      expectedDiff: quote.value,
+      message: "Incorrect destination balance after pegin",
+    });
+
+    await lbc
+      .callForUser(quote, { value: quote.value })
+      .then((tx) => tx.wait());
+
+    const registerResult = await lbc.registerPegIn.staticCall(
+      quote,
+      signature,
+      blockHeaderHash,
+      partialMerkleTree,
+      height
+    );
+    await lbc
+      .registerPegIn(
+        quote,
+        signature,
+        blockHeaderHash,
+        partialMerkleTree,
+        height
+      )
+      .then((tx) => tx.wait());
+    expect(registerResult).to.be.eq(peginAmount);
+    await collateralAssertion();
+    await lpBalanceAssertion();
+    await lbcBalanceAssertion();
+    await destinationBalanceAssertion();
+  });
+
+  it("revert on insufficient deposit", async () => {
+    const fixtureResult = await loadFixture(deployLbcWithProvidersFixture);
+    const { liquidityProviders, bridgeMock, accounts } = fixtureResult;
+    const provider = liquidityProviders[0];
+    const lbc = fixtureResult.lbc.connect(provider.signer);
+    const destinationAddress = accounts[1].address;
+    const quote = getTestPeginQuote({
+      lbcAddress: await lbc.getAddress(),
+      liquidityProvider: provider.signer,
+      destinationAddress: destinationAddress,
+      refundAddress: accounts[2].address,
+      value: ethers.parseEther("0.7"),
+    });
+    quote.callFee = ethers.parseEther("0.000005");
+    quote.gasFee = ethers.parseEther("0.000006");
+    const delta = totalValue(quote) / 10000n;
+    const peginAmount = totalValue(quote) - delta - 1n;
+    const quoteHash = await lbc.hashQuote(quote).then((hash) => getBytes(hash));
+    const signature = await provider.signer.signMessage(quoteHash);
+    const { firstConfirmationHeader, nConfirmationHeader } =
+      getBtcPaymentBlockHeaders({
+        quote: quote,
+        firstConfirmationSeconds: 100,
+        nConfirmationSeconds: 200,
+      });
+    const { blockHeaderHash, partialMerkleTree } = getTestMerkleProof();
+    const height = 10;
+    await bridgeMock.setHeader(height, firstConfirmationHeader);
+    await bridgeMock.setHeader(
+      height + Number(quote.depositConfirmations) + 1,
+      nConfirmationHeader
+    );
+    await bridgeMock.setPegin(quoteHash, { value: peginAmount });
+    const registerTx = lbc.registerPegIn(
+      quote,
+      signature,
+      blockHeaderHash,
+      partialMerkleTree,
+      height
+    );
+    await expect(registerTx).to.be.revertedWith("LBC057");
   });
 });

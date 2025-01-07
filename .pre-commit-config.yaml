@@ -22,7 +22,7 @@ repos:
   - repo: local
     hooks:
       - id: code-style
-        name: Check contact code style
+        name: Check contract code style
         entry: npm run lint:sol
         language: system
         types: [file]
