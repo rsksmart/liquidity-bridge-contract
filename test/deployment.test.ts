@@ -5,6 +5,7 @@ import { deployLbcProxy } from "../scripts/deployment-utils/deploy-proxy";
 import { upgradeLbcProxy } from "../scripts/deployment-utils/upgrade-proxy";
 import { ZERO_ADDRESS } from "./utils/constants";
 import { BRIDGE_ADDRESS } from "../scripts/deployment-utils/constants";
+import { deployLbcImplementation } from "../scripts/deployment-utils/deploy-lbc-implementation";
 
 describe("LiquidityBridgeContract deployment process should", function () {
   let proxyAddress: string;
@@ -146,5 +147,39 @@ describe("LiquidityBridgeContract deployment process should", function () {
         await expect(initializeTx).to.be.revertedWith("LBC004");
       }
     }
+  });
+
+  it("deploy implementation without upgrading proxy", async () => {
+    const proxy = await deployLbcProxy(hre.network.name, { verbose: false });
+    proxyAddress = proxy.address;
+    const lbcProxy = await ethers.getContractAt(
+      "LiquidityBridgeContractV2",
+      proxy.address
+    );
+    const initializedQuery = await lbcProxy.queryFilter(
+      lbcProxy.getEvent("Initialized")
+    );
+
+    const implementation = await deployLbcImplementation(hre.network.name, {
+      verbose: false,
+    });
+    const lbcImplementation = await ethers.getContractAt(
+      "LiquidityBridgeContractV2",
+      implementation.address
+    );
+
+    expect(proxy.deployed).to.be.eq(true);
+    expect(implementation.deployed).to.be.eq(true);
+    expect(initializedQuery.length).length.equal(1);
+    expect(proxy.address).not.to.eq(implementation.address);
+
+    // this is to ensure implementation does not have state
+    await expect(lbcProxy.getMinCollateral()).to.eventually.eq(
+      ethers.parseEther("0.03")
+    );
+    await expect(lbcImplementation.getMinCollateral()).to.eventually.eq(0n);
+
+    await expect(lbcProxy.version()).to.be.reverted;
+    await expect(lbcImplementation.version()).to.eventually.eq("1.3.0");
   });
 });

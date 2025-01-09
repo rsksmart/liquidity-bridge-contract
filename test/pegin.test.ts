@@ -547,7 +547,7 @@ describe("LiquidityBridgeContractV2 pegin process should", () => {
           productFeeAmount: BigInt("6000000000000000"),
           gasFee: BigInt("3000000000000000"),
         },
-        address: "2Mvz5NDrXSSBCXzhrxnuo9TDS8Co4Wk1t8N",
+        address: "2NAXHKYRnTme4oDCk9mSPfdf4ga2tZ1xM5B",
       },
       {
         quote: {
@@ -579,7 +579,7 @@ describe("LiquidityBridgeContractV2 pegin process should", () => {
           productFeeAmount: BigInt("7000000000000000"),
           gasFee: BigInt("4000000000000000"),
         },
-        address: "2Mxb4NdDaDBX4kjxhBrzjMG5WbCjok6LWab",
+        address: "2NCDJzPze5eosHN5Tx4pf5GF2zXtaKDUHzX",
       },
       {
         quote: {
@@ -611,7 +611,7 @@ describe("LiquidityBridgeContractV2 pegin process should", () => {
           productFeeAmount: BigInt("8000000000000000"),
           gasFee: BigInt("5000000000000000"),
         },
-        address: "2NCx9M8j7nZTp3GmP36CFvFgYNLBQwQPwDR",
+        address: "2N7rxjtHjbxr8W3U3HVncyHJhEhBQ3tBa9w",
       },
     ];
 
