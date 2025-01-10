@@ -1,12 +1,10 @@
 import { expect } from "chai";
 import hre from "hardhat";
 import { ethers } from "hardhat";
-import {
-  BRIDGE_ADDRESS,
-  deployLbcProxy,
-} from "../scripts/deployment-utils/deploy-proxy";
+import { deployLbcProxy } from "../scripts/deployment-utils/deploy-proxy";
 import { upgradeLbcProxy } from "../scripts/deployment-utils/upgrade-proxy";
 import { ZERO_ADDRESS } from "./utils/constants";
+import { BRIDGE_ADDRESS } from "../scripts/deployment-utils/constants";
 
 describe("LiquidityBridgeContract deployment process should", function () {
   let proxyAddress: string;
