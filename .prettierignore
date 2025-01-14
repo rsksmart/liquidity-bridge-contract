@@ -5,11 +5,5 @@ artifacts
 cache
 node_modules
 errorCodes.json
-
-
-truffle*
-migrations
-testHashQuote.js
-testRefundPegout.js
-testRegisterPegout.js
-testBridge.js
+coverage/
+coverage.json

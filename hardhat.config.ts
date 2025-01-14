@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@openzeppelin/hardhat-upgrades";
+import "hardhat-contract-sizer";
 import "./tasks/get-versions";
 import "./tasks/btc-best-height";
 import "./tasks/hash-quote";
@@ -13,6 +14,7 @@ dotenv.config();
 const {
   MAINNET_RPC_URL,
   TESTNET_RPC_URL,
+  REGTEST_RPC_URL,
   MAINNET_SIGNER_PRIVATE_KEY,
   MAINNET_MNEMONIC,
   TESTNET_SIGNER_PRIVATE_KEY,
@@ -29,7 +31,7 @@ const rpcDefaultTimeout = 3 * 60 * 1000; // 3 minutes
 const config: HardhatUserConfig = {
   networks: {
     rskRegtest: {
-      url: "http://localhost:4444",
+      url: REGTEST_RPC_URL ?? "http://localhost:4444",
       chainId: 33,
     },
     rskDevelopment: {
