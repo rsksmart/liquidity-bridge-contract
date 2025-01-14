@@ -101,7 +101,7 @@ export function parsePegoutQuote(
   };
 }
 
-function parseBtcAddress(address: string): BytesLike {
+export function parseBtcAddress(address: string): BytesLike {
   const MAINNET_P2TR = /^bc1p([ac-hj-np-z02-9]{58})$/;
   const TESTNET_P2TR = /^tb1p([ac-hj-np-z02-9]{58})$/;
   const REGTEST_P2TR = /^bcrt1p([ac-hj-np-z02-9]{58})$/;
