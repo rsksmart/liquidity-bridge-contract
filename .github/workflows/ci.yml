@@ -4,14 +4,16 @@ name: CI
 
 # Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the master branch
   push:
-    branches: [ master ]
+    branches: [ master, Stable-Test, QA-Test ]
   pull_request:
-    branches: [ master ]
+    branches: [ master, Stable-Test, QA-Test ]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -23,16 +25,16 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Use Node.js 16.x
-        uses: actions/setup-node@v1
+      - name: Use Node.js 19.6.0
+        uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v4.0.4
         with:
-          node-version: 16.x
+          node-version: '19.6.0'
 
       - name: Install truffle
         run: npm install -g truffle
-      
+
       - name: Install dependencies
         run: npm ci
       # - name: Lint source and tests

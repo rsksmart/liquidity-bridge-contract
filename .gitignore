@@ -1,7 +1,13 @@
+# regtest
+.openzeppelin/unknown-33.json
+# test network
+.openzeppelin/unknown-1337.json
 node_modules
-build
 .vscode
 .idea
 coverage
 coverage.json
 .secret
+.DS_Store
+integration-test/test.config.json
+.env

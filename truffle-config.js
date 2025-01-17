@@ -1,3 +1,4 @@
+require('dotenv').config()
 const HDWalletProvider = require('@truffle/hdwallet-provider');
 
 const fs = require('fs');
@@ -13,50 +14,75 @@ module.exports = {
     enableTimeouts: false,
     timeout: 1000000
   },
-  plugins: ["solidity-coverage"],
+  plugins: ["truffle-contract-size"],
   networks: {
+    ganache: {
+      host: '127.0.0.1',
+      port: 7545,
+      network_id: 5777,
+      gas: 200000000
+    },
     rskRegtest: {
       host: '127.0.0.1',
       port: 4444,
       network_id: 33,
     },
-    rskTestnet: {
+    alphanet: {
       provider: () => new HDWalletProvider({
         mnemonic,
-        providerOrUrl: `https://public-node.testnet.rsk.co`,
+        providerOrUrl: process.env.ALPHANET_RPC_URL,
+        derivationPath: "m/44'/60'/0'/0/",
+        pollingInterval: 30000,
+      }),
+      port: 4444,
+      network_id: 78
+    },
+    rskDevelopment: {
+      provider: () => new HDWalletProvider({
+        mnemonic,
+        providerOrUrl: process.env.TESTNET_RPC_URL,
         derivationPath: "m/44'/60'/0'/0/",
         pollingInterval: 30000,
       }),
       network_id: 31,
-      gasPrice: 65164000,
       deploymentPollingInterval: 30000,
+      networkCheckTimeout: 10000,
+      timeoutBlocks: 200
+    },
+    rskTestnet: {
+      provider: () => new HDWalletProvider({
+        mnemonic,
+        providerOrUrl: process.env.TESTNET_RPC_URL,
+        derivationPath: "m/44'/37310'/0'/0/",
+        pollingInterval: 30000,
+      }),
+      network_id: 31,
+      deploymentPollingInterval: 30000,
+      networkCheckTimeout: 10000,
+      timeoutBlocks: 200
     },
     rskMainnet: {
       provider: () => new HDWalletProvider({
         mnemonic,
-        providerOrUrl: `https://public-node.rsk.co`,
+        providerOrUrl: process.env.MAINNET_RPC_URL,
         derivationPath: "m/44'/137'/0'/0/",
         pollingInterval: 30000,
       }),
       network_id: 30,
-      gasPrice: 65164000,
       deploymentPollingInterval: 30000,
-    },
-    testRegtest: {
-      host: '127.0.0.1',
-      port: 4444,
-      network_id: 33,
-    },
+      networkCheckTimeout: 10000,
+      timeoutBlocks: 200
+    }
   },
   compilers: {
     solc: {
-        version : "0.8.3",
+        version : "0.8.18",
         settings: {          // See the solidity docs for advice about optimization and evmVersion
           optimizer: {
             enabled: true,
-            runs: 200
+            runs: 1
           },
-          evmVersion: "byzantium"
+          // evmVersion: "byzantium"
         }
     }
   }
