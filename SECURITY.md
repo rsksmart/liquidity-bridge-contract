@@ -14,16 +14,16 @@ For all security related issues, Liquidity Bridge Contract has two main points o
 
 RootstockLabs will make a best effort to meet the following response times for reported vulnerabilities:
 
-* Time to first response (from report submit) - 5 business days
-* Time to triage (from report submit) - 7 business days
-* Time to bounty (from triage) - 15 business days
+- Time to first response (from report submit) - 5 business days
+- Time to triage (from report submit) - 7 business days
+- Time to bounty (from triage) - 15 business days
 
 We’ll try to keep you informed about our progress throughout the process.
 
 ### Disclosure Policy
 
-* Follow HackerOne's [disclosure guidelines](https://www.hackerone.com/disclosure-guidelines).
-* Public disclosure of a vulnerability makes it ineligible for a bounty. If the user reports the vulnerability to other security teams (e.g. Ethereum or ETC) but reports to RootstockLabs with considerable delay, then RootstockLabs may reduce or cancel the bounty.
+- Follow HackerOne's [disclosure guidelines](https://www.hackerone.com/disclosure-guidelines).
+- Public disclosure of a vulnerability makes it ineligible for a bounty. If the user reports the vulnerability to other security teams (e.g. Ethereum or ETC) but reports to RootstockLabs with considerable delay, then RootstockLabs may reduce or cancel the bounty.
 
 For more information check RootstockLabs bounty program policy at [HackerOne](https://hackerone.com/rootstocklabs)
 
