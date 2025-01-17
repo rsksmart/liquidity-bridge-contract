@@ -473,20 +473,20 @@
   "sourceMap": "58:220:31:-:0;;;;;;;;;;;;;;;;;;;",
   "deployedSourceMap": "58:220:31:-:0;;;;;;;;;;;;;;;;;;;;;;;;245:11;;;;244:12;236:33;;;;-1:-1:-1;;;236:33:31;;216:2:32;236:33:31;;;198:21:32;255:1;235:18;;;228:29;-1:-1:-1;;;273:18:32;;;266:38;321:18;;236:33:31;;;;;;;;58:220;;;;;116:77;;;;;;;;;;-1:-1:-1;116:77:31;;;;;:::i;:::-;169:11;:17;;-1:-1:-1;;169:17:31;;;;;;;;;;116:77;350:273:32;406:6;459:2;447:9;438:7;434:23;430:32;427:52;;;475:1;472;465:12;427:52;514:9;501:23;567:5;560:13;553:21;546:5;543:32;533:60;;589:1;586;579:12;533:60;612:5;350:273;-1:-1:-1;;;350:273:32:o",
   "source": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.18;\n\ncontract WalletMock {\n\n    bool private rejectFunds;\n\n    function setRejectFunds(bool val) external {\n        rejectFunds = val;\n    }\n\n    receive() external payable {\n        require(!rejectFunds, \"rejected\");\n    }\n}\n",
-  "sourcePath": "/Users/guilhermesoares/WebstormProjects/Rootstock/liquidity-bridge-contract/contracts/WalletMock.sol",
+  "sourcePath": "/Users/luischavez/iov/liquidity-bridge-contract/contracts/WalletMock.sol",
   "ast": {
     "absolutePath": "project:/contracts/WalletMock.sol",
     "exportedSymbols": {
       "WalletMock": [
-        10940
+        11504
       ]
     },
-    "id": 10941,
+    "id": 11505,
     "license": "MIT",
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 10917,
+        "id": 11481,
         "literals": [
           "solidity",
           "^",
@@ -503,9 +503,9 @@
         "contractDependencies": [],
         "contractKind": "contract",
         "fullyImplemented": true,
-        "id": 10940,
+        "id": 11504,
         "linearizedBaseContracts": [
-          10940
+          11504
         ],
         "name": "WalletMock",
         "nameLocation": "67:10:31",
@@ -513,12 +513,12 @@
         "nodes": [
           {
             "constant": false,
-            "id": 10919,
+            "id": 11483,
             "mutability": "mutable",
             "name": "rejectFunds",
             "nameLocation": "98:11:31",
             "nodeType": "VariableDeclaration",
-            "scope": 10940,
+            "scope": 11504,
             "src": "85:24:31",
             "stateVariable": true,
             "storageLocation": "default",
@@ -527,7 +527,7 @@
               "typeString": "bool"
             },
             "typeName": {
-              "id": 10918,
+              "id": 11482,
               "name": "bool",
               "nodeType": "ElementaryTypeName",
               "src": "85:4:31",
@@ -540,23 +540,23 @@
           },
           {
             "body": {
-              "id": 10928,
+              "id": 11492,
               "nodeType": "Block",
               "src": "159:34:31",
               "statements": [
                 {
                   "expression": {
-                    "id": 10926,
+                    "id": 11490,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": false,
                     "lValueRequested": false,
                     "leftHandSide": {
-                      "id": 10924,
+                      "id": 11488,
                       "name": "rejectFunds",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 10919,
+                      "referencedDeclaration": 11483,
                       "src": "169:11:31",
                       "typeDescriptions": {
                         "typeIdentifier": "t_bool",
@@ -566,11 +566,11 @@
                     "nodeType": "Assignment",
                     "operator": "=",
                     "rightHandSide": {
-                      "id": 10925,
+                      "id": 11489,
                       "name": "val",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 10921,
+                      "referencedDeclaration": 11485,
                       "src": "183:3:31",
                       "typeDescriptions": {
                         "typeIdentifier": "t_bool",
@@ -583,14 +583,14 @@
                       "typeString": "bool"
                     }
                   },
-                  "id": 10927,
+                  "id": 11491,
                   "nodeType": "ExpressionStatement",
                   "src": "169:17:31"
                 }
               ]
             },
             "functionSelector": "3eb9f753",
-            "id": 10929,
+            "id": 11493,
             "implemented": true,
             "kind": "function",
             "modifiers": [],
@@ -598,17 +598,17 @@
             "nameLocation": "125:14:31",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 10922,
+              "id": 11486,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 10921,
+                  "id": 11485,
                   "mutability": "mutable",
                   "name": "val",
                   "nameLocation": "145:3:31",
                   "nodeType": "VariableDeclaration",
-                  "scope": 10929,
+                  "scope": 11493,
                   "src": "140:8:31",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -617,7 +617,7 @@
                     "typeString": "bool"
                   },
                   "typeName": {
-                    "id": 10920,
+                    "id": 11484,
                     "name": "bool",
                     "nodeType": "ElementaryTypeName",
                     "src": "140:4:31",
@@ -632,12 +632,12 @@
               "src": "139:10:31"
             },
             "returnParameters": {
-              "id": 10923,
+              "id": 11487,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "159:0:31"
             },
-            "scope": 10940,
+            "scope": 11504,
             "src": "116:77:31",
             "stateMutability": "nonpayable",
             "virtual": false,
@@ -645,7 +645,7 @@
           },
           {
             "body": {
-              "id": 10938,
+              "id": 11502,
               "nodeType": "Block",
               "src": "226:50:31",
               "statements": [
@@ -653,7 +653,7 @@
                   "expression": {
                     "arguments": [
                       {
-                        "id": 10934,
+                        "id": 11498,
                         "isConstant": false,
                         "isLValue": false,
                         "isPure": false,
@@ -663,11 +663,11 @@
                         "prefix": true,
                         "src": "244:12:31",
                         "subExpression": {
-                          "id": 10933,
+                          "id": 11497,
                           "name": "rejectFunds",
                           "nodeType": "Identifier",
                           "overloadedDeclarations": [],
-                          "referencedDeclaration": 10919,
+                          "referencedDeclaration": 11483,
                           "src": "245:11:31",
                           "typeDescriptions": {
                             "typeIdentifier": "t_bool",
@@ -681,7 +681,7 @@
                       },
                       {
                         "hexValue": "72656a6563746564",
-                        "id": 10935,
+                        "id": 11499,
                         "isConstant": false,
                         "isLValue": false,
                         "isPure": true,
@@ -707,7 +707,7 @@
                           "typeString": "literal_string \"rejected\""
                         }
                       ],
-                      "id": 10932,
+                      "id": 11496,
                       "name": "require",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [
@@ -721,7 +721,7 @@
                         "typeString": "function (bool,string memory) pure"
                       }
                     },
-                    "id": 10936,
+                    "id": 11500,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": false,
@@ -737,13 +737,13 @@
                       "typeString": "tuple()"
                     }
                   },
-                  "id": 10937,
+                  "id": 11501,
                   "nodeType": "ExpressionStatement",
                   "src": "236:33:31"
                 }
               ]
             },
-            "id": 10939,
+            "id": 11503,
             "implemented": true,
             "kind": "receive",
             "modifiers": [],
@@ -751,25 +751,25 @@
             "nameLocation": "-1:-1:-1",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 10930,
+              "id": 11494,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "206:2:31"
             },
             "returnParameters": {
-              "id": 10931,
+              "id": 11495,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "226:0:31"
             },
-            "scope": 10940,
+            "scope": 11504,
             "src": "199:77:31",
             "stateMutability": "payable",
             "virtual": false,
             "visibility": "external"
           }
         ],
-        "scope": 10941,
+        "scope": 11505,
         "src": "58:220:31",
         "usedErrors": []
       }
@@ -782,7 +782,7 @@
   },
   "networks": {},
   "schemaVersion": "3.4.13",
-  "updatedAt": "2024-08-08T08:53:06.186Z",
+  "updatedAt": "2024-11-27T16:07:27.575Z",
   "devdoc": {
     "kind": "dev",
     "methods": {},
