@@ -21,7 +21,7 @@ jobs:
         run: npm ci
 
       - name: Run Slither
-        uses: crytic/slither-action@6ef3a33e56de4e8f59488cf60858b5c1bf4967c0 # v0.3.0
+        uses: crytic/slither-action@f197989dea5b53e986d0f88c60a034ddd77ec9a8 # v0.4.0
         id: slither
         with:
           sarif: results.sarif
