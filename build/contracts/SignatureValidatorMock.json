@@ -1508,20 +1508,20 @@
   "sourceMap": "58:427:30:-:0;;;;;;;;;;;;;;;-1:-1:-1;;;58:427:30;;;;;;;;;;;;;;;;;",
   "deployedSourceMap": "58:427:30:-:0;;;;;;;;;;;;;;;;;;;;;;;;95:388;;;;;;:::i;:::-;472:4;95:388;;;;;;;;;1487:14:32;;1480:22;1462:41;;1450:2;1435:18;95:388:30;;;;;;;14:127:32;75:10;70:3;66:20;63:1;56:31;106:4;103:1;96:15;130:4;127:1;120:15;146:1163;232:6;240;248;301:2;289:9;280:7;276:23;272:32;269:52;;;317:1;314;307:12;269:52;343:23;;-1:-1:-1;;;;;395:31:32;;385:42;;375:70;;441:1;438;431:12;375:70;464:5;-1:-1:-1;516:2:32;501:18;;488:32;;-1:-1:-1;571:2:32;556:18;;543:32;-1:-1:-1;;;;;624:14:32;;;621:34;;;651:1;648;641:12;621:34;689:6;678:9;674:22;664:32;;734:7;727:4;723:2;719:13;715:27;705:55;;756:1;753;746:12;705:55;792:2;779:16;814:2;810;807:10;804:36;;;820:18;;:::i;:::-;895:2;889:9;863:2;949:13;;-1:-1:-1;;945:22:32;;;969:2;941:31;937:40;925:53;;;993:18;;;1013:22;;;990:46;987:72;;;1039:18;;:::i;:::-;1079:10;1075:2;1068:22;1114:2;1106:6;1099:18;1154:7;1149:2;1144;1140;1136:11;1132:20;1129:33;1126:53;;;1175:1;1172;1165:12;1126:53;1231:2;1226;1222;1218:11;1213:2;1205:6;1201:15;1188:46;1276:1;1271:2;1266;1258:6;1254:15;1250:24;1243:35;1297:6;1287:16;;;;;;;146:1163;;;;;:::o",
   "source": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.18;\n\nlibrary SignatureValidatorMock {\n    function verify(address , bytes32 , bytes memory) public pure returns (bool) {\n        // This is mocked due to an issue with truffle evm that makes the\n        // ecrecover function to return address 0x000...0 as the signer\n        // when executing against RSK the issue doesn't happen, so the actual implementation\n        // uses the class and not this mock\n        return true;\n    }\n}\n",
-  "sourcePath": "/Users/guilhermesoares/WebstormProjects/Rootstock/liquidity-bridge-contract/contracts/SignatureValidatorMock.sol",
+  "sourcePath": "/Users/luischavez/iov/liquidity-bridge-contract/contracts/SignatureValidatorMock.sol",
   "ast": {
     "absolutePath": "project:/contracts/SignatureValidatorMock.sol",
     "exportedSymbols": {
       "SignatureValidatorMock": [
-        10915
+        11479
       ]
     },
-    "id": 10916,
+    "id": 11480,
     "license": "MIT",
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 10900,
+        "id": 11464,
         "literals": [
           "solidity",
           "^",
@@ -1538,9 +1538,9 @@
         "contractDependencies": [],
         "contractKind": "library",
         "fullyImplemented": true,
-        "id": 10915,
+        "id": 11479,
         "linearizedBaseContracts": [
-          10915
+          11479
         ],
         "name": "SignatureValidatorMock",
         "nameLocation": "66:22:30",
@@ -1548,14 +1548,14 @@
         "nodes": [
           {
             "body": {
-              "id": 10913,
+              "id": 11477,
               "nodeType": "Block",
               "src": "172:311:30",
               "statements": [
                 {
                   "expression": {
                     "hexValue": "74727565",
-                    "id": 10911,
+                    "id": 11475,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": true,
@@ -1569,15 +1569,15 @@
                     },
                     "value": "true"
                   },
-                  "functionReturnParameters": 10910,
-                  "id": 10912,
+                  "functionReturnParameters": 11474,
+                  "id": 11476,
                   "nodeType": "Return",
                   "src": "465:11:30"
                 }
               ]
             },
             "functionSelector": "1a86b550",
-            "id": 10914,
+            "id": 11478,
             "implemented": true,
             "kind": "function",
             "modifiers": [],
@@ -1585,17 +1585,17 @@
             "nameLocation": "104:6:30",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 10907,
+              "id": 11471,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 10902,
+                  "id": 11466,
                   "mutability": "mutable",
                   "name": "",
                   "nameLocation": "-1:-1:-1",
                   "nodeType": "VariableDeclaration",
-                  "scope": 10914,
+                  "scope": 11478,
                   "src": "111:7:30",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -1604,7 +1604,7 @@
                     "typeString": "address"
                   },
                   "typeName": {
-                    "id": 10901,
+                    "id": 11465,
                     "name": "address",
                     "nodeType": "ElementaryTypeName",
                     "src": "111:7:30",
@@ -1618,12 +1618,12 @@
                 },
                 {
                   "constant": false,
-                  "id": 10904,
+                  "id": 11468,
                   "mutability": "mutable",
                   "name": "",
                   "nameLocation": "-1:-1:-1",
                   "nodeType": "VariableDeclaration",
-                  "scope": 10914,
+                  "scope": 11478,
                   "src": "121:7:30",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -1632,7 +1632,7 @@
                     "typeString": "bytes32"
                   },
                   "typeName": {
-                    "id": 10903,
+                    "id": 11467,
                     "name": "bytes32",
                     "nodeType": "ElementaryTypeName",
                     "src": "121:7:30",
@@ -1645,12 +1645,12 @@
                 },
                 {
                   "constant": false,
-                  "id": 10906,
+                  "id": 11470,
                   "mutability": "mutable",
                   "name": "",
                   "nameLocation": "-1:-1:-1",
                   "nodeType": "VariableDeclaration",
-                  "scope": 10914,
+                  "scope": 11478,
                   "src": "131:12:30",
                   "stateVariable": false,
                   "storageLocation": "memory",
@@ -1659,7 +1659,7 @@
                     "typeString": "bytes"
                   },
                   "typeName": {
-                    "id": 10905,
+                    "id": 11469,
                     "name": "bytes",
                     "nodeType": "ElementaryTypeName",
                     "src": "131:5:30",
@@ -1674,17 +1674,17 @@
               "src": "110:34:30"
             },
             "returnParameters": {
-              "id": 10910,
+              "id": 11474,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 10909,
+                  "id": 11473,
                   "mutability": "mutable",
                   "name": "",
                   "nameLocation": "-1:-1:-1",
                   "nodeType": "VariableDeclaration",
-                  "scope": 10914,
+                  "scope": 11478,
                   "src": "166:4:30",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -1693,7 +1693,7 @@
                     "typeString": "bool"
                   },
                   "typeName": {
-                    "id": 10908,
+                    "id": 11472,
                     "name": "bool",
                     "nodeType": "ElementaryTypeName",
                     "src": "166:4:30",
@@ -1707,14 +1707,14 @@
               ],
               "src": "165:6:30"
             },
-            "scope": 10915,
+            "scope": 11479,
             "src": "95:388:30",
             "stateMutability": "pure",
             "virtual": false,
             "visibility": "public"
           }
         ],
-        "scope": 10916,
+        "scope": 11480,
         "src": "58:427:30",
         "usedErrors": []
       }
@@ -1727,7 +1727,7 @@
   },
   "networks": {},
   "schemaVersion": "3.4.13",
-  "updatedAt": "2024-08-08T08:54:03.286Z",
+  "updatedAt": "2024-11-27T16:10:47.411Z",
   "networkType": "ethereum",
   "devdoc": {
     "kind": "dev",
