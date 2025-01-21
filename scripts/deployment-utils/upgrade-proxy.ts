@@ -8,7 +8,7 @@ interface LiquidityBridgeContractLibraries {
   signatureValidator: string;
 }
 
-async function deployUpgradeLibraries(
+export async function deployUpgradeLibraries(
   network: string,
   opts: { verbose: boolean }
 ): Promise<LiquidityBridgeContractLibraries> {
