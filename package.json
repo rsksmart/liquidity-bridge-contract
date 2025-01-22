@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "compile": "npm run lint:sol && npx hardhat compile",
-    "test": "npx hardhat test",
+    "test": "npm run compile && npx hardhat test",
     "coverage": "npx hardhat coverage",
     "lint:ts": "npx prettier --check . && npx eslint .",
     "lint:sol": "solhint 'contracts/**/*.sol'",
@@ -49,8 +49,11 @@
     "typescript-eslint": "^8.18.0"
   },
   "dependencies": {
+    "@gnosis.pm/mock-contract": "^4.0.0",
     "@openzeppelin/contracts": "^4.8.0",
     "@openzeppelin/contracts-upgradeable": "^4.8.2",
-    "@rsksmart/btc-transaction-solidity-helper": "^0.2.1"
+    "@rsksmart/btc-transaction-solidity-helper": "^0.2.1",
+    "@safe-global/api-kit": "^2.5.6",
+    "@safe-global/sdk-starter-kit": "^1.1.1"
   }
 }

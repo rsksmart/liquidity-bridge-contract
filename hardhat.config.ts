@@ -8,6 +8,7 @@ import "./tasks/btc-best-height";
 import "./tasks/hash-quote";
 import "./tasks/refund-user-pegout";
 import "./tasks/register-pegin";
+import "./tasks/changeMultisigOwner";
 
 dotenv.config();
 
