@@ -6889,7 +6889,7 @@
   },
   "networks": {},
   "schemaVersion": "3.4.13",
-  "updatedAt": "2024-12-10T18:52:58.899Z",
+  "updatedAt": "2025-01-22T16:43:13.882Z",
   "devdoc": {
     "events": {
       "AdminChanged(address,address)": {
