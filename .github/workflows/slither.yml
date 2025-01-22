@@ -33,7 +33,7 @@ jobs:
           sarif: results.sarif
           fail-on: none
           target: .
-          args: --exclude contracts/safe
+          slither-args: --filter-paths "node_modules/|contracts/safe/"
 
       - name: Upload SARIF file
         uses: github/codeql-action/upload-sarif@461ef6c76dfe95d5c364de2f431ddbd31a417628 # v3.26.9

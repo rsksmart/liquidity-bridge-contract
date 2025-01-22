@@ -1,7 +1,7 @@
-import { task, types } from "hardhat/config";
+import hre from "hardhat";
 import { ethers } from "ethers";
 import * as dotenv from "dotenv";
-import { networkData } from "./utils/networkData";
+import networkData from "../../networkData.json";
 
 dotenv.config();
 
@@ -15,62 +15,47 @@ const OwnableABI = [
   "function transferOwnership(address newOwner)",
 ];
 
-task("changeMultisigOwner", "Changes the multisig owner")
-  .addParam(
-    "address",
-    "The address of the safe wallet",
-    undefined,
-    types.string,
-    false
-  )
-  .setAction(async (args, hre) => {
-    const network = hre.network.name;
-    const typedArgs = args as { address: string };
-    const address = typedArgs.address;
-    console.log(`Changing multisig owner to: ${address} - ${network}`);
+async function main() {
+  const network = hre.network.name;
+  const address = "";
+  console.log(`Changing multisig owner to: ${address} - ${network}`);
 
-    if (!network || !address) {
-      console.error("Usage: npm run multisigOwner <network> <address>");
-      return;
-    }
+  const currentNetworkData = networkData[network as keyof typeof networkData];
 
-    const currentNetworkData = networkData[network as keyof typeof networkData];
+  const { owners, lbcProxyAddress, lbcProxyAdminAddress } = currentNetworkData;
 
-    const { owners, lbcProxyAddress, lbcProxyAdminAddress } =
-      currentNetworkData;
+  const etherProvider = new ethers.JsonRpcProvider(
+    currentNetworkData.providerRpc
+  );
 
-    const etherProvider = new ethers.JsonRpcProvider(
-      currentNetworkData.providerRpc
+  const isSafe = await isSafeAddress(etherProvider, address);
+  if (!isSafe) {
+    console.error(
+      "Exiting... Provided Safe address is not a valid Safe contract."
     );
+    return;
+  }
 
-    const isSafe = await isSafeAddress(etherProvider, address);
-    if (!isSafe) {
-      console.error(
-        "Exiting... Provided Safe address is not a valid Safe contract."
-      );
-      return;
-    }
-
-    const safeOwners = await getOwners(etherProvider, address);
-    if (!validateOwners(safeOwners, owners)) {
-      console.error(
-        "Exiting... Safe owners do not match expected configuration."
-      );
-      return;
-    }
-
-    const signer = ethers.Wallet.fromPhrase(
-      currentNetworkData.mnemonic!,
-      etherProvider
+  const safeOwners = await getOwners(etherProvider, address);
+  if (!validateOwners(safeOwners, owners)) {
+    console.error(
+      "Exiting... Safe owners do not match expected configuration."
     );
+    return;
+  }
 
-    console.log("Starting ownership transfer process...");
+  const signer = ethers.Wallet.fromPhrase(
+    currentNetworkData.mnemonic,
+    etherProvider
+  );
 
-    await transferOwnership(signer, lbcProxyAddress, address);
-    await transferOwnership(signer, lbcProxyAdminAddress, address);
+  console.log("Starting ownership transfer process...");
 
-    console.log("Ownership transfer process complete!");
-  });
+  await transferOwnership(signer, lbcProxyAddress, address);
+  await transferOwnership(signer, lbcProxyAdminAddress, address);
+
+  console.log("Ownership transfer process complete!");
+}
 
 async function isSafeAddress(
   provider: ethers.JsonRpcProvider,
@@ -166,4 +151,7 @@ async function transferOwnership(
   }
 }
 
-export default {};
+main().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});
