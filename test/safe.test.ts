@@ -3,14 +3,6 @@ import { expect } from "chai";
 import { GnosisSafe, GnosisSafeProxyFactory } from "../typechain-types";
 import { ContractTransactionResponse } from "ethers";
 import { deployLbcProxy } from "../scripts/deployment-utils/deploy-proxy";
-import { getContractAt } from "@nomicfoundation/hardhat-ethers/internal/helpers";
-
-const TransparentProxyABI = [
-  "function admin() view returns (address)",
-  "function implementation() view returns (address)",
-  "function owner() view returns (address)",
-  "function transferOwnership(address newOwner)",
-];
 
 describe("Safe Wallet Deployment", function async() {
   async function safeInitialize() {
@@ -101,6 +93,7 @@ describe("Safe Wallet Deployment", function async() {
         safeSingleton,
         [signer1.address, signer2.address]
       );
+
       const deployed = await deployLbcProxy(hre.network.name, {
         verbose: false,
       });
@@ -109,24 +102,15 @@ describe("Safe Wallet Deployment", function async() {
         "LiquidityBridgeContract",
         proxyAddress
       );
-      const proxyContract = await getContractAt(
-        hre,
-        TransparentProxyABI,
-        proxyAddress
-      );
-
-      expect(await proxyContract.owner()).to.equal(signer1.address);
-
       const result = await lbc.queryFilter(lbc.getEvent("Initialized"));
       expect(deployed.deployed).to.be.eq(true);
       expect(result.length).length.equal(1);
       expect(await lbc.owner()).to.equal(signer1.address);
 
       const safeAddress = await testSafeWallet!.getAddress();
+      await lbc.transferOwnership(safeAddress);
 
-      await proxyContract.transferOwnership(safeAddress);
-
-      expect(await proxyContract.owner()).to.equal(safeAddress);
+      expect(await lbc.owner()).to.equal(safeAddress);
     });
   });
 });

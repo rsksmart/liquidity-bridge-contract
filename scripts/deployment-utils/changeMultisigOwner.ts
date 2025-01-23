@@ -1,103 +1,64 @@
-import hre from "hardhat";
-import { ethers } from "ethers";
-import * as dotenv from "dotenv";
+import hre, { ethers } from "hardhat";
+import { read } from "./deploy";
 import networkData from "../../networkData.json";
-
-dotenv.config();
-
-const SafeABI = [
-  "function VERSION() view returns (string)",
-  "function getOwners() view returns (address[])",
-];
-
-const OwnableABI = [
-  "function owner() view returns (address)",
-  "function transferOwnership(address newOwner)",
-];
+import { HardhatRuntimeEnvironment } from "hardhat/types";
 
 async function main() {
   const network = hre.network.name;
-  const address = "";
-  console.log(`Changing multisig owner to: ${address} - ${network}`);
+  const address = "0x14842613f48485e0cb68ca88fd24363d57f34541";
+  console.info(`Changing multisig owner to: ${address} - ${network}`);
+
+  const signer = (await ethers.getSigners())[0];
+  console.info(`Signer address: ${signer.address}`);
 
   const currentNetworkData = networkData[network as keyof typeof networkData];
 
-  const { owners, lbcProxyAddress, lbcProxyAdminAddress } = currentNetworkData;
+  const { owners } = currentNetworkData;
+  const proxyName = "LiquidityBridgeContract";
 
-  const etherProvider = new ethers.JsonRpcProvider(
-    currentNetworkData.providerRpc
-  );
+  const proxyAddress = read()[network][proxyName].address;
+  if (!proxyAddress) {
+    throw new Error(`Proxy ${proxyName} not deployed on network ${network}`);
+  }
+  console.info(`Proxy address: ${proxyAddress}`);
 
-  const isSafe = await isSafeAddress(etherProvider, address);
-  if (!isSafe) {
-    console.error(
+  const safeOwners = await isSafeAddress(address);
+  if (safeOwners.length === 0) {
+    throw new Error(
       "Exiting... Provided Safe address is not a valid Safe contract."
     );
-    return;
   }
 
-  const safeOwners = await getOwners(etherProvider, address);
-  if (!validateOwners(safeOwners, owners)) {
-    console.error(
-      "Exiting... Safe owners do not match expected configuration."
-    );
-    return;
-  }
+  validateOwners(safeOwners, owners);
 
-  const signer = ethers.Wallet.fromPhrase(
-    currentNetworkData.mnemonic,
-    etherProvider
-  );
-
-  console.log("Starting ownership transfer process...");
-
-  await transferOwnership(signer, lbcProxyAddress, address);
-  await transferOwnership(signer, lbcProxyAdminAddress, address);
-
+  console.info("Starting ownership transfer process...");
+  await transferOwnership(hre, proxyAddress, address);
   console.log("Ownership transfer process complete!");
 }
 
-async function isSafeAddress(
-  provider: ethers.JsonRpcProvider,
-  address: string
-): Promise<boolean> {
+async function isSafeAddress(address: string): Promise<string[]> {
   try {
-    const code = await provider.getCode(address);
+    const code = await ethers.provider.getCode(address);
     if (code === "0x") {
-      console.log(`${address} is not a smart contract`);
-      return false;
+      throw new Error(`${address} is not a smart contract`);
     }
-    const contract = new ethers.Contract(address, SafeABI, provider);
+    const contract = await ethers.getContractAt("GnosisSafe", address);
 
-    const version = (await contract.VERSION()) as string;
-    console.log(`Address ${address} is a Safe contract! Version: ${version}`);
+    const version = await contract.VERSION();
+    const owners = await contract.getOwners();
+    if (owners.length === 0) {
+      throw new Error("Owners array is empty");
+    }
+    console.info(`Address ${address} is a Safe contract! Version: ${version}`);
 
-    return true;
-  } catch (error) {
-    console.error(`Address ${address} Is not a Safe address.`, error);
-    return false;
-  }
-}
-
-async function getOwners(
-  provider: ethers.JsonRpcProvider,
-  address: string
-): Promise<string[]> {
-  try {
-    const contract = new ethers.Contract(address, SafeABI, provider);
-    const owners = (await contract.getOwners()) as string[];
-    console.log(`Owners of Safe Contract at ${address}:`, owners);
     return owners;
   } catch (error) {
-    console.error(`Failed to get owners for address ${address}:`, error);
-    return [];
+    console.error(error);
+    throw new Error(`Address ${address} Is not a Safe address`);
   }
 }
 
-function validateOwners(
-  safeOwners: string[],
-  expectedOwners: string[]
-): boolean {
+function validateOwners(safeOwners: string[], expectedOwners: string[]): void {
   const safeSet = new Set(safeOwners.map((owner) => owner.toLowerCase()));
   const expectedSet = new Set(
     expectedOwners.map((owner) => owner.toLowerCase())
@@ -107,45 +68,56 @@ function validateOwners(
     safeSet.size === expectedSet.size &&
     [...safeSet].every((owner) => expectedSet.has(owner));
   if (isValid) {
-    console.log(`Safe ownership matches expected configuration.`);
+    console.info(`Safe ownership matches expected configuration.`);
   } else {
-    console.error(`Safe ownership does not match expected configuration.`);
+    throw new Error(`Safe ownership does not match expected configuration.`);
   }
-
-  return isValid;
 }
 
 async function transferOwnership(
-  signer: ethers.HDNodeWallet,
-  contractAddress: string,
+  hre: HardhatRuntimeEnvironment,
+  proxyAddress: string,
   newOwnerAddress: string
 ): Promise<void> {
   try {
-    const contract = new ethers.Contract(contractAddress, OwnableABI, signer);
+    const contract = await ethers.getContractAt(
+      "LiquidityBridgeContractV2",
+      proxyAddress
+    );
 
-    const currentOwner = (await contract.owner()) as string;
-    console.log(
-      `Current owner of contract at ${contractAddress}: ${currentOwner}`
+    const currentOwner = await contract.owner();
+    console.info(
+      `Current owner of contract at ${proxyAddress}: ${currentOwner}`
     );
 
     if (currentOwner.toLowerCase() === newOwnerAddress.toLowerCase()) {
-      console.log(
-        `Ownership of contract at ${contractAddress} is already set to ${newOwnerAddress}`
+      console.info(
+        `Ownership of contract at ${proxyAddress} is already set to ${newOwnerAddress}`
       );
       return;
     }
 
     console.log(
-      `Transferring ownership of contract at ${contractAddress} to ${newOwnerAddress}...`
+      `Transferring ownership of contract at ${proxyAddress} to ${newOwnerAddress}...`
     );
     await contract.transferOwnership(newOwnerAddress);
 
     console.log(
-      `Ownership of contract at ${contractAddress} successfully transferred to ${newOwnerAddress}!`
+      `Ownership of contract at ${proxyAddress} successfully transferred to ${newOwnerAddress}!`
+    );
+
+    const signer = (await ethers.getSigners())[0];
+    await hre.upgrades.admin.transferProxyAdminOwnership(
+      proxyAddress,
+      newOwnerAddress,
+      signer,
+      {
+        silent: true,
+      }
     );
   } catch (error) {
     console.error(
-      `Failed to transfer ownership of contract at ${contractAddress}:`,
+      `Failed to transfer ownership of contract at ${proxyAddress}:`,
       error
     );
   }
