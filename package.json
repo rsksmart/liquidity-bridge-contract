@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "compile": "npm run lint:sol && npx hardhat compile",
-    "test": "npx hardhat test",
+    "test": "npm run compile && npx hardhat test",
     "coverage": "npx hardhat coverage",
     "lint:ts": "npx prettier --check . && npx eslint .",
     "lint:sol": "solhint 'contracts/**/*.sol'",
@@ -28,6 +28,7 @@
   "homepage": "https://github.com/rsksmart/liquidity-bridge-contract#readme",
   "devDependencies": {
     "@eslint/js": "^9.16.0",
+    "@gnosis.pm/mock-contract": "^4.0.0",
     "@mempool/mempool.js": "^2.3.0",
     "@nomicfoundation/hardhat-ethers": "^3.0.8",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
