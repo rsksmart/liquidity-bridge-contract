@@ -2,6 +2,27 @@ import hre, { ethers } from "hardhat";
 import { read } from "./deploy";
 import multisigOwners from "../../multisig-owners.json";
 
+/**
+ * Changes the multisig owner of the `LiquidityBridgeContract` deployed on the current network to the safe wallet
+ * provided.
+ *
+ * This function validates the provided `newOwner` address, ensures ownership configuration matches
+ * expectations, and performs the transfer of ownership to the new multisig address. Additionally,
+ * it updates both the contract and proxy admin ownership.
+ *
+ * @async
+ * @param {string} newOwner - The address of the new multisig owner (Safe contract).
+ * @throws {Error} If the proxy contract is not deployed on the current network.
+ * @throws {Error} If the provided `newOwner` address is not a valid multisig Safe contract.
+ * @throws {Error} If the configuration of owners on the Safe does not match the expected configuration.
+ * @returns {Promise<void>} Resolves when the ownership transfer process is complete.
+ *
+ * @example
+ * // Change the multisig owner of the contract
+ * const newMultisigAddress = "0xNewSafeAddress";
+ * await changeMultisigOwner(newMultisigAddress);
+ */
+
 export const changeMultisigOwner = async (newOowner: string) => {
   const network = hre.network.name;
   console.info(`Changing multisig owner to: ${newOowner} - ${network}`);
