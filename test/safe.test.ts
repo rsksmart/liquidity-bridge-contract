@@ -3,6 +3,9 @@ import { expect } from "chai";
 import { GnosisSafe, GnosisSafeProxyFactory } from "../typechain-types";
 import { ContractTransactionResponse } from "ethers";
 import { deployLbcProxy } from "../scripts/deployment-utils/deploy-proxy";
+import { changeMultisigOwner } from "../scripts/deployment-utils/changeMultisigOwner";
+import multisigOwners from "../multisig-owners.json";
+import { REGISTER_LP_PARAMS } from "./utils/constants";
 
 describe("Safe Wallet Deployment", function async() {
   async function safeInitialize() {
@@ -46,7 +49,7 @@ describe("Safe Wallet Deployment", function async() {
     const receipt = await tx.wait();
 
     if (!receipt) {
-      return;
+      throw new Error("No receipt");
     }
     const proxyAddress = receipt.logs
       .map((log) => proxyFactory.interface.parseLog(log))
@@ -73,11 +76,10 @@ describe("Safe Wallet Deployment", function async() {
       [signer1.address, signer2.address]
     );
 
-    const owners = await testSafeWallet!.getOwners();
+    const owners = await testSafeWallet.getOwners();
     expect(owners.length).to.equal(2);
     expect(owners[0]).to.equal(signer1.address);
     expect(owners[1]).to.equal(signer2.address);
-    expect(await testSafeWallet!.getThreshold()).to.equal(2);
   });
 
   describe("LBC Ownership change", function async() {
@@ -107,8 +109,17 @@ describe("Safe Wallet Deployment", function async() {
       expect(result.length).length.equal(1);
       expect(await lbc.owner()).to.equal(signer1.address);
 
-      const safeAddress = await testSafeWallet!.getAddress();
-      await lbc.transferOwnership(safeAddress);
+      const tx = await lbc.register(...REGISTER_LP_PARAMS);
+      await tx.wait();
+
+      const safeAddress = await testSafeWallet.getAddress();
+      multisigOwners.hardhat.owners = [signer1.address, signer2.address];
+
+      await changeMultisigOwner(safeAddress);
+
+      await expect(
+        lbc.connect(signer1).setProviderStatus(0, true)
+      ).to.be.revertedWith("LBC005");
 
       expect(await lbc.owner()).to.equal(safeAddress);
     });

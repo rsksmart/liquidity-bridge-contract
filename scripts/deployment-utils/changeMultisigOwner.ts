@@ -1,17 +1,13 @@
 import hre, { ethers } from "hardhat";
 import { read } from "./deploy";
-import networkData from "../../networkData.json";
-import { HardhatRuntimeEnvironment } from "hardhat/types";
+import multisigOwners from "../../multisig-owners.json";
 
-async function main() {
+export const changeMultisigOwner = async (newOowner: string) => {
   const network = hre.network.name;
-  const address = "0x14842613f48485e0cb68ca88fd24363d57f34541";
-  console.info(`Changing multisig owner to: ${address} - ${network}`);
+  console.info(`Changing multisig owner to: ${newOowner} - ${network}`);
 
-  const signer = (await ethers.getSigners())[0];
-  console.info(`Signer address: ${signer.address}`);
-
-  const currentNetworkData = networkData[network as keyof typeof networkData];
+  const currentNetworkData =
+    multisigOwners[network as keyof typeof multisigOwners];
 
   const { owners } = currentNetworkData;
   const proxyName = "LiquidityBridgeContract";
@@ -22,7 +18,7 @@ async function main() {
   }
   console.info(`Proxy address: ${proxyAddress}`);
 
-  const safeOwners = await isSafeAddress(address);
+  const safeOwners = await validateAngGetOwners(newOowner);
   if (safeOwners.length === 0) {
     throw new Error(
       "Exiting... Provided Safe address is not a valid Safe contract."
@@ -32,11 +28,11 @@ async function main() {
   validateOwners(safeOwners, owners);
 
   console.info("Starting ownership transfer process...");
-  await transferOwnership(hre, proxyAddress, address);
+  await transferOwnership(proxyAddress, newOowner);
   console.log("Ownership transfer process complete!");
-}
+};
 
-async function isSafeAddress(address: string): Promise<string[]> {
+async function validateAngGetOwners(address: string): Promise<string[]> {
   try {
     const code = await ethers.provider.getCode(address);
     if (code === "0x") {
@@ -75,7 +71,6 @@ function validateOwners(safeOwners: string[], expectedOwners: string[]): void {
 }
 
 async function transferOwnership(
-  hre: HardhatRuntimeEnvironment,
   proxyAddress: string,
   newOwnerAddress: string
 ): Promise<void> {
@@ -106,14 +101,9 @@ async function transferOwnership(
       `Ownership of contract at ${proxyAddress} successfully transferred to ${newOwnerAddress}!`
     );
 
-    const signer = (await ethers.getSigners())[0];
     await hre.upgrades.admin.transferProxyAdminOwnership(
       proxyAddress,
-      newOwnerAddress,
-      signer,
-      {
-        silent: true,
-      }
+      newOwnerAddress
     );
   } catch (error) {
     console.error(
@@ -122,8 +112,3 @@ async function transferOwnership(
     );
   }
 }
-
-main().catch((error: unknown) => {
-  console.error(error);
-  process.exitCode = 1;
-});

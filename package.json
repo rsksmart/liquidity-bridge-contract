@@ -28,7 +28,6 @@
   "homepage": "https://github.com/rsksmart/liquidity-bridge-contract#readme",
   "devDependencies": {
     "@eslint/js": "^9.16.0",
-    "@gnosis.pm/mock-contract": "^4.0.0",
     "@mempool/mempool.js": "^2.3.0",
     "@nomicfoundation/hardhat-ethers": "^3.0.8",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",

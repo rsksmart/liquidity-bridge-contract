@@ -7,5 +7,8 @@
       "0x8E925445BdA88C9F980976dB098Cb1c450BFc719",
       "0x452A22889229b87472Cd77d4f2A8aA33b223D6B5"
     ]
+  },
+  "hardhat": {
+    "owners": ["O1", "O2"]
   }
 }
