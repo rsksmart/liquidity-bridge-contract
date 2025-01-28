@@ -23,9 +23,9 @@ import multisigOwners from "../../multisig-owners.json";
  * await changeMultisigOwner(newMultisigAddress);
  */
 
-export const changeMultisigOwner = async (newOowner: string) => {
+export const changeMultisigOwner = async (newOwner: string) => {
   const network = hre.network.name;
-  console.info(`Changing multisig owner to: ${newOowner} - ${network}`);
+  console.info(`Changing multisig owner to: ${newOwner} - ${network}`);
 
   const currentNetworkData =
     multisigOwners[network as keyof typeof multisigOwners];
@@ -39,7 +39,7 @@ export const changeMultisigOwner = async (newOowner: string) => {
   }
   console.info(`Proxy address: ${proxyAddress}`);
 
-  const safeOwners = await validateAngGetOwners(newOowner);
+  const safeOwners = await validateAngGetOwners(newOwner);
   if (safeOwners.length === 0) {
     throw new Error(
       "Exiting... Provided Safe address is not a valid Safe contract."
@@ -49,8 +49,8 @@ export const changeMultisigOwner = async (newOowner: string) => {
   validateOwners(safeOwners, owners);
 
   console.info("Starting ownership transfer process...");
-  await transferOwnership(proxyAddress, newOowner);
-  console.log("Ownership transfer process complete!");
+  await transferOwnership(proxyAddress, newOwner);
+  console.info("Ownership transfer process complete!");
 };
 
 async function validateAngGetOwners(address: string): Promise<string[]> {
@@ -113,12 +113,12 @@ async function transferOwnership(
       return;
     }
 
-    console.log(
+    console.info(
       `Transferring ownership of contract at ${proxyAddress} to ${newOwnerAddress}...`
     );
     await contract.transferOwnership(newOwnerAddress);
 
-    console.log(
+    console.info(
       `Ownership of contract at ${proxyAddress} successfully transferred to ${newOwnerAddress}!`
     );
 

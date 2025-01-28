@@ -1,14 +1,11 @@
 {
   "rskTestnet": {
-    "owners": ["0x452a22889229b87472CD77d4F2A8Aa33B223D6B5"]
+    "owners": []
   },
   "rskMainnet": {
-    "owners": [
-      "0x8E925445BdA88C9F980976dB098Cb1c450BFc719",
-      "0x452A22889229b87472Cd77d4f2A8aA33b223D6B5"
-    ]
+    "owners": []
   },
   "hardhat": {
-    "owners": ["O1", "O2"]
+    "owners": []
   }
 }

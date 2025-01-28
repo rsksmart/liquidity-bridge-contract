@@ -3,7 +3,7 @@ import { expect } from "chai";
 import { GnosisSafe, GnosisSafeProxyFactory } from "../typechain-types";
 import { ContractTransactionResponse } from "ethers";
 import { deployLbcProxy } from "../scripts/deployment-utils/deploy-proxy";
-import { changeMultisigOwner } from "../scripts/deployment-utils/changeMultisigOwner";
+import { changeMultisigOwner } from "../scripts/deployment-utils/change-multisig-owner";
 import multisigOwners from "../multisig-owners.json";
 import { REGISTER_LP_PARAMS } from "./utils/constants";
 
@@ -107,9 +107,9 @@ describe("Safe Wallet Deployment", function async() {
       const result = await lbc.queryFilter(lbc.getEvent("Initialized"));
       expect(deployed.deployed).to.be.eq(true);
       expect(result.length).length.equal(1);
-      expect(await lbc.owner()).to.equal(signer1.address);
+      await expect(lbc.owner()).eventually.to.equal(signer1.address);
 
-      const tx = await lbc.register(...REGISTER_LP_PARAMS);
+      const tx = await lbc.connect(signer2).register(...REGISTER_LP_PARAMS);
       await tx.wait();
 
       const safeAddress = await testSafeWallet.getAddress();
@@ -118,10 +118,10 @@ describe("Safe Wallet Deployment", function async() {
       await changeMultisigOwner(safeAddress);
 
       await expect(
-        lbc.connect(signer1).setProviderStatus(0, true)
+        lbc.connect(signer1).setProviderStatus(1, true)
       ).to.be.revertedWith("LBC005");
 
-      expect(await lbc.owner()).to.equal(safeAddress);
+      await expect(lbc.owner()).eventually.to.equal(safeAddress);
     });
   });
 });
