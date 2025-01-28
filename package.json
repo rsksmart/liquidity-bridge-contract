@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "compile": "npm run lint:sol && npx hardhat compile",
-    "test": "npx hardhat test",
+    "test": "npm run compile && npx hardhat test",
     "coverage": "npx hardhat coverage",
     "lint:ts": "npx prettier --check . && npx eslint .",
     "lint:sol": "solhint 'contracts/**/*.sol'",
