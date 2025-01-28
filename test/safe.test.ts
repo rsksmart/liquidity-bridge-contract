@@ -82,7 +82,7 @@ describe("Safe Wallet Deployment", function async() {
     expect(owners[1]).to.equal(signer2.address);
   });
 
-  describe("LBC Ownership change", function async() {
+  describe("LBC Ownership change", function () {
     it("should change the ownership of LBC", async function () {
       const { signer1, signer2, safeSingleton, proxyFactory } =
         await safeInitialize();

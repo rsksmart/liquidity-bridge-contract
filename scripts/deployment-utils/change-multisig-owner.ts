@@ -39,7 +39,7 @@ export const changeMultisigOwner = async (newOwner: string) => {
   }
   console.info(`Proxy address: ${proxyAddress}`);
 
-  const safeOwners = await validateAngGetOwners(newOwner);
+  const safeOwners = await validateAndGetOwners(newOwner);
   if (safeOwners.length === 0) {
     throw new Error(
       "Exiting... Provided Safe address is not a valid Safe contract."
@@ -53,7 +53,7 @@ export const changeMultisigOwner = async (newOwner: string) => {
   console.info("Ownership transfer process complete!");
 };
 
-async function validateAngGetOwners(address: string): Promise<string[]> {
+async function validateAndGetOwners(address: string): Promise<string[]> {
   try {
     const code = await ethers.provider.getCode(address);
     if (code === "0x") {
