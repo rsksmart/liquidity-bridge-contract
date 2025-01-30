@@ -1,7 +1,7 @@
 {
   "rskTestnet": {
-    "address": "",
-    "owners": []
+    "address": "0x14842613f48485e0cb68ca88fd24363d57f34541",
+    "owners": ["0x452a22889229b87472cd77d4f2a8aa33b223d6b5"]
   },
   "rskMainnet": {
     "address": "",

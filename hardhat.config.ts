@@ -23,6 +23,8 @@ const {
   DEV_MNEMONIC,
 } = process.env;
 
+const forkEnabled = shouldEnableFork(process.argv);
+
 const rskMainnetDerivationPath = "m/44'/137'/0'/0/0";
 const rskTestnetDerivationPath = "m/44'/37310'/0'/0/0";
 
@@ -51,6 +53,24 @@ const config: HardhatUserConfig = {
       timeout: rpcDefaultTimeout,
       chainId: 30,
       accounts: getAccounts("mainnet"),
+    },
+    hardhat: {
+      ...(forkEnabled
+        ? {
+            forking: {
+              url: "https://public-node.testnet.rsk.co",
+              blockNumber: 6000000,
+            },
+            chains: {
+              31: {
+                hardforkHistory: {
+                  london: 4000000,
+                  berlin: 60000000,
+                },
+              },
+            },
+          }
+        : {}),
     },
   },
   solidity: {
@@ -116,4 +136,11 @@ function getDevAccounts() {
   } else {
     return undefined;
   }
+}
+
+function shouldEnableFork(argv: string[]) {
+  if (argv.includes("e2e/multisig-migration.test.ts")) {
+    return true;
+  }
+  return false;
 }
