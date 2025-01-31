@@ -58,8 +58,10 @@ const config: HardhatUserConfig = {
       ...(forkEnabled
         ? {
             forking: {
-              url: "https://public-node.testnet.rsk.co",
-              blockNumber: 6000000,
+              url:
+                process.env.FORK_NETWORK_URL ??
+                "https://public-node.testnet.rsk.co",
+              blockNumber: Number(process.env.FORK_NETWORK_BLOCK ?? 6100000),
             },
             chains: {
               31: {
