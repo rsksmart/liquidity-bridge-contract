@@ -14,6 +14,7 @@
     "upgrade-rskMainet": "npm run lint:sol && npm run compile && npx hardhat run scripts/deployment/upgrade-lbc.ts --network rskMainnet",
     "contract-size": "npx hardhat size-contracts",
     "test:integration": "npx hardhat test integration-test/*.test.ts --bail --network",
+    "test:e2e": "npx hardhat test e2e/*.test.ts",
     "prepare": "pip3 install pre-commit && pre-commit install"
   },
   "repository": {
