@@ -147,7 +147,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
     }
 
     function version() external pure returns (string memory) {
-        return "1.2.1";
+        return "1.3.0";
     }
 
     function getProviderIds() external view returns (uint) {
@@ -260,26 +260,37 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         return (providerId);
     }
 
-    function getProviders(
-        uint[] memory providerIds
-    ) external view returns (LiquidityProvider[] memory) {
-        LiquidityProvider[] memory providersToReturn = new LiquidityProvider[](
-            providerIds.length
-        );
+    function getProviders() external view returns (LiquidityProvider[] memory) {
         uint count = 0;
-
-        for (uint i = 0; i < providerIds.length; i++) {
-            uint id = providerIds[i];
-            if (
-                (isRegistered(liquidityProviders[id].provider) ||
-                    isRegisteredForPegout(liquidityProviders[id].provider)) &&
-                liquidityProviders[id].status
-            ) {
-                providersToReturn[count] = liquidityProviders[id];
+        LiquidityProvider storage lp;
+        for (uint i = 1; i <= providerId; i++) {
+            if (shouldBeListed(liquidityProviders[i])) {
+                count++;
+            }
+        }
+        LiquidityProvider[] memory providersToReturn = new LiquidityProvider[](count);
+        count = 0;
+        for (uint i = 1; i <= providerId; i++) {
+            lp = liquidityProviders[i];
+            if (shouldBeListed(lp)) {
+                providersToReturn[count] = lp;
                 count++;
             }
         }
         return providersToReturn;
+    }
+
+    function getProvider(address providerAddress) public view returns (LiquidityProvider memory) {
+        for (uint i = 1; i <= providerId; i++) {
+            if (liquidityProviders[i].provider == providerAddress) {
+                return liquidityProviders[i];
+            }
+        }
+        revert("LBC001");
+    }
+
+    function shouldBeListed(LiquidityProvider storage lp) private view returns(bool){
+        return (isRegistered(lp.provider) || isRegisteredForPegout(lp.provider)) && lp.status;
     }
 
     /**
@@ -725,7 +736,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         }
 
         (bool sent,) = quote.lpRskAddress.call{
-                value: quote.value + quote.callFee
+                value: quote.value + quote.callFee + quote.gasFee
             }("");
         require(sent, "LBC050");
 
