@@ -87809,15 +87809,15 @@
     "version": "0.8.18+commit.87f61d96.Emscripten.clang"
   },
   "networks": {
-    "31": {
+    "30": {
       "events": {},
       "links": {
-        "BtcUtils": "0x147F172c8a7434D10FDac6E2c8045116683f277B"
+        "BtcUtils": "0x0FCf6ed9DBA0AE3AD3f6908a9499285720a6d43d"
       }
     }
   },
   "schemaVersion": "3.4.13",
-  "updatedAt": "2024-12-10T18:53:54.104Z",
+  "updatedAt": "2025-01-22T16:48:35.952Z",
   "networkType": "ethereum",
   "devdoc": {
     "events": {
