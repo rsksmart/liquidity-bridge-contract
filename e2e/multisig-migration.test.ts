@@ -13,13 +13,15 @@ type MultisigInfo = Record<
   }
 >;
 
+const { FORK_NETWORK_NAME } = process.env;
+
 const multsigInfo: MultisigInfo = multsigInfoJson;
 
 describe("Should change LBC owner to the multisig", function () {
   it("Should change the owner", async () => {
     await checkForkedNetwork();
 
-    const networkName = process.env.FORK_NETWORK_NAME ?? "rskTestnet";
+    const networkName = FORK_NETWORK_NAME ?? "rskTestnet";
 
     const addresses: Partial<DeploymentConfig> = read();
     const networkDeployments: Partial<DeploymentConfig[string]> | undefined =
