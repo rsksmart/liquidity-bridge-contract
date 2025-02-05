@@ -1,6 +1,7 @@
 import hre, { ethers } from "hardhat";
 import { read } from "./deploy";
 import multisigOwners from "../../multisig-owners.json";
+import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 
 /**
  * Changes the multisig owner of the `LiquidityBridgeContract` deployed on the current network to the safe wallet
@@ -12,6 +13,8 @@ import multisigOwners from "../../multisig-owners.json";
  *
  * @async
  * @param {string} newOwner - The address of the new multisig owner (Safe contract).
+ * @param {string} network - The network where the script will run, by default will be the environment network.
+ * @param {HardhatEthersSigner} signer - Optional signer for test.
  * @throws {Error} If the proxy contract is not deployed on the current network.
  * @throws {Error} If the provided `newOwner` address is not a valid multisig Safe contract.
  * @throws {Error} If the configuration of owners on the Safe does not match the expected configuration.
@@ -23,8 +26,12 @@ import multisigOwners from "../../multisig-owners.json";
  * await changeMultisigOwner(newMultisigAddress);
  */
 
-export const changeMultisigOwner = async (newOwner: string) => {
-  const network = hre.network.name;
+export const changeMultisigOwner = async (
+  newOwner: string,
+  network = "",
+  signer?: HardhatEthersSigner
+) => {
+  network = network === "" ? hre.network.name : network;
   console.info(`Changing multisig owner to: ${newOwner} - ${network}`);
 
   const currentNetworkData =
@@ -49,7 +56,7 @@ export const changeMultisigOwner = async (newOwner: string) => {
   validateOwners(safeOwners, owners);
 
   console.info("Starting ownership transfer process...");
-  await transferOwnership(proxyAddress, newOwner);
+  await transferOwnership(proxyAddress, newOwner, signer);
   console.info("Ownership transfer process complete!");
 };
 
@@ -93,7 +100,8 @@ function validateOwners(safeOwners: string[], expectedOwners: string[]): void {
 
 async function transferOwnership(
   proxyAddress: string,
-  newOwnerAddress: string
+  newOwnerAddress: string,
+  signer?: HardhatEthersSigner
 ): Promise<void> {
   try {
     const contract = await ethers.getContractAt(
@@ -116,7 +124,9 @@ async function transferOwnership(
     console.info(
       `Transferring ownership of contract at ${proxyAddress} to ${newOwnerAddress}...`
     );
-    await contract.transferOwnership(newOwnerAddress);
+    const connectedContract = signer ? contract.connect(signer) : contract;
+
+    await connectedContract.transferOwnership(newOwnerAddress);
 
     console.info(
       `Ownership of contract at ${proxyAddress} successfully transferred to ${newOwnerAddress}!`
@@ -124,7 +134,8 @@ async function transferOwnership(
 
     await hre.upgrades.admin.transferProxyAdminOwnership(
       proxyAddress,
-      newOwnerAddress
+      newOwnerAddress,
+      signer
     );
   } catch (error) {
     console.error(
