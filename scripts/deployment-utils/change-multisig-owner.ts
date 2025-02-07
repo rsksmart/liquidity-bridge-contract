@@ -4,24 +4,24 @@ import multisigOwners from "../../multisig-owners.json";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 
 /**
- * Changes the multisig owner of the `LiquidityBridgeContract` deployed on the current network to the safe wallet
+ * Changes the multisig.ts owner of the `LiquidityBridgeContract` deployed on the current network to the safe wallet
  * provided.
  *
  * This function validates the provided `newOwner` address, ensures ownership configuration matches
- * expectations, and performs the transfer of ownership to the new multisig address. Additionally,
+ * expectations, and performs the transfer of ownership to the new multisig.ts address. Additionally,
  * it updates both the contract and proxy admin ownership.
  *
  * @async
- * @param {string} newOwner - The address of the new multisig owner (Safe contract).
+ * @param {string} newOwner - The address of the new multisig.ts owner (Safe contract).
  * @param {string} network - The network where the script will run, by default will be the environment network.
  * @param {HardhatEthersSigner} signer - Optional signer for test.
  * @throws {Error} If the proxy contract is not deployed on the current network.
- * @throws {Error} If the provided `newOwner` address is not a valid multisig Safe contract.
+ * @throws {Error} If the provided `newOwner` address is not a valid multisig.ts Safe contract.
  * @throws {Error} If the configuration of owners on the Safe does not match the expected configuration.
  * @returns {Promise<void>} Resolves when the ownership transfer process is complete.
  *
  * @example
- * // Change the multisig owner of the contract
+ * // Change the multisig.ts owner of the contract
  * const newMultisigAddress = "0xNewSafeAddress";
  * await changeMultisigOwner(newMultisigAddress);
  */
