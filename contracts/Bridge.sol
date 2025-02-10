@@ -35,7 +35,7 @@ interface Bridge {
 
     function getFederatorPublicKey(int256 index) external view returns (bytes memory);
 
-    function getFederatorPublicKeyOfType(int256 index, string calldata atype) external returns (bytes memory);
+    function getFederatorPublicKeyOfType(int256 index, string calldata atype) external view returns (bytes memory);
 
     function getFederationCreationTime() external view returns (int256);
 
@@ -111,7 +111,7 @@ interface Bridge {
     function registerBtcCoinbaseTransaction(bytes calldata btcTxSerialized, bytes32 blockHash,
         bytes calldata pmtSerialized, bytes32 witnessMerkleRoot, bytes32 witnessReservedValue) external;
 
-    function hasBtcBlockCoinbaseTransactionInformation(bytes32 blockHash) external returns (bool);
+    function hasBtcBlockCoinbaseTransactionInformation(bytes32 blockHash) external view returns (bool);
 
     function registerFastBridgeBtcTransaction(bytes calldata btcTxSerialized, uint256 height,
         bytes calldata pmtSerialized, bytes32 derivationArgumentsHash,
