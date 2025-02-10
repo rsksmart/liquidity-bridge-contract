@@ -4,6 +4,7 @@ import { changeMultisigOwner } from "../scripts/deployment-utils/change-multisig
 import { expect } from "chai";
 import { DeploymentConfig, read } from "../scripts/deployment-utils/deploy";
 import multsigInfoJson from "../multisig-owners.json";
+import { LiquidityBridgeContract } from "../typechain-types";
 
 type MultisigInfo = Record<
   string,
@@ -21,7 +22,7 @@ describe("Should change LBC owner to the multisig.ts", function () {
   it("Should change the owner", async () => {
     await checkForkedNetwork();
     const networkName = FORK_NETWORK_NAME ?? "rskTestnet";
-    console.log("Network name:", networkName);
+    console.info("Network name:", networkName);
 
     const lbcName = "LiquidityBridgeContract";
     const addresses: Partial<DeploymentConfig> = read();
@@ -56,10 +57,13 @@ describe("Should change LBC owner to the multisig.ts", function () {
     ).to.be.revertedWith("LBC005");
 
     expect(
-      multisigExecProviderStatusChangeTransaction(safeAddress, lbcAddress)
+      multisigExecProviderStatusChangeTransaction(safeAddress, lbc)
     ).to.eventually.be.equal(true);
     expect(
-      multisigExecUpgradeTransaction(safeAddress, lbcAddress)
+      multisigExecUpgradeTransaction(impersonatedSigner.address, lbc)
+    ).to.eventually.be.equal(false);
+    expect(
+      multisigExecUpgradeTransaction(safeAddress, lbc)
     ).to.eventually.be.equal(true);
   });
 });
@@ -87,25 +91,21 @@ function generateConcatenatedSignatures(owners: string[]) {
 
 export async function multisigExecProviderStatusChangeTransaction(
   safeAddress: string,
-  lbcAddress: string
+  lbc: LiquidityBridgeContract
 ): Promise<boolean> {
   const safeContract = await ethers.getContractAt("GnosisSafe", safeAddress);
 
-  const EncoderFactory = await ethers.getContractFactory("Encoder");
-  const encoderDeployed = await EncoderFactory.deploy();
-  const encoder = await ethers.getContractAt(
-    "Encoder",
-    await encoderDeployed.getAddress()
-  );
-
-  const callData = await encoder.getCallDataSetProviderStatus(1, false);
+  const callData = lbc.interface.encodeFunctionData("setProviderStatus", [
+    1,
+    false,
+  ]);
   console.info("Call data:", callData);
 
   const nonce = await safeContract.nonce();
   console.info("Nonce:", nonce);
 
   const txData = {
-    to: lbcAddress,
+    to: await lbc.getAddress(),
     value: 0,
     data: callData,
     operation: 0,
@@ -187,16 +187,9 @@ export async function multisigExecProviderStatusChangeTransaction(
 
 export async function multisigExecUpgradeTransaction(
   safeAddress: string,
-  lbcAddress: string
+  lbc: LiquidityBridgeContract
 ): Promise<boolean> {
   const safeContract = await ethers.getContractAt("GnosisSafe", safeAddress);
-
-  const EncoderFactory = await ethers.getContractFactory("Encoder");
-  const encoderDeployed = await EncoderFactory.deploy();
-  const encoder = await ethers.getContractAt(
-    "Encoder",
-    await encoderDeployed.getAddress()
-  );
 
   const NewLbcFactory = await ethers.getContractFactory(
     "LiquidityBridgeContractV2"
@@ -208,17 +201,19 @@ export async function multisigExecUpgradeTransaction(
   );
   const newLbcAddress = await newLbc.getAddress();
 
-  const callData = await encoder.getCallDataForUpgrade(
-    lbcAddress,
-    newLbcAddress
-  );
+  const proxyAddress = await lbc.getAddress();
+  // @ts-expect-error - The 'upgrade' method exists on the parent contract
+  const callData = lbc.interface.encodeFunctionData("upgrade", [
+    proxyAddress,
+    newLbcAddress,
+  ]);
   console.info("Call data:", callData);
 
   const nonce = await safeContract.nonce();
   console.info("Nonce:", nonce);
 
   const txData = {
-    to: lbcAddress,
+    to: proxyAddress,
     value: 0,
     data: callData,
     operation: 0,
