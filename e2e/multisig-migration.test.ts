@@ -1,10 +1,14 @@
 import { ethers } from "hardhat";
+import path from "path";
+import fs from "fs";
 import * as helpers from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { changeMultisigOwner } from "../scripts/deployment-utils/change-multisig-owner";
 import { expect } from "chai";
 import { DeploymentConfig, read } from "../scripts/deployment-utils/deploy";
 import multsigInfoJson from "../multisig-owners.json";
-import { LiquidityBridgeContract } from "../typechain-types";
+import { GnosisSafe, LiquidityBridgeContract } from "../typechain-types";
+import { deployUpgradeLibraries } from "../scripts/deployment-utils/upgrade-proxy";
+import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 
 type MultisigInfo = Record<
   string,
@@ -14,15 +18,20 @@ type MultisigInfo = Record<
   }
 >;
 
-const { FORK_NETWORK_NAME } = process.env;
+type PartialAdminData = Partial<{
+  admin: {
+    address: string;
+  };
+}>;
 
+const { FORK_NETWORK_NAME, FORK_NETWORK_ID } = process.env;
 const multsigInfo: MultisigInfo = multsigInfoJson;
 
 describe("Should change LBC owner to the multisig.ts", function () {
   it("Should change the owner", async () => {
     await checkForkedNetwork();
     const networkName = FORK_NETWORK_NAME ?? "rskTestnet";
-    console.info("Network name:", networkName);
+    const networkId = FORK_NETWORK_ID ?? "31";
 
     const lbcName = "LiquidityBridgeContract";
     const addresses: Partial<DeploymentConfig> = read();
@@ -56,14 +65,30 @@ describe("Should change LBC owner to the multisig.ts", function () {
       lbc.connect(impersonatedSigner).setProviderStatus(1, false)
     ).to.be.revertedWith("LBC005");
 
-    expect(
-      multisigExecProviderStatusChangeTransaction(safeAddress, lbc)
+    const safeContract = await ethers.getContractAt("GnosisSafe", safeAddress);
+
+    await expect(
+      multisigExecProviderStatusChangeTransaction(safeContract, lbc)
     ).to.eventually.be.equal(true);
-    expect(
-      multisigExecUpgradeTransaction(impersonatedSigner.address, lbc)
+
+    await expect(
+      multisigExecUpgradeTransaction(
+        safeContract,
+        impersonatedSigner,
+        lbc,
+        networkName,
+        networkId
+      )
     ).to.eventually.be.equal(false);
-    expect(
-      multisigExecUpgradeTransaction(safeAddress, lbc)
+
+    await expect(
+      multisigExecUpgradeTransaction(
+        safeContract,
+        null,
+        lbc,
+        networkName,
+        networkId
+      )
     ).to.eventually.be.equal(true);
   });
 });
@@ -90,11 +115,9 @@ function generateConcatenatedSignatures(owners: string[]) {
 }
 
 export async function multisigExecProviderStatusChangeTransaction(
-  safeAddress: string,
+  safeContract: GnosisSafe,
   lbc: LiquidityBridgeContract
 ): Promise<boolean> {
-  const safeContract = await ethers.getContractAt("GnosisSafe", safeAddress);
-
   const callData = lbc.interface.encodeFunctionData("setProviderStatus", [
     1,
     false,
@@ -186,109 +209,163 @@ export async function multisigExecProviderStatusChangeTransaction(
 }
 
 export async function multisigExecUpgradeTransaction(
-  safeAddress: string,
-  lbc: LiquidityBridgeContract
+  safeContract: GnosisSafe,
+  signer: HardhatEthersSigner | null,
+  lbc: LiquidityBridgeContract,
+  networkName: string,
+  networkId: string
 ): Promise<boolean> {
-  const safeContract = await ethers.getContractAt("GnosisSafe", safeAddress);
+  const opts = { verbose: true };
+  const libs = await deployUpgradeLibraries(networkName, opts);
 
   const NewLbcFactory = await ethers.getContractFactory(
-    "LiquidityBridgeContractV2"
-  );
-  const newLbcDeplolyed = await NewLbcFactory.deploy();
-  const newLbc = await ethers.getContractAt(
     "LiquidityBridgeContractV2",
-    await newLbcDeplolyed.getAddress()
+    {
+      libraries: {
+        QuotesV2: libs.quotesV2,
+        BtcUtils: libs.btcUtils,
+        SignatureValidator: libs.signatureValidator,
+      },
+    }
   );
-  const newLbcAddress = await newLbc.getAddress();
 
+  const newLbcDeployed = await NewLbcFactory.deploy();
+  const newLbcAddress = await newLbcDeployed.getAddress();
+
+  const adminAddress = getAdminAddress(networkId);
+
+  if (!adminAddress) {
+    throw new Error("Admin address not found.");
+  }
+
+  const adminContract = await ethers.getContractAt(
+    "LiquidityBridgeContractAdmin",
+    adminAddress
+  );
   const proxyAddress = await lbc.getAddress();
-  // @ts-expect-error - The 'upgrade' method exists on the parent contract
-  const callData = lbc.interface.encodeFunctionData("upgrade", [
-    proxyAddress,
-    newLbcAddress,
-  ]);
-  console.info("Call data:", callData);
 
-  const nonce = await safeContract.nonce();
-  console.info("Nonce:", nonce);
+  let result = false;
 
-  const txData = {
-    to: proxyAddress,
-    value: 0,
-    data: callData,
-    operation: 0,
-    safeTxGas: 0,
-    baseGas: 0,
-    gasPrice: 0,
-    gasToken: ethers.ZeroAddress,
-    refundReceiver: ethers.ZeroAddress,
-    nonce: nonce,
-    signatures: "0x",
-  };
+  if (!signer) {
+    const callData = adminContract.interface.encodeFunctionData("upgrade", [
+      proxyAddress,
+      newLbcAddress,
+    ]);
+    console.info("Call data:", callData);
 
-  const owners = await safeContract.getOwners();
+    const nonce = await safeContract.nonce();
+    console.info("Nonce:", nonce);
 
-  const desiredBalance = ethers.toQuantity(ethers.parseEther("100"));
+    const txData = {
+      to: adminAddress,
+      value: 0,
+      data: callData,
+      operation: 0,
+      safeTxGas: 0,
+      baseGas: 0,
+      gasPrice: 0,
+      gasToken: ethers.ZeroAddress,
+      refundReceiver: ethers.ZeroAddress,
+      nonce: nonce,
+      signatures: "0x",
+    };
 
-  await helpers.impersonateAccount(owners[0]);
-  const impersonateOwner1 = await ethers.getSigner(owners[0]);
-  await ethers.provider.send("hardhat_setBalance", [
-    impersonateOwner1.address,
-    desiredBalance,
-  ]);
-  await helpers.impersonateAccount(owners[1]);
-  const impersonateOwner2 = await ethers.getSigner(owners[1]);
-  await ethers.provider.send("hardhat_setBalance", [
-    impersonateOwner2.address,
-    desiredBalance,
-  ]);
-  await helpers.impersonateAccount(owners[2]);
-  const impersonateOwner3 = await ethers.getSigner(owners[2]);
-  await ethers.provider.send("hardhat_setBalance", [
-    impersonateOwner3.address,
-    desiredBalance,
-  ]);
+    const owners = await safeContract.getOwners();
 
-  const transactionHash = await safeContract
-    .connect(impersonateOwner1)
-    .getTransactionHash(
-      txData.to,
-      txData.value,
-      txData.data,
-      txData.operation,
-      txData.safeTxGas,
-      txData.baseGas,
-      txData.gasPrice,
-      txData.gasToken,
-      txData.refundReceiver,
-      txData.nonce
+    const desiredBalance = ethers.toQuantity(ethers.parseEther("100"));
+
+    await helpers.impersonateAccount(owners[0]);
+    const impersonateOwner1 = await ethers.getSigner(owners[0]);
+    await ethers.provider.send("hardhat_setBalance", [
+      impersonateOwner1.address,
+      desiredBalance,
+    ]);
+    await helpers.impersonateAccount(owners[1]);
+    const impersonateOwner2 = await ethers.getSigner(owners[1]);
+    await ethers.provider.send("hardhat_setBalance", [
+      impersonateOwner2.address,
+      desiredBalance,
+    ]);
+    await helpers.impersonateAccount(owners[2]);
+    const impersonateOwner3 = await ethers.getSigner(owners[2]);
+    await ethers.provider.send("hardhat_setBalance", [
+      impersonateOwner3.address,
+      desiredBalance,
+    ]);
+
+    const transactionHash = await safeContract
+      .connect(impersonateOwner1)
+      .getTransactionHash(
+        txData.to,
+        txData.value,
+        txData.data,
+        txData.operation,
+        txData.safeTxGas,
+        txData.baseGas,
+        txData.gasPrice,
+        txData.gasToken,
+        txData.refundReceiver,
+        txData.nonce
+      );
+    console.info("Transaction hash:", transactionHash);
+
+    await safeContract.connect(impersonateOwner1).approveHash(transactionHash);
+    await safeContract.connect(impersonateOwner2).approveHash(transactionHash);
+    await safeContract.connect(impersonateOwner3).approveHash(transactionHash);
+    const signature = generateConcatenatedSignatures([
+      impersonateOwner1.address,
+      impersonateOwner2.address,
+      impersonateOwner3.address,
+    ]);
+    console.info("Signature:", signature);
+
+    txData.signatures = signature;
+
+    result = Boolean(
+      await safeContract.execTransaction(
+        txData.to,
+        txData.value,
+        txData.data,
+        txData.operation,
+        txData.safeTxGas,
+        txData.baseGas,
+        txData.gasPrice,
+        txData.gasToken,
+        txData.refundReceiver,
+        txData.signatures
+      )
     );
-  console.info("Transaction hash:", transactionHash);
-
-  await safeContract.connect(impersonateOwner1).approveHash(transactionHash);
-  await safeContract.connect(impersonateOwner2).approveHash(transactionHash);
-  await safeContract.connect(impersonateOwner3).approveHash(transactionHash);
-  const signature = generateConcatenatedSignatures([
-    impersonateOwner1.address,
-    impersonateOwner2.address,
-    impersonateOwner3.address,
-  ]);
-  console.info("Signature:", signature);
-
-  txData.signatures = signature;
-
-  const result = await safeContract.execTransaction(
-    txData.to,
-    txData.value,
-    txData.data,
-    txData.operation,
-    txData.safeTxGas,
-    txData.baseGas,
-    txData.gasPrice,
-    txData.gasToken,
-    txData.refundReceiver,
-    txData.signatures
-  );
+  } else {
+    await expect(
+      adminContract.connect(signer).upgrade(proxyAddress, newLbcAddress)
+    ).to.revertedWith("Ownable: caller is not the owner");
+    return false;
+  }
 
   return Boolean(result);
+}
+
+function getAdminAddress(networkId: string): string | undefined {
+  try {
+    const filePath = path.join(
+      __dirname,
+      "../",
+      `.openzeppelin/unknown-${networkId}.json`
+    );
+
+    const data: PartialAdminData = JSON.parse(
+      fs.readFileSync(filePath, "utf8")
+    ) as PartialAdminData;
+
+    const adminAddress = data.admin?.address;
+    if (adminAddress) {
+      return adminAddress;
+    } else {
+      console.error("Admin address not found in the file.");
+      return undefined;
+    }
+  } catch (err) {
+    console.error("Error reading the JSON file:", err);
+    return undefined;
+  }
 }
