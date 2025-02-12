@@ -51,7 +51,7 @@ describe("Should change LBC owner to the multisig.ts", function () {
     const impersonatedSigner = await ethers.getSigner(lbcOwner);
 
     await expect(
-      changeMultisigOwner(safeAddress, "rskTestnet", impersonatedSigner)
+      changeMultisigOwner(safeAddress, networkName, impersonatedSigner)
     ).to.not.be.reverted;
     const newLbcOwner = await lbc.owner();
     console.info("New LBC owner:", newLbcOwner);
