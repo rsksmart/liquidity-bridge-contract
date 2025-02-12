@@ -9,6 +9,16 @@
       "0xe5c7bfd92f3a26fecf5b6e5c9df9ab2adb51c475"
     ]
   },
+  "rskDevelopment": {
+    "address": "0xe90e4d46ddf3a638ba4c8600f52ae6552bee3f85",
+    "owners": [
+      "0x8e925445bda88c9f980976db098cb1c450bfc719",
+      "0x892813507bf3abf2890759d2135ec34f4909fea5",
+      "0xbd98f2ca40b4ab54161ac29120251e7d0a4c666e",
+      "0x504cb01170011e085b4c557f2c2dcf38ac007e46",
+      "0x1e0a10395e9debd5c109bd1116fffaa3f4a543b2"
+    ]
+  },
   "rskMainnet": {
     "address": "",
     "owners": []
