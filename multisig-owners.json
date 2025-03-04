@@ -1,12 +1,12 @@
 {
   "rskTestnet": {
-    "address": "0x14842613f48485e0cb68ca88fd24363d57f34541",
+    "address": "0x27ad02abf893f8e01f0089ede607a76fbb3f1cd3",
     "owners": [
-      "0x452a22889229b87472cd77d4f2a8aa33b223d6b5",
       "0x8e925445bda88c9f980976db098cb1c450bfc719",
-      "0x14157c9d0e45dc6d1e12591317c36df45af54695",
-      "0x9724289766dfbf5039db507128ca967cb84da8ac",
-      "0xe5c7bfd92f3a26fecf5b6e5c9df9ab2adb51c475"
+      "0xf18ed4047ee49d26034aea5dafdb0e1895e8ddc1",
+      "0xbd98f2ca40b4ab54161ac29120251e7d0a4c666e",
+      "0x892813507bf3abf2890759d2135ec34f4909fea5",
+      "0x1e0a10395e9debd5c109bd1116fffaa3f4a543b2"
     ]
   },
   "rskDevelopment": {
