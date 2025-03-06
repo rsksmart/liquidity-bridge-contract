@@ -305,7 +305,7 @@ contract GnosisSafe is
 
     /// @dev Allows to estimate a Safe transaction.
     ///      This method is only meant for estimation purpose, therefore the call will always revert and encode the result in the revert data.
-    ///      Since the `estimateGas` function includes refunds, call this method to get an estimated of the costs that are deducted from the safe-test-contracts with `execTransaction`
+    ///      Since the `estimateGas` function includes refunds, call this method to get an estimated of the costs that are deducted from the safe with `execTransaction`
     /// @param to Destination address of Safe transaction.
     /// @param value Ether value of Safe transaction.
     /// @param data Data payload of Safe transaction.
@@ -355,7 +355,7 @@ contract GnosisSafe is
     /// @param value Ether value.
     /// @param data Data payload.
     /// @param operation Operation type.
-    /// @param safeTxGas Gas that should be used for the safe-test-contracts transaction.
+    /// @param safeTxGas Gas that should be used for the safe transaction.
     /// @param baseGas Gas costs for that are independent of the transaction execution(e.g. base transaction fee, signature check, payment of the refund)
     /// @param gasPrice Maximum gas price that should be used for this transaction.
     /// @param gasToken Token address (or 0 if ETH) that is used for the payment.
@@ -398,8 +398,8 @@ contract GnosisSafe is
     /// @param value Ether value.
     /// @param data Data payload.
     /// @param operation Operation type.
-    /// @param safeTxGas Fas that should be used for the safe-test-contracts transaction.
-    /// @param baseGas Gas costs for data used to trigger the safe-test-contracts transaction.
+    /// @param safeTxGas Fas that should be used for the safe transaction.
+    /// @param baseGas Gas costs for data used to trigger the safe transaction.
     /// @param gasPrice Maximum gas price that should be used for this transaction.
     /// @param gasToken Token address (or 0 if ETH) that is used for the payment.
     /// @param refundReceiver Address of receiver of gas payment (or 0 if tx.origin).

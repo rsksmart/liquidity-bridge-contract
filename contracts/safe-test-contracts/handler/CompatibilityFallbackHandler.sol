@@ -45,7 +45,7 @@ contract CompatibilityFallbackHandler is DefaultCallbackHandler, ISignatureValid
     }
 
     /// @dev Returns hash of a message that can be signed by owners.
-    /// @param safe-test-contracts Safe to which the message is targeted
+    /// @param safe Safe to which the message is targeted
     /// @param message Message that should be hashed
     /// @return Message hash.
     function getMessageHashForSafe(GnosisSafe safe, bytes memory message) public view returns (bytes32) {

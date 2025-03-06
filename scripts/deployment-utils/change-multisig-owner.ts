@@ -4,7 +4,7 @@ import multisigOwners from "../../multisig-owners.json";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 
 /**
- * Changes the multisig.ts owner of the `LiquidityBridgeContract` deployed on the current network to the safe-test-contracts wallet
+ * Changes the multisig.ts owner of the `LiquidityBridgeContract` deployed on the current network to the safe wallet
  * provided.
  *
  * This function validates the provided `newOwner` address, ensures ownership configuration matches
