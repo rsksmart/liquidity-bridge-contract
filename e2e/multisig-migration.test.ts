@@ -118,8 +118,7 @@ describe("Should change LBC owner to the multisig.ts", function () {
   it("Should change the owner using Tenderly", async () => {
     await checkForkedNetwork();
     const deploymentNetwork = hre.network.name;
-    const multisigAddress =
-      multsigInfo[deploymentNetwork].address;
+    const multisigAddress = multsigInfo[deploymentNetwork].address;
     if (!multisigAddress || multisigAddress === "")
       throw new Error("Multisig address not found for current network");
 
