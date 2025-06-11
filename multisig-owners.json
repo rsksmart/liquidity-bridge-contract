@@ -20,8 +20,22 @@
     ]
   },
   "rskMainnet": {
-    "address": "",
-    "owners": []
+    "address": "0x633d1233ed6251108b61a8365ceed271bf3e3c9b",
+    "owners": [
+      "0xd50c4c5577229c81b19fe1c7d413c2d79ccf7901",
+      "0x15105d3e5f7752f0f7ea0e7b1f3b113701080355",
+      "0xa420af120ec6515870b65e811fa7ce147d491402",
+      "0xa3fd0eedca5ba7504e19b7e0660f21d25fefe77f"
+    ]
+  },
+  "tenderly": {
+    "address": "0x633d1233ed6251108b61a8365ceed271bf3e3c9b",
+    "owners": [
+      "0xd50c4c5577229c81b19fe1c7d413c2d79ccf7901",
+      "0x15105d3e5f7752f0f7ea0e7b1f3b113701080355",
+      "0xa420af120ec6515870b65e811fa7ce147d491402",
+      "0xa3fd0eedca5ba7504e19b7e0660f21d25fefe77f"
+    ]
   },
   "hardhat": {
     "address": "",

@@ -11,6 +11,7 @@ import {
   LiquidityBridgeContractV2,
 } from "../typechain-types";
 import { deployUpgradeLibraries } from "../scripts/deployment-utils/upgrade-proxy";
+import hre from "hardhat";
 
 type MultisigInfo = Record<
   string,
@@ -49,6 +50,12 @@ describe("Should change LBC owner to the multisig.ts", function () {
     console.info("LBC owner:", lbcOwner);
     await helpers.impersonateAccount(lbcOwner);
     const impersonatedSigner = await ethers.getSigner(lbcOwner);
+
+    const desiredBalance = ethers.toQuantity(ethers.parseEther("100"));
+    await ethers.provider.send("hardhat_setBalance", [
+      impersonatedSigner.address,
+      desiredBalance,
+    ]);
 
     await expect(
       changeMultisigOwner(safeAddress, networkName, impersonatedSigner)
@@ -106,6 +113,67 @@ describe("Should change LBC owner to the multisig.ts", function () {
       lbcAddress
     );
     await expect(newLbc.version()).to.eventually.be.equal("1.3.0");
+  });
+
+  it("Should change the owner using Tenderly", async () => {
+    await checkForkedNetwork();
+    const deploymentNetwork = hre.network.name;
+    const multisigAddress =
+      multsigInfo[deploymentNetwork].address;
+    if (!multisigAddress || multisigAddress === "")
+      throw new Error("Multisig address not found for current network");
+
+    // Get the current owner of LiquidityBridgeContract
+    const deploymentData = read()[deploymentNetwork];
+    const proxyAddress = deploymentData.LiquidityBridgeContract.address;
+    if (!proxyAddress)
+      throw new Error(
+        `LiquidityBridgeContract address not found on network ${deploymentNetwork}`
+      );
+
+    const contract = await ethers.getContractAt(
+      "LiquidityBridgeContractV2",
+      proxyAddress
+    );
+    const currentOwner = await contract.owner();
+    console.info(`Current owner: ${currentOwner}`);
+
+    // Impersonate the current owner account
+    await helpers.impersonateAccount(currentOwner);
+    const impersonatedSigner = await ethers.getSigner(currentOwner);
+
+    // Set balance for the impersonated account
+    const desiredBalance = ethers.toQuantity(ethers.parseEther("100"));
+    await ethers.provider.send("hardhat_setBalance", [
+      impersonatedSigner.address,
+      desiredBalance,
+    ]);
+
+    console.info(`Impersonated account: ${impersonatedSigner.address}`);
+
+    // Call changeMultisigOwner
+    await expect(
+      changeMultisigOwner(
+        multisigAddress,
+        deploymentNetwork,
+        impersonatedSigner
+      )
+    ).to.not.be.reverted;
+
+    const newOwner = await contract.owner();
+    console.info(`New owner: ${newOwner}`);
+
+    // Verify ownership change
+    expect(newOwner.toLowerCase()).to.equal(multisigAddress.toLowerCase());
+
+    // Verify old owner can no longer perform owner functions
+    await expect(
+      contract.connect(impersonatedSigner).setProviderStatus(1, false)
+    ).to.be.revertedWith("LBC005");
+
+    console.info(
+      `Ownership of LiquidityBridgeContract proxy changed to multisig in ${deploymentNetwork}`
+    );
   });
 });
 

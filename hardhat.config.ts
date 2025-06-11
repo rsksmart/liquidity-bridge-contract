@@ -54,6 +54,11 @@ const config: HardhatUserConfig = {
       chainId: 30,
       accounts: getAccounts("mainnet"),
     },
+    tenderly: {
+      url: process.env.FORK_NETWORK_URL ?? "https://public-node.testnet.rsk.co",
+      chainId: 30,
+      timeout: rpcDefaultTimeout,
+    },
     hardhat: {
       ...(forkEnabled
         ? {
