@@ -46,6 +46,32 @@
       "deployed": false
     }
   },
+  "tenderly": {
+    "SignatureValidator": {
+      "address": "0xb107cc96A5CfC4Be502e9BBB1208dE4792044ba7",
+      "deployed": true
+    },
+    "Quotes": {
+      "address": "0xecfF1feFa8814c980330ca1000B067BBC9D2ee25",
+      "deployed": true
+    },
+    "BtcUtils": {
+      "address": "0x48841b09CD720355F8EE5164DEeFbB30535d825a",
+      "deployed": true
+    },
+    "LiquidityBridgeContract": {
+      "address": "0xAA9cAf1e3967600578727F975F283446A3Da6612",
+      "deployed": true
+    },
+    "Migrations": {
+      "address": "0x22183DB087d1Fed621435d00aa9cac4B5CdC9aE1",
+      "deployed": true
+    },
+    "QuotesV2": {
+      "address": "0x0123eF8Ae46F9FCBF67c706f73d46bCCE3df44F7",
+      "deployed": true
+    }
+  },
   "rskMainnet": {
     "SignatureValidator": {
       "address": "0xb107cc96A5CfC4Be502e9BBB1208dE4792044ba7",
