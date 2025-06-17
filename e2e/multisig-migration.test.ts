@@ -150,14 +150,14 @@ describe("Should change LBC owner to the multisig.ts", function () {
 
     console.info(`Impersonated account: ${impersonatedSigner.address}`);
 
-    // Call changeMultisigOwner
+    // Call changeMultisigOwner and ensure the Promise is fulfilled
     await expect(
       changeMultisigOwner(
         multisigAddress,
         deploymentNetwork,
         impersonatedSigner
       )
-    ).to.not.be.reverted;
+    ).to.eventually.be.fulfilled;
 
     const newOwner = await contract.owner();
     console.info(`New owner: ${newOwner}`);
@@ -167,13 +167,24 @@ describe("Should change LBC owner to the multisig.ts", function () {
 
     // Verify old owner can no longer perform owner functions
     const adminAddress = await upgrades.erc1967.getAdminAddress(proxyAddress);
-    const adminContract = await ethers.getContractAt(
+
+    // Get the ProxyAdmin contract instance
+    const proxyAdminContract = await ethers.getContractAt(
       "LiquidityBridgeContractAdmin",
       adminAddress
     );
+
+    // Attempt an upgrade with the former owner to ensure permissions were revoked
+    const adminContract = proxyAdminContract.connect(impersonatedSigner);
     await expect(
       adminContract.upgrade(proxyAddress, multisigAddress)
-    ).to.revertedWith("Ownable: caller is not the owner");
+    ).to.be.revertedWith("Ownable: caller is not the owner");
+
+    // Verify the ProxyAdmin owner was also updated
+    const proxyAdminOwner = await proxyAdminContract.owner();
+    expect(proxyAdminOwner.toLowerCase()).to.equal(
+      multisigAddress.toLowerCase()
+    );
 
     console.info(
       `Ownership of LiquidityBridgeContract proxy changed to multisig in ${deploymentNetwork}`
