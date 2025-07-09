@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.18;
+pragma solidity 0.8.25;
 
 library SignatureValidator {
     /**
@@ -13,7 +13,7 @@ library SignatureValidator {
         bytes32 r;
         bytes32 s;
         uint8 v;
-     
+
         assembly {
             r := mload(add(signature, 0x20))
             s := mload(add(signature, 0x40))

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.18;
+pragma solidity 0.8.25;
 pragma experimental ABIEncoderV2;
 
 import "./Bridge.sol";
@@ -7,13 +7,13 @@ import "./QuotesV2.sol";
 import "./SignatureValidator.sol";
 import "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 /**
     @title Contract that assists with the Flyover protocol
  */
 
-contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
+contract LiquidityBridgeContractV2 is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     uint16 constant public MAX_CALL_GAS_COST = 35000;
     uint16 constant public MAX_REFUND_GAS_LIMIT = 2300;
 
@@ -135,6 +135,11 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         _;
     }
 
+    function initializeV2() public initializer {
+        __Ownable_init_unchained(msg.sender);
+        __ReentrancyGuard_init_unchained();
+    }
+
     function setProviderStatus(
         uint _providerId,
         bool status
@@ -150,20 +155,8 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
         return "1.3.0";
     }
 
-    function getProviderIds() external view returns (uint) {
-        return providerId;
-    }
-
-    function getBridgeAddress() external view returns (address) {
-        return address(bridge);
-    }
-
     function getMinCollateral() public view returns (uint) {
         return minCollateral;
-    }
-
-    function getMinPegIn() external view returns (uint) {
-        return minPegIn;
     }
 
     function getRewardPercentage() external view returns (uint) {
@@ -172,14 +165,6 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
 
     function getResignDelayBlocks() external view returns (uint) {
         return resignDelayInBlocks;
-    }
-
-    function getDustThreshold() external view returns (uint) {
-        return dust;
-    }
-
-    function isPegOutQuoteCompleted(bytes32 quoteHash) external view returns (bool) {
-        return pegoutRegistry[quoteHash].completed;
     }
 
     /**

@@ -24,7 +24,7 @@ describe("LiquidityBridgeContractV2 provider discovery should", () => {
     const { lbc, liquidityProviders } = await loadFixture(
       deployLbcWithProvidersFixture
     );
-    const lastProviderId = await lbc.getProviderIds();
+    const lastProviderId = await lbc.providerId();
     expect(lastProviderId).to.be.eq(liquidityProviders.length);
   });
 

@@ -96,7 +96,7 @@ describe("Should change LBC owner to the multisig.ts", function () {
     );
 
     await expect(
-      adminContract.upgrade(lbcAddress, newLbcAddress)
+      adminContract.upgradeAndCall(lbcAddress, newLbcAddress, "0x")
     ).to.revertedWith("Ownable: caller is not the owner");
 
     await expect(
@@ -177,7 +177,7 @@ describe("Should change LBC owner to the multisig.ts", function () {
     // Attempt an upgrade with the former owner to ensure permissions were revoked
     const adminContract = proxyAdminContract.connect(impersonatedSigner);
     await expect(
-      adminContract.upgrade(proxyAddress, multisigAddress)
+      adminContract.upgradeAndCall(proxyAddress, multisigAddress, "0x")
     ).to.be.revertedWith("Ownable: caller is not the owner");
 
     // Verify the ProxyAdmin owner was also updated
@@ -317,10 +317,10 @@ export async function multisigExecUpgradeTransaction(
 
   let result = false;
 
-  const callData = adminContract.interface.encodeFunctionData("upgrade", [
-    proxyAddress,
-    await lbcV2.getAddress(),
-  ]);
+  const callData = adminContract.interface.encodeFunctionData(
+    "upgradeAndCall",
+    [proxyAddress, await lbcV2.getAddress(), "0x"]
+  );
   console.info("Call data:", callData);
 
   const nonce = await safeContract.nonce();

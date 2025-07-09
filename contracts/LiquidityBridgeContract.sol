@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.18;
+pragma solidity 0.8.25;
 pragma experimental ABIEncoderV2;
 
 import "./Bridge.sol";
@@ -7,7 +7,7 @@ import "./Quotes.sol";
 import "./SignatureValidator.sol";
 import "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 /**
     @title Contract that assists with the Flyover protocol
@@ -157,7 +157,8 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
         require(_rewardPercentage <= 100, "LBC004");
         require(_minimumCollateral >= 0.03 ether, "LBC072");
         require(_resignDelayBlocks >= 60, "LBC073");
-        __Ownable_init_unchained();
+        __Ownable_init_unchained(msg.sender);
+        __ReentrancyGuard_init_unchained();
         bridge = Bridge(_bridgeAddress);
         minCollateral = _minimumCollateral;
         minPegIn = _minimumPegIn;

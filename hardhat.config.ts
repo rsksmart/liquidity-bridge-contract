@@ -83,13 +83,19 @@ const config: HardhatUserConfig = {
     },
   },
   solidity: {
-    version: "0.8.18",
+    version: "0.8.25",
     settings: {
       optimizer: {
         enabled: true,
         runs: 1,
       },
     },
+  },
+  gasReporter: {
+    enabled: true,
+    currency: "USD",
+    gasPrice: 30000000,
+    reportPureAndViewMethods: true,
   },
 };
 
