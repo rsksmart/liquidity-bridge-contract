@@ -3908,12 +3908,12 @@
         "fnSig": "COLLATERAL_ADDER()",
         "intrinsicGas": [21064],
         "callData": [0, 0, 0, 0, 0],
-        "gasData": [5338, 5338, 5338, 5338, 5338],
+        "gasData": [5382, 5382, 5382, 5382, 5382],
         "numberOfCalls": 5,
-        "executionGasAverage": 5338,
+        "executionGasAverage": 5382,
         "calldataGasAverage": 0,
-        "min": 5338,
-        "max": 5338
+        "min": 5382,
+        "max": 5382
       },
       "CollateralManagementContract_4e3cdb2b": {
         "key": "4e3cdb2b",
@@ -3948,45 +3948,45 @@
         "gasData": [],
         "numberOfCalls": 0
       },
-      "CollateralManagementContract_7f4e1c7e": {
-        "key": "7f4e1c7e",
+      "CollateralManagementContract_de567d6d": {
+        "key": "de567d6d",
         "isCall": false,
         "contract": "CollateralManagementContract",
         "method": "addPegInCollateral",
-        "fnSig": "addPegInCollateral(uint256)",
+        "fnSig": "addPegInCollateral()",
         "intrinsicGas": [],
         "callData": [],
         "gasData": [],
         "numberOfCalls": 0
       },
-      "CollateralManagementContract_f8433e85": {
-        "key": "f8433e85",
+      "CollateralManagementContract_83fe87f9": {
+        "key": "83fe87f9",
         "isCall": false,
         "contract": "CollateralManagementContract",
         "method": "addPegInCollateralTo",
-        "fnSig": "addPegInCollateralTo(address,uint256)",
+        "fnSig": "addPegInCollateralTo(address)",
         "intrinsicGas": [],
         "callData": [],
         "gasData": [],
         "numberOfCalls": 0
       },
-      "CollateralManagementContract_775e2dd5": {
-        "key": "775e2dd5",
+      "CollateralManagementContract_52b2318d": {
+        "key": "52b2318d",
         "isCall": false,
         "contract": "CollateralManagementContract",
         "method": "addPegOutCollateral",
-        "fnSig": "addPegOutCollateral(uint256)",
+        "fnSig": "addPegOutCollateral()",
         "intrinsicGas": [],
         "callData": [],
         "gasData": [],
         "numberOfCalls": 0
       },
-      "CollateralManagementContract_dd159c97": {
-        "key": "dd159c97",
+      "CollateralManagementContract_313ee5b1": {
+        "key": "313ee5b1",
         "isCall": false,
         "contract": "CollateralManagementContract",
         "method": "addPegOutCollateralTo",
-        "fnSig": "addPegOutCollateralTo(address,uint256)",
+        "fnSig": "addPegOutCollateralTo(address)",
         "intrinsicGas": [],
         "callData": [],
         "gasData": [],
@@ -4343,12 +4343,12 @@
         "fnSig": "getProviders()",
         "intrinsicGas": [21064],
         "callData": [0, 0, 0, 0, 0],
-        "gasData": [43913, 68340, 93055, 119363, 146112],
+        "gasData": [43958, 68430, 93189, 119541, 146335],
         "numberOfCalls": 5,
-        "executionGasAverage": 94157,
+        "executionGasAverage": 94291,
         "calldataGasAverage": 0,
-        "min": 43913,
-        "max": 146112
+        "min": 43958,
+        "max": 146335
       },
       "FlyoverDiscoveryContract_485cc955": {
         "key": "485cc955",
@@ -4376,17 +4376,17 @@
           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
         ],
         "gasData": [
-          21213, 21213, 21213, 21263, 21263, 21263, 21263, 21284, 21284, 21284,
-          23603, 23603, 23603, 23603, 38744, 38744, 38744, 38744, 38744, 38790,
-          38790, 38790, 38790, 38790, 41131, 41131, 41131, 41131, 41131, 41218,
-          41218, 41218, 41218, 43487, 43487, 43487, 45906, 45906, 45952, 45952,
-          48284, 48284, 48371, 48416, 50748
+          21257, 21257, 21257, 21307, 21307, 21307, 21307, 21328, 21328, 21328,
+          23647, 23647, 23647, 23647, 38789, 38789, 38789, 38789, 38789, 38835,
+          38835, 38835, 38835, 38835, 41176, 41176, 41176, 41176, 41176, 41263,
+          41263, 41263, 41263, 43532, 43532, 43532, 45951, 45951, 45996, 45996,
+          48328, 48328, 48415, 48461, 50793
         ],
         "numberOfCalls": 45,
-        "executionGasAverage": 36076,
+        "executionGasAverage": 36121,
         "calldataGasAverage": 0,
-        "min": 21213,
-        "max": 50748
+        "min": 21257,
+        "max": 50793
       },
       "FlyoverDiscoveryContract_855243e2": {
         "key": "855243e2",
@@ -4435,16 +4435,16 @@
           0, 0, 0, 0, 0, 0, 0
         ],
         "gasData": [
-          199082, 199082, 199082, 199082, 199082, 199082, 199082, 199082,
-          199088, 199088, 199088, 199088, 199088, 199088, 223578, 223578,
-          223578, 223578, 223578, 223578, 240678, 240678, 240678, 240678,
-          240678, 240678, 240678, 240678, 240678, 240678
+          205379, 205379, 205379, 205379, 205379, 205379, 205571, 205571,
+          205571, 205571, 205571, 205571, 205571, 205571, 236180, 236180,
+          236180, 236180, 236180, 236180, 253280, 253280, 253280, 253280,
+          253280, 253280, 253280, 253280, 253280, 253280
         ],
         "numberOfCalls": 30,
-        "executionGasAverage": 217848,
+        "executionGasAverage": 227557,
         "calldataGasAverage": 0,
-        "min": 199082,
-        "max": 240678
+        "min": 205379,
+        "max": 253280
       },
       "FlyoverDiscoveryContract_715018a6": {
         "key": "715018a6",
@@ -4509,12 +4509,12 @@
         "fnSig": "COLLATERAL_ADDER()",
         "intrinsicGas": [21064],
         "callData": [0, 0, 0, 0, 0],
-        "gasData": [5382, 5382, 5382, 5382, 5382],
+        "gasData": [5426, 5426, 5426, 5426, 5426],
         "numberOfCalls": 5,
-        "executionGasAverage": 5382,
+        "executionGasAverage": 5426,
         "calldataGasAverage": 0,
-        "min": 5382,
-        "max": 5382
+        "min": 5426,
+        "max": 5426
       },
       "FlyoverDiscoveryFull_4e3cdb2b": {
         "key": "4e3cdb2b",
@@ -4549,45 +4549,45 @@
         "gasData": [],
         "numberOfCalls": 0
       },
-      "FlyoverDiscoveryFull_7f4e1c7e": {
-        "key": "7f4e1c7e",
+      "FlyoverDiscoveryFull_de567d6d": {
+        "key": "de567d6d",
         "isCall": false,
         "contract": "FlyoverDiscoveryFull",
         "method": "addPegInCollateral",
-        "fnSig": "addPegInCollateral(uint256)",
+        "fnSig": "addPegInCollateral()",
         "intrinsicGas": [],
         "callData": [],
         "gasData": [],
         "numberOfCalls": 0
       },
-      "FlyoverDiscoveryFull_f8433e85": {
-        "key": "f8433e85",
+      "FlyoverDiscoveryFull_83fe87f9": {
+        "key": "83fe87f9",
         "isCall": false,
         "contract": "FlyoverDiscoveryFull",
         "method": "addPegInCollateralTo",
-        "fnSig": "addPegInCollateralTo(address,uint256)",
+        "fnSig": "addPegInCollateralTo(address)",
         "intrinsicGas": [],
         "callData": [],
         "gasData": [],
         "numberOfCalls": 0
       },
-      "FlyoverDiscoveryFull_775e2dd5": {
-        "key": "775e2dd5",
+      "FlyoverDiscoveryFull_52b2318d": {
+        "key": "52b2318d",
         "isCall": false,
         "contract": "FlyoverDiscoveryFull",
         "method": "addPegOutCollateral",
-        "fnSig": "addPegOutCollateral(uint256)",
+        "fnSig": "addPegOutCollateral()",
         "intrinsicGas": [],
         "callData": [],
         "gasData": [],
         "numberOfCalls": 0
       },
-      "FlyoverDiscoveryFull_dd159c97": {
-        "key": "dd159c97",
+      "FlyoverDiscoveryFull_313ee5b1": {
+        "key": "313ee5b1",
         "isCall": false,
         "contract": "FlyoverDiscoveryFull",
         "method": "addPegOutCollateralTo",
-        "fnSig": "addPegOutCollateralTo(address,uint256)",
+        "fnSig": "addPegOutCollateralTo(address)",
         "intrinsicGas": [],
         "callData": [],
         "gasData": [],
@@ -4701,14 +4701,14 @@
         "intrinsicGas": [21420, 21432, 21432, 21432, 21432],
         "callData": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         "gasData": [
-          21517, 21517, 21517, 21517, 21517, 24136, 24136, 24136, 24136, 26588,
-          26588, 26588, 29040, 29040, 31492
+          21561, 21561, 21561, 21561, 21561, 24180, 24180, 24180, 24180, 26632,
+          26632, 26632, 29084, 29084, 31536
         ],
         "numberOfCalls": 15,
-        "executionGasAverage": 24898,
+        "executionGasAverage": 24942,
         "calldataGasAverage": 0,
-        "min": 21517,
-        "max": 31492
+        "min": 21561,
+        "max": 31536
       },
       "FlyoverDiscoveryFull_edc922a9": {
         "key": "edc922a9",
@@ -4718,12 +4718,12 @@
         "fnSig": "getProviders()",
         "intrinsicGas": [21064],
         "callData": [0, 0, 0, 0, 0],
-        "gasData": [31461, 51560, 72121, 95317, 117620],
+        "gasData": [31485, 51593, 72153, 95352, 117657],
         "numberOfCalls": 5,
-        "executionGasAverage": 73616,
+        "executionGasAverage": 73648,
         "calldataGasAverage": 0,
-        "min": 31461,
-        "max": 117620
+        "min": 31485,
+        "max": 117657
       },
       "FlyoverDiscoveryFull_d36933d3": {
         "key": "d36933d3",
@@ -4812,17 +4812,17 @@
           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
         ],
         "gasData": [
-          10772, 10772, 10772, 10822, 10822, 10822, 10822, 10843, 10843, 10843,
-          13162, 13162, 13162, 13162, 27835, 27835, 27835, 27835, 27835, 27881,
-          27881, 27881, 27881, 27881, 30221, 30221, 30221, 30221, 30221, 30287,
-          30287, 30287, 30287, 32785, 32785, 32785, 35191, 35191, 35237, 35237,
-          38036, 38036, 38102, 38148, 40507
+          10794, 10794, 10794, 10844, 10844, 10844, 10844, 10865, 10865, 10865,
+          13183, 13183, 13183, 13183, 27853, 27853, 27853, 27853, 27853, 27903,
+          27903, 27903, 27903, 27903, 30242, 30242, 30242, 30242, 30242, 30306,
+          30306, 30306, 30306, 32807, 32807, 32807, 35210, 35210, 35259, 35259,
+          38057, 38057, 38121, 38171, 40528
         ],
         "numberOfCalls": 45,
-        "executionGasAverage": 25415,
+        "executionGasAverage": 25435,
         "calldataGasAverage": 0,
-        "min": 10772,
-        "max": 40507
+        "min": 10794,
+        "max": 40528
       },
       "FlyoverDiscoveryFull_900daa73": {
         "key": "900daa73",
@@ -4893,16 +4893,16 @@
           0, 0, 0, 0, 0, 0, 0
         ],
         "gasData": [
-          178981, 178981, 178981, 178981, 178981, 178981, 178981, 178981,
-          179042, 179042, 179042, 179042, 179042, 179042, 201067, 201067,
-          201067, 201067, 201067, 201067, 218167, 218167, 218167, 218167,
-          218167, 218167, 218167, 218167, 218167, 218167
+          179155, 179155, 179155, 179155, 179155, 179155, 179155, 179155,
+          179216, 179216, 179216, 179216, 179216, 179216, 201241, 201241,
+          201241, 201241, 201241, 201241, 218341, 218341, 218341, 218341,
+          218341, 218341, 218341, 218341, 218341, 218341
         ],
         "numberOfCalls": 30,
-        "executionGasAverage": 196472,
+        "executionGasAverage": 196646,
         "calldataGasAverage": 0,
-        "min": 178981,
-        "max": 218167
+        "min": 179155,
+        "max": 218341
       },
       "FlyoverDiscoveryFull_36568abe": {
         "key": "36568abe",
@@ -5078,14 +5078,14 @@
       {
         "name": "CollateralManagementContract",
         "gasData": [
-          1593014, 1593014, 1593014, 1593014, 1593014, 1593014, 1593014,
-          1593014, 1593014, 1593014
+          1579208, 1579208, 1579208, 1579208, 1579208, 1579208, 1579208,
+          1579208, 1579208, 1579208
         ],
         "callData": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        "executionGasAverage": 1593014,
+        "executionGasAverage": 1579208,
         "calldataGasAverage": 0,
-        "min": 1593014,
-        "max": 1593014,
+        "min": 1579208,
+        "max": 1579208,
         "percent": 5.3
       },
       {
@@ -5196,27 +5196,27 @@
       {
         "name": "FlyoverDiscoveryContract",
         "gasData": [
-          1621177, 1621177, 1621177, 1621177, 1621177, 1621177, 1621177,
-          1621177, 1621177, 1621177
+          1618189, 1618189, 1618189, 1618189, 1618189, 1618189, 1618189,
+          1618189, 1618189, 1618189
         ],
         "callData": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        "executionGasAverage": 1621177,
+        "executionGasAverage": 1618189,
         "calldataGasAverage": 0,
-        "min": 1621177,
-        "max": 1621177,
+        "min": 1618189,
+        "max": 1618189,
         "percent": 5.4
       },
       {
         "name": "FlyoverDiscoveryFull",
         "gasData": [
-          2563567, 2563567, 2563567, 2563567, 2563567, 2563567, 2563567,
-          2563567, 2563567, 2563567
+          2554548, 2554548, 2554548, 2554548, 2554548, 2554548, 2554548,
+          2554548, 2554548, 2554548
         ],
         "callData": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        "executionGasAverage": 2563567,
+        "executionGasAverage": 2554548,
         "calldataGasAverage": 0,
-        "min": 2563567,
-        "max": 2563567,
+        "min": 2554548,
+        "max": 2554548,
         "percent": 8.5
       },
       {
