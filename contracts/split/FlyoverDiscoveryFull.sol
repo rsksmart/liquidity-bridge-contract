@@ -163,7 +163,7 @@ contract FlyoverDiscoveryFull is
         Flyover.ProviderType providerType,
         address providerAddress
     ) private view {
-        if (providerAddress != tx.origin) revert NotEOA(providerAddress);
+        if (providerAddress != msg.sender || providerAddress.code.length != 0) revert NotEOA(providerAddress);
 
         if (
             bytes(name).length <= 0 ||
@@ -237,30 +237,20 @@ contract FlyoverDiscoveryFull is
         return _resignationBlockNum[addr];
     }
 
-    function addPegInCollateralTo(address addr, uint amount) external onlyRole(COLLATERAL_ADDER) payable {
-        _addPegInCollateralTo(addr, amount);
+    function addPegInCollateralTo(address addr) external onlyRole(COLLATERAL_ADDER) payable {
+        _addPegInCollateralTo(addr, msg.value);
     }
 
-    function _addPegInCollateralTo(address addr, uint amount) private {
-        _pegInCollateral[addr] += amount;
-        emit CollateralManagement.PegInCollateralAdded(addr, amount);
+    function addPegInCollateral() external onlyRegisteredForPegIn payable {
+        _addPegInCollateralTo(msg.sender, msg.value);
     }
 
-    function addPegInCollateral(uint amount) external onlyRegisteredForPegIn payable {
-        _addPegInCollateralTo(msg.sender, amount);
+    function addPegOutCollateralTo(address addr) external onlyRole(COLLATERAL_ADDER) payable {
+        _addPegOutCollateralTo(addr, msg.value);
     }
 
-    function addPegOutCollateralTo(address addr, uint amount) external onlyRole(COLLATERAL_ADDER) payable {
-        _addPegOutCollateralTo(addr, amount);
-    }
-
-    function _addPegOutCollateralTo(address addr, uint amount) private {
-        _pegOutCollateral[addr] += amount;
-        emit CollateralManagement.PegOutCollateralAdded(addr, amount);
-    }
-
-    function addPegOutCollateral(uint amount) external onlyRegisteredForPegOut payable {
-        _addPegOutCollateralTo(msg.sender, amount);
+    function addPegOutCollateral() external onlyRegisteredForPegOut payable {
+        _addPegOutCollateralTo(msg.sender, msg.value);
     }
 
     function getMinCollateral() external view returns (uint) {
@@ -310,6 +300,16 @@ contract FlyoverDiscoveryFull is
     // ------------------------------------------------------------
     // Collateral Management Private Functions
     // ------------------------------------------------------------
+
+    function _addPegInCollateralTo(address addr, uint amount) private {
+        _pegInCollateral[addr] += amount;
+        emit CollateralManagement.PegInCollateralAdded(addr, amount);
+    }
+
+    function _addPegOutCollateralTo(address addr, uint amount) private {
+        _pegOutCollateral[addr] += amount;
+        emit CollateralManagement.PegOutCollateralAdded(addr, amount);
+    }
 
     function _isRegistered(Flyover.ProviderType providerType, address addr) private view returns (bool) {
         if (providerType == Flyover.ProviderType.PegIn) {

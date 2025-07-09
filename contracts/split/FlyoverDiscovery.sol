@@ -50,7 +50,7 @@ contract FlyoverDiscoveryContract is Ownable2StepUpgradeable, FlyoverDiscovery {
         });
         emit FlyoverDiscovery.Register(lastProviderId, msg.sender, msg.value);
 
-        _addCollateral(providerType, msg.sender, msg.value);
+        _addCollateral(providerType, msg.sender);
         return (lastProviderId);
     }
 
@@ -129,7 +129,7 @@ contract FlyoverDiscoveryContract is Ownable2StepUpgradeable, FlyoverDiscovery {
         Flyover.ProviderType providerType,
         address providerAddress
     ) private view {
-        if (providerAddress != tx.origin) revert NotEOA(providerAddress);
+        if (providerAddress != msg.sender || providerAddress.code.length != 0) revert NotEOA(providerAddress);
 
         if (
             bytes(name).length <= 0 ||
@@ -151,23 +151,25 @@ contract FlyoverDiscoveryContract is Ownable2StepUpgradeable, FlyoverDiscovery {
 
     function _addCollateral(
         Flyover.ProviderType providerType,
-        address providerAddress,
-        uint amount
+        address providerAddress
     ) private {
+        uint amount = msg.value;
         uint minCollateral = collateralManagement.getMinCollateral();
         if (providerType == Flyover.ProviderType.PegIn) {
             if (amount < minCollateral) revert InsufficientCollateral(amount);
-            collateralManagement.addPegInCollateralTo(providerAddress, amount);
+            collateralManagement.addPegInCollateralTo{value: amount}(providerAddress);
         } else if (providerType == Flyover.ProviderType.PegOut) {
             if (amount < minCollateral) revert InsufficientCollateral(amount);
-            collateralManagement.addPegOutCollateralTo(providerAddress, amount);
+            collateralManagement.addPegOutCollateralTo{value: amount}(providerAddress);
         } else {
             if (amount < minCollateral * 2) revert InsufficientCollateral(amount);
             uint halfMsgValue = amount / 2;
-            collateralManagement.addPegInCollateralTo(
-                providerAddress, amount % 2 == 0 ? halfMsgValue : halfMsgValue + 1
-            );
-            collateralManagement.addPegOutCollateralTo(providerAddress, halfMsgValue);
+            collateralManagement.addPegInCollateralTo{
+                value: amount % 2 == 0 ? halfMsgValue : halfMsgValue + 1
+            }(providerAddress);
+            collateralManagement.addPegOutCollateralTo{
+                value: halfMsgValue
+            }(providerAddress);
         }
     }
 
