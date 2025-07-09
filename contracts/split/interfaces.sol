@@ -27,10 +27,10 @@ interface CollateralManagement {
     function getPegInCollateral(address addr) external view returns (uint256);
     function getPegOutCollateral(address addr) external view returns (uint256);
     function getResignationBlock(address addr) external view returns (uint256);
-    function addPegInCollateralTo(address addr, uint256 amount) external payable;
-    function addPegInCollateral(uint256 amount) external payable;
-    function addPegOutCollateralTo(address addr, uint256 amount) external payable;
-    function addPegOutCollateral(uint256 amount) external payable;
+    function addPegInCollateralTo(address addr) external payable;
+    function addPegInCollateral() external payable;
+    function addPegOutCollateralTo(address addr) external payable;
+    function addPegOutCollateral() external payable;
     function getMinCollateral() external view returns (uint256);
     function isRegistered(Flyover.ProviderType providerType, address addr) external view returns (bool);
     function isCollateralSufficient(Flyover.ProviderType providerType, address addr) external view returns (bool);

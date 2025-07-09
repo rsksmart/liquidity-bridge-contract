@@ -73,20 +73,20 @@ contract CollateralManagementContract is
         return _resignationBlockNum[addr];
     }
 
-    function addPegInCollateralTo(address addr, uint amount) external payable {
-        _addPegInCollateralTo(addr, amount);
+    function addPegInCollateralTo(address addr) external payable {
+        _addPegInCollateralTo(addr);
     }
 
-    function addPegInCollateral(uint amount) external onlyRegisteredForPegIn payable {
-        _addPegInCollateralTo(msg.sender, amount);
+    function addPegInCollateral() external onlyRegisteredForPegIn payable {
+        _addPegInCollateralTo(msg.sender);
     }
 
-    function addPegOutCollateralTo(address addr, uint amount) external payable {
-        _addPegOutCollateralTo(addr, amount);
+    function addPegOutCollateralTo(address addr) external payable {
+        _addPegOutCollateralTo(addr);
     }
 
-    function addPegOutCollateral(uint amount) external onlyRegisteredForPegOut payable {
-        _addPegOutCollateralTo(msg.sender, amount);
+    function addPegOutCollateral() external onlyRegisteredForPegOut payable {
+        _addPegOutCollateralTo(msg.sender);
     }
 
     function getMinCollateral() external view returns (uint) {
@@ -147,12 +147,14 @@ contract CollateralManagementContract is
         }
     }
 
-    function _addPegInCollateralTo(address addr, uint amount) private onlyRole(COLLATERAL_ADDER) {
+    function _addPegInCollateralTo(address addr) private onlyRole(COLLATERAL_ADDER) {
+        uint amount = msg.value;
         _pegInCollateral[addr] += amount;
         emit CollateralManagement.PegInCollateralAdded(addr, amount);
     }
 
-    function _addPegOutCollateralTo(address addr, uint amount) private onlyRole(COLLATERAL_ADDER) {
+    function _addPegOutCollateralTo(address addr) private onlyRole(COLLATERAL_ADDER) {
+        uint amount = msg.value;
         _pegOutCollateral[addr] += amount;
         emit CollateralManagement.PegOutCollateralAdded(addr, amount);
     }
