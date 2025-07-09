@@ -1,0 +1,337 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.25;
+
+import "./interfaces.sol";
+import "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+
+contract FlyoverDiscoveryFull is
+    AccessControlDefaultAdminRulesUpgradeable,
+    ReentrancyGuardUpgradeable,
+    FlyoverDiscovery,
+    CollateralManagement
+{
+
+    // ------------------------------------------------------------
+    // FlyoverDiscovery State Variables
+    // ------------------------------------------------------------
+
+    error NotAuthorized(address from);
+    error NotEOA(address from);
+    error InvalidProviderData(string name, string apiBaseUrl);
+    error InvalidProviderType(Flyover.ProviderType providerType);
+    error AlreadyRegistered(address from);
+    error InsufficientCollateral(uint amount);
+
+    mapping(uint => Flyover.LiquidityProvider) private _liquidityProviders;
+    uint public lastProviderId;
+
+    // ------------------------------------------------------------
+    // Collateral Management State Variables
+    // ------------------------------------------------------------
+
+    bytes32 public constant COLLATERAL_SLASHER = keccak256("COLLATERAL_SLASHER");
+    bytes32 public constant COLLATERAL_ADDER = keccak256("COLLATERAL_ADDER");
+
+    event WithdrawCollateral(address indexed addr, uint amount);
+    event Resigned(address indexed addr);
+
+    error AlreadyResigned(address from);
+    error NotResigned(address from);
+    error ResignationDelayNotMet(address from, uint resignationBlockNum, uint resignDelayInBlocks);
+    error WithdrawalFailed(address from, uint amount);
+
+    uint private _minCollateral;
+    uint private _resignDelayInBlocks;
+    mapping(address => uint) private _pegInCollateral;
+    mapping(address => uint) private _pegOutCollateral;
+    mapping(address => uint) private _resignationBlockNum;
+
+    // ------------------------------------------------------------
+    // FlyoverDiscovery Public Functions and Modifiers
+    // ------------------------------------------------------------
+
+    modifier onlyRegisteredForPegIn() {
+        if (!_isRegistered(Flyover.ProviderType.PegIn, msg.sender))
+            revert Flyover.ProviderNotRegistered(msg.sender);
+        _;
+    }
+
+    modifier onlyRegisteredForPegOut() {
+        if (!_isRegistered(Flyover.ProviderType.PegOut, msg.sender))
+            revert Flyover.ProviderNotRegistered(msg.sender);
+        _;
+    }
+
+    function initialize(
+        address owner,
+        uint48 initialDelay,
+        uint minCollateral,
+        uint resignDelayInBlocks
+    ) public initializer {
+        __AccessControlDefaultAdminRules_init(initialDelay, owner);
+        __ReentrancyGuard_init();
+        _minCollateral = minCollateral;
+        _resignDelayInBlocks = resignDelayInBlocks;
+    }
+
+    function register(
+        string memory name,
+        string memory apiBaseUrl,
+        bool status,
+        Flyover.ProviderType providerType
+    ) external payable returns (uint) {
+        _validateRegistration(name, apiBaseUrl, providerType, msg.sender);
+
+        lastProviderId++;
+        _liquidityProviders[lastProviderId] = Flyover.LiquidityProvider({
+            id: lastProviderId,
+            providerAddress: msg.sender,
+            name: name,
+            apiBaseUrl: apiBaseUrl,
+            status: status,
+            providerType: providerType
+        });
+        emit FlyoverDiscovery.Register(lastProviderId, msg.sender, msg.value);
+
+        _addCollateral(providerType, msg.sender, msg.value);
+        return (lastProviderId);
+    }
+
+    function getProviders() external view returns (Flyover.LiquidityProvider[] memory) {
+        uint count = 0;
+        Flyover.LiquidityProvider storage lp;
+        for (uint i = 1; i <= lastProviderId; i++) {
+            if (_shouldBeListed(_liquidityProviders[i])) {
+                count++;
+            }
+        }
+        Flyover.LiquidityProvider[] memory providers = new Flyover.LiquidityProvider[](count);
+        count = 0;
+        for (uint i = 1; i <= lastProviderId; i++) {
+            lp = _liquidityProviders[i];
+            if (_shouldBeListed(lp)) {
+                providers[count] = lp;
+                count++;
+            }
+        }
+        return providers;
+    }
+
+    function getProvider(address providerAddress) external view returns (Flyover.LiquidityProvider memory) {
+        return _getProvider(providerAddress);
+    }
+
+    function setProviderStatus(
+        uint providerId,
+        bool status
+    ) external {
+        if (msg.sender != owner() && msg.sender != _liquidityProviders[providerId].providerAddress) {
+            revert NotAuthorized(msg.sender);
+        }
+        _liquidityProviders[providerId].status = status;
+        emit FlyoverDiscovery.ProviderStatusSet(providerId, status);
+    }
+
+    function updateProvider(string memory name, string memory url) external {
+        if (bytes(name).length <= 0 || bytes(url).length <= 0) revert InvalidProviderData(name, url);
+        Flyover.LiquidityProvider storage lp;
+        address providerAddress = msg.sender;
+        for (uint i = 1; i <= lastProviderId; i++) {
+            lp = _liquidityProviders[i];
+            if (providerAddress == lp.providerAddress) {
+                lp.name = name;
+                lp.apiBaseUrl = url;
+                emit FlyoverDiscovery.ProviderUpdate(providerAddress, lp.name, lp.apiBaseUrl);
+                return;
+            }
+        }
+        revert Flyover.ProviderNotRegistered(providerAddress);
+    }
+
+    // ------------------------------------------------------------
+    // FlyoverDiscovery Private Functions
+    // ------------------------------------------------------------
+
+    function _shouldBeListed(Flyover.LiquidityProvider storage lp) private view returns(bool){
+        return _isRegistered(lp.providerType, lp.providerAddress) && lp.status;
+    }
+
+    function _validateRegistration(
+        string memory name,
+        string memory apiBaseUrl,
+        Flyover.ProviderType providerType,
+        address providerAddress
+    ) private view {
+        if (providerAddress != tx.origin) revert NotEOA(providerAddress);
+
+        if (
+            bytes(name).length <= 0 ||
+            bytes(apiBaseUrl).length <= 0
+        ) {
+            revert InvalidProviderData(name, apiBaseUrl);
+        }
+
+        if (providerType > type(Flyover.ProviderType).max) revert InvalidProviderType(providerType);
+
+        if (
+            _pegInCollateral[providerAddress] > 0 ||
+            _pegOutCollateral[providerAddress] > 0 ||
+            _resignationBlockNum[providerAddress] != 0
+        ) {
+            revert AlreadyRegistered(providerAddress);
+        }
+    }
+
+    function _addCollateral(
+        Flyover.ProviderType providerType,
+        address providerAddress,
+        uint amount
+    ) private {
+        if (providerType == Flyover.ProviderType.PegIn) {
+            if (amount < _minCollateral) revert InsufficientCollateral(amount);
+            _addPegInCollateralTo(providerAddress, amount);
+        } else if (providerType == Flyover.ProviderType.PegOut) {
+            if (amount < _minCollateral) revert InsufficientCollateral(amount);
+            _addPegOutCollateralTo(providerAddress, amount);
+        } else {
+            if (amount < _minCollateral * 2) revert InsufficientCollateral(amount);
+            uint halfMsgValue = amount / 2;
+            _addPegInCollateralTo(providerAddress, amount % 2 == 0 ? halfMsgValue : halfMsgValue + 1);
+            _addPegOutCollateralTo(providerAddress, halfMsgValue);
+        }
+    }
+
+    function _getProvider(address providerAddress) private view returns (Flyover.LiquidityProvider memory) {
+        for (uint i = 1; i <= lastProviderId; i++) {
+            if (_liquidityProviders[i].providerAddress == providerAddress) {
+                return _liquidityProviders[i];
+            }
+        }
+        revert Flyover.ProviderNotRegistered(providerAddress);
+    }
+
+    // ------------------------------------------------------------
+    // Collateral Management Public Functions and Modifiers
+    // ------------------------------------------------------------
+
+    function setMinCollateral(uint minCollateral) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        emit CollateralManagement.MinCollateralSet(_minCollateral, minCollateral);
+        _minCollateral = minCollateral;
+    }
+
+    function setResignDelayInBlocks(uint resignDelayInBlocks) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        emit CollateralManagement.ResignDelayInBlocksSet(_resignDelayInBlocks, resignDelayInBlocks);
+        _resignDelayInBlocks = resignDelayInBlocks;
+    }
+
+    function getPegInCollateral(address addr) external view returns (uint) {
+        return _pegInCollateral[addr];
+    }
+
+    function getPegOutCollateral(address addr) external view returns (uint) {
+        return _pegOutCollateral[addr];
+    }
+
+    function getResignationBlock(address addr) external view returns (uint) {
+        return _resignationBlockNum[addr];
+    }
+
+    function addPegInCollateralTo(address addr, uint amount) external onlyRole(COLLATERAL_ADDER) payable {
+        _addPegInCollateralTo(addr, amount);
+    }
+
+    function _addPegInCollateralTo(address addr, uint amount) private {
+        _pegInCollateral[addr] += amount;
+        emit CollateralManagement.PegInCollateralAdded(addr, amount);
+    }
+
+    function addPegInCollateral(uint amount) external onlyRegisteredForPegIn payable {
+        _addPegInCollateralTo(msg.sender, amount);
+    }
+
+    function addPegOutCollateralTo(address addr, uint amount) external onlyRole(COLLATERAL_ADDER) payable {
+        _addPegOutCollateralTo(addr, amount);
+    }
+
+    function _addPegOutCollateralTo(address addr, uint amount) private {
+        _pegOutCollateral[addr] += amount;
+        emit CollateralManagement.PegOutCollateralAdded(addr, amount);
+    }
+
+    function addPegOutCollateral(uint amount) external onlyRegisteredForPegOut payable {
+        _addPegOutCollateralTo(msg.sender, amount);
+    }
+
+    function getMinCollateral() external view returns (uint) {
+        return _minCollateral;
+    }
+
+    function isRegistered(Flyover.ProviderType providerType, address addr) external view returns (bool) {
+        return _isRegistered(providerType, addr);
+    }
+
+    function isOperational(Flyover.ProviderType providerType, address addr) external view returns (bool) {
+       return _isCollateralSufficient(providerType, addr) && _getProvider(addr).status;
+    }
+
+    function isCollateralSufficient(Flyover.ProviderType providerType, address addr) external view returns (bool) {
+        return _isCollateralSufficient(providerType, addr);
+    }
+
+    function withdrawCollateral() external nonReentrant {
+        address providerAddress = msg.sender;
+        uint resignationBlock = _resignationBlockNum[providerAddress];
+        if (resignationBlock <= 0) revert NotResigned(providerAddress);
+        if (block.number - resignationBlock < _resignDelayInBlocks) {
+            revert ResignationDelayNotMet(providerAddress, resignationBlock, _resignDelayInBlocks);
+        }
+
+        uint amount = _pegOutCollateral[providerAddress] + _pegInCollateral[providerAddress];
+        _pegOutCollateral[providerAddress] = 0;
+        _pegInCollateral[providerAddress] = 0;
+        _resignationBlockNum[providerAddress] = 0;
+
+        emit WithdrawCollateral(providerAddress, amount);
+        (bool success,) = providerAddress.call{value: amount}("");
+        if (!success) revert WithdrawalFailed(providerAddress, amount);
+    }
+
+    function resign() external {
+        address providerAddress = msg.sender;
+        if (_resignationBlockNum[providerAddress] != 0) revert AlreadyResigned(providerAddress);
+        if (_pegInCollateral[providerAddress] <= 0 && _pegOutCollateral[providerAddress] <= 0) {
+            revert Flyover.ProviderNotRegistered(providerAddress);
+        }
+        _resignationBlockNum[providerAddress] = block.number;
+        emit Resigned(providerAddress);
+    }
+
+    // ------------------------------------------------------------
+    // Collateral Management Private Functions
+    // ------------------------------------------------------------
+
+    function _isRegistered(Flyover.ProviderType providerType, address addr) private view returns (bool) {
+        if (providerType == Flyover.ProviderType.PegIn) {
+            return _pegInCollateral[addr] > 0 && _resignationBlockNum[addr] == 0;
+        } else if (providerType == Flyover.ProviderType.PegOut) {
+            return _pegOutCollateral[addr] > 0 && _resignationBlockNum[addr] == 0;
+        } else {
+            return _pegInCollateral[addr] > 0 && _pegOutCollateral[addr] > 0 && _resignationBlockNum[addr] == 0;
+        }
+    }
+
+    function _isCollateralSufficient(Flyover.ProviderType providerType, address addr) private view returns (bool) {
+        if (providerType == Flyover.ProviderType.PegIn) {
+            return _pegInCollateral[addr] >= _minCollateral &&
+              _resignationBlockNum[addr] == 0;
+        } else if (providerType == Flyover.ProviderType.PegOut) {
+            return _pegOutCollateral[addr] >= _minCollateral &&
+              _resignationBlockNum[addr] == 0;
+        } else {
+            return _pegInCollateral[addr] >= _minCollateral &&
+              _pegOutCollateral[addr] >= _minCollateral &&
+              _resignationBlockNum[addr] == 0;
+        }
+    }
+}
