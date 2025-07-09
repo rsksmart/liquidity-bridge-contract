@@ -12,20 +12,20 @@
 |                                       |    Min |    Max |     Avg | Calls | usd avg |
 | :------------------------------------ | -----: | -----: | ------: | ----: | ------: |
 | **CollateralManagementContract**      |        |        |         |       |         |
-|     **◯** _COLLATERAL_ADDER_          |      - |      - |   5,338 |     1 |       - |
+|     **◯** _COLLATERAL_ADDER_          |      - |      - |   5,382 |     1 |       - |
 |        *grantRole*                    |      - |      - |  56,833 |     2 |       - |
 | **FlyoverDiscoveryContract**          |        |        |         |       |         |
 |     **◯** _getProvider_               |      - |      - |  21,368 |     1 |       - |
-|     **◯** _getProviders_              |      - |      - |  43,913 |     1 |       - |
-|     **◯** _isOperational_             | 38,744 | 41,131 |  39,555 |     3 |       - |
-|        *register*                     |      - |      - | 240,678 |     2 |       - |
+|     **◯** _getProviders_              |      - |      - |  43,958 |     1 |       - |
+|     **◯** _isOperational_             | 38,789 | 41,176 |  39,600 |     3 |       - |
+|        *register*                     |      - |      - | 253,280 |     2 |       - |
 | **FlyoverDiscoveryFull**              |        |        |         |       |         |
-|     **◯** _COLLATERAL_ADDER_          |      - |      - |   5,382 |     1 |       - |
-|     **◯** _getProvider_               |      - |      - |  21,517 |     1 |       - |
-|     **◯** _getProviders_              |      - |      - |  31,461 |     1 |       - |
+|     **◯** _COLLATERAL_ADDER_          |      - |      - |   5,426 |     1 |       - |
+|     **◯** _getProvider_               |      - |      - |  21,561 |     1 |       - |
+|     **◯** _getProviders_              |      - |      - |  31,485 |     1 |       - |
 |        *grantRole*                    |      - |      - |  56,855 |     2 |       - |
-|     **◯** _isOperational_             | 27,835 | 30,221 |  28,646 |     3 |       - |
-|        *register*                     |      - |      - | 218,167 |     2 |       - |
+|     **◯** _isOperational_             | 27,853 | 30,242 |  28,666 |     3 |       - |
+|        *register*                     |      - |      - | 218,341 |     2 |       - |
 | **LiquidityBridgeContractV2**         |        |        |         |       |         |
 |     **◯** _getProvider_               |      - |      - |  24,376 |     1 |       - |
 |     **◯** _getProviders_              |      - |      - |  31,679 |     1 |       - |
@@ -43,9 +43,9 @@
 | :------------------------------- | --: | --: | --------: | ------: | ------: |
 | **BridgeMock**                   |   - |   - | 1,010,222 |   3.4 % |       - |
 | **BtcUtils**                     |   - |   - | 2,027,187 |   6.8 % |       - |
-| **CollateralManagementContract** |   - |   - | 1,593,014 |   5.3 % |       - |
-| **FlyoverDiscoveryContract**     |   - |   - | 1,621,177 |   5.4 % |       - |
-| **FlyoverDiscoveryFull**         |   - |   - | 2,563,567 |   8.5 % |       - |
+| **CollateralManagementContract** |   - |   - | 1,579,208 |   5.3 % |       - |
+| **FlyoverDiscoveryContract**     |   - |   - | 1,618,189 |   5.4 % |       - |
+| **FlyoverDiscoveryFull**         |   - |   - | 2,554,548 |   8.5 % |       - |
 | **LiquidityBridgeContract**      |   - |   - | 5,292,711 |  17.6 % |       - |
 | **LiquidityBridgeContractV2**    |   - |   - | 5,360,117 |  17.9 % |       - |
 | **Quotes**                       |   - |   - |   634,029 |   2.1 % |       - |
@@ -78,20 +78,20 @@
 |                                       |     Min |     Max |     Avg | Calls | usd avg |
 | :------------------------------------ | ------: | ------: | ------: | ----: | ------: |
 | **CollateralManagementContract**      |         |         |         |       |         |
-|     **◯** _COLLATERAL_ADDER_          |       - |       - |   5,338 |     1 |       - |
+|     **◯** _COLLATERAL_ADDER_          |       - |       - |   5,382 |     1 |       - |
 |        *grantRole*                    |       - |       - |  56,833 |     2 |       - |
 | **FlyoverDiscoveryContract**          |         |         |         |       |         |
 |     **◯** _getProvider_               |  21,368 |  23,990 |  22,679 |     2 |       - |
-|     **◯** _getProviders_              |       - |       - |  68,340 |     1 |       - |
-|     **◯** _isOperational_             |  21,263 |  41,218 |  34,125 |     6 |       - |
-|        *register*                     | 199,082 | 240,678 | 219,880 |     4 |       - |
+|     **◯** _getProviders_              |       - |       - |  68,430 |     1 |       - |
+|     **◯** _isOperational_             |  21,307 |  41,263 |  34,170 |     6 |       - |
+|        *register*                     | 205,571 | 253,280 | 229,426 |     4 |       - |
 | **FlyoverDiscoveryFull**              |         |         |         |       |         |
-|     **◯** _COLLATERAL_ADDER_          |       - |       - |   5,382 |     1 |       - |
-|     **◯** _getProvider_               |  21,517 |  24,136 |  22,827 |     2 |       - |
-|     **◯** _getProviders_              |       - |       - |  51,560 |     1 |       - |
+|     **◯** _COLLATERAL_ADDER_          |       - |       - |   5,426 |     1 |       - |
+|     **◯** _getProvider_               |  21,561 |  24,180 |  22,871 |     2 |       - |
+|     **◯** _getProviders_              |       - |       - |  51,593 |     1 |       - |
 |        *grantRole*                    |       - |       - |  56,855 |     2 |       - |
-|     **◯** _isOperational_             |  10,822 |  30,287 |  23,368 |     6 |       - |
-|        *register*                     | 178,981 | 218,167 | 198,574 |     4 |       - |
+|     **◯** _isOperational_             |  10,844 |  30,306 |  23,389 |     6 |       - |
+|        *register*                     | 179,155 | 218,341 | 198,748 |     4 |       - |
 | **LiquidityBridgeContractV2**         |         |         |         |       |         |
 |     **◯** _getProvider_               |  24,376 |  26,825 |  25,601 |     2 |       - |
 |     **◯** _getProviders_              |       - |       - |  54,330 |     1 |       - |
@@ -109,9 +109,9 @@
 | :------------------------------- | --: | --: | --------: | ------: | ------: |
 | **BridgeMock**                   |   - |   - | 1,010,222 |   3.4 % |       - |
 | **BtcUtils**                     |   - |   - | 2,027,187 |   6.8 % |       - |
-| **CollateralManagementContract** |   - |   - | 1,593,014 |   5.3 % |       - |
-| **FlyoverDiscoveryContract**     |   - |   - | 1,621,177 |   5.4 % |       - |
-| **FlyoverDiscoveryFull**         |   - |   - | 2,563,567 |   8.5 % |       - |
+| **CollateralManagementContract** |   - |   - | 1,579,208 |   5.3 % |       - |
+| **FlyoverDiscoveryContract**     |   - |   - | 1,618,189 |   5.4 % |       - |
+| **FlyoverDiscoveryFull**         |   - |   - | 2,554,548 |   8.5 % |       - |
 | **LiquidityBridgeContract**      |   - |   - | 5,292,711 |  17.6 % |       - |
 | **LiquidityBridgeContractV2**    |   - |   - | 5,360,117 |  17.9 % |       - |
 | **Quotes**                       |   - |   - |   634,029 |   2.1 % |       - |
@@ -144,20 +144,20 @@
 |                                       |     Min |     Max |     Avg | Calls | usd avg |
 | :------------------------------------ | ------: | ------: | ------: | ----: | ------: |
 | **CollateralManagementContract**      |         |         |         |       |         |
-|     **◯** _COLLATERAL_ADDER_          |       - |       - |   5,338 |     1 |       - |
+|     **◯** _COLLATERAL_ADDER_          |       - |       - |   5,382 |     1 |       - |
 |        *grantRole*                    |       - |       - |  56,833 |     2 |       - |
 | **FlyoverDiscoveryContract**          |         |         |         |       |         |
 |     **◯** _getProvider_               |  21,368 |  26,445 |  23,934 |     3 |       - |
-|     **◯** _getProviders_              |       - |       - |  93,055 |     1 |       - |
-|     **◯** _isOperational_             |  21,213 |  43,487 |  32,304 |     9 |       - |
-|        *register*                     | 199,082 | 240,678 | 212,949 |     6 |       - |
+|     **◯** _getProviders_              |       - |       - |  93,189 |     1 |       - |
+|     **◯** _isOperational_             |  21,257 |  43,532 |  32,348 |     9 |       - |
+|        *register*                     | 205,379 | 253,280 | 221,410 |     6 |       - |
 | **FlyoverDiscoveryFull**              |         |         |         |       |         |
-|     **◯** _COLLATERAL_ADDER_          |       - |       - |   5,382 |     1 |       - |
-|     **◯** _getProvider_               |  21,517 |  26,588 |  24,080 |     3 |       - |
-|     **◯** _getProviders_              |       - |       - |  72,121 |     1 |       - |
+|     **◯** _COLLATERAL_ADDER_          |       - |       - |   5,426 |     1 |       - |
+|     **◯** _getProvider_               |  21,561 |  26,632 |  24,124 |     3 |       - |
+|     **◯** _getProviders_              |       - |       - |  72,153 |     1 |       - |
 |        *grantRole*                    |       - |       - |  56,855 |     2 |       - |
-|     **◯** _isOperational_             |  10,772 |  32,785 |  21,623 |     9 |       - |
-|        *register*                     | 178,981 | 218,167 | 192,063 |     6 |       - |
+|     **◯** _isOperational_             |  10,794 |  32,807 |  21,644 |     9 |       - |
+|        *register*                     | 179,155 | 218,341 | 192,237 |     6 |       - |
 | **LiquidityBridgeContractV2**         |         |         |         |       |         |
 |     **◯** _getProvider_               |  24,376 |  29,274 |  26,825 |     3 |       - |
 |     **◯** _getProviders_              |       - |       - |  80,551 |     1 |       - |
@@ -175,9 +175,9 @@
 | :------------------------------- | --: | --: | --------: | ------: | ------: |
 | **BridgeMock**                   |   - |   - | 1,010,222 |   3.4 % |       - |
 | **BtcUtils**                     |   - |   - | 2,027,187 |   6.8 % |       - |
-| **CollateralManagementContract** |   - |   - | 1,593,014 |   5.3 % |       - |
-| **FlyoverDiscoveryContract**     |   - |   - | 1,621,177 |   5.4 % |       - |
-| **FlyoverDiscoveryFull**         |   - |   - | 2,563,567 |   8.5 % |       - |
+| **CollateralManagementContract** |   - |   - | 1,579,208 |   5.3 % |       - |
+| **FlyoverDiscoveryContract**     |   - |   - | 1,618,189 |   5.4 % |       - |
+| **FlyoverDiscoveryFull**         |   - |   - | 2,554,548 |   8.5 % |       - |
 | **LiquidityBridgeContract**      |   - |   - | 5,292,711 |  17.6 % |       - |
 | **LiquidityBridgeContractV2**    |   - |   - | 5,360,117 |  17.9 % |       - |
 | **Quotes**                       |   - |   - |   634,029 |   2.1 % |       - |
@@ -210,20 +210,20 @@
 |                                       |     Min |     Max |     Avg | Calls | usd avg |
 | :------------------------------------ | ------: | ------: | ------: | ----: | ------: |
 | **CollateralManagementContract**      |         |         |         |       |         |
-|     **◯** _COLLATERAL_ADDER_          |       - |       - |   5,338 |     1 |       - |
+|     **◯** _COLLATERAL_ADDER_          |       - |       - |   5,382 |     1 |       - |
 |        *grantRole*                    |       - |       - |  56,833 |     2 |       - |
 | **FlyoverDiscoveryContract**          |         |         |         |       |         |
 |     **◯** _getProvider_               |  21,368 |  28,900 |  25,176 |     4 |       - |
-|     **◯** _getProviders_              |       - |       - | 119,363 |     1 |       - |
-|     **◯** _isOperational_             |  21,213 |  48,284 |  35,906 |    12 |       - |
-|        *register*                     | 199,082 | 240,678 | 215,607 |     8 |       - |
+|     **◯** _getProviders_              |       - |       - | 119,541 |     1 |       - |
+|     **◯** _isOperational_             |  21,257 |  48,328 |  35,951 |    12 |       - |
+|        *register*                     | 205,379 | 253,280 | 225,103 |     8 |       - |
 | **FlyoverDiscoveryFull**              |         |         |         |       |         |
-|     **◯** _COLLATERAL_ADDER_          |       - |       - |   5,382 |     1 |       - |
-|     **◯** _getProvider_               |  21,517 |  29,040 |  25,320 |     4 |       - |
-|     **◯** _getProviders_              |       - |       - |  95,317 |     1 |       - |
+|     **◯** _COLLATERAL_ADDER_          |       - |       - |   5,426 |     1 |       - |
+|     **◯** _getProvider_               |  21,561 |  29,084 |  25,364 |     4 |       - |
+|     **◯** _getProviders_              |       - |       - |  95,352 |     1 |       - |
 |        *grantRole*                    |       - |       - |  56,855 |     2 |       - |
-|     **◯** _isOperational_             |  10,772 |  38,036 |  25,256 |    12 |       - |
-|        *register*                     | 178,981 | 218,167 | 194,314 |     8 |       - |
+|     **◯** _isOperational_             |  10,794 |  38,057 |  25,277 |    12 |       - |
+|        *register*                     | 179,155 | 218,341 | 194,488 |     8 |       - |
 | **LiquidityBridgeContractV2**         |         |         |         |       |         |
 |     **◯** _getProvider_               |  24,376 |  31,723 |  28,050 |     4 |       - |
 |     **◯** _getProviders_              |       - |       - | 103,386 |     1 |       - |
@@ -241,9 +241,9 @@
 | :------------------------------- | --: | --: | --------: | ------: | ------: |
 | **BridgeMock**                   |   - |   - | 1,010,222 |   3.4 % |       - |
 | **BtcUtils**                     |   - |   - | 2,027,187 |   6.8 % |       - |
-| **CollateralManagementContract** |   - |   - | 1,593,014 |   5.3 % |       - |
-| **FlyoverDiscoveryContract**     |   - |   - | 1,621,177 |   5.4 % |       - |
-| **FlyoverDiscoveryFull**         |   - |   - | 2,563,567 |   8.5 % |       - |
+| **CollateralManagementContract** |   - |   - | 1,579,208 |   5.3 % |       - |
+| **FlyoverDiscoveryContract**     |   - |   - | 1,618,189 |   5.4 % |       - |
+| **FlyoverDiscoveryFull**         |   - |   - | 2,554,548 |   8.5 % |       - |
 | **LiquidityBridgeContract**      |   - |   - | 5,292,711 |  17.6 % |       - |
 | **LiquidityBridgeContractV2**    |   - |   - | 5,360,117 |  17.9 % |       - |
 | **Quotes**                       |   - |   - |   634,029 |   2.1 % |       - |
@@ -276,20 +276,20 @@
 |                                       |     Min |     Max |     Avg | Calls | usd avg |
 | :------------------------------------ | ------: | ------: | ------: | ----: | ------: |
 | **CollateralManagementContract**      |         |         |         |       |         |
-|     **◯** _COLLATERAL_ADDER_          |       - |       - |   5,338 |     1 |       - |
+|     **◯** _COLLATERAL_ADDER_          |       - |       - |   5,382 |     1 |       - |
 |        *grantRole*                    |       - |       - |  56,833 |     2 |       - |
 | **FlyoverDiscoveryContract**          |         |         |         |       |         |
 |     **◯** _getProvider_               |  21,368 |  31,355 |  26,412 |     5 |       - |
-|     **◯** _getProviders_              |       - |       - | 146,112 |     1 |       - |
-|     **◯** _isOperational_             |  21,213 |  50,748 |  38,561 |    15 |       - |
-|        *register*                     | 199,082 | 240,678 | 217,201 |    10 |       - |
+|     **◯** _getProviders_              |       - |       - | 146,335 |     1 |       - |
+|     **◯** _isOperational_             |  21,257 |  50,793 |  38,605 |    15 |       - |
+|        *register*                     | 205,379 | 253,280 | 227,318 |    10 |       - |
 | **FlyoverDiscoveryFull**              |         |         |         |       |         |
-|     **◯** _COLLATERAL_ADDER_          |       - |       - |   5,382 |     1 |       - |
-|     **◯** _getProvider_               |  21,517 |  31,492 |  26,555 |     5 |       - |
-|     **◯** _getProviders_              |       - |       - | 117,620 |     1 |       - |
+|     **◯** _COLLATERAL_ADDER_          |       - |       - |   5,426 |     1 |       - |
+|     **◯** _getProvider_               |  21,561 |  31,536 |  26,599 |     5 |       - |
+|     **◯** _getProviders_              |       - |       - | 117,657 |     1 |       - |
 |        *grantRole*                    |       - |       - |  56,855 |     2 |       - |
-|     **◯** _isOperational_             |  10,772 |  40,507 |  27,989 |    15 |       - |
-|        *register*                     | 178,981 | 218,167 | 195,665 |    10 |       - |
+|     **◯** _isOperational_             |  10,794 |  40,528 |  28,010 |    15 |       - |
+|        *register*                     | 179,155 | 218,341 | 195,839 |    10 |       - |
 | **LiquidityBridgeContractV2**         |         |         |         |       |         |
 |     **◯** _getProvider_               |  24,376 |  34,172 |  29,274 |     5 |       - |
 |     **◯** _getProviders_              |       - |       - | 125,661 |     1 |       - |
@@ -307,9 +307,9 @@
 | :------------------------------- | --: | --: | --------: | ------: | ------: |
 | **BridgeMock**                   |   - |   - | 1,010,222 |   3.4 % |       - |
 | **BtcUtils**                     |   - |   - | 2,027,187 |   6.8 % |       - |
-| **CollateralManagementContract** |   - |   - | 1,593,014 |   5.3 % |       - |
-| **FlyoverDiscoveryContract**     |   - |   - | 1,621,177 |   5.4 % |       - |
-| **FlyoverDiscoveryFull**         |   - |   - | 2,563,567 |   8.5 % |       - |
+| **CollateralManagementContract** |   - |   - | 1,579,208 |   5.3 % |       - |
+| **FlyoverDiscoveryContract**     |   - |   - | 1,618,189 |   5.4 % |       - |
+| **FlyoverDiscoveryFull**         |   - |   - | 2,554,548 |   8.5 % |       - |
 | **LiquidityBridgeContract**      |   - |   - | 5,292,711 |  17.6 % |       - |
 | **LiquidityBridgeContractV2**    |   - |   - | 5,360,117 |  17.9 % |       - |
 | **Quotes**                       |   - |   - |   634,029 |   2.1 % |       - |
