@@ -11,10 +11,10 @@ library Flyover {
     struct LiquidityProvider {
         uint id;
         address providerAddress;
-        string name;
-        string apiBaseUrl;
         bool status;
         ProviderType providerType;
+        string name;
+        string apiBaseUrl;
     }
 }
 

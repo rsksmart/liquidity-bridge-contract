@@ -73,7 +73,7 @@ contract CollateralManagementContract is
         return _resignationBlockNum[addr];
     }
 
-    function addPegInCollateralTo(address addr) external payable {
+    function addPegInCollateralTo(address addr) external onlyRole(COLLATERAL_ADDER) payable {
         _addPegInCollateralTo(addr);
     }
 
@@ -81,7 +81,7 @@ contract CollateralManagementContract is
         _addPegInCollateralTo(msg.sender);
     }
 
-    function addPegOutCollateralTo(address addr) external payable {
+    function addPegOutCollateralTo(address addr) external onlyRole(COLLATERAL_ADDER) payable {
         _addPegOutCollateralTo(addr);
     }
 
@@ -147,13 +147,13 @@ contract CollateralManagementContract is
         }
     }
 
-    function _addPegInCollateralTo(address addr) private onlyRole(COLLATERAL_ADDER) {
+    function _addPegInCollateralTo(address addr) private {
         uint amount = msg.value;
         _pegInCollateral[addr] += amount;
         emit CollateralManagement.PegInCollateralAdded(addr, amount);
     }
 
-    function _addPegOutCollateralTo(address addr) private onlyRole(COLLATERAL_ADDER) {
+    function _addPegOutCollateralTo(address addr) private {
         uint amount = msg.value;
         _pegOutCollateral[addr] += amount;
         emit CollateralManagement.PegOutCollateralAdded(addr, amount);
