@@ -55,21 +55,19 @@ contract FlyoverDiscoveryContract is Ownable2StepUpgradeable, FlyoverDiscovery {
     }
 
     function getProviders() external view returns (Flyover.LiquidityProvider[] memory) {
+        Flyover.LiquidityProvider[] memory matchingLps = new Flyover.LiquidityProvider[](lastProviderId);
         uint count = 0;
         Flyover.LiquidityProvider storage lp;
         for (uint i = 1; i <= lastProviderId; i++) {
-            if (_shouldBeListed(_liquidityProviders[i])) {
+            lp = _liquidityProviders[i];
+            if (_shouldBeListed(lp)) {
+                matchingLps[count] = lp;
                 count++;
             }
         }
         Flyover.LiquidityProvider[] memory providers = new Flyover.LiquidityProvider[](count);
-        count = 0;
-        for (uint i = 1; i <= lastProviderId; i++) {
-            lp = _liquidityProviders[i];
-            if (_shouldBeListed(lp)) {
-                providers[count] = lp;
-                count++;
-            }
+        for (uint i = 0; i < lastProviderId; i++) {
+            providers[i] = matchingLps[i];
         }
         return providers;
     }
