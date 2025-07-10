@@ -10,7 +10,7 @@ import {
 } from "../typechain-types";
 import { deploy } from "../scripts/deployment-utils/deploy";
 
-describe("FlypverDiscovery benchmark", () => {
+describe("FlyoverDiscovery benchmark", () => {
   async function deployLbc() {
     const network = hre.network.name;
     const deployInfo = await deployLbcProxy(network, { verbose: false });

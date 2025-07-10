@@ -32,9 +32,8 @@ export async function deployLbcFixture() {
     .getSigners()
     .then((signers) => signers.slice(1));
 
-  const bridgeMock = await lbc
-    .bridge()
-    .then((bridgeAddress) => ethers.getContractAt("BridgeMock", bridgeAddress));
+  const bridgeAddress = await lbc.bridge();
+  const bridgeMock = await ethers.getContractAt("BridgeMock", bridgeAddress);
   return { lbc, lbcOwner, accounts, bridgeMock };
 }
 
