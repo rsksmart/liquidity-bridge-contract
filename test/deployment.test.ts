@@ -180,6 +180,6 @@ describe("LiquidityBridgeContract deployment process should", function () {
     await expect(lbcImplementation.getMinCollateral()).to.eventually.eq(0n);
 
     await expect(lbcProxy.version()).to.be.reverted;
-    await expect(lbcImplementation.version()).to.eventually.eq("1.3.0");
+    await expect(lbcImplementation.version()).to.eventually.eq("1.3.1");
   });
 });
