@@ -1,0 +1,44 @@
+{
+  "rskTestnet": {
+    "address": "0x27ad02abf893f8e01f0089ede607a76fbb3f1cd3",
+    "owners": [
+      "0x8e925445bda88c9f980976db098cb1c450bfc719",
+      "0xf18ed4047ee49d26034aea5dafdb0e1895e8ddc1",
+      "0xbd98f2ca40b4ab54161ac29120251e7d0a4c666e",
+      "0x892813507bf3abf2890759d2135ec34f4909fea5",
+      "0x1e0a10395e9debd5c109bd1116fffaa3f4a543b2"
+    ]
+  },
+  "rskDevelopment": {
+    "address": "0xe90e4d46ddf3a638ba4c8600f52ae6552bee3f85",
+    "owners": [
+      "0x8e925445bda88c9f980976db098cb1c450bfc719",
+      "0x892813507bf3abf2890759d2135ec34f4909fea5",
+      "0xbd98f2ca40b4ab54161ac29120251e7d0a4c666e",
+      "0x504cb01170011e085b4c557f2c2dcf38ac007e46",
+      "0x1e0a10395e9debd5c109bd1116fffaa3f4a543b2"
+    ]
+  },
+  "rskMainnet": {
+    "address": "0x633d1233ed6251108b61a8365ceed271bf3e3c9b",
+    "owners": [
+      "0xd50c4c5577229c81b19fe1c7d413c2d79ccf7901",
+      "0x15105d3e5f7752f0f7ea0e7b1f3b113701080355",
+      "0xa420af120ec6515870b65e811fa7ce147d491402",
+      "0xa3fd0eedca5ba7504e19b7e0660f21d25fefe77f"
+    ]
+  },
+  "tenderly": {
+    "address": "0x633d1233ed6251108b61a8365ceed271bf3e3c9b",
+    "owners": [
+      "0xd50c4c5577229c81b19fe1c7d413c2d79ccf7901",
+      "0x15105d3e5f7752f0f7ea0e7b1f3b113701080355",
+      "0xa420af120ec6515870b65e811fa7ce147d491402",
+      "0xa3fd0eedca5ba7504e19b7e0660f21d25fefe77f"
+    ]
+  },
+  "hardhat": {
+    "address": "",
+    "owners": []
+  }
+}
