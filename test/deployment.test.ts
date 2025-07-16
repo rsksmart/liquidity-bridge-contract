@@ -29,7 +29,7 @@ describe("LiquidityBridgeContract deployment process should", function () {
       proxyAddress
     );
     const version = await lbc.version();
-    expect(version).to.equal("1.3.0");
+    expect(version).to.equal("1.3.1");
   });
 
   it("validate minimiumCollateral arg in initialize", async () => {
