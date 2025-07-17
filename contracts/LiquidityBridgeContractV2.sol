@@ -152,7 +152,7 @@ contract LiquidityBridgeContractV2 is OwnableUpgradeable, ReentrancyGuardUpgrade
     }
 
     function version() external pure returns (string memory) {
-        return "1.3.0";
+        return "1.3.1";
     }
 
     function getMinCollateral() public view returns (uint) {
