@@ -38,6 +38,10 @@ export async function deployLbcImplementation(
   if (opts.verbose) {
     console.info(`Deploying implementation with libs:`, libs);
   }
+
+  await upgrades.validateUpgrade(proxyAddress, LiquidityBridgeContractV2, {
+    unsafeAllow: ["external-library-linking"],
+  });
   const implementationAddress = (await upgrades.prepareUpgrade(
     proxyAddress,
     LiquidityBridgeContractV2,

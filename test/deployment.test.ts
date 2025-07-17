@@ -29,7 +29,7 @@ describe("LiquidityBridgeContract deployment process should", function () {
       proxyAddress
     );
     const version = await lbc.version();
-    expect(version).to.equal("1.3.0");
+    expect(version).to.equal("1.3.1");
   });
 
   it("validate minimiumCollateral arg in initialize", async () => {
@@ -180,6 +180,6 @@ describe("LiquidityBridgeContract deployment process should", function () {
     await expect(lbcImplementation.getMinCollateral()).to.eventually.eq(0n);
 
     await expect(lbcProxy.version()).to.be.reverted;
-    await expect(lbcImplementation.version()).to.eventually.eq("1.3.0");
+    await expect(lbcImplementation.version()).to.eventually.eq("1.3.1");
   });
 });
