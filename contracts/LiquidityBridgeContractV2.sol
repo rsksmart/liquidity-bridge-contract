@@ -149,7 +149,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
     }
 
     function version() external pure returns (string memory) {
-        return "1.3.0";
+        return "1.3.1";
     }
 
     function getProviderIds() external view returns (uint) {
