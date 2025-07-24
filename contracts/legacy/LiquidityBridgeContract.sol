@@ -2,9 +2,9 @@
 pragma solidity 0.8.25;
 pragma experimental ABIEncoderV2;
 
-import "./Bridge.sol";
-import "./Quotes.sol";
-import "./SignatureValidator.sol";
+import "../interfaces/Bridge.sol";
+import "../legacy/Quotes.sol";
+import "../libraries/SignatureValidator.sol";
 import "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
