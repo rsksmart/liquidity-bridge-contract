@@ -2,17 +2,11 @@
 pragma solidity 0.8.25;
 
 import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
-import "./interfaces.sol";
+import "../interfaces/FlyoverDiscovery.sol";
+import "../interfaces/CollateralManagement.sol";
 
 contract FlyoverDiscoveryContract is Ownable2StepUpgradeable, FlyoverDiscovery {
     event CollateralManagementSet(address oldContract, address newContract);
-
-    error NotAuthorized(address from);
-    error NotEOA(address from);
-    error InvalidProviderData(string name, string apiBaseUrl);
-    error InvalidProviderType(Flyover.ProviderType providerType);
-    error AlreadyRegistered(address from);
-    error InsufficientCollateral(uint amount);
 
     CollateralManagement public collateralManagement;
     mapping(uint => Flyover.LiquidityProvider) private _liquidityProviders;

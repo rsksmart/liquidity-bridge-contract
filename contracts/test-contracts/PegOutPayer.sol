@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import "../LiquidityBridgeContractV2.sol";
-import "../QuotesV2.sol";
+import "../legacy/LiquidityBridgeContractV2.sol";
+import "../libraries/QuotesV2.sol";
 
 contract PegOutPayer {
 

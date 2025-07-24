@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import "./LiquidityBridgeContract.sol";
+import "../legacy/LiquidityBridgeContract.sol";
 
 contract Mock {
     int private status;
