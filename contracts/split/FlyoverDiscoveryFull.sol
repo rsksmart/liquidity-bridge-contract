@@ -1,16 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import "../interfaces/FlyoverDiscovery.sol";
-import "../interfaces/CollateralManagement.sol";
-import "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {IFlyoverDiscovery} from "../interfaces/FlyoverDiscovery.sol";
+import {ICollateralManagement} from "../interfaces/CollateralManagement.sol";
+import {Flyover} from "../libraries/Flyover.sol";
+import {
+    AccessControlDefaultAdminRulesUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
+import {
+    ReentrancyGuardUpgradeable
+} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 contract FlyoverDiscoveryFull is
     AccessControlDefaultAdminRulesUpgradeable,
     ReentrancyGuardUpgradeable,
-    FlyoverDiscovery,
-    CollateralManagement
+    IFlyoverDiscovery,
+    ICollateralManagement
 {
 
     // ------------------------------------------------------------
@@ -81,7 +86,7 @@ contract FlyoverDiscoveryFull is
             status: status,
             providerType: providerType
         });
-        emit FlyoverDiscovery.Register(lastProviderId, msg.sender, msg.value);
+        emit IFlyoverDiscovery.Register(lastProviderId, msg.sender, msg.value);
 
         _addCollateral(providerType, msg.sender, msg.value);
         return (lastProviderId);
@@ -119,7 +124,7 @@ contract FlyoverDiscoveryFull is
             revert NotAuthorized(msg.sender);
         }
         _liquidityProviders[providerId].status = status;
-        emit FlyoverDiscovery.ProviderStatusSet(providerId, status);
+        emit IFlyoverDiscovery.ProviderStatusSet(providerId, status);
     }
 
     function updateProvider(string memory name, string memory url) external {
@@ -131,7 +136,7 @@ contract FlyoverDiscoveryFull is
             if (providerAddress == lp.providerAddress) {
                 lp.name = name;
                 lp.apiBaseUrl = url;
-                emit FlyoverDiscovery.ProviderUpdate(providerAddress, lp.name, lp.apiBaseUrl);
+                emit IFlyoverDiscovery.ProviderUpdate(providerAddress, lp.name, lp.apiBaseUrl);
                 return;
             }
         }
@@ -292,12 +297,12 @@ contract FlyoverDiscoveryFull is
 
     function _addPegInCollateralTo(address addr, uint amount) private {
         _pegInCollateral[addr] += amount;
-        emit CollateralManagement.PegInCollateralAdded(addr, amount);
+        emit ICollateralManagement.PegInCollateralAdded(addr, amount);
     }
 
     function _addPegOutCollateralTo(address addr, uint amount) private {
         _pegOutCollateral[addr] += amount;
-        emit CollateralManagement.PegOutCollateralAdded(addr, amount);
+        emit ICollateralManagement.PegOutCollateralAdded(addr, amount);
     }
 
     function _isRegistered(Flyover.ProviderType providerType, address addr) private view returns (bool) {

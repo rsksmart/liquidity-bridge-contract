@@ -1,22 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import "../legacy/LiquidityBridgeContract.sol";
+import {LiquidityBridgeContract} from "../legacy/LiquidityBridgeContract.sol";
 
+// solhint-disable comprehensive-interface
 contract Mock {
-    int private status;
+    int private _status;
     uint256 public balance;
 
+    error MockError();
+
     function set(int s) external payable {
-        status = s;
-    }
-
-    function check() external view returns (int) {
-        return status;
-    }
-
-    function fail() external pure {
-        require(false, "error");
+        _status = s;
     }
 
     function callRegister(address payable lbcAddress) external payable {
@@ -27,5 +22,13 @@ contract Mock {
             true,
             "both"
         );
+    }
+
+    function check() external view returns (int) {
+        return _status;
+    }
+
+    function fail() external pure {
+        revert MockError();
     }
 }
