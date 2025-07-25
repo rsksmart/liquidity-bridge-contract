@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import "../interfaces/CollateralManagement.sol";
-import "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {ICollateralManagement} from "../interfaces/CollateralManagement.sol";
+import {Flyover} from "../libraries/Flyover.sol";
+import {
+    AccessControlDefaultAdminRulesUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 contract CollateralManagementContract is
     AccessControlDefaultAdminRulesUpgradeable,
     ReentrancyGuardUpgradeable,
-    CollateralManagement
+    ICollateralManagement
 {
     bytes32 public constant COLLATERAL_ADDER = keccak256("COLLATERAL_ADDER");
     bytes32 public constant COLLATERAL_SLASHER = keccak256("COLLATERAL_SLASHER");
@@ -145,12 +148,12 @@ contract CollateralManagementContract is
     function _addPegInCollateralTo(address addr) private {
         uint amount = msg.value;
         _pegInCollateral[addr] += amount;
-        emit CollateralManagement.PegInCollateralAdded(addr, amount);
+        emit ICollateralManagement.PegInCollateralAdded(addr, amount);
     }
 
     function _addPegOutCollateralTo(address addr) private {
         uint amount = msg.value;
         _pegOutCollateral[addr] += amount;
-        emit CollateralManagement.PegOutCollateralAdded(addr, amount);
+        emit ICollateralManagement.PegOutCollateralAdded(addr, amount);
     }
 }

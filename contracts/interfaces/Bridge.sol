@@ -1,9 +1,53 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-interface Bridge {
+interface IBridge {
 
     receive() external payable;
+
+    function registerBtcTransaction(bytes calldata atx, int256 height, bytes calldata pmt) external;
+
+    function addSignature(bytes calldata pubkey, bytes[] calldata signatures, bytes calldata txhash) external;
+
+    function receiveHeaders(bytes[] calldata blocks) external;
+
+    function receiveHeader(bytes calldata ablock) external returns (int256);
+
+    function createFederation() external returns (int256);
+
+    function addFederatorPublicKey(bytes calldata key) external returns (int256);
+
+    function addFederatorPublicKeyMultikey(bytes calldata btcKey, bytes calldata rskKey,
+        bytes calldata mstKey) external returns (int256);
+
+    function commitFederation(bytes calldata hash) external returns (int256);
+
+    function rollbackFederation() external returns (int256);
+
+    function addLockWhitelistAddress(string calldata aaddress, int256 maxTransferValue) external returns (int256);
+
+    function addOneOffLockWhitelistAddress(string calldata aaddress, int256 maxTransferValue)
+        external returns (int256);
+
+    function addUnlimitedLockWhitelistAddress(string calldata aaddress) external returns (int256);
+
+    function removeLockWhitelistAddress(string calldata aaddress) external returns (int256);
+
+    function setLockWhitelistDisableBlockDelay(int256 disableDelay) external returns (int256);
+
+    function voteFeePerKbChange(int256 feePerKb) external returns (int256);
+
+    function updateCollections() external;
+
+    function increaseLockingCap(int256 newLockingCap) external returns (bool);
+
+    function registerBtcCoinbaseTransaction(bytes calldata btcTxSerialized, bytes32 blockHash,
+        bytes calldata pmtSerialized, bytes32 witnessMerkleRoot, bytes32 witnessReservedValue) external;
+
+    function registerFastBridgeBtcTransaction(bytes calldata btcTxSerialized, uint256 height,
+        bytes calldata pmtSerialized, bytes32 derivationArgumentsHash,
+        bytes calldata userRefundBtcAddress, address payable liquidityBridgeContractAddress,
+        bytes calldata liquidityProviderBtcAddress, bool shouldTransferToContract) external returns (int256);
 
     function getBtcBlockchainBestChainHeight() external view returns (int);
 
@@ -20,14 +64,6 @@ interface Bridge {
     function isBtcTxHashAlreadyProcessed(string calldata hash) external view returns (bool);
 
     function getFederationAddress() external view returns (string memory);
-
-    function registerBtcTransaction(bytes calldata atx, int256 height, bytes calldata pmt) external;
-
-    function addSignature(bytes calldata pubkey, bytes[] calldata signatures, bytes calldata txhash) external;
-
-    function receiveHeaders(bytes[] calldata blocks) external;
-
-    function receiveHeader(bytes calldata ablock) external returns (int256);
 
     function getFederationSize() external view returns (int256);
 
@@ -56,17 +92,6 @@ interface Bridge {
 
     function getRetiringFederationCreationBlockNumber() external view returns (int256);
 
-    function createFederation() external returns (int256);
-
-    function addFederatorPublicKey(bytes calldata key) external returns (int256);
-
-    function addFederatorPublicKeyMultikey(bytes calldata btcKey, bytes calldata rskKey,
-        bytes calldata mstKey) external returns (int256);
-
-    function commitFederation(bytes calldata hash) external returns (int256);
-
-    function rollbackFederation() external returns (int256);
-
     function getPendingFederationHash() external view returns (bytes memory);
 
     function getPendingFederationSize() external view returns (int256);
@@ -82,22 +107,7 @@ interface Bridge {
 
     function getLockWhitelistEntryByAddress(string calldata aaddress) external view returns (int256);
 
-    function addLockWhitelistAddress(string calldata aaddress, int256 maxTransferValue) external returns (int256);
-
-    function addOneOffLockWhitelistAddress(string calldata aaddress, int256 maxTransferValue)
-        external returns (int256);
-
-    function addUnlimitedLockWhitelistAddress(string calldata aaddress) external returns (int256);
-
-    function removeLockWhitelistAddress(string calldata aaddress) external returns (int256);
-
-    function setLockWhitelistDisableBlockDelay(int256 disableDelay) external returns (int256);
-
     function getFeePerKb() external view returns (int256);
-
-    function voteFeePerKbChange(int256 feePerKb) external returns (int256);
-
-    function updateCollections() external;
 
     function getMinimumLockTxValue() external view returns (int256);
 
@@ -106,17 +116,7 @@ interface Bridge {
 
     function getLockingCap() external view returns (int256);
 
-    function increaseLockingCap(int256 newLockingCap) external returns (bool);
-
-    function registerBtcCoinbaseTransaction(bytes calldata btcTxSerialized, bytes32 blockHash,
-        bytes calldata pmtSerialized, bytes32 witnessMerkleRoot, bytes32 witnessReservedValue) external;
-
     function hasBtcBlockCoinbaseTransactionInformation(bytes32 blockHash) external view returns (bool);
-
-    function registerFastBridgeBtcTransaction(bytes calldata btcTxSerialized, uint256 height,
-        bytes calldata pmtSerialized, bytes32 derivationArgumentsHash,
-        bytes calldata userRefundBtcAddress, address payable liquidityBridgeContractAddress,
-        bytes calldata liquidityProviderBtcAddress, bool shouldTransferToContract) external returns (int256);
 
     function getActiveFederationCreationBlockHeight() external view returns (uint256);
 

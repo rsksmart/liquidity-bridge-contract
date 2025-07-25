@@ -4,8 +4,6 @@ pragma solidity 0.8.25;
 library Flyover {
     enum ProviderType { PegIn, PegOut, Both }
 
-    error ProviderNotRegistered(address from);
-
     struct LiquidityProvider {
         uint id;
         address providerAddress;
@@ -14,4 +12,6 @@ library Flyover {
         string name;
         string apiBaseUrl;
     }
+
+    error ProviderNotRegistered(address from);
 }

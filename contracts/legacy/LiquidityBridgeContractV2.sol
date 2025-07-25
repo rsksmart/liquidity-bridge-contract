@@ -92,7 +92,7 @@ contract LiquidityBridgeContractV2 is OwnableUpgradeable, ReentrancyGuardUpgrade
     event DaoFeeSent(bytes32 indexed quoteHash, uint256 amount);
     event ProviderUpdate(address indexed providerAddress, string name, string url);
 
-    Bridge public bridge;
+    IBridge public bridge;
     mapping(address => uint256) private balances;
     mapping(address => uint256) private collateral;
     mapping(address => uint256) private pegoutCollateral;
@@ -375,7 +375,7 @@ contract LiquidityBridgeContractV2 is OwnableUpgradeable, ReentrancyGuardUpgrade
         @return Boolean indicating whether the call was successful
      */
     function callForUser(
-        QuotesV2.PeginQuote memory quote
+        QuotesV2.PegInQuote memory quote
     ) external payable onlyRegistered nonReentrant returns (bool) {
         require(
             msg.sender == quote.liquidityProviderRskAddress,
@@ -435,7 +435,7 @@ contract LiquidityBridgeContractV2 is OwnableUpgradeable, ReentrancyGuardUpgrade
         @return The total peg-in amount received from the bridge contract or an error code
      */
     function registerPegIn(
-        QuotesV2.PeginQuote memory quote,
+        QuotesV2.PegInQuote memory quote,
         bytes memory signature,
         bytes memory btcRawTransaction,
         bytes memory partialMerkleTree,
@@ -712,7 +712,7 @@ contract LiquidityBridgeContractV2 is OwnableUpgradeable, ReentrancyGuardUpgrade
             outputs[PAY_TO_ADDRESS_OUTPUT].pkScript,
             mainnet
         );
-        require(keccak256(quote.deposityAddress) == keccak256(btcTxDestination), "LBC068");
+        require(keccak256(quote.depositAddress) == keccak256(btcTxDestination), "LBC068");
 
         if (
             shouldPenalizePegOutLP(
@@ -742,7 +742,7 @@ contract LiquidityBridgeContractV2 is OwnableUpgradeable, ReentrancyGuardUpgrade
     }
 
     function validatePeginDepositAddress(
-        QuotesV2.PeginQuote memory quote,
+        QuotesV2.PegInQuote memory quote,
         bytes memory depositAddress
     ) external view returns (bool) {
         bytes32 derivationValue = keccak256(
@@ -770,7 +770,7 @@ contract LiquidityBridgeContractV2 is OwnableUpgradeable, ReentrancyGuardUpgrade
         @param quote The quote of the service
         @return The hash of a quote
      */
-    function hashQuote(QuotesV2.PeginQuote memory quote) public view returns (bytes32) {
+    function hashQuote(QuotesV2.PegInQuote memory quote) public view returns (bytes32) {
         return validateAndHashQuote(quote);
     }
 
@@ -781,7 +781,7 @@ contract LiquidityBridgeContractV2 is OwnableUpgradeable, ReentrancyGuardUpgrade
     }
 
     function validateAndHashQuote(
-        QuotesV2.PeginQuote memory quote
+        QuotesV2.PegInQuote memory quote
     ) private view returns (bytes32) {
         require(address(this) == quote.lbcAddress, "LBC051");
         require(
@@ -854,7 +854,7 @@ contract LiquidityBridgeContractV2 is OwnableUpgradeable, ReentrancyGuardUpgrade
         @return The total peg-in amount received from the bridge contract or an error code
      */
     function registerBridge(
-        QuotesV2.PeginQuote memory quote,
+        QuotesV2.PegInQuote memory quote,
         bytes memory btcRawTransaction,
         bytes memory partialMerkleTree,
         uint256 height,
@@ -882,7 +882,7 @@ contract LiquidityBridgeContractV2 is OwnableUpgradeable, ReentrancyGuardUpgrade
         @return Boolean indicating whether the penalty applies
      */
     function shouldPenalizeLP(
-        QuotesV2.PeginQuote memory quote,
+        QuotesV2.PegInQuote memory quote,
         int256 amount,
         uint256 callTimestamp,
         uint256 height

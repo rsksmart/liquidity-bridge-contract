@@ -96,7 +96,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
         address userAddress
     );
 
-    Bridge public bridge;
+    IBridge public bridge;
     mapping(address => uint256) private balances;
     mapping(address => uint256) private collateral;
     mapping(address => uint256) private pegoutCollateral;
@@ -159,7 +159,7 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
         require(_resignDelayBlocks >= 60, "LBC073");
         __Ownable_init_unchained(msg.sender);
         __ReentrancyGuard_init_unchained();
-        bridge = Bridge(_bridgeAddress);
+        bridge = IBridge(_bridgeAddress);
         minCollateral = _minimumCollateral;
         minPegIn = _minimumPegIn;
         rewardP = _rewardPercentage;

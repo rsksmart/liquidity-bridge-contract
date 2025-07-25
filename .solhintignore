@@ -1,1 +1,5 @@
 contracts/safe-test-contracts
+contracts/legacy
+
+# TEMPORARY
+contracts/split

@@ -1,15 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
-
+// solhint-disable comprehensive-interface
 contract WalletMock {
 
-    bool private rejectFunds;
+    bool private _rejectFunds;
 
-    function setRejectFunds(bool val) external {
-        rejectFunds = val;
-    }
+    error PaymentRejected();
 
     receive() external payable {
-        require(!rejectFunds, "rejected");
+        if (_rejectFunds) {
+            revert PaymentRejected();
+        }
+    }
+
+    function setRejectFunds(bool val) external {
+        _rejectFunds = val;
     }
 }

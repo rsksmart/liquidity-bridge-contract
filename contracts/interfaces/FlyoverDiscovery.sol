@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import "../libraries/Flyover.sol";
+import {Flyover} from "../libraries/Flyover.sol";
 
-interface FlyoverDiscovery {
-    event Register(uint indexed id, address indexed from, uint256 amount);
+interface IFlyoverDiscovery {
+    event Register(uint indexed id, address indexed from, uint256 indexed amount);
     event ProviderUpdate(address indexed from, string name, string apiBaseUrl);
-    event ProviderStatusSet(uint indexed id, bool status);
+    event ProviderStatusSet(uint indexed id, bool indexed status);
 
     error NotAuthorized(address from);
     error NotEOA(address from);
@@ -23,8 +23,8 @@ interface FlyoverDiscovery {
     ) external payable returns (uint);
 
     function updateProvider(string memory name,string memory apiBaseUrl) external;
+    function setProviderStatus(uint providerId, bool status) external;
     function getProviders() external view returns (Flyover.LiquidityProvider[] memory);
     function getProvider(address providerAddress) external view returns (Flyover.LiquidityProvider memory);
     function isOperational(Flyover.ProviderType providerType, address addr) external view returns (bool);
-    function setProviderStatus(uint providerId, bool status) external;
 }
