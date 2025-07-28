@@ -15,14 +15,15 @@ contract BridgeMock is IBridge {
     // solhint-disable-next-line no-empty-blocks
     receive() external payable override {}
 
+    // solhint-disable-next-line gas-calldata-parameters
     function registerFastBridgeBtcTransaction(
-        bytes calldata ,
+        bytes memory ,
         uint256 ,
-        bytes calldata,
+        bytes memory,
         bytes32 derivationArgumentsHash,
-        bytes calldata,
+        bytes memory,
         address payable liquidityBridgeContractAddress,
-        bytes calldata ,
+        bytes memory ,
         bool
     ) external override returns (int256) {
         uint256 amount = _amounts[derivationArgumentsHash];

@@ -7,7 +7,7 @@ task("btc-best-height")
   )
   .setAction(async (_, hre) => {
     const { ethers } = hre;
-    const bridge = await ethers.getContractAt("Bridge", BRIDGE_ADDRESS);
+    const bridge = await ethers.getContractAt("IBridge", BRIDGE_ADDRESS);
     const bestHeight = await bridge.getBtcBlockchainBestChainHeight();
     console.info(
       `Best BTC blockchain height: \x1b[32m${bestHeight.toString()}\x1b[0m`

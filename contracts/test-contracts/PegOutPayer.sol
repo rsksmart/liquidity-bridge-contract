@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {LiquidityBridgeContractV2} from "../legacy/LiquidityBridgeContractV2.sol";
-import {QuotesV2} from "../libraries/QuotesV2.sol";
+import {ILegacyLiquidityBridgeContract as LiquidityBridgeContractV2} from "../interfaces/Legacy.sol";
+import {QuotesV2} from "../legacy/QuotesV2.sol";
 
 // solhint-disable comprehensive-interface
 contract PegOutPayer {

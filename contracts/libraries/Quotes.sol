@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-library QuotesV2 {
+library Quotes {
     struct PegInQuote {
         uint256 callFee;
         uint256 penaltyFee;
@@ -80,7 +80,7 @@ library QuotesV2 {
     }
 
     function _encodePart1(
-        PegInQuote calldata quote
+        PegInQuote memory quote
     ) private pure returns (bytes memory) {
         return
             abi.encode(
@@ -97,7 +97,7 @@ library QuotesV2 {
     }
 
     function _encodePart2(
-        PegInQuote calldata quote
+        PegInQuote memory quote
     ) private pure returns (bytes memory) {
         return
             abi.encode(
@@ -116,7 +116,7 @@ library QuotesV2 {
     }
 
     function _encodePegOutPart1(
-        PegOutQuote calldata quote
+        PegOutQuote memory quote
     ) private pure returns (bytes memory) {
         return
             abi.encode(
@@ -133,7 +133,7 @@ library QuotesV2 {
     }
 
     function _encodePegOutPart2(
-        PegOutQuote calldata quote
+        PegOutQuote memory quote
     ) private pure returns (bytes memory) {
         return
             abi.encode(

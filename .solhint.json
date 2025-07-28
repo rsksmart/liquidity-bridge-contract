@@ -26,7 +26,6 @@
     "comprehensive-interface": "error",
     "explicit-types": "off",
 
-
     "use-natspec": "off"
   }
 }

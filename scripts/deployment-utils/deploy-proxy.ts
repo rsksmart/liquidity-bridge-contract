@@ -25,7 +25,10 @@ async function deployProxyLibraries(
   network: string
 ): Promise<LiquidityBridgeContractLibraries> {
   if (REMOTE_NETWORKS.includes(network) || network === LOCAL_NETWORK) {
-    const quotesDeployment = await deployContract("Quotes", network);
+    const quotesDeployment = await deployContract(
+      "contracts/legacy/Quotes.sol:Quotes",
+      network
+    );
     const btcUtilsDeployment = await deployContract("BtcUtils", network);
     const signatureValidatorDeployment = await deployContract(
       "SignatureValidator",
@@ -38,7 +41,10 @@ async function deployProxyLibraries(
       bridge: BRIDGE_ADDRESS,
     };
   } else {
-    const quotesDeployment = await deployContract("Quotes", network);
+    const quotesDeployment = await deployContract(
+      "contracts/legacy/Quotes.sol:Quotes",
+      network
+    );
     const btcUtilsDeployment = await deployContract("BtcUtils", network);
     const signatureValidatorMockDeployment = await deployContract(
       "SignatureValidatorMock",
