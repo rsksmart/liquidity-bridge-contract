@@ -4,7 +4,7 @@ pragma solidity 0.8.25;
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import {OwnableDaoContributorUpgradeable} from "./DaoContributor.sol";
 import {IBridge} from "./interfaces/Bridge.sol";
-import {ICollateralManagement} from "./interfaces/CollateralManagement.sol";
+import {ICollateralManagement, CollateralManagementSet} from "./interfaces/CollateralManagement.sol";
 import {IPegOut} from "./interfaces/PegOut.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 import {Quotes} from "./libraries/Quotes.sol";
@@ -33,8 +33,11 @@ contract PegOutContract is
     mapping(bytes32 => PegOutRecord) private _pegOutRegistry;
 
     uint256 public dustThreshold;
+    uint256 public btcBlockTime;
     bool private _mainnet;
-    uint256 private _btcBlockTime;
+
+    event DustThresholdSet(uint256 indexed oldThreshold, uint256 indexed newThreshold);
+    event BtcBlockTimeSet(uint256 indexed oldTime, uint256 indexed newTime);
 
     function depositPegOut(
         Quotes.PegOutQuote calldata quote,
@@ -92,6 +95,7 @@ contract PegOutContract is
         uint256 dustThreshold_,
         address collateralManagement,
         bool mainnet,
+        uint256 btcBlockTime_,
         uint256 daoFeePercentage,
         address payable daoFeeCollector
     ) external initializer {
@@ -100,6 +104,25 @@ contract PegOutContract is
         _collateralManagement = ICollateralManagement(collateralManagement);
         _mainnet = mainnet;
         dustThreshold = dustThreshold_;
+        btcBlockTime = btcBlockTime_;
+    }
+
+    // solhint-disable-next-line comprehensive-interface
+    function setCollateralManagement(address collateralManagement) external onlyOwner {
+        emit CollateralManagementSet(address(_collateralManagement), collateralManagement);
+        _collateralManagement = ICollateralManagement(collateralManagement);
+    }
+
+    // solhint-disable-next-line comprehensive-interface
+    function setDustThreshold(uint256 threshold) external onlyOwner {
+        emit DustThresholdSet(dustThreshold, threshold);
+        dustThreshold = threshold;
+    }
+
+    // solhint-disable-next-line comprehensive-interface
+    function setBtcBlockTime(uint256 blockTime) external onlyOwner {
+        emit BtcBlockTimeSet(btcBlockTime, blockTime);
+        btcBlockTime = blockTime;
     }
 
     function refundPegOut(
@@ -124,20 +147,21 @@ contract PegOutContract is
         _validateBtcTxAmount(outputs, quote);
         _validateBtcTxDestination(outputs, quote);
 
-        if (_shouldPenalize(quote, quoteHash, btcBlockHeaderHash)) {
-            _collateralManagement.slashPegOutCollateral(quote, quoteHash);
-        }
-
         delete _pegOutQuotes[quoteHash];
         _pegOutRegistry[quoteHash].completed = true;
         emit PegOutRefunded(quoteHash);
+
+        _addDaoContribution(quote.lpRskAddress, quote.productFeeAmount);
+
+        if (_shouldPenalize(quote, quoteHash, btcBlockHeaderHash)) {
+            _collateralManagement.slashPegOutCollateral(quote, quoteHash);
+        }
 
         uint256 refundAmount = quote.value + quote.callFee + quote.gasFee;
         (bool sent, bytes memory reason) = quote.lpRskAddress.call{value: refundAmount}("");
         if (!sent) {
             revert Flyover.PaymentFailed(quote.lpRskAddress, refundAmount, reason);
         }
-        _addDaoContribution(quote.lpRskAddress, quote.productFeeAmount);
     }
 
     function refundUserPegOut(bytes32 quoteHash) external nonReentrant override {
@@ -150,11 +174,11 @@ contract PegOutContract is
         uint256 valueToTransfer = quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
         address addressToTransfer = quote.rskRefundAddress;
 
-        emit PegOutUserRefunded(quoteHash, quote.rskRefundAddress, valueToTransfer);
-        _collateralManagement.slashPegOutCollateral(quote, quoteHash);
-
         delete _pegOutQuotes[quoteHash];
         _pegOutRegistry[quoteHash].completed = true;
+
+        emit PegOutUserRefunded(quoteHash, quote.rskRefundAddress, valueToTransfer);
+        _collateralManagement.slashPegOutCollateral(quote, quoteHash);
 
         (bool sent, bytes memory reason) = addressToTransfer.call{value: valueToTransfer}("");
         if (!sent) {
@@ -196,7 +220,7 @@ contract PegOutContract is
         uint256 firstConfirmationTimestamp = BtcUtils.getBtcBlockTimestamp(firstConfirmationHeader);
         uint256 expectedConfirmationTime = _pegOutRegistry[quoteHash].depositTimestamp +
             quote.transferTime +
-            _btcBlockTime;
+            btcBlockTime;
 
         // penalize if the transfer was not made on time
         if (firstConfirmationTimestamp > expectedConfirmationTime) {
