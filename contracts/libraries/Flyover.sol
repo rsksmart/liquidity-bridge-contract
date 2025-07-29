@@ -14,4 +14,9 @@ library Flyover {
     }
 
     error ProviderNotRegistered(address from);
+    error IncorrectContract(address expected, address actual);
+    error QuoteNotFound(bytes32 quoteHash);
+    error PaymentFailed(address addr, uint amount, bytes reason);
+    error InvalidBlockHeader(bytes header);
+    error NoBalance(uint256 wanted, uint256 actual);
 }
