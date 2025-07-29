@@ -4,6 +4,8 @@ pragma solidity 0.8.25;
 import {Flyover} from "../libraries/Flyover.sol";
 import {Quotes} from "../libraries/Quotes.sol";
 
+event CollateralManagementSet(address indexed oldAddress, address indexed newAddress);
+
 interface ICollateralManagement {
     event WithdrawCollateral(address indexed addr, uint indexed amount);
     event Resigned(address indexed addr);
