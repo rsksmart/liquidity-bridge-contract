@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 import {ICollateralManagement} from "../interfaces/CollateralManagement.sol";
 import {Flyover} from "../libraries/Flyover.sol";
+import {Quotes} from "../libraries/Quotes.sol";
 import {
     AccessControlDefaultAdminRulesUpgradeable
 } from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
@@ -79,12 +80,36 @@ contract CollateralManagementContract is
         _addPegInCollateralTo(msg.sender);
     }
 
+    function slashPegInCollateral(
+        Quotes.PegInQuote calldata quote,
+        bytes32 quoteHash
+    ) external onlyRole(COLLATERAL_SLASHER) {
+        uint penalty = _min(
+            quote.penaltyFee,
+            _pegInCollateral[quote.liquidityProviderRskAddress]
+        );
+        _pegInCollateral[quote.liquidityProviderRskAddress] -= penalty;
+        emit Penalized(quote.liquidityProviderRskAddress, quoteHash, Flyover.ProviderType.PegIn, penalty);
+    }
+
     function addPegOutCollateralTo(address addr) external onlyRole(COLLATERAL_ADDER) payable {
         _addPegOutCollateralTo(addr);
     }
 
     function addPegOutCollateral() external onlyRegisteredForPegOut payable {
         _addPegOutCollateralTo(msg.sender);
+    }
+
+    function slashPegOutCollateral(
+        Quotes.PegOutQuote calldata quote,
+        bytes32 quoteHash
+    ) external onlyRole(COLLATERAL_SLASHER) {
+        uint penalty = _min(
+            quote.penaltyFee,
+            _pegOutCollateral[quote.lpRskAddress]
+        );
+        _pegOutCollateral[quote.lpRskAddress] -= penalty;
+        emit Penalized(quote.lpRskAddress, quoteHash, Flyover.ProviderType.PegOut, penalty);
     }
 
     function getMinCollateral() external view returns (uint) {
@@ -155,5 +180,9 @@ contract CollateralManagementContract is
         uint amount = msg.value;
         _pegOutCollateral[addr] += amount;
         emit ICollateralManagement.PegOutCollateralAdded(addr, amount);
+    }
+
+    function _min(uint a, uint b) private pure returns (uint) {
+        return a < b ? a : b;
     }
 }

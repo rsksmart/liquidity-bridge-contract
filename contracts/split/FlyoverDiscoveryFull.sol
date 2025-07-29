@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import {IFlyoverDiscovery} from "../interfaces/FlyoverDiscovery.sol";
 import {ICollateralManagement} from "../interfaces/CollateralManagement.sol";
 import {Flyover} from "../libraries/Flyover.sol";
+import {Quotes} from "../libraries/Quotes.sol";
 import {
     AccessControlDefaultAdminRulesUpgradeable
 } from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
@@ -327,5 +328,33 @@ contract FlyoverDiscoveryFull is
               _pegOutCollateral[addr] >= _minCollateral &&
               _resignationBlockNum[addr] == 0;
         }
+    }
+
+    function slashPegInCollateral(
+        Quotes.PegInQuote calldata quote,
+        bytes32 quoteHash
+    ) external onlyRole(COLLATERAL_SLASHER) {
+        uint penalty = _min(
+            quote.penaltyFee,
+            _pegInCollateral[quote.liquidityProviderRskAddress]
+        );
+        _pegInCollateral[quote.liquidityProviderRskAddress] -= penalty;
+        emit Penalized(quote.liquidityProviderRskAddress, quoteHash, Flyover.ProviderType.PegIn, penalty);
+    }
+
+    function slashPegOutCollateral(
+        Quotes.PegOutQuote calldata quote,
+        bytes32 quoteHash
+    ) external onlyRole(COLLATERAL_SLASHER) {
+        uint penalty = _min(
+            quote.penaltyFee,
+            _pegOutCollateral[quote.lpRskAddress]
+        );
+        _pegOutCollateral[quote.lpRskAddress] -= penalty;
+        emit Penalized(quote.lpRskAddress, quoteHash, Flyover.ProviderType.PegOut, penalty);
+    }
+
+    function _min(uint a, uint b) private pure returns (uint) {
+        return a < b ? a : b;
     }
 }
