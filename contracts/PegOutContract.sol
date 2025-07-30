@@ -99,6 +99,7 @@ contract PegOutContract is
         uint256 daoFeePercentage,
         address payable daoFeeCollector
     ) external initializer {
+        if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
         __OwnableDaoContributor_init(owner, daoFeePercentage, daoFeeCollector);
         _bridge = IBridge(bridge);
         _collateralManagement = ICollateralManagement(collateralManagement);
@@ -109,6 +110,7 @@ contract PegOutContract is
 
     // solhint-disable-next-line comprehensive-interface
     function setCollateralManagement(address collateralManagement) external onlyOwner {
+        if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
         emit CollateralManagementSet(address(_collateralManagement), collateralManagement);
         _collateralManagement = ICollateralManagement(collateralManagement);
     }
