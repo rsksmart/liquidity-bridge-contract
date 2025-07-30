@@ -72,8 +72,8 @@ abstract contract OwnableDaoContributorUpgradeable is
         uint256 feePercentage,
         address payable feeCollector
     ) internal onlyInitializing {
-        __Ownable_init(owner);
-        __ReentrancyGuard_init();
+        __ReentrancyGuard_init_unchained();
+        __Ownable_init_unchained(owner);
         DaoContributorStorage storage $ = _getContributorStorage();
         $.feePercentage = feePercentage;
         $.feeCollector = feeCollector;

@@ -19,4 +19,5 @@ library Flyover {
     error PaymentFailed(address addr, uint amount, bytes reason);
     error InvalidBlockHeader(bytes header);
     error NoBalance(uint256 wanted, uint256 actual);
+    error NoContract(address addr);
 }
