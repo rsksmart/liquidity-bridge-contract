@@ -22,7 +22,7 @@ import {
 import { fromLeHex } from "./utils/encoding";
 import * as bs58check from "bs58check";
 import * as hardhatHelpers from "@nomicfoundation/hardhat-network-helpers";
-import { read } from "../scripts/deployment-utils/deploy";
+import { deployLibraries } from "../scripts/deployment-utils/deploy-libraries";
 
 describe("LiquidityBridgeContractV2 pegout process should", () => {
   (
@@ -749,10 +749,10 @@ describe("LiquidityBridgeContractV2 pegout process should", () => {
   });
 
   it("parse raw btc transaction p2pkh script", async () => {
-    const btcUtilsAddress = read()[hre.network.name].BtcUtils;
+    const deployment = await deployLibraries(hre.network.name, "BtcUtils");
     const BtcUtils = await ethers.getContractAt(
       "BtcUtils",
-      btcUtilsAddress.address!
+      deployment.BtcUtils.address
     );
     const firstRawTX =
       "0x0100000001013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40000000006a47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4ffffffff0200879303000000001976a9143c5f66fe733e0ad361805b3053f23212e5755c8d88ac0000000000000000426a403938343934346435383039323135366335613139643936356239613735383530326536646263326439353337333135656266343839373336333134656233343700000000";
@@ -980,10 +980,10 @@ describe("LiquidityBridgeContractV2 pegout process should", () => {
   });
 
   it("parse btc raw transaction outputs correctly", async () => {
-    const btcUtilsAddress = read()[hre.network.name].BtcUtils;
+    const deployment = await deployLibraries(hre.network.name, "BtcUtils");
     const BtcUtils = await ethers.getContractAt(
       "BtcUtils",
-      btcUtilsAddress.address!
+      deployment.BtcUtils.address
     );
     const transactions = [
       {
