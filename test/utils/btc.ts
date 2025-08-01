@@ -1,8 +1,13 @@
 import { bech32, bech32m } from "bech32";
 import * as bs58check from "bs58check";
 import { BytesLike, hexlify } from "ethers";
-import { LiquidityBridgeContractV2, QuotesV2 } from "../../typechain-types";
+import {
+  LiquidityBridgeContractV2,
+  PegOutContract,
+  QuotesV2,
+} from "../../typechain-types";
 import { toLeHex } from "./encoding";
+import { Quotes } from "../../typechain-types/contracts/libraries";
 
 export type BtcAddressType = "p2pkh" | "p2sh" | "p2wpkh" | "p2wsh" | "p2tr";
 
@@ -49,13 +54,23 @@ export function getTestBtcAddress(addressType: BtcAddressType): BytesLike {
  * @returns { Promise<string> } The raw BTC transaction
  */
 export async function generateRawTx(
-  lbc: LiquidityBridgeContractV2,
-  quote: QuotesV2.PegOutQuoteStruct,
+  lbc: Partial<{
+    hashPegoutQuote: LiquidityBridgeContractV2["hashPegoutQuote"];
+    hashPegOutQuote: PegOutContract["hashPegOutQuote"];
+  }>,
+  quote: QuotesV2.PegOutQuoteStruct & Quotes.PegOutQuoteStruct,
   scriptType: BtcAddressType = "p2pkh"
 ) {
-  const quoteHash = await lbc.hashPegoutQuote(quote);
+  let quoteHash: BytesLike;
+  let addressBytes: Uint8Array;
+  if (lbc.hashPegoutQuote) {
+    quoteHash = await lbc.hashPegoutQuote(quote);
+    addressBytes = quote.deposityAddress as Uint8Array;
+  } else {
+    quoteHash = (await lbc.hashPegOutQuote?.(quote)) ?? "0x";
+    addressBytes = quote.depositAddress as Uint8Array;
+  }
   let outputScript: number[];
-  const addressBytes = quote.deposityAddress as Uint8Array;
   switch (scriptType) {
     case "p2pkh":
       outputScript = [0x76, 0xa9, 0x14, ...addressBytes.slice(1), 0x88, 0xac];

@@ -38,3 +38,14 @@ export const REGISTER_LP_PARAMS: RegisterLpParams = [
   "both",
   { value: LP_COLLATERAL },
 ];
+
+export const PEGOUT_CONSTANTS = {
+  TEST_DUST_THRESHOLD: ethers.parseEther("0.0000001"),
+  TEST_BTC_BLOCK_TIME: 3600,
+} as const;
+
+export enum ProviderType {
+  PegIn,
+  PegOut,
+  Both,
+}

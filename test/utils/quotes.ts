@@ -9,6 +9,7 @@ import { randomBytes } from "crypto";
 import { BigNumberish, BytesLike } from "ethers";
 import { toLeHex } from "./encoding";
 import { BtcAddressType, getTestBtcAddress } from "./btc";
+import { Quotes } from "../../typechain-types/contracts/libraries";
 
 const now = () => Math.floor(Date.now() / 1000); // ms to s
 
@@ -57,14 +58,15 @@ export function getTestPegoutQuote(args: {
   value: BigNumberish;
   destinationAddressType?: BtcAddressType;
   productFeePercentage?: number;
-}): QuotesV2.PegOutQuoteStruct {
+}): QuotesV2.PegOutQuoteStruct & Quotes.PegOutQuoteStruct {
   // TODO if at some point DAO integration is re activated, this default value should be updated to not be 0
   const productFeePercentage = args.productFeePercentage ?? 0;
   const productFee = (BigInt(productFeePercentage) * BigInt(args.value)) / 100n;
   const destinationAddressType = args.destinationAddressType ?? "p2pkh";
   const nowTimestamp = now();
 
-  const quote: QuotesV2.PegOutQuoteStruct = {
+  // TODO this is to support both legacy and new test suite, once we adapt the legacy suite we can remove this union
+  const quote: QuotesV2.PegOutQuoteStruct & Quotes.PegOutQuoteStruct = {
     lbcAddress: args.lbcAddress,
     lpRskAddress: args.liquidityProvider.address,
     btcRefundAddress: DECODED_P2PKH_ZERO_ADDRESS_TESTNET,
@@ -73,6 +75,7 @@ export function getTestPegoutQuote(args: {
     callFee: "100000000000000",
     penaltyFee: "10000000000000",
     deposityAddress: getTestBtcAddress(destinationAddressType),
+    depositAddress: getTestBtcAddress(destinationAddressType),
     nonce: BigInt("0x" + randomBytes(7).toString("hex")),
     value: args.value,
     agreementTimestamp: nowTimestamp,

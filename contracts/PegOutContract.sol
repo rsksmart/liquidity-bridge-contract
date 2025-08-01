@@ -50,10 +50,10 @@ contract PegOutContract is
         if (msg.value < requiredAmount) {
             revert InsufficientAmount(msg.value, requiredAmount);
         }
-        if (quote.depositDateLimit > block.timestamp || quote.expireDate > block.timestamp) {
+        if (quote.depositDateLimit < block.timestamp || quote.expireDate < block.timestamp) {
             revert QuoteExpiredByTime(quote.depositDateLimit, quote.expireDate);
         }
-        if (quote.expireBlock > block.number) {
+        if (quote.expireBlock < block.number) {
             revert QuoteExpiredByBlocks(quote.expireBlock);
         }
 
@@ -76,15 +76,15 @@ contract PegOutContract is
 
         emit PegOutDeposit(quoteHash, msg.sender, msg.value, block.timestamp);
 
-        if (dustThreshold < requiredAmount - msg.value) {
+        if (dustThreshold > msg.value - requiredAmount) {
             return;
         }
 
-        uint256 change = requiredAmount - msg.value;
-        emit PegOutChangePaid(quoteHash, msg.sender, change);
-        (bool sent, bytes memory reason) = quote.lpRskAddress.call{value: change}("");
+        uint256 change = msg.value - requiredAmount;
+        emit PegOutChangePaid(quoteHash, quote.rskRefundAddress, change);
+        (bool sent, bytes memory reason) = quote.rskRefundAddress.call{value: change}("");
         if (!sent) {
-            revert Flyover.PaymentFailed(quote.lpRskAddress, change, reason);
+            revert Flyover.PaymentFailed(quote.rskRefundAddress, change, reason);
         }
     }
 
