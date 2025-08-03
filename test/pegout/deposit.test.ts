@@ -11,14 +11,11 @@ import { deployPegOutContractFixture } from "./fixtures";
 import { ethers } from "hardhat";
 import { expect } from "chai";
 import { generateRawTx, getTestMerkleProof } from "../utils/btc";
-import { getBytes, Interface } from "ethers";
+import { getBytes } from "ethers";
 import { PEGOUT_CONSTANTS } from "../utils/constants";
+import { matchAnyNumber, matchSelector } from "../utils/matchers";
 
 describe("PegOutContract depositPegOut function should", () => {
-  const anyNumber = (value: unknown) =>
-    typeof value === "bigint" || typeof value === "number";
-  const matchSelector = (iface: Interface, error: string) => (value: unknown) =>
-    value === iface.getError(error)?.selector;
   it("revert if the LP does not have collateral", async function () {
     const { contract, signers } = await loadFixture(
       deployPegOutContractFixture
@@ -284,7 +281,7 @@ describe("PegOutContract depositPegOut function should", () => {
       .depositPegOut(quote, signature, { value: paidAmount });
     await expect(tx)
       .to.emit(contract, "PegOutDeposit")
-      .withArgs(quoteHash, user.address, paidAmount, anyNumber);
+      .withArgs(quoteHash, user.address, paidAmount, matchAnyNumber);
     await expect(tx).not.to.emit(contract, "PegOutChangePaid");
     await expect(tx).to.changeEtherBalances(
       [user, contract],
@@ -318,7 +315,7 @@ describe("PegOutContract depositPegOut function should", () => {
       .depositPegOut(quote, signature, { value: paidAmount });
     await expect(tx)
       .to.emit(contract, "PegOutDeposit")
-      .withArgs(quoteHash, user.address, paidAmount, anyNumber);
+      .withArgs(quoteHash, user.address, paidAmount, matchAnyNumber);
     await expect(tx)
       .to.emit(contract, "PegOutChangePaid")
       .withArgs(quoteHash, user.address, changeAmount);
@@ -359,7 +356,7 @@ describe("PegOutContract depositPegOut function should", () => {
       .to.be.revertedWithCustomError(contract, "PaymentFailed")
       .withArgs(
         quote.rskRefundAddress,
-        anyNumber,
+        matchAnyNumber,
         matchSelector(PegOutChangeReceiver.interface, "SomeError")
       );
   });
@@ -393,7 +390,7 @@ describe("PegOutContract depositPegOut function should", () => {
       .to.be.revertedWithCustomError(contract, "PaymentFailed")
       .withArgs(
         quote.rskRefundAddress,
-        anyNumber,
+        matchAnyNumber,
         matchSelector(contract.interface, "ReentrancyGuardReentrantCall")
       );
   });

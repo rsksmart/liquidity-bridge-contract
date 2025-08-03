@@ -6,6 +6,8 @@ import {
 } from "../utils/constants";
 import { deployLibraries } from "../../scripts/deployment-utils/deploy-libraries";
 import { PegOutContract } from "../../typechain-types";
+import { getTestPegoutQuote, totalValue } from "../utils/quotes";
+import { getBytes } from "ethers";
 
 // TODO this should be removed once the collateral management has its final implementation and test files, then
 // this file should import a function from there
@@ -115,4 +117,25 @@ export async function deployPegOutContractFixture() {
       await contract.getAddress()
     );
   return { contract, bridgeMock, initializationParams, ...deployResult };
+}
+
+export async function paidPegOutFixture() {
+  const deployResult = await deployPegOutContractFixture();
+  const { signers, contract, pegOutLp } = deployResult;
+  const user = signers.pop();
+  if (!user) throw new Error("user can't be undefined");
+  const quote = getTestPegoutQuote({
+    lbcAddress: await contract.getAddress(),
+    liquidityProvider: pegOutLp,
+    refundAddress: user.address,
+    value: ethers.parseEther("1.23"),
+  });
+  const quoteHash = await contract.hashPegOutQuote(quote);
+  const signature = await pegOutLp.signMessage(getBytes(quoteHash));
+  const depositTx = await contract
+    .connect(user)
+    .depositPegOut(quote, signature, { value: totalValue(quote) });
+  const depositReceipt = await depositTx.wait();
+
+  return { user, quote, quoteHash, depositTx, depositReceipt, ...deployResult };
 }
