@@ -167,7 +167,7 @@ contract PegOutContract is
     }
 
     function refundUserPegOut(bytes32 quoteHash) external nonReentrant override {
-        Quotes.PegOutQuote storage quote = _pegOutQuotes[quoteHash];
+        Quotes.PegOutQuote memory quote = _pegOutQuotes[quoteHash];
 
         if (quote.lbcAddress == address(0)) revert Flyover.QuoteNotFound(quoteHash);
         // solhint-disable-next-line gas-strict-inequalities
@@ -179,7 +179,7 @@ contract PegOutContract is
         delete _pegOutQuotes[quoteHash];
         _pegOutRegistry[quoteHash].completed = true;
 
-        emit PegOutUserRefunded(quoteHash, quote.rskRefundAddress, valueToTransfer);
+        emit PegOutUserRefunded(quoteHash, addressToTransfer, valueToTransfer);
         _collateralManagement.slashPegOutCollateral(quote, quoteHash);
 
         (bool sent, bytes memory reason) = addressToTransfer.call{value: valueToTransfer}("");
