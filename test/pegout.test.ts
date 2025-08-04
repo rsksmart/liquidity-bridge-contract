@@ -96,7 +96,7 @@ describe("LiquidityBridgeContractV2 pegout process should", () => {
         (pegoutAmount + depositReceipt!.fee) * -1n
       );
 
-      const btcTx = await generateRawTx(lbc, quote, scriptType);
+      const btcTx = await generateRawTx(lbc, quote, { scriptType });
 
       const lpBalanceAfterRefundAssertion = await createBalanceUpdateAssertion({
         source: ethers.provider,
@@ -967,7 +967,7 @@ describe("LiquidityBridgeContractV2 pegout process should", () => {
     const { blockHeaderHash, partialMerkleTree, merkleBranchHashes } =
       getTestMerkleProof();
     await bridgeMock.setHeaderByHash(blockHeaderHash, firstConfirmationHeader);
-    const btcTx = await generateRawTx(lbc, quote, "p2sh");
+    const btcTx = await generateRawTx(lbc, quote, { scriptType: "p2sh" });
     lbc = lbc.connect(provider.signer);
     const refundTx = lbc.refundPegOut(
       quoteHash,

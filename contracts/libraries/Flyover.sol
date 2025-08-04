@@ -17,7 +17,7 @@ library Flyover {
     error IncorrectContract(address expected, address actual);
     error QuoteNotFound(bytes32 quoteHash);
     error PaymentFailed(address addr, uint amount, bytes reason);
-    error InvalidBlockHeader(bytes header);
+    error EmptyBlockHeader(bytes32 blockHash);
     error NoBalance(uint256 wanted, uint256 actual);
     error NoContract(address addr);
 }

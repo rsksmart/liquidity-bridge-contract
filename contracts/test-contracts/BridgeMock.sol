@@ -9,8 +9,13 @@ contract BridgeMock is IBridge {
     mapping(bytes32 => uint256) private _amounts;
     mapping(uint256 => bytes) private _headers;
     mapping (bytes32 => bytes) private _headersByHash;
+    int private _confirmations;
 
     error SendFailed();
+
+    constructor() {
+        _confirmations = 2;
+    }
 
     // solhint-disable-next-line no-empty-blocks
     receive() external payable override {}
@@ -35,6 +40,10 @@ contract BridgeMock is IBridge {
         return int(amount);
     }
 
+    function setConfirmations(int confirmations) external {
+        _confirmations = confirmations;
+    }
+
     // solhint-disable-next-line no-empty-blocks
     function registerBtcTransaction ( bytes calldata atx, int256 height, bytes calldata pmt ) external override {}
     function addSignature ( bytes calldata pubkey, bytes[] calldata signatures, bytes calldata txhash )
@@ -57,6 +66,9 @@ contract BridgeMock is IBridge {
     ) external view override returns (bytes memory) {
         return _headersByHash[blockHash];
     }
+
+    function getBtcTransactionConfirmations ( bytes32 , bytes32, uint256 , bytes32[] calldata  )
+        external view override returns (int256) { return _confirmations; }
 
     function getActivePowpegRedeemScript() external pure returns (bytes memory) {
         bytes memory part1 = hex"522102cd53fc53a07f211641a677d250f6de99caf620e8e77071e811a28b3bcddf0be1210362634ab5";
@@ -125,8 +137,6 @@ contract BridgeMock is IBridge {
     function getFeePerKb (  ) external pure override returns (int256) {return int256(0);}
     function voteFeePerKbChange ( int256  ) external pure override returns (int256) {return int256(0);}
     function getMinimumLockTxValue (  ) external pure override returns (int256) {return int256(2);}
-    function getBtcTransactionConfirmations ( bytes32 , bytes32, uint256 , bytes32[] calldata  )
-        external pure override returns (int256) {return int256(2);}
     function getLockingCap (  ) external pure override returns (int256) {return int256(0);}
     function increaseLockingCap ( int256 ) external pure override returns (bool) {return false;}
     function hasBtcBlockCoinbaseTransactionInformation ( bytes32  ) external pure override returns
