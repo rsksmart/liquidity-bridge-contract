@@ -2,6 +2,7 @@ import * as bs58check from "bs58check";
 import { bech32, bech32m } from "bech32";
 import { BytesLike } from "ethers";
 import { QuotesV2 } from "../../typechain-types";
+import { Quotes } from "../../typechain-types/contracts/libraries";
 
 export interface ApiPeginQuote {
   fedBTCAddr: string;
@@ -77,7 +78,7 @@ export function parsePeginQuote(
 
 export function parsePegoutQuote(
   quote: ApiPegoutQuote
-): QuotesV2.PegOutQuoteStruct {
+): QuotesV2.PegOutQuoteStruct & Quotes.PegOutQuoteStruct {
   return {
     lbcAddress: quote.lbcAddress.toLowerCase(),
     lpRskAddress: quote.liquidityProviderRskAddress.toLowerCase(),
@@ -88,6 +89,8 @@ export function parsePegoutQuote(
     penaltyFee: quote.penaltyFee,
     nonce: quote.nonce,
     deposityAddress: parseBtcAddress(quote.depositAddr),
+    // this is to support both legacy and new test suite
+    depositAddress: parseBtcAddress(quote.depositAddr),
     value: quote.value,
     agreementTimestamp: quote.agreementTimestamp,
     depositDateLimit: quote.depositDateLimit,
