@@ -137,5 +137,13 @@ export async function paidPegOutFixture() {
     .depositPegOut(quote, signature, { value: totalValue(quote) });
   const depositReceipt = await depositTx.wait();
 
-  return { user, quote, quoteHash, depositTx, depositReceipt, ...deployResult };
+  return {
+    user,
+    usedLp: pegOutLp,
+    quote,
+    quoteHash,
+    depositTx,
+    depositReceipt,
+    ...deployResult,
+  };
 }

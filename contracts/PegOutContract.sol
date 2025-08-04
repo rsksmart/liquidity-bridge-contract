@@ -139,7 +139,7 @@ contract PegOutContract is
         }
         if (_isQuoteCompleted(quoteHash)) revert QuoteAlreadyCompleted(quoteHash);
 
-        Quotes.PegOutQuote storage quote = _pegOutQuotes[quoteHash];
+        Quotes.PegOutQuote memory quote = _pegOutQuotes[quoteHash];
         if (quote.lbcAddress == address(0)) revert Flyover.QuoteNotFound(quoteHash);
         if (quote.lpRskAddress != msg.sender) revert InvalidSender(quote.lpRskAddress, msg.sender);
 
@@ -212,12 +212,12 @@ contract PegOutContract is
     }
 
     function _shouldPenalize(
-        Quotes.PegOutQuote storage quote,
+        Quotes.PegOutQuote memory quote,
         bytes32 quoteHash,
         bytes32 blockHash
     ) private view returns (bool) {
         bytes memory firstConfirmationHeader = _bridge.getBtcBlockchainBlockHeaderByHash(blockHash);
-        if(firstConfirmationHeader.length < 1) revert Flyover.InvalidBlockHeader(firstConfirmationHeader);
+        if(firstConfirmationHeader.length < 1) revert Flyover.EmptyBlockHeader(blockHash);
 
         uint256 firstConfirmationTimestamp = BtcUtils.getBtcBlockTimestamp(firstConfirmationHeader);
         uint256 expectedConfirmationTime = _pegOutRegistry[quoteHash].depositTimestamp +
@@ -238,7 +238,7 @@ contract PegOutContract is
     }
 
     function _validateBtcTxConfirmations(
-        Quotes.PegOutQuote storage quote,
+        Quotes.PegOutQuote memory quote,
         bytes calldata btcTx,
         bytes32 btcBlockHeaderHash,
         uint256 partialMerkleTree,
@@ -257,21 +257,9 @@ contract PegOutContract is
         }
     }
 
-    function _validateBtcTxAmount(
-        BtcUtils.TxRawOutput[] memory outputs,
-        Quotes.PegOutQuote storage quote
-    ) private view {
-        uint256 requiredAmount = quote.value;
-        if (quote.value > _SAT_TO_WEI_CONVERSION && (quote.value % _SAT_TO_WEI_CONVERSION) != 0) {
-            requiredAmount = quote.value - (quote.value % _SAT_TO_WEI_CONVERSION);
-        }
-        uint256 paidAmount = outputs[_PAY_TO_ADDRESS_OUTPUT].value * _SAT_TO_WEI_CONVERSION;
-        if (paidAmount < requiredAmount) revert InsufficientAmount(requiredAmount, paidAmount);
-    }
-
     function _validateBtcTxDestination(
         BtcUtils.TxRawOutput[] memory outputs,
-        Quotes.PegOutQuote storage quote
+        Quotes.PegOutQuote memory quote
     ) private view {
         bytes memory btcTxDestination = BtcUtils.outputScriptToAddress(
             outputs[_PAY_TO_ADDRESS_OUTPUT].pkScript,
@@ -280,6 +268,18 @@ contract PegOutContract is
         if (keccak256(quote.depositAddress) != keccak256(btcTxDestination)) {
             revert InvalidDestination(quote.depositAddress, btcTxDestination);
         }
+    }
+
+    function _validateBtcTxAmount(
+        BtcUtils.TxRawOutput[] memory outputs,
+        Quotes.PegOutQuote memory quote
+    ) private pure {
+        uint256 requiredAmount = quote.value;
+        if (quote.value > _SAT_TO_WEI_CONVERSION && (quote.value % _SAT_TO_WEI_CONVERSION) != 0) {
+            requiredAmount = quote.value - (quote.value % _SAT_TO_WEI_CONVERSION);
+        }
+        uint256 paidAmount = outputs[_PAY_TO_ADDRESS_OUTPUT].value * _SAT_TO_WEI_CONVERSION;
+        if (paidAmount < requiredAmount) revert InsufficientAmount(requiredAmount, paidAmount);
     }
 
     function _validateBtcTxNullData(BtcUtils.TxRawOutput[] memory outputs, bytes32 quoteHash) private pure {

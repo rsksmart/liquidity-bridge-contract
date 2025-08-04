@@ -11,6 +11,8 @@ import { matchSelector, matchAnyNumber } from "../utils/matchers";
 import { ProviderType } from "../utils/constants";
 
 describe("PegOutContract refundUserPegOut function should", () => {
+  const BLOCKS_UNTIL_EXPIRATION = 50;
+  const SECONDS_UNTIL_EXPIRATION = 20000;
   it("revert if quote was not paid", async () => {
     const { contract, signers, fullLp } = await loadFixture(
       deployPegOutContractFixture
@@ -41,14 +43,14 @@ describe("PegOutContract refundUserPegOut function should", () => {
     });
 
     const latestBlock = await ethers.provider.getBlock("latest");
-    quote.expireDate = (latestBlock?.timestamp ?? 0) + 5;
-    quote.expireBlock = (latestBlock?.number ?? 0) + 20;
+    quote.expireDate = (latestBlock?.timestamp ?? 0) + SECONDS_UNTIL_EXPIRATION;
+    quote.expireBlock = (latestBlock?.number ?? 0) + BLOCKS_UNTIL_EXPIRATION;
     const quoteHash = await contract.hashPegOutQuote(quote);
     const signature = await fullLp.signMessage(getBytes(quoteHash));
     await expect(
       contract.depositPegOut(quote, signature, { value: totalValue(quote) })
     ).not.to.be.reverted;
-    await mine(10, { interval: 1 });
+    await mine(2, { interval: SECONDS_UNTIL_EXPIRATION + 1 });
     await expect(contract.refundUserPegOut(getBytes(quoteHash)))
       .to.be.revertedWithCustomError(contract, "QuoteNotExpired")
       .withArgs(getBytes(quoteHash));
@@ -67,14 +69,14 @@ describe("PegOutContract refundUserPegOut function should", () => {
     });
 
     const latestBlock = await ethers.provider.getBlock("latest");
-    quote.expireBlock = (latestBlock?.number ?? 0) + 5;
-    quote.expireDate = (latestBlock?.timestamp ?? 0) + 20;
+    quote.expireBlock = (latestBlock?.number ?? 0) + BLOCKS_UNTIL_EXPIRATION;
+    quote.expireDate = (latestBlock?.timestamp ?? 0) + SECONDS_UNTIL_EXPIRATION;
     const quoteHash = await contract.hashPegOutQuote(quote);
     const signature = await fullLp.signMessage(getBytes(quoteHash));
     await expect(
       contract.depositPegOut(quote, signature, { value: totalValue(quote) })
     ).not.to.be.reverted;
-    await mine(10, { interval: 1 });
+    await mine(BLOCKS_UNTIL_EXPIRATION + 3, { interval: 1 });
     await expect(contract.refundUserPegOut(getBytes(quoteHash)))
       .to.be.revertedWithCustomError(contract, "QuoteNotExpired")
       .withArgs(getBytes(quoteHash));
@@ -96,8 +98,8 @@ describe("PegOutContract refundUserPegOut function should", () => {
     });
 
     const latestBlock = await ethers.provider.getBlock("latest");
-    quote.expireDate = (latestBlock?.timestamp ?? 0) + 20;
-    quote.expireBlock = (latestBlock?.number ?? 0) + 5;
+    quote.expireDate = (latestBlock?.timestamp ?? 0) + SECONDS_UNTIL_EXPIRATION;
+    quote.expireBlock = (latestBlock?.number ?? 0) + BLOCKS_UNTIL_EXPIRATION;
     const quoteHash = await contract.hashPegOutQuote(quote);
     const signature = await fullLp.signMessage(getBytes(quoteHash));
 
@@ -109,7 +111,9 @@ describe("PegOutContract refundUserPegOut function should", () => {
         .depositPegOut(quote, signature, { value: totalValue(quote) })
     ).not.to.be.reverted;
 
-    await mine(5, { interval: 20 });
+    await mine(BLOCKS_UNTIL_EXPIRATION + 1, {
+      interval: SECONDS_UNTIL_EXPIRATION / BLOCKS_UNTIL_EXPIRATION + 1,
+    });
 
     await expect(contract.connect(user).refundUserPegOut(getBytes(quoteHash)))
       .to.be.revertedWithCustomError(contract, "PaymentFailed")
@@ -174,8 +178,8 @@ describe("PegOutContract refundUserPegOut function should", () => {
     const totalQuoteValue = totalValue(quote);
 
     const latestBlock = await ethers.provider.getBlock("latest");
-    quote.expireDate = (latestBlock?.timestamp ?? 0) + 20;
-    quote.expireBlock = (latestBlock?.number ?? 0) + 5;
+    quote.expireDate = (latestBlock?.timestamp ?? 0) + SECONDS_UNTIL_EXPIRATION;
+    quote.expireBlock = (latestBlock?.number ?? 0) + BLOCKS_UNTIL_EXPIRATION;
     const quoteHash = await contract.hashPegOutQuote(quote);
     const signature = await fullLp.signMessage(getBytes(quoteHash));
 
@@ -185,7 +189,9 @@ describe("PegOutContract refundUserPegOut function should", () => {
         .depositPegOut(quote, signature, { value: totalQuoteValue })
     ).not.to.be.reverted;
 
-    await mine(5, { interval: 20 });
+    await mine(BLOCKS_UNTIL_EXPIRATION + 1, {
+      interval: SECONDS_UNTIL_EXPIRATION / BLOCKS_UNTIL_EXPIRATION + 1,
+    });
 
     const tx = contract.connect(user).refundUserPegOut(getBytes(quoteHash));
 
