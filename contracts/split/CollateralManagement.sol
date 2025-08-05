@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {ICollateralManagement} from "../interfaces/CollateralManagement.sol";
+import {ICollateralManagement} from "../interfaces/ICollateralManagement.sol";
 import {Flyover} from "../libraries/Flyover.sol";
 import {Quotes} from "../libraries/Quotes.sol";
 import {
