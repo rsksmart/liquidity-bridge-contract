@@ -3,9 +3,9 @@ pragma solidity 0.8.25;
 
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import {OwnableDaoContributorUpgradeable} from "./DaoContributor.sol";
-import {IBridge} from "./interfaces/Bridge.sol";
-import {ICollateralManagement, CollateralManagementSet} from "./interfaces/CollateralManagement.sol";
-import {IPegOut} from "./interfaces/PegOut.sol";
+import {IBridge} from "./interfaces/IBridge.sol";
+import {ICollateralManagement, CollateralManagementSet} from "./interfaces/ICollateralManagement.sol";
+import {IPegOut} from "./interfaces/IPegOut.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 import {Quotes} from "./libraries/Quotes.sol";
 import {SignatureValidator} from "./libraries/SignatureValidator.sol";
