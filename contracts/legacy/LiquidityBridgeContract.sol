@@ -2,7 +2,7 @@
 pragma solidity 0.8.25;
 pragma experimental ABIEncoderV2;
 
-import "../interfaces/Bridge.sol";
+import "../interfaces/IBridge.sol";
 import "./Quotes.sol";
 import "../libraries/SignatureValidator.sol";
 import "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
