@@ -2,6 +2,7 @@
 pragma solidity 0.8.25;
 
 library SignatureValidator {
+    error IncorrectSignature(address expectedAddress, bytes32 usedHash, bytes signature);
     /**
         @dev Verfies signature against address
         @param addr The signing address

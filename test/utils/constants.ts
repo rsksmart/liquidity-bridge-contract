@@ -2,6 +2,8 @@ import { ethers } from "hardhat";
 import { LiquidityBridgeContractV2 } from "../../typechain-types";
 import * as bs58check from "bs58check";
 
+export const BRIDGE_ADDRESS = "0x0000000000000000000000000000000001000006";
+
 export const LP_COLLATERAL = ethers.parseEther("1.5");
 
 export const MIN_COLLATERAL_TEST = ethers.parseEther("0.03");
@@ -36,3 +38,14 @@ export const REGISTER_LP_PARAMS: RegisterLpParams = [
   "both",
   { value: LP_COLLATERAL },
 ];
+
+export const PEGOUT_CONSTANTS = {
+  TEST_DUST_THRESHOLD: ethers.parseEther("0.0000001"),
+  TEST_BTC_BLOCK_TIME: 3600,
+} as const;
+
+export enum ProviderType {
+  PegIn,
+  PegOut,
+  Both,
+}
