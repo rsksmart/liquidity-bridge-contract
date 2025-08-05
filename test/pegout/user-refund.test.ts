@@ -198,9 +198,6 @@ describe("PegOutContract refundUserPegOut function should", () => {
     await expect(tx)
       .to.emit(contract, "PegOutUserRefunded")
       .withArgs(getBytes(quoteHash), quote.rskRefundAddress, totalQuoteValue);
-    await expect(tx)
-      .to.emit(contract, "PegOutUserRefunded")
-      .withArgs(getBytes(quoteHash), quote.rskRefundAddress, totalQuoteValue);
     await expect(tx, "Should call collateral management")
       .to.emit(collateralManagement, "Penalized")
       .withArgs(

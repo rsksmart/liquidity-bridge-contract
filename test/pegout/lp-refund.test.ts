@@ -131,7 +131,7 @@ describe("PegOutContract refundPegOut function should", () => {
     const otherQuote = getTestPegoutQuote({
       lbcAddress: await contract.getAddress(),
       liquidityProvider: usedLp,
-      refundAddress: quote.rskRefundAddress.toString(), // eslint-disable-line @typescript-eslint/no-base-to-string
+      refundAddress: String(quote.rskRefundAddress), // eslint-disable-line @typescript-eslint/no-base-to-string
       value: ethers.parseEther("1"),
     });
     const otherQuoteHash = await contract.hashPegOutQuote(otherQuote);
@@ -278,7 +278,7 @@ describe("PegOutContract refundPegOut function should", () => {
             )
         )
           .to.be.revertedWithCustomError(contract, "InsufficientAmount")
-          .withArgs(quote.value, satToWei(satAmount));
+          .withArgs(satToWei(satAmount), quote.value);
       });
     }
   );

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IPegOut} from "../interfaces/PegOut.sol";
+import {IPegOut} from "../interfaces/IPegOut.sol";
 import {Quotes} from "../libraries/Quotes.sol";
 
 
