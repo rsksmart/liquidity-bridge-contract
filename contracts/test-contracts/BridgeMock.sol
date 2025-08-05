@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IBridge} from "../interfaces/Bridge.sol";
+import {IBridge} from "../interfaces/IBridge.sol";
 
 // solhint-disable comprehensive-interface
 contract BridgeMock is IBridge {

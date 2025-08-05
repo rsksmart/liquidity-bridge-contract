@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IFlyoverDiscovery} from "../interfaces/FlyoverDiscovery.sol";
-import {ICollateralManagement} from "../interfaces/CollateralManagement.sol";
+import {IFlyoverDiscovery} from "../interfaces/IFlyoverDiscovery.sol";
+import {ICollateralManagement} from "../interfaces/ICollateralManagement.sol";
 import {Flyover} from "../libraries/Flyover.sol";
 import {
     AccessControlDefaultAdminRulesUpgradeable

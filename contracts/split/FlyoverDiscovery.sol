@@ -4,8 +4,8 @@ pragma solidity 0.8.25;
 import {
     Ownable2StepUpgradeable
 } from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
-import {IFlyoverDiscovery} from "../interfaces/FlyoverDiscovery.sol";
-import {ICollateralManagement} from "../interfaces/CollateralManagement.sol";
+import {IFlyoverDiscovery} from "../interfaces/IFlyoverDiscovery.sol";
+import {ICollateralManagement} from "../interfaces/ICollateralManagement.sol";
 import {Flyover} from "../libraries/Flyover.sol";
 
 contract FlyoverDiscoveryContract is Ownable2StepUpgradeable, IFlyoverDiscovery {
