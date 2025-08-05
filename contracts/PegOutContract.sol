@@ -348,7 +348,7 @@ contract PegOutContract is
             requiredAmount = quote.value - (quote.value % _SAT_TO_WEI_CONVERSION);
         }
         uint256 paidAmount = outputs[_PAY_TO_ADDRESS_OUTPUT].value * _SAT_TO_WEI_CONVERSION;
-        if (paidAmount < requiredAmount) revert InsufficientAmount(requiredAmount, paidAmount);
+        if (paidAmount < requiredAmount) revert InsufficientAmount(paidAmount, requiredAmount);
     }
 
     /// @notice This function is used to validate the null data of the Bitcoin transaction. The null data
@@ -363,11 +363,10 @@ contract PegOutContract is
             revert MalformedTransaction(scriptContent);
         }
 
-        // shift the array to remove the first byte (the size)
-        for (uint8 i = 0 ; i < scriptLength - 1; ++i) {
-            scriptContent[i] = scriptContent[i + 1];
+        bytes32 txQuoteHash;
+        assembly {
+            txQuoteHash := mload(add(scriptContent, 33)) // 32 bytes after the first byte
         }
-        bytes32 txQuoteHash = abi.decode(scriptContent, (bytes32));
         if (quoteHash != txQuoteHash) revert InvalidQuoteHash(quoteHash, txQuoteHash);
     }
 }
