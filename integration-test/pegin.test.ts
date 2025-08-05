@@ -23,7 +23,7 @@ import {
 } from "./common";
 import * as bs58check from "bs58check";
 import {
-  Bridge,
+  IBridge,
   BtcUtils,
   LiquidityBridgeContractV2,
   QuotesV2,
@@ -42,7 +42,7 @@ describe("Flyover pegin process should", function () {
 
   let lbc: LiquidityBridgeContractV2;
   let btcUtils: BtcUtils;
-  let bridge: Bridge;
+  let bridge: IBridge;
 
   let bitcoinRpc: BtcCaller;
 
@@ -66,7 +66,7 @@ describe("Flyover pegin process should", function () {
     );
     btcUtils = await ethers.getContractAt("BtcUtils", config.btcUtilsAddress);
     bridge = await ethers.getContractAt(
-      "Bridge",
+      "IBridge",
       "0x0000000000000000000000000000000001000006"
     );
     bitcoinRpc = getBitcoinRpcCaller(config.btc);
@@ -211,7 +211,7 @@ async function getDervivationAddress(ags: {
   quote: QuotesV2.PeginQuoteStruct;
   quoteHash: BytesLike;
   btcUtils: BtcUtils;
-  bridge: Bridge;
+  bridge: IBridge;
 }) {
   const { quote, quoteHash, btcUtils, bridge } = ags;
   const derivationAddress = keccak256(

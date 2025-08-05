@@ -1,25 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import "./interfaces.sol";
-import "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {ICollateralManagement} from "../interfaces/ICollateralManagement.sol";
+import {Flyover} from "../libraries/Flyover.sol";
+import {
+    AccessControlDefaultAdminRulesUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 contract CollateralManagementContract is
     AccessControlDefaultAdminRulesUpgradeable,
     ReentrancyGuardUpgradeable,
-    CollateralManagement
+    ICollateralManagement
 {
     bytes32 public constant COLLATERAL_ADDER = keccak256("COLLATERAL_ADDER");
     bytes32 public constant COLLATERAL_SLASHER = keccak256("COLLATERAL_SLASHER");
 
-    event WithdrawCollateral(address indexed addr, uint amount);
-    event Resigned(address indexed addr);
-
-    error AlreadyResigned(address from);
-    error NotResigned(address from);
-    error ResignationDelayNotMet(address from, uint resignationBlockNum, uint resignDelayInBlocks);
-    error WithdrawalFailed(address from, uint amount);
+    event MinCollateralSet(uint256 oldMinCollateral, uint256 newMinCollateral);
+    event ResignDelayInBlocksSet(uint oldResignDelayInBlocks, uint newResignDelayInBlocks);
 
     uint private _minCollateral;
     uint private _resignDelayInBlocks;
@@ -52,12 +50,12 @@ contract CollateralManagementContract is
     }
 
     function setMinCollateral(uint minCollateral) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        emit CollateralManagement.MinCollateralSet(_minCollateral, minCollateral);
+        emit MinCollateralSet(_minCollateral, minCollateral);
         _minCollateral = minCollateral;
     }
 
     function setResignDelayInBlocks(uint resignDelayInBlocks) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        emit CollateralManagement.ResignDelayInBlocksSet(_resignDelayInBlocks, resignDelayInBlocks);
+        emit ResignDelayInBlocksSet(_resignDelayInBlocks, resignDelayInBlocks);
         _resignDelayInBlocks = resignDelayInBlocks;
     }
 
@@ -150,12 +148,12 @@ contract CollateralManagementContract is
     function _addPegInCollateralTo(address addr) private {
         uint amount = msg.value;
         _pegInCollateral[addr] += amount;
-        emit CollateralManagement.PegInCollateralAdded(addr, amount);
+        emit ICollateralManagement.PegInCollateralAdded(addr, amount);
     }
 
     function _addPegOutCollateralTo(address addr) private {
         uint amount = msg.value;
         _pegOutCollateral[addr] += amount;
-        emit CollateralManagement.PegOutCollateralAdded(addr, amount);
+        emit ICollateralManagement.PegOutCollateralAdded(addr, amount);
     }
 }

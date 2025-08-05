@@ -1,20 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
-import "./interfaces.sol";
+import {
+    Ownable2StepUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {IFlyoverDiscovery} from "../interfaces/IFlyoverDiscovery.sol";
+import {ICollateralManagement} from "../interfaces/ICollateralManagement.sol";
+import {Flyover} from "../libraries/Flyover.sol";
 
-contract FlyoverDiscoveryContract is Ownable2StepUpgradeable, FlyoverDiscovery {
+contract FlyoverDiscoveryContract is Ownable2StepUpgradeable, IFlyoverDiscovery {
     event CollateralManagementSet(address oldContract, address newContract);
 
-    error NotAuthorized(address from);
-    error NotEOA(address from);
-    error InvalidProviderData(string name, string apiBaseUrl);
-    error InvalidProviderType(Flyover.ProviderType providerType);
-    error AlreadyRegistered(address from);
-    error InsufficientCollateral(uint amount);
-
-    CollateralManagement public collateralManagement;
+    ICollateralManagement public collateralManagement;
     mapping(uint => Flyover.LiquidityProvider) private _liquidityProviders;
     uint public lastProviderId;
 
@@ -23,12 +20,12 @@ contract FlyoverDiscoveryContract is Ownable2StepUpgradeable, FlyoverDiscovery {
         address collateralManagement_
     ) public initializer {
         __Ownable_init(owner);
-        collateralManagement = CollateralManagement(collateralManagement_);
+        collateralManagement = ICollateralManagement(collateralManagement_);
     }
 
     function setCollateralManagement(address collateralManagement_) external onlyOwner {
         emit CollateralManagementSet(address(collateralManagement), collateralManagement_);
-        collateralManagement = CollateralManagement(collateralManagement_);
+        collateralManagement = ICollateralManagement(collateralManagement_);
     }
 
     function register(
@@ -48,8 +45,7 @@ contract FlyoverDiscoveryContract is Ownable2StepUpgradeable, FlyoverDiscovery {
             status: status,
             providerType: providerType
         });
-        emit FlyoverDiscovery.Register(lastProviderId, msg.sender, msg.value);
-
+        emit IFlyoverDiscovery.Register(lastProviderId, msg.sender, msg.value);
         _addCollateral(providerType, msg.sender);
         return (lastProviderId);
     }
@@ -93,7 +89,7 @@ contract FlyoverDiscoveryContract is Ownable2StepUpgradeable, FlyoverDiscovery {
             revert NotAuthorized(msg.sender);
         }
         _liquidityProviders[providerId].status = status;
-        emit FlyoverDiscovery.ProviderStatusSet(providerId, status);
+        emit IFlyoverDiscovery.ProviderStatusSet(providerId, status);
     }
 
     function updateProvider(string memory name, string memory url) external {
@@ -105,7 +101,7 @@ contract FlyoverDiscoveryContract is Ownable2StepUpgradeable, FlyoverDiscovery {
             if (providerAddress == lp.providerAddress) {
                 lp.name = name;
                 lp.apiBaseUrl = url;
-                emit FlyoverDiscovery.ProviderUpdate(providerAddress, lp.name, lp.apiBaseUrl);
+                emit IFlyoverDiscovery.ProviderUpdate(providerAddress, lp.name, lp.apiBaseUrl);
                 return;
             }
         }

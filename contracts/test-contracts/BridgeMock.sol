@@ -1,15 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import "./Bridge.sol";
+import {IBridge} from "../interfaces/IBridge.sol";
 
-contract BridgeMock is Bridge {
+// solhint-disable comprehensive-interface
+contract BridgeMock is IBridge {
 
-    mapping(bytes32 => uint256) private amounts;
-    mapping(uint256 => bytes) private headers;
-    mapping (bytes32 => bytes) private headersByHash;
+    mapping(bytes32 => uint256) private _amounts;
+    mapping(uint256 => bytes) private _headers;
+    mapping (bytes32 => bytes) private _headersByHash;
 
+    error SendFailed();
+
+    // solhint-disable-next-line no-empty-blocks
     receive() external payable override {}
+
+    // solhint-disable-next-line gas-calldata-parameters
     function registerFastBridgeBtcTransaction(
         bytes memory ,
         uint256 ,
@@ -20,27 +26,36 @@ contract BridgeMock is Bridge {
         bytes memory ,
         bool
     ) external override returns (int256) {
-        uint256 amount = amounts[derivationArgumentsHash];
-        amounts[derivationArgumentsHash] = 0;
+        uint256 amount = _amounts[derivationArgumentsHash];
+        _amounts[derivationArgumentsHash] = 0;
         (bool success, ) = liquidityBridgeContractAddress.call{value: amount}("");
-        require(success, "Sending funds failed");
+        if (!success) {
+            revert SendFailed();
+        }
         return int(amount);
     }
 
+    // solhint-disable-next-line no-empty-blocks
+    function registerBtcTransaction ( bytes calldata atx, int256 height, bytes calldata pmt ) external override {}
+    function addSignature ( bytes calldata pubkey, bytes[] calldata signatures, bytes calldata txhash )
+    // solhint-disable-next-line no-empty-blocks
+        external override {}
+    // solhint-disable-next-line no-empty-blocks
+    function receiveHeaders ( bytes[] calldata blocks ) external override {}
+    // solhint-disable-next-line no-empty-blocks
+    function updateCollections (  ) external override {}
+    function registerBtcCoinbaseTransaction ( bytes calldata btcTxSerialized, bytes32 blockHash, bytes
+    // solhint-disable-next-line no-empty-blocks
+        calldata pmtSerialized, bytes32 witnessMerkleRoot, bytes32 witnessReservedValue ) external override {}
+
     function getBtcBlockchainBlockHeaderByHeight(uint256 height) external view override returns (bytes memory) {
-        return headers[height];
+        return _headers[height];
     }
 
-    function setPegin(bytes32 derivationArgumentsHash) public payable {
-        amounts[derivationArgumentsHash] = msg.value;
-    }
-
-    function setHeader(uint256 height, bytes memory header) public {
-        headers[height] = header;
-    }
-
-    function setHeaderByHash(bytes32 blockHash, bytes memory header) public {
-        headersByHash[blockHash] = header;
+    function getBtcBlockchainBlockHeaderByHash(
+        bytes32 blockHash
+    ) external view override returns (bytes memory) {
+        return _headersByHash[blockHash];
     }
 
     function getActivePowpegRedeemScript() external pure returns (bytes memory) {
@@ -60,10 +75,7 @@ contract BridgeMock is Bridge {
     function isBtcTxHashAlreadyProcessed ( string calldata ) external pure override returns (bool) {return false;}
     function getFederationAddress (  ) external pure override returns (string memory)
         {return "2N5muMepJizJE1gR7FbHJU6CD18V3BpNF9p";} // regtest genesis fed addr
-    function registerBtcTransaction ( bytes calldata atx, int256 height, bytes calldata pmt ) external override {}
-    function addSignature ( bytes calldata pubkey, bytes[] calldata signatures, bytes calldata txhash )
-        external override {}
-    function receiveHeaders ( bytes[] calldata blocks ) external override {}
+
     function receiveHeader ( bytes calldata ) external pure override returns (int256) {return int256(0);}
     function getFederationSize (  ) external pure override returns (int256) {return int256(0);}
     function getFederationThreshold (  ) external pure override returns (int256) {return int256(0);}
@@ -112,14 +124,11 @@ contract BridgeMock is Bridge {
         {return int256(0);}
     function getFeePerKb (  ) external pure override returns (int256) {return int256(0);}
     function voteFeePerKbChange ( int256  ) external pure override returns (int256) {return int256(0);}
-    function updateCollections (  ) external override {}
     function getMinimumLockTxValue (  ) external pure override returns (int256) {return int256(2);}
     function getBtcTransactionConfirmations ( bytes32 , bytes32, uint256 , bytes32[] calldata  )
         external pure override returns (int256) {return int256(2);}
     function getLockingCap (  ) external pure override returns (int256) {return int256(0);}
     function increaseLockingCap ( int256 ) external pure override returns (bool) {return false;}
-    function registerBtcCoinbaseTransaction ( bytes calldata btcTxSerialized, bytes32 blockHash, bytes
-        calldata pmtSerialized, bytes32 witnessMerkleRoot, bytes32 witnessReservedValue ) external override {}
     function hasBtcBlockCoinbaseTransactionInformation ( bytes32  ) external pure override returns
         (bool) {return false;}
     function getActiveFederationCreationBlockHeight (  ) external pure override returns (uint256)
@@ -127,13 +136,18 @@ contract BridgeMock is Bridge {
     function getBtcBlockchainBestBlockHeader (  ) external pure override returns (bytes memory)
         {bytes memory b; return b;}
 
-    function getBtcBlockchainBlockHeaderByHash(
-        bytes32 blockHash
-    ) external view override returns (bytes memory) {
-        return headersByHash[blockHash];
-    }
-
     function getBtcBlockchainParentBlockHeaderByHash ( bytes32) external pure override returns
         (bytes memory) {bytes memory b; return b;}
 
+    function setHeader(uint256 height, bytes memory header) public {
+        _headers[height] = header;
+    }
+
+    function setHeaderByHash(bytes32 blockHash, bytes memory header) public {
+        _headersByHash[blockHash] = header;
+    }
+
+    function setPegin(bytes32 derivationArgumentsHash) public payable {
+        _amounts[derivationArgumentsHash] = msg.value;
+    }
 }
