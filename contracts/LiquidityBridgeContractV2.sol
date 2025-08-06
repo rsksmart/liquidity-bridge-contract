@@ -147,7 +147,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
     }
 
     function version() external pure returns (string memory) {
-        return "1.3.0";
+        return "1.3.1";
     }
 
     function getProviderIds() external view returns (uint) {
@@ -347,8 +347,15 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
     /**
         @dev Used to resign as a liquidity provider
      */
-    function resign() external onlyRegistered {
-        require(resignationBlockNum[msg.sender] == 0, "LBC023");
+    function resign() external {
+        require(
+            resignationBlockNum[msg.sender] == 0,
+            "LBC023"
+        );
+        require(
+            (collateral[msg.sender] > 0 || pegoutCollateral[msg.sender] > 0),
+            "LBC001"
+        );
         resignationBlockNum[msg.sender] = block.number;
         emit Resigned(msg.sender);
     }

@@ -1,0 +1,9 @@
+build
+contracts
+typechain-types
+artifacts
+cache
+node_modules
+errorCodes.json
+coverage/
+coverage.json
