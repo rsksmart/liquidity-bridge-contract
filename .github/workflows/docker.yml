@@ -1,0 +1,94 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - master
+      - Stable-Test
+      - QA-Test
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Debug event information
+        run: |
+          echo "Event name: ${{ github.event_name }}"
+          echo "Ref: ${{ github.ref }}"
+          echo "Is default branch: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}"
+          echo "Should push: ${{ github.event_name != 'pull_request' }}"
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            # set latest tag for master branch
+            type=raw,value=latest,enable={{is_default_branch}}
+            # branch event
+            type=ref,event=branch
+            # tag event
+            type=ref,event=tag
+            # pull request event
+            type=ref,event=pr
+            # sha (only for non-PR events)
+            type=sha,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        id: build-and-push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Image digest
+        run: echo ${{ steps.build-and-push.outputs.digest }}
+
+      - name: Instructions for making package public
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        run: |
+          echo "🚀 Docker image pushed successfully!"
+          echo "📦 Image available at: ghcr.io/${{ github.repository }}"
+          echo ""
+          echo "ℹ️  To make this package publicly accessible:"
+          echo "1. Go to https://github.com/${{ github.repository }}/pkgs/container/liquidity-bridge-contract"
+          echo "2. Click 'Package settings'"
+          echo "3. Scroll down to 'Danger Zone'"
+          echo "4. Click 'Change visibility'"
+          echo "5. Select 'Public' and confirm"
+          echo ""
+          echo "After making it public, anyone can pull with:"
+          echo "docker pull ghcr.io/${{ github.repository }}:latest"
