@@ -333,25 +333,27 @@ contract FlyoverDiscoveryFull is
     function slashPegInCollateral(
         Quotes.PegInQuote calldata quote,
         bytes32 quoteHash
-    ) external onlyRole(COLLATERAL_SLASHER) {
+    ) external onlyRole(COLLATERAL_SLASHER) returns(uint256) {
         uint penalty = _min(
             quote.penaltyFee,
             _pegInCollateral[quote.liquidityProviderRskAddress]
         );
         _pegInCollateral[quote.liquidityProviderRskAddress] -= penalty;
         emit Penalized(quote.liquidityProviderRskAddress, quoteHash, Flyover.ProviderType.PegIn, penalty);
+        return penalty;
     }
 
     function slashPegOutCollateral(
         Quotes.PegOutQuote calldata quote,
         bytes32 quoteHash
-    ) external onlyRole(COLLATERAL_SLASHER) {
+    ) external onlyRole(COLLATERAL_SLASHER) returns (uint256) {
         uint penalty = _min(
             quote.penaltyFee,
             _pegOutCollateral[quote.lpRskAddress]
         );
         _pegOutCollateral[quote.lpRskAddress] -= penalty;
         emit Penalized(quote.lpRskAddress, quoteHash, Flyover.ProviderType.PegOut, penalty);
+        return penalty;
     }
 
     function _min(uint a, uint b) private pure returns (uint) {
