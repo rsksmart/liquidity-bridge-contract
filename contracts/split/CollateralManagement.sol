@@ -83,13 +83,14 @@ contract CollateralManagementContract is
     function slashPegInCollateral(
         Quotes.PegInQuote calldata quote,
         bytes32 quoteHash
-    ) external onlyRole(COLLATERAL_SLASHER) {
+    ) external onlyRole(COLLATERAL_SLASHER) returns (uint256) {
         uint penalty = _min(
             quote.penaltyFee,
             _pegInCollateral[quote.liquidityProviderRskAddress]
         );
         _pegInCollateral[quote.liquidityProviderRskAddress] -= penalty;
         emit Penalized(quote.liquidityProviderRskAddress, quoteHash, Flyover.ProviderType.PegIn, penalty);
+        return penalty;
     }
 
     function addPegOutCollateralTo(address addr) external onlyRole(COLLATERAL_ADDER) payable {
@@ -103,13 +104,14 @@ contract CollateralManagementContract is
     function slashPegOutCollateral(
         Quotes.PegOutQuote calldata quote,
         bytes32 quoteHash
-    ) external onlyRole(COLLATERAL_SLASHER) {
+    ) external onlyRole(COLLATERAL_SLASHER) returns (uint256) {
         uint penalty = _min(
             quote.penaltyFee,
             _pegOutCollateral[quote.lpRskAddress]
         );
         _pegOutCollateral[quote.lpRskAddress] -= penalty;
         emit Penalized(quote.lpRskAddress, quoteHash, Flyover.ProviderType.PegOut, penalty);
+        return penalty;
     }
 
     function getMinCollateral() external view returns (uint) {
