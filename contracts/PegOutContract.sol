@@ -56,6 +56,11 @@ contract PegOutContract is
     /// @param newTime the new Bitcoin block time
     event BtcBlockTimeSet(uint256 indexed oldTime, uint256 indexed newTime);
 
+    // solhint-disable-next-line comprehensive-interface
+    receive() external payable {
+        revert Flyover.PaymentNotAllowed();
+    }
+
     /// @inheritdoc IPegOut
     function depositPegOut(
         Quotes.PegOutQuote calldata quote,
@@ -66,7 +71,7 @@ contract PegOutContract is
         }
         uint256 requiredAmount = quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
         if (msg.value < requiredAmount) {
-            revert InsufficientAmount(msg.value, requiredAmount);
+            revert Flyover.InsufficientAmount(msg.value, requiredAmount);
         }
         if (quote.depositDateLimit < block.timestamp || quote.expireDate < block.timestamp) {
             revert QuoteExpiredByTime(quote.depositDateLimit, quote.expireDate);
@@ -179,7 +184,7 @@ contract PegOutContract is
 
         Quotes.PegOutQuote memory quote = _pegOutQuotes[quoteHash];
         if (quote.lbcAddress == address(0)) revert Flyover.QuoteNotFound(quoteHash);
-        if (quote.lpRskAddress != msg.sender) revert InvalidSender(quote.lpRskAddress, msg.sender);
+        if (quote.lpRskAddress != msg.sender) revert Flyover.InvalidSender(quote.lpRskAddress, msg.sender);
 
         BtcUtils.TxRawOutput[] memory outputs = BtcUtils.getOutputs(btcTx);
         _validateBtcTxNullData(outputs, quoteHash);
@@ -348,7 +353,7 @@ contract PegOutContract is
             requiredAmount = quote.value - (quote.value % _SAT_TO_WEI_CONVERSION);
         }
         uint256 paidAmount = outputs[_PAY_TO_ADDRESS_OUTPUT].value * _SAT_TO_WEI_CONVERSION;
-        if (paidAmount < requiredAmount) revert InsufficientAmount(paidAmount, requiredAmount);
+        if (paidAmount < requiredAmount) revert Flyover.InsufficientAmount(paidAmount, requiredAmount);
     }
 
     /// @notice This function is used to validate the null data of the Bitcoin transaction. The null data

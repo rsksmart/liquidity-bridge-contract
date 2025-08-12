@@ -46,11 +46,6 @@ interface IPegOut {
         uint256 amount
     );
 
-    /// @notice This error is emitted when the amount sent is less than the amount required to pay for the quote
-    /// @param amount the amount sent
-    /// @param target the amount required to pay for the quote
-    error InsufficientAmount(uint256 amount, uint256 target);
-
     /// @notice This error is emitted when the quote has expired by the number of blocks
     /// @param expireBlock the number of blocks the quote has expired
     error QuoteExpiredByBlocks(uint32 expireBlock);
@@ -82,11 +77,6 @@ interface IPegOut {
     /// @param expected the expected quote hash
     /// @param actual the actual quote hash
     error InvalidQuoteHash(bytes32 expected, bytes32 actual);
-
-    /// @notice This error is emitted when the sender is not allowed to perform a specific operation
-    /// @param expected the expected sender
-    /// @param actual the actual sender
-    error InvalidSender(address expected, address actual);
 
     /// @notice This error is emitted when the get confirmations from the rootstock bridge fails
     /// @param errorCode The error code returned by the rootstock bridge
