@@ -1,16 +1,23 @@
 import { bech32, bech32m } from "bech32";
 import * as bs58check from "bs58check";
 import { BytesLike, hexlify } from "ethers";
-import { LiquidityBridgeContractV2, QuotesV2 } from "../../typechain-types";
+import {
+  LiquidityBridgeContractV2,
+  PegOutContract,
+  QuotesV2,
+} from "../../typechain-types";
 import { toLeHex } from "./encoding";
+import { Quotes } from "../../typechain-types/contracts/libraries";
 
 export type BtcAddressType = "p2pkh" | "p2sh" | "p2wpkh" | "p2wsh" | "p2tr";
 
-const WEI_TO_SAT_CONVERSION = 10n ** 10n;
+export const WEI_TO_SAT_CONVERSION = 10n ** 10n;
 export const weiToSat = (wei: bigint) =>
   wei % WEI_TO_SAT_CONVERSION === 0n
     ? wei / WEI_TO_SAT_CONVERSION
     : wei / WEI_TO_SAT_CONVERSION + 1n;
+
+export const satToWei = (sat: bigint) => sat * WEI_TO_SAT_CONVERSION;
 
 export function getTestBtcAddress(addressType: BtcAddressType): BytesLike {
   switch (addressType) {
@@ -49,14 +56,31 @@ export function getTestBtcAddress(addressType: BtcAddressType): BytesLike {
  * @returns { Promise<string> } The raw BTC transaction
  */
 export async function generateRawTx(
-  lbc: LiquidityBridgeContractV2,
-  quote: QuotesV2.PegOutQuoteStruct,
-  scriptType: BtcAddressType = "p2pkh"
+  lbc: Partial<{
+    hashPegoutQuote: LiquidityBridgeContractV2["hashPegoutQuote"];
+    hashPegOutQuote: PegOutContract["hashPegOutQuote"];
+  }>,
+  quote: QuotesV2.PegOutQuoteStruct & Quotes.PegOutQuoteStruct,
+  opts: {
+    scriptType: BtcAddressType;
+    amountOverride?: bigint;
+    addressOverride?: BytesLike;
+  } = { scriptType: "p2pkh" }
 ) {
-  const quoteHash = await lbc.hashPegoutQuote(quote);
+  let quoteHash: BytesLike;
+  let addressBytes: Uint8Array;
+  if (lbc.hashPegoutQuote) {
+    quoteHash = await lbc.hashPegoutQuote(quote);
+    addressBytes = quote.deposityAddress as Uint8Array;
+  } else {
+    quoteHash = (await lbc.hashPegOutQuote?.(quote)) ?? "0x";
+    addressBytes = quote.depositAddress as Uint8Array;
+  }
+  if (opts.addressOverride) {
+    addressBytes = opts.addressOverride as Uint8Array;
+  }
   let outputScript: number[];
-  const addressBytes = quote.deposityAddress as Uint8Array;
-  switch (scriptType) {
+  switch (opts.scriptType) {
     case "p2pkh":
       outputScript = [0x76, 0xa9, 0x14, ...addressBytes.slice(1), 0x88, 0xac];
       break;
@@ -77,7 +101,12 @@ export async function generateRawTx(
   }
   const outputScriptFragment = hexlify(new Uint8Array(outputScript)).slice(2);
   const outputSize = (outputScriptFragment.length / 2).toString(16);
-  const amount = toLeHex(weiToSat(BigInt(quote.value))).padEnd(16, "0");
+  let amount: string;
+  if (opts.amountOverride) {
+    amount = toLeHex(opts.amountOverride).padEnd(16, "0");
+  } else {
+    amount = toLeHex(weiToSat(BigInt(quote.value))).padEnd(16, "0");
+  }
   const btcTx = `0x0100000001013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40000000006a47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4ffffffff02${amount}${outputSize}${outputScriptFragment}0000000000000000226a20${quoteHash.slice(
     2
   )}00000000`;
