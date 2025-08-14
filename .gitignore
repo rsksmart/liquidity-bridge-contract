@@ -19,6 +19,10 @@ node_modules
 /cache
 /artifacts
 
+# Foundry files
+/forge-out
+/forge-cache
+
 # TypeChain files
 /typechain
 /typechain-types
