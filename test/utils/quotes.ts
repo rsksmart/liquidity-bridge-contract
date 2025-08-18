@@ -21,7 +21,7 @@ export function getTestPeginQuote(args: {
   refundAddress: string;
   data?: BytesLike;
   productFeePercentage?: number;
-}): QuotesV2.PeginQuoteStruct {
+}): QuotesV2.PeginQuoteStruct & Quotes.PegInQuoteStruct {
   // TODO if at some point DAO integration is re activated, this default value should be updated to not be 0
   const productFeePercentage = args.productFeePercentage ?? 0;
   const productFee = (BigInt(productFeePercentage) * BigInt(args.value)) / 100n;

@@ -55,3 +55,9 @@ export enum ProviderType {
   PegOut,
   Both,
 }
+
+export enum PegInStates {
+  UNPROCESSED_QUOTE,
+  CALL_DONE,
+  PROCESSED_QUOTE,
+}
