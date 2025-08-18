@@ -14,6 +14,8 @@ contract HelperConfig is Script {
         uint256 dustThreshold;
         uint256 btcBlockTime;
         bool mainnet;
+        address existingProxy;
+        address existingAdmin;
     }
 
     NetworkConfig private cachedConfig;
@@ -60,7 +62,9 @@ contract HelperConfig is Script {
             resignDelayBlocks: uint32(vm.envOr("RESIGN_BLOCKS_MAINNET", uint256(120))),
             dustThreshold: vm.envOr("DUST_THRESHOLD_MAINNET", uint256(10_000)),
             btcBlockTime: vm.envOr("BTC_BLOCK_TIME_MAINNET", uint256(600)),
-            mainnet: true
+            mainnet: true,
+            existingProxy: vm.envOr("EXISTING_PROXY_MAINNET", address(0)),
+            existingAdmin: vm.envOr("EXISTING_ADMIN_MAINNET", address(0))
         });
     }
 
@@ -75,7 +79,9 @@ contract HelperConfig is Script {
             resignDelayBlocks: uint32(vm.envOr("RESIGN_BLOCKS_TESTNET", uint256(100))),
             dustThreshold: vm.envOr("DUST_THRESHOLD_TESTNET", uint256(10_000)),
             btcBlockTime: vm.envOr("BTC_BLOCK_TIME_TESTNET", uint256(600)),
-            mainnet: false
+            mainnet: false,
+            existingProxy: vm.envOr("EXISTING_PROXY_TESTNET", address(0x3a23612AC7dD7fc7610A8898de11AE98E76BbC4F)),
+            existingAdmin: vm.envOr("EXISTING_ADMIN_TESTNET", address(0x93891ACe405cC4F7b9974C22e34D6479eE6425e5))
         });
     }
 
@@ -91,7 +97,9 @@ contract HelperConfig is Script {
             resignDelayBlocks: uint32(vm.envOr("RESIGN_BLOCKS_LOCAL", uint256(80))),
             dustThreshold: vm.envOr("DUST_THRESHOLD_LOCAL", uint256(10_000)),
             btcBlockTime: vm.envOr("BTC_BLOCK_TIME_LOCAL", uint256(600)),
-            mainnet: false
+            mainnet: false,
+            existingProxy: vm.envOr("EXISTING_PROXY_LOCAL", address(0)),
+            existingAdmin: vm.envOr("EXISTING_ADMIN_LOCAL", address(0))
         });
     }
 }
