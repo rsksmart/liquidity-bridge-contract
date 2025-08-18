@@ -1,28 +1,26 @@
+import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
+import { deployPegInContractFixture } from "./fixtures";
+import { expect } from "chai";
 import {
   BRIDGE_ADDRESS,
-  PEGOUT_CONSTANTS,
+  PEGIN_CONSTANTS,
   ZERO_ADDRESS,
 } from "../utils/constants";
-import { expect } from "chai";
-import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
-import { deployPegOutContractFixture } from "./fixtures";
+import { deployCollateralManagement } from "../utils/fixtures";
 import { deployLibraries } from "../../scripts/deployment-utils/deploy-libraries";
 import hre, { ethers, upgrades } from "hardhat";
 import { Flyover__factory } from "../../typechain-types";
-import { deployCollateralManagement } from "../utils/fixtures";
 
-describe("PegOutContract configurations", () => {
+describe("PegInContract configurations", () => {
   describe("initialize function should", function () {
     it("initialize properly", async function () {
-      const { contract, owner } = await loadFixture(
-        deployPegOutContractFixture
-      );
+      const { contract, owner } = await loadFixture(deployPegInContractFixture);
       await expect(contract.VERSION()).to.eventually.eq("1.0.0");
-      await expect(contract.btcBlockTime()).to.eventually.eq(
-        PEGOUT_CONSTANTS.TEST_BTC_BLOCK_TIME
+      await expect(contract.rewardPercentage()).to.eventually.eq(
+        PEGIN_CONSTANTS.TEST_REWARD_PERCENTAGE
       );
       await expect(contract.dustThreshold()).to.eventually.eq(
-        PEGOUT_CONSTANTS.TEST_DUST_THRESHOLD
+        PEGIN_CONSTANTS.TEST_DUST_THRESHOLD
       );
       await expect(contract.owner()).to.eventually.eq(owner.address);
       await expect(contract.getFeePercentage()).to.eventually.eq(0n);
@@ -32,7 +30,7 @@ describe("PegOutContract configurations", () => {
 
     it("allow to initialize only once", async () => {
       const { contract, initializationParams } = await loadFixture(
-        deployPegOutContractFixture
+        deployPegInContractFixture
       );
       await expect(
         contract.initialize(...initializationParams)
@@ -47,7 +45,7 @@ describe("PegOutContract configurations", () => {
         "BtcUtils",
         "SignatureValidator"
       );
-      const PegOutContract = await ethers.getContractFactory("PegOutContract", {
+      const PegInContract = await ethers.getContractFactory("PegInContract", {
         libraries: {
           Quotes: libraries.Quotes.address,
           BtcUtils: libraries.BtcUtils.address,
@@ -56,14 +54,15 @@ describe("PegOutContract configurations", () => {
       });
       await expect(
         upgrades.deployProxy(
-          PegOutContract,
+          PegInContract,
           [
             deployResult.owner.address,
             BRIDGE_ADDRESS,
-            PEGOUT_CONSTANTS.TEST_DUST_THRESHOLD,
+            PEGIN_CONSTANTS.TEST_DUST_THRESHOLD,
+            PEGIN_CONSTANTS.TEST_MIN_PEGIN,
             deployResult.signers[2].address,
             false,
-            PEGOUT_CONSTANTS.TEST_BTC_BLOCK_TIME,
+            PEGIN_CONSTANTS.TEST_REWARD_PERCENTAGE,
             0,
             ZERO_ADDRESS,
           ],
@@ -77,11 +76,10 @@ describe("PegOutContract configurations", () => {
       );
     });
   });
-
   describe("setDustThreshold function should", function () {
     it("only allow the owner to modify the dust threshold", async function () {
       const { contract, signers } = await loadFixture(
-        deployPegOutContractFixture
+        deployPegInContractFixture
       );
       const notOwner = signers[0];
       await expect(
@@ -90,44 +88,40 @@ describe("PegOutContract configurations", () => {
     });
 
     it("modify the dust threshold properly", async function () {
-      const { contract, owner } = await loadFixture(
-        deployPegOutContractFixture
-      );
+      const { contract, owner } = await loadFixture(deployPegInContractFixture);
       const tx = contract.connect(owner).setDustThreshold(1n);
       await expect(tx)
         .to.emit(contract, "DustThresholdSet")
-        .withArgs(PEGOUT_CONSTANTS.TEST_DUST_THRESHOLD, 1n);
+        .withArgs(PEGIN_CONSTANTS.TEST_DUST_THRESHOLD, 1n);
       await expect(contract.dustThreshold()).to.eventually.eq(1n);
     });
   });
 
-  describe("setBtcBlockTime function should", function () {
-    it("only allow the owner to modify the BTC block time", async function () {
+  describe("setRewardPercentage function should", function () {
+    it("only allow the owner to modify the reward percentage", async function () {
       const { contract, signers } = await loadFixture(
-        deployPegOutContractFixture
+        deployPegInContractFixture
       );
       const notOwner = signers[0];
       await expect(
-        contract.connect(notOwner).setBtcBlockTime(5n)
+        contract.connect(notOwner).setRewardPercentage(5n)
       ).to.be.revertedWithCustomError(contract, "OwnableUnauthorizedAccount");
     });
 
-    it("modify the BTC block time properly", async function () {
-      const { contract, owner } = await loadFixture(
-        deployPegOutContractFixture
-      );
-      const tx = contract.connect(owner).setBtcBlockTime(5n);
+    it("modify the reward percentage properly", async function () {
+      const { contract, owner } = await loadFixture(deployPegInContractFixture);
+      const tx = contract.connect(owner).setRewardPercentage(5n);
       await expect(tx)
-        .to.emit(contract, "BtcBlockTimeSet")
-        .withArgs(PEGOUT_CONSTANTS.TEST_BTC_BLOCK_TIME, 5n);
-      await expect(contract.btcBlockTime()).to.eventually.eq(5n);
+        .to.emit(contract, "RewardPercentageSet")
+        .withArgs(PEGIN_CONSTANTS.TEST_REWARD_PERCENTAGE, 5n);
+      await expect(contract.rewardPercentage()).to.eventually.eq(5n);
     });
   });
 
   describe("setCollateralManagement function should", function () {
     it("only allow the owner to modify the collateralManagement address", async function () {
       const { contract, signers } = await loadFixture(
-        deployPegOutContractFixture
+        deployPegInContractFixture
       );
       const notOwner = signers[0];
       const otherContract = await deployCollateralManagement().then((result) =>
@@ -140,7 +134,7 @@ describe("PegOutContract configurations", () => {
 
     it("revert if address does not have code", async function () {
       const { contract, owner, signers } = await loadFixture(
-        deployPegOutContractFixture
+        deployPegInContractFixture
       );
       const eoa = await signers[1].getAddress();
       await expect(
@@ -153,16 +147,16 @@ describe("PegOutContract configurations", () => {
 
     it("modify collateralManagement properly", async function () {
       const { contract, owner, initializationParams } = await loadFixture(
-        deployPegOutContractFixture
+        deployPegInContractFixture
       );
       const otherContract = await deployCollateralManagement().then((result) =>
         result.collateralManagement.getAddress()
       );
       const tx = contract.connect(owner).setCollateralManagement(otherContract);
-      expect(initializationParams[3]).to.not.eq(otherContract);
+      expect(initializationParams[4]).to.not.eq(otherContract);
       await expect(tx)
         .to.emit(contract, "CollateralManagementSet")
-        .withArgs(initializationParams[3], otherContract);
+        .withArgs(initializationParams[4], otherContract);
     });
   });
 });
