@@ -40,10 +40,11 @@ contract PegInContract is
 
     uint256 private _minPegIn;
     bool private _mainnet;
-    uint256 private _rewardPercentage;
+    uint256 public rewardPercentage;
     uint256 public dustThreshold;
 
     event DustThresholdSet(uint256 indexed oldThreshold, uint256 indexed newThreshold);
+    event RewardPercentageSet(uint256 indexed oldReward, uint256 indexed newReward);
 
     // solhint-disable-next-line comprehensive-interface
     receive() external payable {
@@ -68,7 +69,7 @@ contract PegInContract is
         uint256 minPegIn,
         address collateralManagement,
         bool mainnet,
-        uint256 rewardPercentage,
+        uint256 rewardPercentage_,
         uint256 daoFeePercentage,
         address payable daoFeeCollector
     ) external initializer {
@@ -79,7 +80,7 @@ contract PegInContract is
         _mainnet = mainnet;
         dustThreshold = dustThreshold_;
         _minPegIn = minPegIn;
-        _rewardPercentage = rewardPercentage;
+        rewardPercentage = rewardPercentage_;
     }
 
     /// @notice This function is used to set the collateral management contract
@@ -101,6 +102,12 @@ contract PegInContract is
         dustThreshold = threshold;
     }
 
+    // solhint-disable-next-line comprehensive-interface
+    function setRewardPercentage(uint256 rewardPercentage_) external onlyOwner {
+        emit RewardPercentageSet(rewardPercentage, rewardPercentage_);
+        rewardPercentage = rewardPercentage_;
+    }
+
     function deposit() external payable override {
         if(!_collateralManagement.isRegistered(_PEG_TYPE, msg.sender)) {
             revert Flyover.ProviderNotRegistered(msg.sender);
@@ -120,7 +127,6 @@ contract PegInContract is
             revert Flyover.PaymentFailed(msg.sender, amount, reason);
         }
     }
-
 
     function callForUser(
         Quotes.PegInQuote calldata quote
@@ -194,7 +200,7 @@ contract PegInContract is
         bool shouldPenalize = _shouldPenalize(quote, registerResult, _callRegistry[quoteHash].timestamp, height);
         if (shouldPenalize) {
             uint256 penalizationAmount = _collateralManagement.slashPegInCollateral(quote, quoteHash);
-            uint256 punisherReward = (penalizationAmount * _rewardPercentage) / 100;
+            uint256 punisherReward = (penalizationAmount * rewardPercentage) / 100;
             _increaseBalance(msg.sender, punisherReward);
         }
         if (btcRefunded) {
@@ -249,6 +255,10 @@ contract PegInContract is
         return _hashPegInQuote(quote);
     }
 
+    function getQuoteStatus(bytes32 quoteHash) external view override returns (PegInStates) {
+        return _processedQuotes[quoteHash];
+    }
+
     function _increaseBalance(address dest, uint256 amount) private {
         if (amount > 0) {
             _balances[dest] += amount;
@@ -286,7 +296,7 @@ contract PegInContract is
         Quotes.PegInQuote calldata quote,
         bytes32 quoteHash,
         uint256 transferredAmount
-    ) private {
+    ) private { // this doesn't have the nonReentrant modifier because the caller registerPegIn has it
         uint refundAmount;
         if (_callRegistry[quoteHash].success) {
             refundAmount = _min(transferredAmount, quote.value + quote.callFee + quote.gasFee);
@@ -385,10 +395,10 @@ contract PegInContract is
         if (address(_bridge) == quote.contractAddress) {
             revert Flyover.NoContract(quote.contractAddress);
         }
-        if (quote.btcRefundAddress.length != 21) {
+        if (quote.btcRefundAddress.length != _REFUND_ADDRESS_LENGTH) {
             revert InvalidRefundAddress(quote.btcRefundAddress);
         }
-        if (quote.liquidityProviderBtcAddress.length != 21) {
+        if (quote.liquidityProviderBtcAddress.length != _REFUND_ADDRESS_LENGTH) {
             revert InvalidRefundAddress(quote.liquidityProviderBtcAddress);
         }
         uint256 total = quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
