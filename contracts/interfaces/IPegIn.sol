@@ -40,6 +40,7 @@ interface IPegIn {
         uint256 height
     ) external returns (int256);
     function getBalance(address addr) external view returns (uint256);
+    function getQuoteStatus(bytes32 quoteHash) external view returns (PegInStates);
     function validatePegInDepositAddress(
         Quotes.PegInQuote calldata quote,
         bytes calldata depositAddress

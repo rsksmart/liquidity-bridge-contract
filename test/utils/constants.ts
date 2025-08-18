@@ -44,6 +44,12 @@ export const PEGOUT_CONSTANTS = {
   TEST_BTC_BLOCK_TIME: 3600,
 } as const;
 
+export const PEGIN_CONSTANTS = {
+  TEST_DUST_THRESHOLD: 2300n * 65164000n,
+  TEST_MIN_PEGIN: ethers.parseEther("0.5"),
+  TEST_REWARD_PERCENTAGE: 10n,
+} as const;
+
 export enum ProviderType {
   PegIn,
   PegOut,
