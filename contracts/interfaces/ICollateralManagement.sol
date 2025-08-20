@@ -15,7 +15,8 @@ interface ICollateralManagement {
         address indexed liquidityProvider,
         bytes32 indexed quoteHash,
         Flyover.ProviderType indexed collateralType,
-        uint penalty
+        uint256 penalty,
+        uint256 reward
     );
 
     error AlreadyResigned(address from);
@@ -25,10 +26,18 @@ interface ICollateralManagement {
 
     function addPegInCollateralTo(address addr) external payable;
     function addPegInCollateral() external payable;
-    function slashPegInCollateral(Quotes.PegInQuote calldata quote, bytes32 quoteHash) external returns (uint256);
+    function slashPegInCollateral(
+        address punisher,
+        Quotes.PegInQuote calldata quote,
+        bytes32 quoteHash
+    ) external returns (uint256);
     function addPegOutCollateralTo(address addr) external payable;
     function addPegOutCollateral() external payable;
-    function slashPegOutCollateral(Quotes.PegOutQuote calldata quote, bytes32 quoteHash) external returns (uint256);
+    function slashPegOutCollateral(
+        address punisher,
+        Quotes.PegOutQuote calldata quote,
+        bytes32 quoteHash
+    ) external returns (uint256);
 
     function getPegInCollateral(address addr) external view returns (uint256);
     function getPegOutCollateral(address addr) external view returns (uint256);

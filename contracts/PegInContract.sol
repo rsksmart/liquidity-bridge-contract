@@ -40,11 +40,9 @@ contract PegInContract is
 
     uint256 private _minPegIn;
     bool private _mainnet;
-    uint256 public rewardPercentage;
     uint256 public dustThreshold;
 
     event DustThresholdSet(uint256 indexed oldThreshold, uint256 indexed newThreshold);
-    event RewardPercentageSet(uint256 indexed oldReward, uint256 indexed newReward);
 
     // solhint-disable-next-line comprehensive-interface
     receive() external payable {
@@ -69,7 +67,6 @@ contract PegInContract is
         uint256 minPegIn,
         address collateralManagement,
         bool mainnet,
-        uint256 rewardPercentage_,
         uint256 daoFeePercentage,
         address payable daoFeeCollector
     ) external initializer {
@@ -80,7 +77,6 @@ contract PegInContract is
         _mainnet = mainnet;
         dustThreshold = dustThreshold_;
         _minPegIn = minPegIn;
-        rewardPercentage = rewardPercentage_;
     }
 
     /// @notice This function is used to set the collateral management contract
@@ -100,12 +96,6 @@ contract PegInContract is
     function setDustThreshold(uint256 threshold) external onlyOwner {
         emit DustThresholdSet(dustThreshold, threshold);
         dustThreshold = threshold;
-    }
-
-    // solhint-disable-next-line comprehensive-interface
-    function setRewardPercentage(uint256 rewardPercentage_) external onlyOwner {
-        emit RewardPercentageSet(rewardPercentage, rewardPercentage_);
-        rewardPercentage = rewardPercentage_;
     }
 
     function deposit() external payable override {
@@ -189,23 +179,21 @@ contract PegInContract is
         _validateRegisterParams(quote, quoteHash, height, signature);
         int256 registerResult = _registerBridge(quote, btcRawTransaction, partialMerkleTree, height, quoteHash);
 
-        bool btcRefunded = registerResult != _BRIDGE_REFUNDED_USER_ERROR_CODE &&
-            registerResult != _BRIDGE_REFUNDED_LP_ERROR_CODE;
+        bool btcRefunded = registerResult == _BRIDGE_REFUNDED_USER_ERROR_CODE ||
+            registerResult == _BRIDGE_REFUNDED_LP_ERROR_CODE;
         if (registerResult == _BRIDGE_UNPROCESSABLE_TX_VALIDATIONS_ERROR) {
             revert NotEnoughConfirmations();
         } else if (!btcRefunded && registerResult < 1) {
             revert UnexpectedBridgeError(registerResult);
         }
 
-        bool shouldPenalize = _shouldPenalize(quote, registerResult, _callRegistry[quoteHash].timestamp, height);
-        if (shouldPenalize) {
-            uint256 penalizationAmount = _collateralManagement.slashPegInCollateral(quote, quoteHash);
-            uint256 punisherReward = (penalizationAmount * rewardPercentage) / 100;
-            _increaseBalance(msg.sender, punisherReward);
+        Registry memory callRegistry = _callRegistry[quoteHash];
+        delete _callRegistry[quoteHash];
+        if (_shouldPenalize(quote, registerResult, callRegistry.timestamp, height)) {
+            _collateralManagement.slashPegInCollateral(msg.sender, quote, quoteHash);
         }
         if (btcRefunded) {
             _processedQuotes[quoteHash] = PegInStates.PROCESSED_QUOTE;
-            delete _callRegistry[quoteHash];
             emit BridgeCapExceeded(quoteHash, registerResult);
             return registerResult;
         }
@@ -216,10 +204,9 @@ contract PegInContract is
         Quotes.checkAgreedAmount(quote, transferredAmount);
 
         _processedQuotes[quoteHash] = PegInStates.PROCESSED_QUOTE;
-        delete _callRegistry[quoteHash];
         emit PegInRegistered(quoteHash, transferredAmount);
-        if (_callRegistry[quoteHash].timestamp > 0) {
-            _registerCallDone(quote, quoteHash, transferredAmount);
+        if (callRegistry.timestamp > 0) {
+            _registerCallDone(quote, quoteHash, callRegistry.success, transferredAmount);
         } else {
             _registerCallNotDone(quote, quoteHash, transferredAmount);
         }
@@ -295,10 +282,11 @@ contract PegInContract is
     function _registerCallDone(
         Quotes.PegInQuote calldata quote,
         bytes32 quoteHash,
+        bool callSuccessful,
         uint256 transferredAmount
     ) private { // this doesn't have the nonReentrant modifier because the caller registerPegIn has it
         uint refundAmount;
-        if (_callRegistry[quoteHash].success) {
+        if (callSuccessful) {
             refundAmount = _min(transferredAmount, quote.value + quote.callFee + quote.gasFee);
         } else {
             refundAmount = _min(transferredAmount, quote.callFee + quote.gasFee);

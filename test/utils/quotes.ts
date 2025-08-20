@@ -138,3 +138,10 @@ export function getBtcPaymentBlockHeaders(args: {
     "0000000000000000";
   return { firstConfirmationHeader, nConfirmationHeader };
 }
+
+export function getRewardForQuote(
+  quote: { penaltyFee: BigNumberish },
+  rewardPercentage: BigNumberish
+) {
+  return (BigInt(quote.penaltyFee) * BigInt(rewardPercentage)) / 100n;
+}
