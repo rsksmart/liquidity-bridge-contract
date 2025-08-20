@@ -19,12 +19,15 @@ contract CollateralManagementContract is
 
     event MinCollateralSet(uint256 oldMinCollateral, uint256 newMinCollateral);
     event ResignDelayInBlocksSet(uint oldResignDelayInBlocks, uint newResignDelayInBlocks);
+    event RewardPercentageSet(uint256 indexed oldReward, uint256 indexed newReward);
 
     uint private _minCollateral;
     uint private _resignDelayInBlocks;
-    mapping(address => uint) private _pegInCollateral;
-    mapping(address => uint) private _pegOutCollateral;
-    mapping(address => uint) private _resignationBlockNum;
+    mapping(address => uint256) private _pegInCollateral;
+    mapping(address => uint256) private _pegOutCollateral;
+    mapping(address => uint256) private _resignationBlockNum;
+    mapping(address => uint256) private _rewards;
+    uint256 public rewardPercentage;
 
     modifier onlyRegisteredForPegIn() {
         if (!_isRegistered(Flyover.ProviderType.PegIn, msg.sender))
@@ -42,12 +45,14 @@ contract CollateralManagementContract is
         address owner,
         uint48 initialDelay,
         uint minCollateral,
-        uint resignDelayInBlocks
+        uint resignDelayInBlocks,
+        uint256 rewardPercentage_
     ) public initializer {
         __AccessControlDefaultAdminRules_init(initialDelay, owner);
         __ReentrancyGuard_init();
         _minCollateral = minCollateral;
         _resignDelayInBlocks = resignDelayInBlocks;
+        rewardPercentage = rewardPercentage_;
     }
 
     function setMinCollateral(uint minCollateral) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -58,6 +63,12 @@ contract CollateralManagementContract is
     function setResignDelayInBlocks(uint resignDelayInBlocks) external onlyRole(DEFAULT_ADMIN_ROLE) {
         emit ResignDelayInBlocksSet(_resignDelayInBlocks, resignDelayInBlocks);
         _resignDelayInBlocks = resignDelayInBlocks;
+    }
+
+    // solhint-disable-next-line comprehensive-interface
+    function setRewardPercentage(uint256 rewardPercentage_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        emit RewardPercentageSet(rewardPercentage, rewardPercentage_);
+        rewardPercentage = rewardPercentage_;
     }
 
     function getPegInCollateral(address addr) external view returns (uint) {
@@ -81,6 +92,7 @@ contract CollateralManagementContract is
     }
 
     function slashPegInCollateral(
+        address punisher,
         Quotes.PegInQuote calldata quote,
         bytes32 quoteHash
     ) external onlyRole(COLLATERAL_SLASHER) returns (uint256) {
@@ -89,7 +101,9 @@ contract CollateralManagementContract is
             _pegInCollateral[quote.liquidityProviderRskAddress]
         );
         _pegInCollateral[quote.liquidityProviderRskAddress] -= penalty;
-        emit Penalized(quote.liquidityProviderRskAddress, quoteHash, Flyover.ProviderType.PegIn, penalty);
+        uint256 punisherReward = (penalty * rewardPercentage) / 100;
+        _rewards[punisher] += punisherReward;
+        emit Penalized(quote.liquidityProviderRskAddress, quoteHash, Flyover.ProviderType.PegIn, penalty, punisherReward);
         return penalty;
     }
 
@@ -102,6 +116,7 @@ contract CollateralManagementContract is
     }
 
     function slashPegOutCollateral(
+        address punisher,
         Quotes.PegOutQuote calldata quote,
         bytes32 quoteHash
     ) external onlyRole(COLLATERAL_SLASHER) returns (uint256) {
@@ -110,7 +125,9 @@ contract CollateralManagementContract is
             _pegOutCollateral[quote.lpRskAddress]
         );
         _pegOutCollateral[quote.lpRskAddress] -= penalty;
-        emit Penalized(quote.lpRskAddress, quoteHash, Flyover.ProviderType.PegOut, penalty);
+        uint256 punisherReward = (penalty * rewardPercentage) / 100;
+        _rewards[punisher] += punisherReward;
+        emit Penalized(quote.lpRskAddress, quoteHash, Flyover.ProviderType.PegOut, penalty, punisherReward);
         return penalty;
     }
 

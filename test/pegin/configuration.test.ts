@@ -16,9 +16,6 @@ describe("PegInContract configurations", () => {
     it("initialize properly", async function () {
       const { contract, owner } = await loadFixture(deployPegInContractFixture);
       await expect(contract.VERSION()).to.eventually.eq("1.0.0");
-      await expect(contract.rewardPercentage()).to.eventually.eq(
-        PEGIN_CONSTANTS.TEST_REWARD_PERCENTAGE
-      );
       await expect(contract.dustThreshold()).to.eventually.eq(
         PEGIN_CONSTANTS.TEST_DUST_THRESHOLD
       );
@@ -62,7 +59,6 @@ describe("PegInContract configurations", () => {
             PEGIN_CONSTANTS.TEST_MIN_PEGIN,
             deployResult.signers[2].address,
             false,
-            PEGIN_CONSTANTS.TEST_REWARD_PERCENTAGE,
             0,
             ZERO_ADDRESS,
           ],
@@ -94,27 +90,6 @@ describe("PegInContract configurations", () => {
         .to.emit(contract, "DustThresholdSet")
         .withArgs(PEGIN_CONSTANTS.TEST_DUST_THRESHOLD, 1n);
       await expect(contract.dustThreshold()).to.eventually.eq(1n);
-    });
-  });
-
-  describe("setRewardPercentage function should", function () {
-    it("only allow the owner to modify the reward percentage", async function () {
-      const { contract, signers } = await loadFixture(
-        deployPegInContractFixture
-      );
-      const notOwner = signers[0];
-      await expect(
-        contract.connect(notOwner).setRewardPercentage(5n)
-      ).to.be.revertedWithCustomError(contract, "OwnableUnauthorizedAccount");
-    });
-
-    it("modify the reward percentage properly", async function () {
-      const { contract, owner } = await loadFixture(deployPegInContractFixture);
-      const tx = contract.connect(owner).setRewardPercentage(5n);
-      await expect(tx)
-        .to.emit(contract, "RewardPercentageSet")
-        .withArgs(PEGIN_CONSTANTS.TEST_REWARD_PERCENTAGE, 5n);
-      await expect(contract.rewardPercentage()).to.eventually.eq(5n);
     });
   });
 
