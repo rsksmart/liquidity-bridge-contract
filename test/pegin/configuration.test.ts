@@ -12,6 +12,22 @@ import hre, { ethers, upgrades } from "hardhat";
 import { Flyover__factory } from "../../typechain-types";
 
 describe("PegInContract configurations", () => {
+  describe("receive function should", function () {
+    it("reject payments from addresses that are not the bridge", async function () {
+      const { contract, signers } = await loadFixture(
+        deployPegInContractFixture
+      );
+      for (const signer of signers) {
+        await expect(
+          signer.sendTransaction({
+            to: contract,
+            value: ethers.parseEther("1"),
+          })
+        ).to.be.revertedWithCustomError(contract, "PaymentNotAllowed");
+      }
+    });
+  });
+
   describe("initialize function should", function () {
     it("initialize properly", async function () {
       const { contract, owner } = await loadFixture(deployPegInContractFixture);
