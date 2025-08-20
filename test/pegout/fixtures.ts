@@ -63,6 +63,7 @@ export async function paidPegOutFixture() {
     liquidityProvider: pegOutLp,
     refundAddress: user.address,
     value: ethers.parseEther("1.23"),
+    productFeePercentage: 2,
   });
   const quoteHash = await contract.hashPegOutQuote(quote);
   const signature = await pegOutLp.signMessage(getBytes(quoteHash));

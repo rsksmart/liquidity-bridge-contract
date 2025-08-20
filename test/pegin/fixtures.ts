@@ -3,6 +3,7 @@ import { deployCollateralManagement } from "../utils/fixtures";
 import { PegInContract } from "../../typechain-types";
 import { deployLibraries } from "../../scripts/deployment-utils/deploy-libraries";
 import { PEGIN_CONSTANTS, ZERO_ADDRESS } from "../utils/constants";
+import { getTestPeginQuote } from "../utils/quotes";
 
 export async function deployPegInContractFixture() {
   const deployResult = await deployCollateralManagement();
@@ -17,7 +18,6 @@ export async function deployPegInContractFixture() {
     PEGIN_CONSTANTS.TEST_MIN_PEGIN,
     collateralManagementAddress,
     false,
-    PEGIN_CONSTANTS.TEST_REWARD_PERCENTAGE,
     0,
     ZERO_ADDRESS,
   ];
@@ -50,4 +50,39 @@ export async function deployPegInContractFixture() {
       await contract.getAddress()
     );
   return { contract, bridgeMock, initializationParams, ...deployResult };
+}
+
+export async function callForUserExecutedFixture() {
+  const deployResult = await deployPegInContractFixture();
+  const { contract, fullLp, signers } = deployResult;
+  const lbcAddress = await contract.getAddress();
+  const user = signers[0];
+
+  const quote = getTestPeginQuote({
+    lbcAddress,
+    liquidityProvider: fullLp,
+    value: ethers.parseEther("1.2"),
+    destinationAddress: user.address,
+    refundAddress: user.address,
+    productFeePercentage: 2,
+  });
+  const quoteHash = await contract
+    .hashPegInQuote(quote)
+    .then((result) => ethers.getBytes(result));
+  const signature = await fullLp.signMessage(quoteHash);
+
+  const tx = await contract
+    .connect(fullLp)
+    .callForUser(quote, { value: quote.value });
+  const callForUserReceipt = await tx.wait();
+
+  return {
+    user,
+    quote,
+    liquidityProvider: fullLp,
+    callForUserReceipt,
+    quoteHash,
+    signature,
+    ...deployResult,
+  };
 }

@@ -26,11 +26,11 @@ contract CollateralManagementMock is ICollateralManagement {
         _balance += msg.value;
     }
 
-    function slashPegInCollateral(Quotes.PegInQuote calldata, bytes32) external pure returns (uint256) {
+    function slashPegInCollateral(address, Quotes.PegInQuote calldata, bytes32) external pure returns (uint256) {
         return 0.000001 ether;
     }
 
-    function slashPegOutCollateral(Quotes.PegOutQuote calldata, bytes32) external pure returns (uint256) {
+    function slashPegOutCollateral(address, Quotes.PegOutQuote calldata, bytes32) external pure returns (uint256) {
         return 0.000001 ether;
     }
 

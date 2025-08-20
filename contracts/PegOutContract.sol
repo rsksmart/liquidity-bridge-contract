@@ -199,7 +199,7 @@ contract PegOutContract is
         _addDaoContribution(quote.lpRskAddress, quote.productFeeAmount);
 
         if (_shouldPenalize(quote, quoteHash, btcBlockHeaderHash)) {
-            _collateralManagement.slashPegOutCollateral(quote, quoteHash);
+            _collateralManagement.slashPegOutCollateral(msg.sender, quote, quoteHash);
         }
 
         uint256 refundAmount = quote.value + quote.callFee + quote.gasFee;
@@ -224,7 +224,7 @@ contract PegOutContract is
         _pegOutRegistry[quoteHash].completed = true;
 
         emit PegOutUserRefunded(quoteHash, addressToTransfer, valueToTransfer);
-        _collateralManagement.slashPegOutCollateral(quote, quoteHash);
+        _collateralManagement.slashPegOutCollateral(msg.sender, quote, quoteHash);
 
         (bool sent, bytes memory reason) = addressToTransfer.call{value: valueToTransfer}("");
         if (!sent) {

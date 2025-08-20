@@ -7,6 +7,7 @@ import { deployPegOutContractFixture, paidPegOutFixture } from "./fixtures";
 import { expect } from "chai";
 import {
   getBtcPaymentBlockHeaders,
+  getRewardForQuote,
   getTestPegoutQuote,
   totalValue,
 } from "../utils/quotes";
@@ -21,7 +22,11 @@ import {
 } from "../utils/btc";
 import { getBytes } from "ethers";
 import { ethers } from "hardhat";
-import { PEGOUT_CONSTANTS, ProviderType } from "../utils/constants";
+import {
+  COLLATERAL_CONSTANTS,
+  PEGOUT_CONSTANTS,
+  ProviderType,
+} from "../utils/constants";
 
 const AMOUNTS_TO_TEST_REFUND = [
   "500",
@@ -537,14 +542,20 @@ describe("PegOutContract refundPegOut function should", () => {
     await expect(tx)
       .to.emit(contract, "PegOutRefunded")
       .withArgs(getBytes(quoteHash));
-    await expect(tx).not.to.emit(contract, "DaoContribution");
+    await expect(tx)
+      .to.emit(contract, "DaoContribution")
+      .withArgs(usedLp.address, quote.productFeeAmount);
+    await expect(contract.getCurrentContribution()).to.eventually.eq(
+      quote.productFeeAmount
+    );
     await expect(tx)
       .to.emit(collateralManagement, "Penalized")
       .withArgs(
         usedLp.address,
         getBytes(quoteHash),
         ProviderType.PegOut,
-        quote.penaltyFee
+        quote.penaltyFee,
+        getRewardForQuote(quote, COLLATERAL_CONSTANTS.TEST_REWARD_PERCENTAGE)
       );
   });
 
@@ -581,14 +592,20 @@ describe("PegOutContract refundPegOut function should", () => {
     await expect(tx)
       .to.emit(contract, "PegOutRefunded")
       .withArgs(getBytes(quoteHash));
-    await expect(tx).not.to.emit(contract, "DaoContribution");
+    await expect(tx)
+      .to.emit(contract, "DaoContribution")
+      .withArgs(usedLp.address, quote.productFeeAmount);
+    await expect(contract.getCurrentContribution()).to.eventually.eq(
+      quote.productFeeAmount
+    );
     await expect(tx)
       .to.emit(collateralManagement, "Penalized")
       .withArgs(
         usedLp.address,
         getBytes(quoteHash),
         ProviderType.PegOut,
-        quote.penaltyFee
+        quote.penaltyFee,
+        getRewardForQuote(quote, COLLATERAL_CONSTANTS.TEST_REWARD_PERCENTAGE)
       );
   });
 
@@ -627,14 +644,20 @@ describe("PegOutContract refundPegOut function should", () => {
     await expect(tx)
       .to.emit(contract, "PegOutRefunded")
       .withArgs(getBytes(quoteHash));
-    await expect(tx).not.to.emit(contract, "DaoContribution");
+    await expect(tx)
+      .to.emit(contract, "DaoContribution")
+      .withArgs(usedLp.address, quote.productFeeAmount);
+    await expect(contract.getCurrentContribution()).to.eventually.eq(
+      quote.productFeeAmount
+    );
     await expect(tx)
       .to.emit(collateralManagement, "Penalized")
       .withArgs(
         usedLp.address,
         getBytes(quoteHash),
         ProviderType.PegOut,
-        quote.penaltyFee
+        quote.penaltyFee,
+        getRewardForQuote(quote, COLLATERAL_CONSTANTS.TEST_REWARD_PERCENTAGE)
       );
   });
 

@@ -3,12 +3,16 @@ import {
   mine,
 } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { deployPegOutContractFixture } from "./fixtures";
-import { getTestPegoutQuote, totalValue } from "../utils/quotes";
+import {
+  getRewardForQuote,
+  getTestPegoutQuote,
+  totalValue,
+} from "../utils/quotes";
 import { ethers } from "hardhat";
 import { getBytes } from "ethers";
 import { expect } from "chai";
 import { matchSelector, matchAnyNumber } from "../utils/matchers";
-import { ProviderType } from "../utils/constants";
+import { COLLATERAL_CONSTANTS, ProviderType } from "../utils/constants";
 
 describe("PegOutContract refundUserPegOut function should", () => {
   const BLOCKS_UNTIL_EXPIRATION = 50;
@@ -204,7 +208,8 @@ describe("PegOutContract refundUserPegOut function should", () => {
         fullLp.address,
         getBytes(quoteHash),
         ProviderType.PegOut,
-        quote.penaltyFee
+        quote.penaltyFee,
+        getRewardForQuote(quote, COLLATERAL_CONSTANTS.TEST_REWARD_PERCENTAGE)
       );
     await expect(tx).to.changeEtherBalances(
       [await contract.getAddress(), user.address],

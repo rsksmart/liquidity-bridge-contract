@@ -3,7 +3,7 @@ import hre, { ethers, upgrades } from "hardhat";
 import { upgradeLbcProxy } from "../../scripts/deployment-utils/upgrade-proxy";
 import { LiquidityBridgeContractV2 } from "../../typechain-types";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
-import { LP_COLLATERAL, ProviderType } from "./constants";
+import { COLLATERAL_CONSTANTS, LP_COLLATERAL, ProviderType } from "./constants";
 
 // TODO this should be removed once the collateral management has its final implementation and test files, then
 // this file should import a function from there
@@ -21,7 +21,13 @@ export async function deployCollateralManagement() {
 
   const collateralManagement = await upgrades.deployProxy(
     CollateralManagement,
-    [owner.address, 500n, ethers.parseEther("0.6"), 500n]
+    [
+      owner.address,
+      500n,
+      ethers.parseEther("0.6"),
+      500n,
+      COLLATERAL_CONSTANTS.TEST_REWARD_PERCENTAGE,
+    ]
   );
 
   const discovery = await upgrades.deployProxy(FlyoverDiscovery, [

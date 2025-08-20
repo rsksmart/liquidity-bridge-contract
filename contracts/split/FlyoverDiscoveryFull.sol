@@ -38,9 +38,11 @@ contract FlyoverDiscoveryFull is
 
     uint private _minCollateral;
     uint private _resignDelayInBlocks;
-    mapping(address => uint) private _pegInCollateral;
-    mapping(address => uint) private _pegOutCollateral;
-    mapping(address => uint) private _resignationBlockNum;
+    mapping(address => uint256) private _pegInCollateral;
+    mapping(address => uint256) private _pegOutCollateral;
+    mapping(address => uint256) private _resignationBlockNum;
+    mapping(address => uint256) private _rewards;
+    uint256 public rewardPercentage;
 
     // ------------------------------------------------------------
     // FlyoverDiscovery Public Functions and Modifiers
@@ -331,6 +333,7 @@ contract FlyoverDiscoveryFull is
     }
 
     function slashPegInCollateral(
+        address punisher,
         Quotes.PegInQuote calldata quote,
         bytes32 quoteHash
     ) external onlyRole(COLLATERAL_SLASHER) returns(uint256) {
@@ -339,11 +342,14 @@ contract FlyoverDiscoveryFull is
             _pegInCollateral[quote.liquidityProviderRskAddress]
         );
         _pegInCollateral[quote.liquidityProviderRskAddress] -= penalty;
-        emit Penalized(quote.liquidityProviderRskAddress, quoteHash, Flyover.ProviderType.PegIn, penalty);
+        uint256 punisherReward = (penalty * rewardPercentage) / 100;
+        _rewards[punisher] += punisherReward;
+        emit Penalized(quote.liquidityProviderRskAddress, quoteHash, Flyover.ProviderType.PegIn, penalty, punisherReward);
         return penalty;
     }
 
     function slashPegOutCollateral(
+        address punisher,
         Quotes.PegOutQuote calldata quote,
         bytes32 quoteHash
     ) external onlyRole(COLLATERAL_SLASHER) returns (uint256) {
@@ -352,7 +358,9 @@ contract FlyoverDiscoveryFull is
             _pegOutCollateral[quote.lpRskAddress]
         );
         _pegOutCollateral[quote.lpRskAddress] -= penalty;
-        emit Penalized(quote.lpRskAddress, quoteHash, Flyover.ProviderType.PegOut, penalty);
+        uint256 punisherReward = (penalty * rewardPercentage) / 100;
+        _rewards[punisher] += punisherReward;
+        emit Penalized(quote.lpRskAddress, quoteHash, Flyover.ProviderType.PegOut, penalty, punisherReward);
         return penalty;
     }
 

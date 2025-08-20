@@ -393,9 +393,16 @@ describe("PegInContract callForUser function should", () => {
     const ReentrancyCaller = await ethers.getContractFactory(
       "ReentrancyCaller"
     );
+    const reentrantQuote = getTestPeginQuote({
+      lbcAddress,
+      liquidityProvider: fullLp,
+      value: ethers.parseEther("0.5"),
+      destinationAddress: fullLp.address,
+      refundAddress: fullLp.address,
+    });
     const reentrancyCallerContract = await ReentrancyCaller.deploy();
-    const reentrantData = contract.interface.encodeFunctionData("withdraw", [
-      ethers.parseEther("0.0001"),
+    const reentrantData = contract.interface.encodeFunctionData("callForUser", [
+      reentrantQuote,
     ]);
     const callerAddress = await reentrancyCallerContract.getAddress();
     const data =
@@ -409,7 +416,7 @@ describe("PegInContract callForUser function should", () => {
       destinationAddress: callerAddress,
       refundAddress: fullLp.address,
     });
-    contractQuote.gasLimit = BigInt(contractQuote.gasLimit) * 3n;
+    contractQuote.gasLimit = BigInt(contractQuote.gasLimit) * 10n;
     const quoteHash = await contract.hashPegInQuote(contractQuote);
     const reentrancySelector = contract.interface.getError(
       "ReentrancyGuardReentrantCall"
