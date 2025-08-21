@@ -504,9 +504,17 @@ describe("PegInContract registerPegIn function should", () => {
       nConfirmationHeader
     );
 
-    const fakeSignature = await liquidityProvider.signMessage(
-      "0x9e1ff8110dede851f2d517bf6567987d9f4555f70e27054cb1d2769cc4e9005d"
-    );
+    const fakeQuote = getTestPeginQuote({
+      lbcAddress: await contract.getAddress(),
+      liquidityProvider: liquidityProvider,
+      value: ethers.parseEther("1.2"),
+      destinationAddress: liquidityProvider.address,
+      refundAddress: liquidityProvider.address,
+    });
+    const fakeQuoteHash = await contract
+      .hashPegInQuote(fakeQuote)
+      .then((result) => ethers.getBytes(result));
+    const fakeSignature = await liquidityProvider.signMessage(fakeQuoteHash);
 
     await expect(
       contract
@@ -1087,7 +1095,7 @@ describe("PegInContract registerPegIn function should", () => {
     await expect(tx)
       .to.emit(collateralManagement, "Penalized")
       .withArgs(
-        fullLp,
+        fullLp.address,
         quoteHash,
         ProviderType.PegIn,
         quote.penaltyFee,
