@@ -9,12 +9,14 @@ event CollateralManagementSet(address indexed oldAddress, address indexed newAdd
 interface ICollateralManagement {
     event WithdrawCollateral(address indexed addr, uint indexed amount);
     event Resigned(address indexed addr);
+    event RewardsWithdrawn(address indexed addr, uint256 indexed amount);
     event PegInCollateralAdded(address indexed addr, uint256 indexed amount);
     event PegOutCollateralAdded(address indexed addr, uint256 indexed amount);
     event Penalized(
         address indexed liquidityProvider,
+        address indexed punisher,
         bytes32 indexed quoteHash,
-        Flyover.ProviderType indexed collateralType,
+        Flyover.ProviderType collateralType,
         uint256 penalty,
         uint256 reward
     );
@@ -23,6 +25,7 @@ interface ICollateralManagement {
     error NotResigned(address from);
     error ResignationDelayNotMet(address from, uint resignationBlockNum, uint resignDelayInBlocks);
     error WithdrawalFailed(address from, uint amount);
+    error NothingToWithdraw(address from);
 
     function addPegInCollateralTo(address addr) external payable;
     function addPegInCollateral() external payable;
@@ -38,6 +41,9 @@ interface ICollateralManagement {
         Quotes.PegOutQuote calldata quote,
         bytes32 quoteHash
     ) external;
+    function withdrawRewards(address addr) external;
+    function withdrawCollateral() external;
+    function resign() external;
 
     function getPegInCollateral(address addr) external view returns (uint256);
     function getPegOutCollateral(address addr) external view returns (uint256);
@@ -45,4 +51,6 @@ interface ICollateralManagement {
     function getMinCollateral() external view returns (uint256);
     function isRegistered(Flyover.ProviderType providerType, address addr) external view returns (bool);
     function isCollateralSufficient(Flyover.ProviderType providerType, address addr) external view returns (bool);
+    function getRewards(address addr) external view returns (uint256);
+    function getPenalties() external view returns (uint256);
 }

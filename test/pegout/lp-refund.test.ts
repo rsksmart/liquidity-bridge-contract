@@ -552,6 +552,7 @@ describe("PegOutContract refundPegOut function should", () => {
       .to.emit(collateralManagement, "Penalized")
       .withArgs(
         usedLp.address,
+        usedLp.address,
         getBytes(quoteHash),
         ProviderType.PegOut,
         quote.penaltyFee,
@@ -601,6 +602,7 @@ describe("PegOutContract refundPegOut function should", () => {
     await expect(tx)
       .to.emit(collateralManagement, "Penalized")
       .withArgs(
+        usedLp.address,
         usedLp.address,
         getBytes(quoteHash),
         ProviderType.PegOut,
@@ -653,6 +655,7 @@ describe("PegOutContract refundPegOut function should", () => {
     await expect(tx)
       .to.emit(collateralManagement, "Penalized")
       .withArgs(
+        usedLp.address,
         usedLp.address,
         getBytes(quoteHash),
         ProviderType.PegOut,
