@@ -64,12 +64,14 @@ contract FlyoverDiscoveryFull is
         address owner,
         uint48 initialDelay,
         uint minCollateral,
-        uint resignDelayInBlocks
+        uint resignDelayInBlocks,
+        uint rewardPercentage_
     ) public initializer {
         __AccessControlDefaultAdminRules_init(initialDelay, owner);
         __ReentrancyGuard_init();
         _minCollateral = minCollateral;
         _resignDelayInBlocks = resignDelayInBlocks;
+        rewardPercentage = rewardPercentage_;
     }
 
     function register(
@@ -336,7 +338,7 @@ contract FlyoverDiscoveryFull is
         address punisher,
         Quotes.PegInQuote calldata quote,
         bytes32 quoteHash
-    ) external onlyRole(COLLATERAL_SLASHER) returns(uint256) {
+    ) external onlyRole(COLLATERAL_SLASHER) {
         uint penalty = _min(
             quote.penaltyFee,
             _pegInCollateral[quote.liquidityProviderRskAddress]
@@ -345,14 +347,13 @@ contract FlyoverDiscoveryFull is
         uint256 punisherReward = (penalty * rewardPercentage) / 100;
         _rewards[punisher] += punisherReward;
         emit Penalized(quote.liquidityProviderRskAddress, quoteHash, Flyover.ProviderType.PegIn, penalty, punisherReward);
-        return penalty;
     }
 
     function slashPegOutCollateral(
         address punisher,
         Quotes.PegOutQuote calldata quote,
         bytes32 quoteHash
-    ) external onlyRole(COLLATERAL_SLASHER) returns (uint256) {
+    ) external onlyRole(COLLATERAL_SLASHER) {
         uint penalty = _min(
             quote.penaltyFee,
             _pegOutCollateral[quote.lpRskAddress]
@@ -361,7 +362,6 @@ contract FlyoverDiscoveryFull is
         uint256 punisherReward = (penalty * rewardPercentage) / 100;
         _rewards[punisher] += punisherReward;
         emit Penalized(quote.lpRskAddress, quoteHash, Flyover.ProviderType.PegOut, penalty, punisherReward);
-        return penalty;
     }
 
     function _min(uint a, uint b) private pure returns (uint) {
