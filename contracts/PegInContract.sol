@@ -10,16 +10,22 @@ import {Flyover} from "./libraries/Flyover.sol";
 import {Quotes} from "./libraries/Quotes.sol";
 import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 
-
+/// @title PegIn
+/// @notice This contract is used to handle the peg in of the Bitcoin network to the Rootstock network
+/// @author Rootstock Labs
 contract PegInContract is
     OwnableDaoContributorUpgradeable,
     IPegIn {
 
+    /// @notice This struct is used to store the information of a call on behalf of the user
+    /// @param timestamp The timestamp of the call
+    /// @param success Whether the call was successful or not
     struct Registry {
         uint256 timestamp;
         bool success;
     }
 
+    /// @notice The version of the contract
     string constant public VERSION = "1.0.0";
     Flyover.ProviderType constant private _PEG_TYPE = Flyover.ProviderType.PegIn;
     uint256 constant private _REFUND_ADDRESS_LENGTH = 21;
@@ -40,8 +46,13 @@ contract PegInContract is
 
     uint256 private _minPegIn;
     bool private _mainnet;
+    /// @notice The dust threshold for the peg in. If the difference between the amount paid and the amount required
+    /// is more than this value, the difference goes back to the user's wallet
     uint256 public dustThreshold;
 
+    /// @notice Emitted when the dust threshold is set
+    /// @param oldThreshold The old dust threshold
+    /// @param newThreshold The new dust threshold
     event DustThresholdSet(uint256 indexed oldThreshold, uint256 indexed newThreshold);
 
     // solhint-disable-next-line comprehensive-interface
@@ -55,8 +66,10 @@ contract PegInContract is
     /// @param owner the owner of the contract
     /// @param bridge the address of the Rootstock bridge
     /// @param dustThreshold_ the dust threshold for the peg in
+    /// @param minPegIn the minimum peg in amount supported by the bridge
     /// @param collateralManagement the address of the Collateral Management contract
-    /// @param daoFeePercentage the percentage of the peg out amount that goes to the DAO.
+    /// @param mainnet whether the contract is on the mainnet or not
+    /// @param daoFeePercentage the percentage of the peg in amount that goes to the DAO.
     /// Use zero to disable the DAO integration feature
     /// @param daoFeeCollector the address of the DAO fee collector
     // solhint-disable-next-line comprehensive-interface
@@ -98,6 +111,7 @@ contract PegInContract is
         dustThreshold = threshold;
     }
 
+    /// @inheritdoc IPegIn
     function deposit() external payable override {
         if(!_collateralManagement.isRegistered(_PEG_TYPE, msg.sender)) {
             revert Flyover.ProviderNotRegistered(msg.sender);
@@ -105,6 +119,7 @@ contract PegInContract is
         _increaseBalance(msg.sender, msg.value);
     }
 
+    /// @inheritdoc IPegIn
     function withdraw(uint256 amount) external nonReentrant override  {
         uint256 balance = _balances[msg.sender];
         if (balance < amount) {
@@ -118,6 +133,7 @@ contract PegInContract is
         }
     }
 
+    /// @inheritdoc IPegIn
     function callForUser(
         Quotes.PegInQuote calldata quote
     ) external payable nonReentrant override returns (bool) {
@@ -168,6 +184,7 @@ contract PegInContract is
         return success;
     }
 
+    /// @inheritdoc IPegIn
     function registerPegIn(
         Quotes.PegInQuote calldata quote,
         bytes calldata signature,
@@ -213,16 +230,17 @@ contract PegInContract is
         return registerResult;
     }
 
+    /// @inheritdoc IPegIn
     function validatePegInDepositAddress(
         Quotes.PegInQuote calldata quote,
         bytes calldata depositAddress
     ) external view override returns (bool) {
         bytes32 derivationValue = keccak256(
-         bytes.concat(
-            _hashPegInQuote(quote),
-            quote.btcRefundAddress,
-            bytes20(quote.lbcAddress),
-            quote.liquidityProviderBtcAddress
+            bytes.concat(
+                _hashPegInQuote(quote),
+                quote.btcRefundAddress,
+                bytes20(quote.lbcAddress),
+                quote.liquidityProviderBtcAddress
             )
         );
         bytes memory flyoverRedeemScript = bytes.concat(
@@ -234,18 +252,26 @@ contract PegInContract is
         return BtcUtils.validateP2SHAdress(depositAddress, flyoverRedeemScript, _mainnet);
     }
 
+    /// @inheritdoc IPegIn
     function getBalance(address addr) external view override returns (uint256) {
         return _balances[addr];
     }
 
+    /// @inheritdoc IPegIn
     function hashPegInQuote(Quotes.PegInQuote calldata quote) external view override returns (bytes32) {
         return _hashPegInQuote(quote);
     }
 
+    /// @inheritdoc IPegIn
     function getQuoteStatus(bytes32 quoteHash) external view override returns (PegInStates) {
         return _processedQuotes[quoteHash];
     }
 
+    /// @notice This function is used to increase the balance of an account
+    /// @dev This function must remain private. Any exposure can lead to a loss of funds.
+    /// It is responsibility of the caller to ensure that the account is a liquidity provider
+    /// @param dest The address of account
+    /// @param amount The amount of balance to increase
     function _increaseBalance(address dest, uint256 amount) private {
         if (amount > 0) {
             _balances[dest] += amount;
@@ -253,6 +279,11 @@ contract PegInContract is
         }
     }
 
+    /// @notice This function is used to decrease the balance of an account
+    /// @dev This function must remain private. Any exposure can lead to a loss of funds.
+    /// It is responsibility of the caller to ensure that the account is a liquidity provider
+    /// @param dest The address of account
+    /// @param amount The amount of balance to decrease
     function _decreaseBalance(address dest, uint256 amount) private {
         if (amount > 0) {
             _balances[dest] -= amount;
@@ -260,6 +291,17 @@ contract PegInContract is
         }
     }
 
+    /// @notice This function is used to register the peg in into the bridge
+    /// @param quote The quote of the peg in
+    /// @param btcRawTransaction The raw transaction of the peg in in the Bitcoin network,
+    /// without the witness data
+    /// @param partialMerkleTree The partial merkle tree proving the inclusion of the peg
+    /// in transaction
+    /// @param height The height of the peg in transaction
+    /// @param derivationHash The hash of the quote used to derive the deposit address
+    /// @return registerResult The result of the registration. It can be:
+    /// - A negative value: An error code returned by the bridge
+    /// - A positive value: The amount of the peg in transaction
     function _registerBridge(
         Quotes.PegInQuote memory quote,
         bytes memory btcRawTransaction,
@@ -279,12 +321,22 @@ contract PegInContract is
         );
     }
 
+    /// @notice This function is used by the registerPegIn function to handle the scenarios
+    /// where the liquidity provider has already called the callForUser function
+    /// @dev This function makes an external call, therefore it might be exposed to a reentrancy attack,
+    /// the caller must have the nonReentrant modifier or any kind of reentrancy protection. Not all the
+    /// modifications to the state can be done before the call as some of them depend on the result of the
+    /// call itself
+    /// @param quote The quote of the peg in
+    /// @param quoteHash The hash of the quote
+    /// @param callSuccessful Whether the call on behalf of the user was successful or not
+    /// @param transferredAmount The amount of the peg in transaction
     function _registerCallDone(
         Quotes.PegInQuote calldata quote,
         bytes32 quoteHash,
         bool callSuccessful,
         uint256 transferredAmount
-    ) private { // this doesn't have the nonReentrant modifier because the caller registerPegIn has it
+    ) private {
         uint refundAmount;
         if (callSuccessful) {
             refundAmount = _min(transferredAmount, quote.value + quote.callFee + quote.gasFee);
@@ -316,6 +368,15 @@ contract PegInContract is
         }
     }
 
+    /// @notice This function is used by the registerPegIn function to handle the scenarios
+    /// where the liquidity provider has not called the callForUser function
+    /// @dev This function makes an external call, therefore it might be exposed to a reentrancy attack,
+    /// the caller must have the nonReentrant modifier or any kind of reentrancy protection. Not all the
+    /// modifications to the state can be done before the call as some of them depend on the result of the
+    /// call itself
+    /// @param quote The quote of the peg in
+    /// @param quoteHash The hash of the quote
+    /// @param transferredAmount The amount of the peg in transaction
     function _registerCallNotDone(
         Quotes.PegInQuote calldata quote,
         bytes32 quoteHash,
@@ -358,6 +419,15 @@ contract PegInContract is
         }
     }
 
+    /// @notice This function is used to validate the parameters of the registerPegIn function
+    /// @dev The validations include:
+    /// - If the quote was already registered
+    /// - If the signature provided by the liquidity provider is valid
+    /// - If the height is supported by the Rootstock bridge
+    /// @param quote The quote of the peg in
+    /// @param quoteHash The hash of the quote
+    /// @param height The height of the peg in transaction
+    /// @param signature The signature of the quoteHash by the liquidity provider
     function _validateRegisterParams(
         Quotes.PegInQuote calldata quote,
         bytes32 quoteHash,
@@ -376,6 +446,16 @@ contract PegInContract is
         }
     }
 
+    /// @notice This function is used to hash a peg in quote
+    /// @dev The function also validates the following:
+    /// - The quote belongs to this contract
+    /// - The quote destination is not the bridge contract
+    /// - The quote BTC refund address is valid
+    /// - The quote liquidity provider BTC address is valid
+    /// - The quote total amount is greater than the bridge minimum peg in amount
+    /// - The sum of the timestamp values is not greater than the maximum uint32 value
+    /// @param quote The peg in quote
+    /// @return quoteHash The hash of the quote
     function _hashPegInQuote(Quotes.PegInQuote calldata quote) private view returns (bytes32) {
         if (address(this) != quote.lbcAddress) {
             revert Flyover.IncorrectContract(address(this), quote.lbcAddress);
@@ -399,6 +479,12 @@ contract PegInContract is
         return keccak256(Quotes.encodeQuote(quote));
     }
 
+    /// @notice This function is used to determine if the liquidity provider should be penalized
+    /// @param quote The peg in quote
+    /// @param amount The amount of the peg in transaction
+    /// @param callTimestamp The timestamp of the call on behalf of the user
+    /// @param height The height of the peg in transaction
+    /// @return shouldPenalize Whether the liquidity provider should be penalized or not
     function _shouldPenalize(
         Quotes.PegInQuote calldata quote,
         int256 amount,
@@ -445,6 +531,7 @@ contract PegInContract is
         return false;
     }
 
+    /// @dev Utility function to return the minimum of two uint256 values
     function _min(uint a, uint b) private pure returns (uint) {
         return a < b ? a : b;
     }
