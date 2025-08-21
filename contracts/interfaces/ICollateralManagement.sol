@@ -30,14 +30,14 @@ interface ICollateralManagement {
         address punisher,
         Quotes.PegInQuote calldata quote,
         bytes32 quoteHash
-    ) external returns (uint256);
+    ) external;
     function addPegOutCollateralTo(address addr) external payable;
     function addPegOutCollateral() external payable;
     function slashPegOutCollateral(
         address punisher,
         Quotes.PegOutQuote calldata quote,
         bytes32 quoteHash
-    ) external returns (uint256);
+    ) external;
 
     function getPegInCollateral(address addr) external view returns (uint256);
     function getPegOutCollateral(address addr) external view returns (uint256);
