@@ -26,12 +26,12 @@ contract CollateralManagementMock is ICollateralManagement {
         _balance += msg.value;
     }
 
-    function slashPegInCollateral(address, Quotes.PegInQuote calldata, bytes32) external pure returns (uint256) {
-        return 0.000001 ether;
+    function slashPegInCollateral(address, Quotes.PegInQuote calldata, bytes32) external {
+        emit Penalized(address(0), bytes32(0), Flyover.ProviderType.PegOut, 0, 0);
     }
 
-    function slashPegOutCollateral(address, Quotes.PegOutQuote calldata, bytes32) external pure returns (uint256) {
-        return 0.000001 ether;
+    function slashPegOutCollateral(address, Quotes.PegOutQuote calldata, bytes32) external {
+        emit Penalized(address(0), bytes32(0), Flyover.ProviderType.PegOut, 0, 0);
     }
 
     function getPegInCollateral(address) external pure returns (uint256) {
