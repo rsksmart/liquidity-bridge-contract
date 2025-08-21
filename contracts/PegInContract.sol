@@ -309,6 +309,7 @@ contract PegInContract is
         uint256 height,
         bytes32 derivationHash
     ) private returns (int256) {
+        Registry memory callRegistry = _callRegistry[derivationHash];
         return _bridge.registerFastBridgeBtcTransaction(
             btcRawTransaction,
             height,
@@ -317,7 +318,7 @@ contract PegInContract is
             quote.btcRefundAddress,
             payable(this),
             quote.liquidityProviderBtcAddress,
-            _callRegistry[derivationHash].timestamp > 0 && _callRegistry[derivationHash].success
+            callRegistry.timestamp > 0 && callRegistry.success
         );
     }
 
