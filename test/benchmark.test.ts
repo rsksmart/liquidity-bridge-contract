@@ -35,6 +35,7 @@ describe("FlyoverDiscovery benchmark", () => {
         5000n,
         ethers.parseEther("0.03"),
         60n,
+        0n,
       ]);
       const address = await deployed.getAddress();
       return address;
