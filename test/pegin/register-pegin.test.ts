@@ -412,6 +412,7 @@ describe("PegInContract registerPegIn function should", () => {
       .to.emit(collateralManagement, "Penalized")
       .withArgs(
         fullLp.address,
+        registerCaller.address,
         quoteHash,
         ProviderType.PegIn,
         quote.penaltyFee,
@@ -753,6 +754,7 @@ describe("PegInContract registerPegIn function should", () => {
       .to.emit(collateralManagement, "Penalized")
       .withArgs(
         fullLp.address,
+        registerCaller.address,
         quoteHash,
         ProviderType.PegIn,
         quote.penaltyFee,
@@ -895,6 +897,7 @@ describe("PegInContract registerPegIn function should", () => {
       .to.emit(collateralManagement, "Penalized")
       .withArgs(
         fullLp.address,
+        registerCaller.address,
         quoteHash,
         ProviderType.PegIn,
         quote.penaltyFee,
@@ -982,6 +985,7 @@ describe("PegInContract registerPegIn function should", () => {
       .to.emit(collateralManagement, "Penalized")
       .withArgs(
         fullLp.address,
+        registerCaller.address,
         quoteHash,
         ProviderType.PegIn,
         quote.penaltyFee,
@@ -1096,6 +1100,7 @@ describe("PegInContract registerPegIn function should", () => {
       .to.emit(collateralManagement, "Penalized")
       .withArgs(
         fullLp.address,
+        registerCaller.address,
         quoteHash,
         ProviderType.PegIn,
         quote.penaltyFee,
@@ -1321,7 +1326,8 @@ describe("PegInContract registerPegIn function should", () => {
     await expect(tx)
       .to.emit(collateralManagement, "Penalized")
       .withArgs(
-        fullLp,
+        fullLp.address,
+        registerCaller.address,
         quoteHash,
         ProviderType.PegIn,
         quote.penaltyFee,
