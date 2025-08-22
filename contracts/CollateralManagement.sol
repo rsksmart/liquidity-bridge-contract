@@ -15,17 +15,19 @@ contract CollateralManagementContract is
     ReentrancyGuardUpgradeable,
     ICollateralManagement
 {
+    /// @notice The version of the contract
+    string constant public VERSION = "1.0.0";
     bytes32 public constant COLLATERAL_ADDER = keccak256("COLLATERAL_ADDER");
     bytes32 public constant COLLATERAL_SLASHER = keccak256("COLLATERAL_SLASHER");
 
     uint256 private _minCollateral;
     uint256 private _resignDelayInBlocks;
+    uint256 private _rewardPercentage;
     uint256 private _penalties;
     mapping(address => uint256) private _pegInCollateral;
     mapping(address => uint256) private _pegOutCollateral;
     mapping(address => uint256) private _resignationBlockNum;
     mapping(address => uint256) private _rewards;
-    uint256 public rewardPercentage;
 
     event MinCollateralSet(uint256 indexed oldMinCollateral, uint256 indexed newMinCollateral);
     event ResignDelayInBlocksSet(uint256 indexed oldResignDelayInBlocks, uint256 indexed newResignDelayInBlocks);
@@ -70,13 +72,13 @@ contract CollateralManagementContract is
         uint48 initialDelay,
         uint256 minCollateral,
         uint256 resignDelayInBlocks,
-        uint256 rewardPercentage_
+        uint256 rewardPercentage
     ) external initializer {
         __AccessControlDefaultAdminRules_init(initialDelay, owner);
         __ReentrancyGuard_init();
         _minCollateral = minCollateral;
         _resignDelayInBlocks = resignDelayInBlocks;
-        rewardPercentage = rewardPercentage_;
+        _rewardPercentage = rewardPercentage;
         _penalties = 0;
     }
 
@@ -93,9 +95,9 @@ contract CollateralManagementContract is
     }
 
     // solhint-disable-next-line comprehensive-interface
-    function setRewardPercentage(uint256 rewardPercentage_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        emit RewardPercentageSet(rewardPercentage, rewardPercentage_);
-        rewardPercentage = rewardPercentage_;
+    function setRewardPercentage(uint256 rewardPercentage) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        emit RewardPercentageSet(_rewardPercentage, rewardPercentage);
+        _rewardPercentage = rewardPercentage;
     }
 
     function slashPegInCollateral(
@@ -108,7 +110,7 @@ contract CollateralManagementContract is
             _pegInCollateral[quote.liquidityProviderRskAddress]
         );
         _pegInCollateral[quote.liquidityProviderRskAddress] -= penalty;
-        uint256 punisherReward = (penalty * rewardPercentage) / 100;
+        uint256 punisherReward = (penalty * _rewardPercentage) / 100;
         _penalties += penalty - punisherReward;
         _rewards[punisher] += punisherReward;
         emit Penalized(
@@ -131,7 +133,7 @@ contract CollateralManagementContract is
             _pegOutCollateral[quote.lpRskAddress]
         );
         _pegOutCollateral[quote.lpRskAddress] -= penalty;
-        uint256 punisherReward = (penalty * rewardPercentage) / 100;
+        uint256 punisherReward = (penalty * _rewardPercentage) / 100;
         _penalties += penalty - punisherReward;
         _rewards[punisher] += punisherReward;
         emit Penalized(
@@ -164,6 +166,7 @@ contract CollateralManagementContract is
     }
 
     function withdrawRewards(address addr) external override {
+        if (addr == address(0)) revert Flyover.InvalidAddress(addr);
         uint256 rewards = _rewards[addr];
         if (rewards < 1) revert NothingToWithdraw(addr);
         _rewards[addr] = 0;
@@ -174,6 +177,7 @@ contract CollateralManagementContract is
 
     function resign() external override {
         address providerAddress = msg.sender;
+        if (providerAddress == address(0)) revert Flyover.InvalidAddress(providerAddress);
         if (_resignationBlockNum[providerAddress] != 0) revert AlreadyResigned(providerAddress);
         if (_pegInCollateral[providerAddress] < 1 && _pegOutCollateral[providerAddress] < 1) {
             revert Flyover.ProviderNotRegistered(providerAddress);
@@ -192,6 +196,14 @@ contract CollateralManagementContract is
 
     function getResignationBlock(address addr) external view override returns (uint256) {
         return _resignationBlockNum[addr];
+    }
+
+    function getRewardPercentage() external view override returns (uint256) {
+        return _rewardPercentage;
+    }
+
+    function getResignDelayInBlocks() external view override returns (uint256) {
+        return _resignDelayInBlocks;
     }
 
     function getMinCollateral() external view override returns (uint256) {

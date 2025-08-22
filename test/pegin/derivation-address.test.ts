@@ -1,5 +1,4 @@
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
-import { deployCollateralManagement } from "../utils/fixtures";
 import hre, { ethers, upgrades } from "hardhat";
 import { PegInContract } from "../../typechain-types";
 import { PEGIN_CONSTANTS, ZERO_ADDRESS } from "../utils/constants";
@@ -7,6 +6,7 @@ import { deployLibraries } from "../../scripts/deployment-utils/deploy-libraries
 import { ApiPeginQuote, parsePeginQuote } from "../../tasks/utils/quote";
 import bs58 from "bs58";
 import { expect } from "chai";
+import { deployCollateralManagement } from "../collateral/fixtures";
 
 describe("PegInContract validatePegInDepositAddress function should", () => {
   const testCases: {
@@ -17,7 +17,7 @@ describe("PegInContract validatePegInDepositAddress function should", () => {
     {
       quote: {
         fedBTCAddr: "3GQ87zLKyTygsRMZ1hfCHZSdBxujzKoCCU",
-        lbcAddr: "0x2B0d36FACD61B71CC05ab8F3D2355ec3631C0dd5",
+        lbcAddr: "0x4A679253410272dd5232B3Ff7cF5dbB88f295319",
         lpRSKAddr: "0x82a06ebdb97776a2da4041df8f2b2ea8d3257852",
         btcRefundAddr: "1111111111111111111114oLvT2",
         rskRefundAddr: "0xaC31A4bEEdd7EC916b7a48A612230Cb85c1aaf56",
@@ -37,13 +37,13 @@ describe("PegInContract validatePegInDepositAddress function should", () => {
         gasFee: 547377600000,
         productFeeAmount: 0,
       },
-      mainnetAddress: "3Lc4gDG8tKvH7pUAXrVdSqjgKNjw7rDuSM",
-      testnetAddress: "2NCAGjxCAVnRdKc6iCz7W4niwXix6voH6hm",
+      mainnetAddress: "3Ff4FWzbqnv6Lkw1vhbt8eTubRtCL1WWi6",
+      testnetAddress: "2N7DGKFvdTFRSYYZZbqDkkbTAon6N8u4MWT",
     },
     {
       quote: {
         fedBTCAddr: "3GQ87zLKyTygsRMZ1hfCHZSdBxujzKoCCU",
-        lbcAddr: "0x2B0d36FACD61B71CC05ab8F3D2355ec3631C0dd5",
+        lbcAddr: "0x4A679253410272dd5232B3Ff7cF5dbB88f295319",
         lpRSKAddr: "0x82a06ebdb97776a2da4041df8f2b2ea8d3257852",
         btcRefundAddr: "1111111111111111111114oLvT2",
         rskRefundAddr: "0x129D2280f9c35c0cAf3f172D487fD9A3f894fD26",
@@ -63,13 +63,13 @@ describe("PegInContract validatePegInDepositAddress function should", () => {
         gasFee: 547377600000,
         productFeeAmount: 0,
       },
-      mainnetAddress: "33LLHsHCHuSVSce3QV4t5VqxFYKan3fFW6",
-      testnetAddress: "2MttYMcDDuMwqeQGb5cgkhSqDTtXkbc482q",
+      mainnetAddress: "33NBtQUq1Er3vf8XxXMC6Tu2TrSCgpCUsR",
+      testnetAddress: "2MtvPx9QrchMQ8Sm5dey4iQtHgCeNXQ6Vfn",
     },
     {
       quote: {
         fedBTCAddr: "3GQ87zLKyTygsRMZ1hfCHZSdBxujzKoCCU",
-        lbcAddr: "0x2B0d36FACD61B71CC05ab8F3D2355ec3631C0dd5",
+        lbcAddr: "0x4A679253410272dd5232B3Ff7cF5dbB88f295319",
         lpRSKAddr: "0x82a06ebdb97776a2da4041df8f2b2ea8d3257852",
         btcRefundAddr: "1111111111111111111114oLvT2",
         rskRefundAddr: "0xaC31A4bEEdd7EC916b7a48A612230Cb85c1aaf56",
@@ -89,8 +89,8 @@ describe("PegInContract validatePegInDepositAddress function should", () => {
         gasFee: 547377600000,
         productFeeAmount: 0,
       },
-      mainnetAddress: "3Bus4sXKVv5eFRzsDRGKGoLqUg81pyrgkU",
-      testnetAddress: "2N3U58cTM7NazTDdQtYtBtkL6h2LBdCRUtf",
+      mainnetAddress: "3Q4KkmGH1KzaKNUefJgbEsViAGuDSGq5Fy",
+      testnetAddress: "2NFcXpWCJcnVvXA7CLSJTrpUyNd7PFUhRtR",
     },
   ];
 
