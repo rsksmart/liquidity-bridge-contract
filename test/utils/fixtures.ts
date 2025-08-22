@@ -3,31 +3,14 @@ import hre, { ethers, upgrades } from "hardhat";
 import { upgradeLbcProxy } from "../../scripts/deployment-utils/upgrade-proxy";
 import { LiquidityBridgeContractV2 } from "../../typechain-types";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
-import { COLLATERAL_CONSTANTS, LP_COLLATERAL, ProviderType } from "./constants";
+import { LP_COLLATERAL, ProviderType } from "./constants";
+import { deployCollateralManagement } from "../collateral/fixtures";
 
-// TODO this should be removed once the collateral management has its final implementation and test files, then
-// this file should import a function from there
-export async function deployCollateralManagement() {
-  const CollateralManagement = await ethers.getContractFactory(
-    "CollateralManagementContract"
-  );
+export async function deployCollateralManagementAndDiscovery() {
+  const { collateralManagement, signers, owner } =
+    await deployCollateralManagement();
   const FlyoverDiscovery = await ethers.getContractFactory(
     "FlyoverDiscoveryContract"
-  );
-  const signers = await ethers.getSigners();
-  const lastSigner = signers.pop();
-  if (!lastSigner) throw new Error("owner can't be undefined");
-  const owner = lastSigner;
-
-  const collateralManagement = await upgrades.deployProxy(
-    CollateralManagement,
-    [
-      owner.address,
-      500n,
-      ethers.parseEther("0.6"),
-      500n,
-      COLLATERAL_CONSTANTS.TEST_REWARD_PERCENTAGE,
-    ]
   );
 
   const discovery = await upgrades.deployProxy(FlyoverDiscovery, [
