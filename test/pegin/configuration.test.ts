@@ -6,10 +6,10 @@ import {
   PEGIN_CONSTANTS,
   ZERO_ADDRESS,
 } from "../utils/constants";
-import { deployCollateralManagement } from "../utils/fixtures";
 import { deployLibraries } from "../../scripts/deployment-utils/deploy-libraries";
 import hre, { ethers, upgrades } from "hardhat";
 import { Flyover__factory } from "../../typechain-types";
+import { deployCollateralManagement } from "../collateral/fixtures";
 
 describe("PegInContract configurations", () => {
   describe("receive function should", function () {

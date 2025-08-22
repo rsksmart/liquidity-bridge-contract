@@ -48,6 +48,8 @@ interface ICollateralManagement {
     function getPegInCollateral(address addr) external view returns (uint256);
     function getPegOutCollateral(address addr) external view returns (uint256);
     function getResignationBlock(address addr) external view returns (uint256);
+    function getRewardPercentage() external view returns (uint256);
+    function getResignDelayInBlocks() external view returns (uint256);
     function getMinCollateral() external view returns (uint256);
     function isRegistered(Flyover.ProviderType providerType, address addr) external view returns (bool);
     function isCollateralSufficient(Flyover.ProviderType providerType, address addr) external view returns (bool);

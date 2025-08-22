@@ -66,6 +66,14 @@ contract CollateralManagementMock is ICollateralManagement {
         return 0;
     }
 
+    function getRewardPercentage() external pure returns (uint256) {
+        return 0;
+    }
+
+    function getResignDelayInBlocks() external pure returns (uint256) {
+        return 0;
+    }
+
     function getMinCollateral() external pure returns (uint256) {
         return 0.006 ether;
     }

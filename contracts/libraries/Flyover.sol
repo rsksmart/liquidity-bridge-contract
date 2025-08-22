@@ -30,4 +30,5 @@ library Flyover {
     /// @param target the amount required to pay for the quote
     error InsufficientAmount(uint256 amount, uint256 target);
     error Overflow(uint256 passedAmount);
+    error InvalidAddress(address addr);
 }

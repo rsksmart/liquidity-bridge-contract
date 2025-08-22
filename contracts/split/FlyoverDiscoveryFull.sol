@@ -372,6 +372,14 @@ contract FlyoverDiscoveryFull is
         return 0;
     }
 
+    function getRewardPercentage() external pure returns (uint256) {
+        return 0;
+    }
+
+    function getResignDelayInBlocks() external pure returns (uint256) {
+        return 0;
+    }
+
     function withdrawRewards(address addr) external {
         uint256 rewards = _rewards[addr];
         if (rewards < 1) revert NothingToWithdraw(addr);

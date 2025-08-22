@@ -1,12 +1,12 @@
 import hre, { ethers, upgrades } from "hardhat";
-import { deployCollateralManagement } from "../utils/fixtures";
 import { PegInContract } from "../../typechain-types";
 import { deployLibraries } from "../../scripts/deployment-utils/deploy-libraries";
 import { PEGIN_CONSTANTS, ZERO_ADDRESS } from "../utils/constants";
 import { getTestPeginQuote } from "../utils/quotes";
+import { deployCollateralManagementAndDiscovery } from "../utils/fixtures";
 
 export async function deployPegInContractFixture() {
-  const deployResult = await deployCollateralManagement();
+  const deployResult = await deployCollateralManagementAndDiscovery();
   const collateralManagement = deployResult.collateralManagement;
   const collateralManagementAddress = await collateralManagement.getAddress();
   const bridgeMock = await ethers.deployContract("BridgeMock");

@@ -4,10 +4,10 @@ import { deployLibraries } from "../../scripts/deployment-utils/deploy-libraries
 import { PegOutContract } from "../../typechain-types";
 import { getTestPegoutQuote, totalValue } from "../utils/quotes";
 import { getBytes } from "ethers";
-import { deployCollateralManagement } from "../utils/fixtures";
+import { deployCollateralManagementAndDiscovery } from "../utils/fixtures";
 
 export async function deployPegOutContractFixture() {
-  const deployResult = await deployCollateralManagement();
+  const deployResult = await deployCollateralManagementAndDiscovery();
   const collateralManagement = deployResult.collateralManagement;
   const collateralManagementAddress = await collateralManagement.getAddress();
   const bridgeMock = await ethers.deployContract("BridgeMock");
