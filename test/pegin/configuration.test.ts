@@ -35,6 +35,9 @@ describe("PegInContract configurations", () => {
       await expect(contract.dustThreshold()).to.eventually.eq(
         PEGIN_CONSTANTS.TEST_DUST_THRESHOLD
       );
+      await expect(contract.getMinPegIn()).to.eventually.eq(
+        PEGIN_CONSTANTS.TEST_MIN_PEGIN
+      );
       await expect(contract.owner()).to.eventually.eq(owner.address);
       await expect(contract.getFeePercentage()).to.eventually.eq(0n);
       await expect(contract.getFeeCollector()).to.eventually.eq(ZERO_ADDRESS);
@@ -148,6 +151,26 @@ describe("PegInContract configurations", () => {
       await expect(tx)
         .to.emit(contract, "CollateralManagementSet")
         .withArgs(initializationParams[4], otherContract);
+    });
+  });
+  describe("setMinPegIn function should", function () {
+    it("only allow the owner to modify the minimum peg in amount", async function () {
+      const { contract, signers } = await loadFixture(
+        deployPegInContractFixture
+      );
+      const notOwner = signers[0];
+      await expect(
+        contract.connect(notOwner).setMinPegIn(1n)
+      ).to.be.revertedWithCustomError(contract, "OwnableUnauthorizedAccount");
+    });
+
+    it("modify the minimum peg in amount properly", async function () {
+      const { contract, owner } = await loadFixture(deployPegInContractFixture);
+      const tx = contract.connect(owner).setMinPegIn(1n);
+      await expect(tx)
+        .to.emit(contract, "MinPegInSet")
+        .withArgs(PEGIN_CONSTANTS.TEST_MIN_PEGIN, 1n);
+      await expect(contract.getMinPegIn()).to.eventually.eq(1n);
     });
   });
 });
