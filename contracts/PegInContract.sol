@@ -274,6 +274,7 @@ contract PegInContract is
 
     /// @inheritdoc IPegIn
     function getBalance(address addr) external view override returns (uint256) {
+        if (_reentrancyGuardEntered()) revert ReentrancyGuardReentrantCall();
         return _balances[addr];
     }
 
@@ -284,6 +285,7 @@ contract PegInContract is
 
     /// @inheritdoc IPegIn
     function getQuoteStatus(bytes32 quoteHash) external view override returns (PegInStates) {
+        if (_reentrancyGuardEntered()) revert ReentrancyGuardReentrantCall();
         return _processedQuotes[quoteHash];
     }
 
