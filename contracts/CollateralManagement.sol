@@ -105,7 +105,7 @@ contract CollateralManagementContract is
         Quotes.PegInQuote calldata quote,
         bytes32 quoteHash
     ) external onlyRole(COLLATERAL_SLASHER) override {
-        uint penalty = Math.min(
+        uint256 penalty = Math.min(
             quote.penaltyFee,
             _pegInCollateral[quote.liquidityProviderRskAddress]
         );
@@ -165,8 +165,8 @@ contract CollateralManagementContract is
         if (!success) revert WithdrawalFailed(providerAddress, amount);
     }
 
-    function withdrawRewards(address addr) external override {
-        if (addr == address(0)) revert Flyover.InvalidAddress(addr);
+    function withdrawRewards() external override {
+        address addr = msg.sender;
         uint256 rewards = _rewards[addr];
         if (rewards < 1) revert NothingToWithdraw(addr);
         _rewards[addr] = 0;

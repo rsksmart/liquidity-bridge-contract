@@ -380,7 +380,8 @@ contract FlyoverDiscoveryFull is
         return 0;
     }
 
-    function withdrawRewards(address addr) external {
+    function withdrawRewards() external {
+        address addr = msg.sender;
         uint256 rewards = _rewards[addr];
         if (rewards < 1) revert NothingToWithdraw(addr);
         _rewards[addr] = 0;

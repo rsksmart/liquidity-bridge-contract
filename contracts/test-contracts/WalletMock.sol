@@ -5,12 +5,18 @@ contract WalletMock {
 
     bool private _rejectFunds;
 
+    event TransactionRejected(address indexed to, uint256 indexed value, bytes reason);
     error PaymentRejected();
 
     receive() external payable {
         if (_rejectFunds) {
             revert PaymentRejected();
         }
+    }
+
+    function execute(address to, uint256 value, bytes calldata data) external payable {
+        (bool success, bytes memory reason) = to.call{value: value}(data);
+        if (!success) emit TransactionRejected(to, value, reason);
     }
 
     function setRejectFunds(bool val) external {
