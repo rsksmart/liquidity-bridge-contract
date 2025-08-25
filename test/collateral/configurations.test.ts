@@ -2,8 +2,32 @@ import { COLLATERAL_CONSTANTS } from "../utils/constants";
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { deployCollateralManagement } from "./fixtures";
+import { ethers } from "ethers";
 
 describe("CollateralManagementContract configurations", () => {
+  describe("receive function should", function () {
+    it("reject any RTBC sent to the contract", async function () {
+      const { collateralManagement, signers, owner } = await loadFixture(
+        deployCollateralManagement
+      );
+      const address = await collateralManagement.getAddress();
+      await expect(
+        owner.sendTransaction({ to: address, value: ethers.parseEther("1") })
+      ).to.be.revertedWithCustomError(
+        collateralManagement,
+        "PaymentNotAllowed"
+      );
+      await expect(
+        signers[0].sendTransaction({
+          to: address,
+          value: ethers.parseEther("1"),
+        })
+      ).to.be.revertedWithCustomError(
+        collateralManagement,
+        "PaymentNotAllowed"
+      );
+    });
+  });
   describe("initialize function should", function () {
     it("initialize properly", async function () {
       const { collateralManagement, owner } = await loadFixture(
