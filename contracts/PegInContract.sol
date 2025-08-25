@@ -274,6 +274,7 @@ contract PegInContract is
 
     /// @inheritdoc IPegIn
     function getBalance(address addr) external view override returns (uint256) {
+        if (_reentrancyGuardEntered()) revert ReentrancyGuardReentrantCall();
         return _balances[addr];
     }
 
