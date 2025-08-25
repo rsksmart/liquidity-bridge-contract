@@ -1,76 +1,10 @@
 import hre, { upgrades, ethers } from "hardhat";
-import {
-  PEGOUT_CONSTANTS,
-  ProviderType,
-  ZERO_ADDRESS,
-} from "../utils/constants";
+import { PEGOUT_CONSTANTS, ZERO_ADDRESS } from "../utils/constants";
 import { deployLibraries } from "../../scripts/deployment-utils/deploy-libraries";
 import { PegOutContract } from "../../typechain-types";
 import { getTestPegoutQuote, totalValue } from "../utils/quotes";
 import { getBytes } from "ethers";
-
-// TODO this should be removed once the collateral management has its final implementation and test files, then
-// this file should import a function from there
-export async function deployCollateralManagement() {
-  const CollateralManagement = await ethers.getContractFactory(
-    "CollateralManagementContract"
-  );
-  const FlyoverDiscovery = await ethers.getContractFactory(
-    "FlyoverDiscoveryContract"
-  );
-  const signers = await ethers.getSigners();
-  const lastSigner = signers.pop();
-  if (!lastSigner) throw new Error("owner can't be undefined");
-  const owner = lastSigner;
-
-  const collateralManagement = await upgrades.deployProxy(
-    CollateralManagement,
-    [owner.address, 500n, ethers.parseEther("0.6"), 500n]
-  );
-
-  const discovery = await upgrades.deployProxy(FlyoverDiscovery, [
-    owner.address,
-    await collateralManagement.getAddress(),
-  ]);
-  await collateralManagement
-    .connect(owner)
-    .grantRole(
-      await collateralManagement.COLLATERAL_ADDER(),
-      await discovery.getAddress()
-    );
-
-  const pegInLp = signers.pop();
-  const pegOutLp = signers.pop();
-  const fullLp = signers.pop();
-  if (!pegInLp || !pegOutLp || !fullLp)
-    throw new Error("LP can't be undefined");
-
-  await discovery
-    .connect(pegInLp)
-    .register("Pegin Provider", "lp1.com", true, ProviderType.PegIn, {
-      value: ethers.parseEther("0.6"),
-    });
-  await discovery
-    .connect(pegOutLp)
-    .register("PegOut Provider", "lp2.com", true, ProviderType.PegOut, {
-      value: ethers.parseEther("0.6"),
-    });
-  await discovery
-    .connect(fullLp)
-    .register("Full Provider", "lp3.com", true, ProviderType.Both, {
-      value: ethers.parseEther("1.2"),
-    });
-
-  return {
-    collateralManagement,
-    discovery,
-    signers,
-    owner,
-    pegInLp,
-    pegOutLp,
-    fullLp,
-  };
-}
+import { deployCollateralManagement } from "../utils/fixtures";
 
 export async function deployPegOutContractFixture() {
   const deployResult = await deployCollateralManagement();
@@ -129,6 +63,7 @@ export async function paidPegOutFixture() {
     liquidityProvider: pegOutLp,
     refundAddress: user.address,
     value: ethers.parseEther("1.23"),
+    productFeePercentage: 2,
   });
   const quoteHash = await contract.hashPegOutQuote(quote);
   const signature = await pegOutLp.signMessage(getBytes(quoteHash));

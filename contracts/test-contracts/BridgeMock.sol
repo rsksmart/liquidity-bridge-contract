@@ -10,6 +10,7 @@ contract BridgeMock is IBridge {
     mapping(uint256 => bytes) private _headers;
     mapping (bytes32 => bytes) private _headersByHash;
     int private _confirmations;
+    int private _registerError;
 
     error SendFailed();
 
@@ -31,6 +32,9 @@ contract BridgeMock is IBridge {
         bytes memory ,
         bool
     ) external override returns (int256) {
+        if (_registerError != 0) {
+            return _registerError;
+        }
         uint256 amount = _amounts[derivationArgumentsHash];
         _amounts[derivationArgumentsHash] = 0;
         (bool success, ) = liquidityBridgeContractAddress.call{value: amount}("");
@@ -159,5 +163,9 @@ contract BridgeMock is IBridge {
 
     function setPegin(bytes32 derivationArgumentsHash) public payable {
         _amounts[derivationArgumentsHash] = msg.value;
+    }
+
+    function setPeginError(int256 errorCode) public payable {
+        _registerError = errorCode;
     }
 }

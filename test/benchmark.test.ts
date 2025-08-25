@@ -35,6 +35,7 @@ describe("FlyoverDiscovery benchmark", () => {
         5000n,
         ethers.parseEther("0.03"),
         60n,
+        0n,
       ]);
       const address = await deployed.getAddress();
       return address;
@@ -63,7 +64,7 @@ describe("FlyoverDiscovery benchmark", () => {
         );
         const deployed = await upgrades.deployProxy(
           CollateralManagementContract,
-          [owner.address, 5000n, ethers.parseEther("0.03"), 60n]
+          [owner.address, 5000n, ethers.parseEther("0.03"), 60n, 10n]
         );
         const address = await deployed.getAddress();
         return address;
