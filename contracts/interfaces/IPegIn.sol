@@ -158,4 +158,8 @@ interface IPegIn {
     /// @param quote The quote of the peg in
     /// @return quoteHash The hash of the quote
     function hashPegInQuote(Quotes.PegInQuote calldata quote) external view returns (bytes32);
+
+    /// @notice This function is used to get the minimum peg in amount allowed by the protocol
+    /// @return minPegIn The minimum peg in amount
+    function getMinPegIn() external view returns (uint256);
 }
