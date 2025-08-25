@@ -33,3 +33,24 @@ export async function deployCollateralManagement() {
     collateralManagementParams,
   };
 }
+
+export async function deployCollateralManagementWithRoles() {
+  const deployResult = await deployCollateralManagement();
+  const signers = deployResult.signers;
+  const adder = signers.pop();
+  const slasher = signers.pop();
+  if (!adder || !slasher)
+    throw new Error("adder and slasher can't be undefined");
+  const { collateralManagement, owner } = deployResult;
+  await collateralManagement
+    .connect(owner)
+    .grantRole(await collateralManagement.COLLATERAL_ADDER(), adder.address);
+  await collateralManagement
+    .connect(owner)
+    .grantRole(
+      await collateralManagement.COLLATERAL_SLASHER(),
+      slasher.address
+    );
+
+  return { adder, slasher, ...deployResult };
+}

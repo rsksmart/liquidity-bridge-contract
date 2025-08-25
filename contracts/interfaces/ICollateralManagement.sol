@@ -41,7 +41,7 @@ interface ICollateralManagement {
         Quotes.PegOutQuote calldata quote,
         bytes32 quoteHash
     ) external;
-    function withdrawRewards(address addr) external;
+    function withdrawRewards() external;
     function withdrawCollateral() external;
     function resign() external;
 
