@@ -55,6 +55,11 @@ contract PegInContract is
     /// @param newThreshold The new dust threshold
     event DustThresholdSet(uint256 indexed oldThreshold, uint256 indexed newThreshold);
 
+    /// @notice Emitted when the minimum peg in amount is set
+    /// @param oldMinPegIn The old minimum peg in amount
+    /// @param newMinPegIn The new minimum peg in amount
+    event MinPegInSet(uint256 indexed oldMinPegIn, uint256 indexed newMinPegIn);
+
     // solhint-disable-next-line comprehensive-interface
     receive() external payable {
         if (msg.sender != address(_bridge)) {
@@ -109,6 +114,15 @@ contract PegInContract is
     function setDustThreshold(uint256 threshold) external onlyOwner {
         emit DustThresholdSet(dustThreshold, threshold);
         dustThreshold = threshold;
+    }
+
+    /// @notice This function is used to set the minimum peg in amount
+    /// @param minPegIn the new minimum peg in amount
+    /// @dev This function is only callable by the owner of the contract
+    // solhint-disable-next-line comprehensive-interface
+    function setMinPegIn(uint256 minPegIn) external onlyOwner {
+        emit MinPegInSet(_minPegIn, minPegIn);
+        _minPegIn = minPegIn;
     }
 
     /// @inheritdoc IPegIn
@@ -250,6 +264,11 @@ contract PegInContract is
             _bridge.getActivePowpegRedeemScript()
         );
         return BtcUtils.validateP2SHAdress(depositAddress, flyoverRedeemScript, _mainnet);
+    }
+
+    /// @inheritdoc IPegIn
+    function getMinPegIn() external view override returns (uint256) {
+        return _minPegIn;
     }
 
     /// @inheritdoc IPegIn
