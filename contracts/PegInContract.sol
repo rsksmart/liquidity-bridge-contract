@@ -12,6 +12,7 @@ import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 
 /// @title PegIn
 /// @notice This contract is used to handle the peg in of the Bitcoin network to the Rootstock network
+/// @dev All non pure/view functions in this contract should be marked as nonReentrant
 /// @author Rootstock Labs
 contract PegInContract is
     OwnableDaoContributorUpgradeable,
@@ -101,7 +102,7 @@ contract PegInContract is
     /// @param collateralManagement the address of the Collateral Management contract
     /// @dev This function is only callable by the owner of the contract
     // solhint-disable-next-line comprehensive-interface
-    function setCollateralManagement(address collateralManagement) external onlyOwner {
+    function setCollateralManagement(address collateralManagement) external onlyOwner nonReentrant {
         if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
         emit CollateralManagementSet(address(_collateralManagement), collateralManagement);
         _collateralManagement = ICollateralManagement(collateralManagement);
@@ -111,7 +112,7 @@ contract PegInContract is
     /// @param threshold the new dust threshold
     /// @dev This function is only callable by the owner of the contract
     // solhint-disable-next-line comprehensive-interface
-    function setDustThreshold(uint256 threshold) external onlyOwner {
+    function setDustThreshold(uint256 threshold) external onlyOwner nonReentrant {
         emit DustThresholdSet(dustThreshold, threshold);
         dustThreshold = threshold;
     }
@@ -120,13 +121,13 @@ contract PegInContract is
     /// @param minPegIn the new minimum peg in amount
     /// @dev This function is only callable by the owner of the contract
     // solhint-disable-next-line comprehensive-interface
-    function setMinPegIn(uint256 minPegIn) external onlyOwner {
+    function setMinPegIn(uint256 minPegIn) external onlyOwner nonReentrant {
         emit MinPegInSet(_minPegIn, minPegIn);
         _minPegIn = minPegIn;
     }
 
     /// @inheritdoc IPegIn
-    function deposit() external payable override {
+    function deposit() external payable nonReentrant override {
         if(!_collateralManagement.isRegistered(_PEG_TYPE, msg.sender)) {
             revert Flyover.ProviderNotRegistered(msg.sender);
         }
