@@ -436,7 +436,7 @@ describe("LiquidityBridgeContractV2 pegout process should", () => {
     quote.expireBlock = await ethers.provider
       .getBlockNumber()
       .then((result) => result + 10);
-    quote.expireDate = Math.round(Date.now() / 1000) + 3000;
+    quote.expireDate = Math.round(Date.now() / 1000) + 100_000;
     const { blockHeaderHash, partialMerkleTree, merkleBranchHashes } =
       getTestMerkleProof();
     const quoteHash = await lbc
@@ -457,7 +457,7 @@ describe("LiquidityBridgeContractV2 pegout process should", () => {
     });
     await expect(depositTx).to.emit(lbc, "PegOutDeposit");
     await hardhatHelpers.mine(9);
-    await hardhatHelpers.time.increase(6000);
+    await hardhatHelpers.mine(1, { interval: 120_000 });
 
     const btcTx = await generateRawTx(lbc, quote);
     lbc = lbc.connect(provider.signer);
@@ -575,8 +575,9 @@ describe("LiquidityBridgeContractV2 pegout process should", () => {
     });
     quote.expireBlock = await ethers.provider
       .getBlockNumber()
-      .then((result) => result - 1);
-    quote.expireDate = Math.round(Date.now() / 1000) + 100;
+      .then((result) => result - 2);
+    quote.depositDateLimit = Math.round(Date.now() / 1000) + 8000;
+    quote.expireDate = Math.round(Date.now() / 1000) + 3000;
     const quoteHash = await lbc
       .hashPegoutQuote(quote)
       .then((hash) => getBytes(hash));
@@ -588,7 +589,7 @@ describe("LiquidityBridgeContractV2 pegout process should", () => {
     });
     await expect(revertByBlocks).to.be.revertedWith("LBC047");
 
-    await hardhatHelpers.time.increase(200);
+    await hardhatHelpers.mine(3, { interval: 2000 });
     const revertByTime = lbc.depositPegout(quote, signature, {
       value: totalValue(quote),
     });
@@ -687,7 +688,7 @@ describe("LiquidityBridgeContractV2 pegout process should", () => {
     quote.expireBlock = await ethers.provider
       .getBlockNumber()
       .then((result) => result + 10);
-    quote.expireDate = Math.round(Date.now() / 1000) + 100;
+    quote.expireDate = Math.round(Date.now() / 1000) + 100_000;
     const quoteHash = await lbc
       .hashPegoutQuote(quote)
       .then((hash) => getBytes(hash));
@@ -708,7 +709,7 @@ describe("LiquidityBridgeContractV2 pegout process should", () => {
       (totalValue(quote) + depositReceipt!.fee) * -1n
     );
     await hardhatHelpers.mine(9);
-    await hardhatHelpers.time.increase(200);
+    await hardhatHelpers.mine(2, { interval: 120_000 });
     const userBalanceBeforeRefundAssertion = await createBalanceUpdateAssertion(
       {
         source: ethers.provider,
