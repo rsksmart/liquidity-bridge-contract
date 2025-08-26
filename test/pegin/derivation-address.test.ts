@@ -17,7 +17,7 @@ describe("PegInContract validatePegInDepositAddress function should", () => {
     {
       quote: {
         fedBTCAddr: "3GQ87zLKyTygsRMZ1hfCHZSdBxujzKoCCU",
-        lbcAddr: "0x4A679253410272dd5232B3Ff7cF5dbB88f295319",
+        lbcAddr: "0xC9a43158891282A2B1475592D5719c001986Aaec",
         lpRSKAddr: "0x82a06ebdb97776a2da4041df8f2b2ea8d3257852",
         btcRefundAddr: "1111111111111111111114oLvT2",
         rskRefundAddr: "0xaC31A4bEEdd7EC916b7a48A612230Cb85c1aaf56",
@@ -37,13 +37,13 @@ describe("PegInContract validatePegInDepositAddress function should", () => {
         gasFee: 547377600000,
         productFeeAmount: 0,
       },
-      mainnetAddress: "3Ff4FWzbqnv6Lkw1vhbt8eTubRtCL1WWi6",
-      testnetAddress: "2N7DGKFvdTFRSYYZZbqDkkbTAon6N8u4MWT",
+      mainnetAddress: "3NL4vLByNyjHEZrZpjgW9Wtk2TcLsJSZAn",
+      testnetAddress: "2NDtGz57zzSEdSMV7VsJNmTt1EopWdjF8ty",
     },
     {
       quote: {
         fedBTCAddr: "3GQ87zLKyTygsRMZ1hfCHZSdBxujzKoCCU",
-        lbcAddr: "0x4A679253410272dd5232B3Ff7cF5dbB88f295319",
+        lbcAddr: "0xC9a43158891282A2B1475592D5719c001986Aaec",
         lpRSKAddr: "0x82a06ebdb97776a2da4041df8f2b2ea8d3257852",
         btcRefundAddr: "1111111111111111111114oLvT2",
         rskRefundAddr: "0x129D2280f9c35c0cAf3f172D487fD9A3f894fD26",
@@ -63,13 +63,13 @@ describe("PegInContract validatePegInDepositAddress function should", () => {
         gasFee: 547377600000,
         productFeeAmount: 0,
       },
-      mainnetAddress: "33NBtQUq1Er3vf8XxXMC6Tu2TrSCgpCUsR",
-      testnetAddress: "2MtvPx9QrchMQ8Sm5dey4iQtHgCeNXQ6Vfn",
+      mainnetAddress: "3NYC8YUBenys3rF3XLGd3riBzVDcsGvnA9",
+      testnetAddress: "2NE6QCHQDGFVDFdsbCTtVfohTCqRngyKtz7",
     },
     {
       quote: {
         fedBTCAddr: "3GQ87zLKyTygsRMZ1hfCHZSdBxujzKoCCU",
-        lbcAddr: "0x4A679253410272dd5232B3Ff7cF5dbB88f295319",
+        lbcAddr: "0xC9a43158891282A2B1475592D5719c001986Aaec",
         lpRSKAddr: "0x82a06ebdb97776a2da4041df8f2b2ea8d3257852",
         btcRefundAddr: "1111111111111111111114oLvT2",
         rskRefundAddr: "0xaC31A4bEEdd7EC916b7a48A612230Cb85c1aaf56",
@@ -89,8 +89,8 @@ describe("PegInContract validatePegInDepositAddress function should", () => {
         gasFee: 547377600000,
         productFeeAmount: 0,
       },
-      mainnetAddress: "3Q4KkmGH1KzaKNUefJgbEsViAGuDSGq5Fy",
-      testnetAddress: "2NFcXpWCJcnVvXA7CLSJTrpUyNd7PFUhRtR",
+      mainnetAddress: "34W24FRzEwbW1yiqjs1QgtaXp2rbdboypb",
+      testnetAddress: "2Mv4E7zN1rQ6rDmMPQzdHJqZo2P4mRsc6dU",
     },
   ];
 

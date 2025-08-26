@@ -10,7 +10,7 @@ describe("PegInContract hashPegInQuote function should", () => {
     "bc1quhhaa58r2xg3yu7ms85stpds0dmg896auw4nmh";
   const QUOTE_MOCK: ApiPeginQuote = {
     fedBTCAddr: "3GQ87zLKyTygsRMZ1hfCHZSdBxujzKoCCU",
-    lbcAddr: "0x9E545E3C0baAB3E08CdfD552C960A1050f373042",
+    lbcAddr: "0x172076E0166D1F9Cc711C77Adf8488051744980C",
     lpRSKAddr: "0x82a06ebdb97776a2da4041df8f2b2ea8d3257852",
     btcRefundAddr: "1111111111111111111114oLvT2",
     rskRefundAddr: "0xaC31A4bEEdd7EC916b7a48A612230Cb85c1aaf56",
@@ -106,12 +106,12 @@ describe("PegInContract hashPegInQuote function should", () => {
     const testCases: { quote: ApiPeginQuote; hash: string }[] = [
       {
         quote: QUOTE_MOCK,
-        hash: "0x1a139de3af6fea8b2a754883ee1a3a81f6a0099929471517684aca949914ceae",
+        hash: "0xe8b928c88de9e620e6f08645ed1b413bf05d9cbdcd23bd4bac980b8e6b041aad",
       },
       {
         quote: {
           fedBTCAddr: "3GQ87zLKyTygsRMZ1hfCHZSdBxujzKoCCU",
-          lbcAddr: "0x9E545E3C0baAB3E08CdfD552C960A1050f373042",
+          lbcAddr: "0x172076E0166D1F9Cc711C77Adf8488051744980C",
           lpRSKAddr: "0x82a06ebdb97776a2da4041df8f2b2ea8d3257852",
           btcRefundAddr: "1111111111111111111114oLvT2",
           rskRefundAddr: "0x129D2280f9c35c0cAf3f172D487fD9A3f894fD26",
@@ -131,12 +131,12 @@ describe("PegInContract hashPegInQuote function should", () => {
           gasFee: 547377600000,
           productFeeAmount: 0,
         },
-        hash: "0x9a1d7eaa107e2e247372085cc5f4bbf32306d98a961b7957608c0d4080329df1",
+        hash: "0x786f5080f538683f02952ed2aab27417bcd9453911067b510a83dee9d0430943",
       },
       {
         quote: {
           fedBTCAddr: "3GQ87zLKyTygsRMZ1hfCHZSdBxujzKoCCU",
-          lbcAddr: "0x9E545E3C0baAB3E08CdfD552C960A1050f373042",
+          lbcAddr: "0x172076E0166D1F9Cc711C77Adf8488051744980C",
           lpRSKAddr: "0x82a06ebdb97776a2da4041df8f2b2ea8d3257852",
           btcRefundAddr: "1111111111111111111114oLvT2",
           rskRefundAddr: "0xaC31A4bEEdd7EC916b7a48A612230Cb85c1aaf56",
@@ -156,7 +156,7 @@ describe("PegInContract hashPegInQuote function should", () => {
           gasFee: 547377600000,
           productFeeAmount: 0,
         },
-        hash: "0xc668c467fa57d32a1dd0550ee1b8cda308eca6517380339df20ebf5c95af7efc",
+        hash: "0x75b60cfb94c8cf1128f469f0ff43e0869a0e2ac85f62f696e2a1256b657c2017",
       },
     ];
     for (const testCase of testCases) {

@@ -4,6 +4,7 @@ import {
   DECODED_P2PKH_ZERO_ADDRESS_TESTNET,
   DECODED_TEST_FED_ADDRESS,
   DECODED_TEST_P2PKH_ADDRESS,
+  ZERO_ADDRESS,
 } from "./constants";
 import { randomBytes } from "crypto";
 import { BigNumberish, BytesLike } from "ethers";
@@ -144,4 +145,53 @@ export function getRewardForQuote(
   rewardPercentage: BigNumberish
 ) {
   return (BigInt(quote.penaltyFee) * BigInt(rewardPercentage)) / 100n;
+}
+
+export function getEmptyPegInQuote(): Quotes.PegInQuoteStruct {
+  return {
+    callFee: 0n,
+    value: 0n,
+    productFeeAmount: 0n,
+    gasFee: 0n,
+    agreementTimestamp: 0,
+    timeForDeposit: 0,
+    callTime: 0,
+    depositConfirmations: 0,
+    callOnRegister: false,
+    fedBtcAddress: DECODED_TEST_FED_ADDRESS.slice(1),
+    lbcAddress: ZERO_ADDRESS,
+    liquidityProviderRskAddress: ZERO_ADDRESS,
+    btcRefundAddress: DECODED_P2PKH_ZERO_ADDRESS_TESTNET,
+    rskRefundAddress: ZERO_ADDRESS,
+    liquidityProviderBtcAddress: DECODED_P2PKH_ZERO_ADDRESS_TESTNET,
+    penaltyFee: 0n,
+    contractAddress: ZERO_ADDRESS,
+    nonce: 0n,
+    gasLimit: 0,
+    data: "0x",
+  };
+}
+
+export function getEmptyPegOutQuote(): Quotes.PegOutQuoteStruct {
+  return {
+    callFee: 0n,
+    value: 0n,
+    productFeeAmount: 0n,
+    gasFee: 0n,
+    agreementTimestamp: 0,
+    depositConfirmations: 0,
+    transferConfirmations: 0,
+    expireBlock: 0,
+    expireDate: 0,
+    lbcAddress: ZERO_ADDRESS,
+    lpRskAddress: ZERO_ADDRESS,
+    btcRefundAddress: DECODED_P2PKH_ZERO_ADDRESS_TESTNET,
+    penaltyFee: 0n,
+    rskRefundAddress: ZERO_ADDRESS,
+    nonce: 0n,
+    depositAddress: DECODED_P2PKH_ZERO_ADDRESS_TESTNET,
+    lpBtcAddress: DECODED_TEST_P2PKH_ADDRESS,
+    depositDateLimit: 0,
+    transferTime: 0,
+  };
 }
