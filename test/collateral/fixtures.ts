@@ -54,3 +54,33 @@ export async function deployCollateralManagementWithRoles() {
 
   return { adder, slasher, ...deployResult };
 }
+
+export async function deployCollateralManagementWithProviders() {
+  const deployResult = await deployCollateralManagementWithRoles();
+  const signers = deployResult.signers;
+  const pegInLp = signers.pop();
+  const pegOutLp = signers.pop();
+  const fullLp = signers.pop();
+  if (!pegInLp || !pegOutLp || !fullLp)
+    throw new Error("All providers should be defined");
+  const { collateralManagement, adder } = deployResult;
+  const BASE_COLLATERAL_TX = { value: ethers.parseEther("10") };
+  await collateralManagement
+    .connect(adder)
+    .addPegInCollateralTo(pegInLp.address, BASE_COLLATERAL_TX);
+  await collateralManagement
+    .connect(adder)
+    .addPegOutCollateralTo(pegOutLp.address, BASE_COLLATERAL_TX);
+  await collateralManagement
+    .connect(adder)
+    .addPegInCollateralTo(fullLp.address, BASE_COLLATERAL_TX);
+  await collateralManagement
+    .connect(adder)
+    .addPegOutCollateralTo(fullLp.address, BASE_COLLATERAL_TX);
+  const providers = [
+    { signer: pegInLp, pegIn: true, pegOut: false },
+    { signer: pegOutLp, pegIn: false, pegOut: true },
+    { signer: fullLp, pegIn: true, pegOut: true },
+  ];
+  return { providers, pegInLp, pegOutLp, fullLp, ...deployResult };
+}
