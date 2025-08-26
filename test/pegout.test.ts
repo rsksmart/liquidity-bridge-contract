@@ -436,7 +436,7 @@ describe("LiquidityBridgeContractV2 pegout process should", () => {
     quote.expireBlock = await ethers.provider
       .getBlockNumber()
       .then((result) => result + 10);
-    quote.expireDate = Math.round(Date.now() / 1000) + 100;
+    quote.expireDate = Math.round(Date.now() / 1000) + 3000;
     const { blockHeaderHash, partialMerkleTree, merkleBranchHashes } =
       getTestMerkleProof();
     const quoteHash = await lbc
@@ -457,7 +457,7 @@ describe("LiquidityBridgeContractV2 pegout process should", () => {
     });
     await expect(depositTx).to.emit(lbc, "PegOutDeposit");
     await hardhatHelpers.mine(9);
-    await hardhatHelpers.time.increase(200);
+    await hardhatHelpers.time.increase(6000);
 
     const btcTx = await generateRawTx(lbc, quote);
     lbc = lbc.connect(provider.signer);
