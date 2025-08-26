@@ -216,7 +216,6 @@ contract CollateralManagementContract is
     /// @inheritdoc ICollateralManagement
     function resign() external override {
         address providerAddress = msg.sender;
-        if (providerAddress == address(0)) revert Flyover.InvalidAddress(providerAddress);
         if (_resignationBlockNum[providerAddress] != 0) revert AlreadyResigned(providerAddress);
         if (_pegInCollateral[providerAddress] < 1 && _pegOutCollateral[providerAddress] < 1) {
             revert Flyover.ProviderNotRegistered(providerAddress);
