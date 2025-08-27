@@ -121,7 +121,7 @@ The project uses a custom `foundry.toml` configuration:
 [profile.default]
 src = "contracts"
 test = "forge-test"
-out = "forge-out"
+out = "out"
 cache_path = "forge-cache"
 solc_version = "0.8.25"
 optimizer = true
