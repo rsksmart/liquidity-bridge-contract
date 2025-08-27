@@ -99,7 +99,6 @@ contract FlyoverDiscovery is
         emit Resigned(providerAddress);
     }
 
-    // non-view external functions should be declared before external view functions (solhint ordering)
     /// @notice Updates a provider status flag
     /// @dev Callable by the LP itself or the contract owner
     /// @param providerId The provider identifier
