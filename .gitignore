@@ -20,7 +20,7 @@ node_modules
 /artifacts
 
 # Foundry files
-/forge-out
+/out
 /forge-cache
 /broadcast
 
