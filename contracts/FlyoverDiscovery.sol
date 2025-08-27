@@ -3,12 +3,12 @@ pragma solidity 0.8.25;
 
 /* solhint-disable comprehensive-interface */
 
-import {IFlyoverDiscovery} from "./interfaces/IFlyoverDiscovery.sol";
-import {Flyover} from "./libraries/Flyover.sol";
 import {
     AccessControlDefaultAdminRulesUpgradeable
 } from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
 import {ICollateralManagement} from "./interfaces/ICollateralManagement.sol";
+import {IFlyoverDiscovery} from "./interfaces/IFlyoverDiscovery.sol";
+import {Flyover} from "./libraries/Flyover.sol";
 
 contract FlyoverDiscovery is
     AccessControlDefaultAdminRulesUpgradeable,
@@ -46,15 +46,15 @@ contract FlyoverDiscovery is
     }
 
     function register(
-        string memory name,
-        string memory apiBaseUrl,
+        string calldata name,
+        string calldata apiBaseUrl,
         bool status,
         Flyover.ProviderType providerType
     ) external payable returns (uint) {
 
        _validateRegistration(name, apiBaseUrl, providerType, msg.sender);
 
-        lastProviderId++;
+        ++lastProviderId;
         _liquidityProviders[lastProviderId] = Flyover.LiquidityProvider({
             id: lastProviderId,
             providerAddress: msg.sender,
@@ -67,30 +67,7 @@ contract FlyoverDiscovery is
         return (lastProviderId);
     }
 
-    function getProviders() external view returns (Flyover.LiquidityProvider[] memory) {
-        uint count = 0;
-        Flyover.LiquidityProvider storage lp;
-        for (uint i = 1; i <= lastProviderId; i++) {
-            if (_shouldBeListed(_liquidityProviders[i])) {
-                count++;
-            }
-        }
-        Flyover.LiquidityProvider[] memory providersToReturn = new Flyover.LiquidityProvider[](count);
-        count = 0;
-        for (uint i = 1; i <= lastProviderId; i++) {
-            lp = _liquidityProviders[i];
-            if (_shouldBeListed(lp)) {
-                providersToReturn[count] = lp;
-                count++;
-            }
-        }
-        return providersToReturn;
-    }
-
-    function getProvider(address providerAddress) external view returns (Flyover.LiquidityProvider memory) {
-        return _getProvider(providerAddress);
-    }
-
+    // non-view external functions should be declared before external view functions (solhint ordering)
     function setProviderStatus(
         uint providerId,
         bool status
@@ -102,11 +79,11 @@ contract FlyoverDiscovery is
         emit IFlyoverDiscovery.ProviderStatusSet(providerId, status);
     }
 
-    function updateProvider(string memory name, string memory apiBaseUrl) external {
-        if (bytes(name).length <= 0 || bytes(apiBaseUrl).length <= 0) revert InvalidProviderData(name, apiBaseUrl);
+    function updateProvider(string calldata name, string calldata apiBaseUrl) external {
+        if (bytes(name).length < 1 || bytes(apiBaseUrl).length < 1) revert InvalidProviderData(name, apiBaseUrl);
         Flyover.LiquidityProvider storage lp;
         address providerAddress = msg.sender;
-        for (uint i = 1; i <= lastProviderId; i++) {
+        for (uint i = 1; i <= lastProviderId; ++i) {
             lp = _liquidityProviders[i];
             if (providerAddress == lp.providerAddress) {
                 lp.name = name;
@@ -118,7 +95,35 @@ contract FlyoverDiscovery is
         revert Flyover.ProviderNotRegistered(providerAddress);
     }
 
-    function isOperational(Flyover.ProviderType providerType, address addr) external view returns (bool) {
+        function setMinCollateral(uint minCollateral) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _minCollateral = minCollateral;
+    }
+
+    function getProviders() external view returns (Flyover.LiquidityProvider[] memory) {
+        uint count = 0;
+        Flyover.LiquidityProvider storage lp;
+        for (uint i = 1; i <= lastProviderId; ++i) {
+            if (_shouldBeListed(_liquidityProviders[i])) {
+                ++count;
+            }
+        }
+        Flyover.LiquidityProvider[] memory providersToReturn = new Flyover.LiquidityProvider[](count);
+        count = 0;
+        for (uint i = 1; i <= lastProviderId; ++i) {
+            lp = _liquidityProviders[i];
+            if (_shouldBeListed(lp)) {
+                providersToReturn[count] = lp;
+                ++count;
+            }
+        }
+        return providersToReturn;
+    }
+
+    function getProvider(address providerAddress) external view returns (Flyover.LiquidityProvider memory) {
+        return _getProvider(providerAddress);
+    }
+
+    function isOperational(Flyover.ProviderType, address addr) external view returns (bool) {
         return _isRegistered(addr) && _collateralManagement.getPegInCollateral(addr) >= _minCollateral;
     }
 
@@ -140,10 +145,6 @@ contract FlyoverDiscovery is
 
     function getResignationBlockNum(address addr) external view returns (uint256) {
         return _resignationBlockNum[addr];
-    }
-
-    function setMinCollateral(uint minCollateral) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _minCollateral = minCollateral;
     }
 
     // ------------------------------------------------------------
@@ -184,7 +185,7 @@ contract FlyoverDiscovery is
     }
 
     function _getProvider(address providerAddress) private view returns (Flyover.LiquidityProvider memory) {
-        for (uint i = 1; i <= lastProviderId; i++) {
+        for (uint i = 1; i <= lastProviderId; ++i) {
             if (_liquidityProviders[i].providerAddress == providerAddress) {
                 return _liquidityProviders[i];
             }
