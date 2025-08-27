@@ -85,7 +85,7 @@ contract FlyoverDiscovery is
 
     /// @notice Resigns the caller as a Liquidity Provider
     /// @dev Reverts if the caller is not registered or already resigned
-    /// @dev Resignation is permanent and cannot be undone
+    /// @dev Resignation is permanent and cannot be undone. To recover the collateral, the liquidity provider must go through the resignation process, if that happens and the same account wishes to register again, that would result in a different provider ID. 
     function resign() external override {
         address providerAddress = msg.sender;
         if (_resignationBlockNum[providerAddress] != 0) revert AlreadyResigned(providerAddress);
