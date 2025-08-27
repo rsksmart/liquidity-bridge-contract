@@ -83,6 +83,22 @@ contract FlyoverDiscovery is
         return (lastProviderId);
     }
 
+    /// @notice Resigns the caller as a Liquidity Provider
+    /// @dev Reverts if the caller is not registered or already resigned
+    /// @dev Resignation is permanent and cannot be undone
+    function resign() external override {
+        address providerAddress = msg.sender;
+        if (_resignationBlockNum[providerAddress] != 0) revert AlreadyResigned(providerAddress);
+        if (
+            _collateralManagement.getPegInCollateral(providerAddress) <= 0 &&
+            _collateralManagement.getPegOutCollateral(providerAddress) <= 0
+        ) {
+            revert Flyover.ProviderNotRegistered(providerAddress);
+        }
+        _resignationBlockNum[providerAddress] = block.number;
+        emit Resigned(providerAddress);
+    }
+
     // non-view external functions should be declared before external view functions (solhint ordering)
     /// @notice Updates a provider status flag
     /// @dev Callable by the LP itself or the contract owner
