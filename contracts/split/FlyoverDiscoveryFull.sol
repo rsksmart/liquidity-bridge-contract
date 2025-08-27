@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IFlyoverDiscovery} from "../interfaces/IFlyoverDiscovery.sol";
+import {IFlyoverDiscoverySplit} from "../interfaces/IFlyoverDiscoverySplit.sol";
 import {ICollateralManagement} from "../interfaces/ICollateralManagement.sol";
 import {Flyover} from "../libraries/Flyover.sol";
 import {Quotes} from "../libraries/Quotes.sol";
@@ -15,7 +15,7 @@ import {
 contract FlyoverDiscoveryFull is
     AccessControlDefaultAdminRulesUpgradeable,
     ReentrancyGuardUpgradeable,
-    IFlyoverDiscovery,
+    IFlyoverDiscoverySplit,
     ICollateralManagement
 {
 
@@ -87,7 +87,7 @@ contract FlyoverDiscoveryFull is
             status: status,
             providerType: providerType
         });
-        emit IFlyoverDiscovery.Register(lastProviderId, msg.sender, msg.value);
+        emit IFlyoverDiscoverySplit.Register(lastProviderId, msg.sender, msg.value);
 
         _addCollateral(providerType, msg.sender, msg.value);
         return (lastProviderId);
@@ -125,7 +125,7 @@ contract FlyoverDiscoveryFull is
             revert NotAuthorized(msg.sender);
         }
         _liquidityProviders[providerId].status = status;
-        emit IFlyoverDiscovery.ProviderStatusSet(providerId, status);
+        emit IFlyoverDiscoverySplit.ProviderStatusSet(providerId, status);
     }
 
     function updateProvider(string memory name, string memory url) external {
@@ -137,7 +137,7 @@ contract FlyoverDiscoveryFull is
             if (providerAddress == lp.providerAddress) {
                 lp.name = name;
                 lp.apiBaseUrl = url;
-                emit IFlyoverDiscovery.ProviderUpdate(providerAddress, lp.name, lp.apiBaseUrl);
+                emit IFlyoverDiscoverySplit.ProviderUpdate(providerAddress, lp.name, lp.apiBaseUrl);
                 return;
             }
         }
