@@ -385,18 +385,4 @@ safe-change-owner: validate-deploy change-owner
 # Documentation
 .PHONY: docs
 docs:
-	@echo "Generating documentation..."
-	@echo "Forge Scripts Documentation:" > docs/forge-scripts.md
-	@echo "" >> docs/forge-scripts.md
-	@echo "## Available Scripts" >> docs/forge-scripts.md
-	@echo "" >> docs/forge-scripts.md
-	@echo "### DeployLBC.s.sol" >> docs/forge-scripts.md
-	@echo "Deploys the LiquidityBridgeContract with proxy and admin." >> docs/forge-scripts.md
-	@echo "" >> docs/forge-scripts.md
-	@echo "### UpgradeLBC.s.sol" >> docs/forge-scripts.md
-	@echo "Upgrades the LiquidityBridgeContract to V2." >> docs/forge-scripts.md
-	@echo "" >> docs/forge-scripts.md
-	@echo "### ChangeOwnerToMultiSig.s.sol" >> docs/forge-scripts.md
-	@echo "Transfers ownership to a multisig wallet." >> docs/forge-scripts.md
-	@echo "" >> docs/forge-scripts.md
-	@echo "Documentation generated in docs/forge-scripts.md"
+	@echo "Documentation is available in docs/FOUNDRY_MAKEFILE_GUIDE.md"

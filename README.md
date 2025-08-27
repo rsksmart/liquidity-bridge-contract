@@ -392,3 +392,58 @@ Returns the amount of pegout collateral locked by a liquidity provider \* addr: 
 #### Return value
 
     The amount of locked collateral for pegout operations
+
+## Development & Deployment
+
+### Foundry & Makefile
+
+This project uses **Foundry** for smart contract development and deployment. We provide a comprehensive Makefile for easy deployment across different networks.
+
+#### Quick Start
+
+```bash
+# Setup environment
+cp example.env .env
+make install
+make build
+
+# Test deployment (simulation)
+make deploy-lbc NETWORK=testnet
+
+# Actual deployment
+make deploy-lbc-broadcast NETWORK=testnet
+```
+
+#### Documentation
+
+- **[Complete Guide](./docs/FOUNDRY_MAKEFILE_GUIDE.md)** - Comprehensive documentation for Foundry and Makefile usage
+
+#### Key Features
+
+- **Multi-network support**: Mainnet, Testnet, Dev environments
+- **Fork testing**: Test against forked networks
+- **Safety validation**: Environment checks and mainnet confirmations
+- **Simulation vs Deployment**: Separate commands for testing and actual deployment
+
+#### Common Commands
+
+```bash
+# Deployment
+make deploy-lbc NETWORK=testnet                    # Simulation
+make deploy-lbc-broadcast NETWORK=testnet          # Actual deployment
+
+# Upgrades
+make upgrade-lbc NETWORK=testnet                   # Simulation
+make upgrade-lbc-broadcast NETWORK=testnet         # Actual upgrade
+
+# Fork testing
+make testnet-fork-deploy                           # Testnet fork simulation
+make testnet-fork-deploy-broadcast                 # Testnet fork actual deployment
+
+# Utilities
+make get-versions                                  # Get contract versions
+make check-env NETWORK=testnet                     # Environment validation
+make help                                          # Show all commands
+```
+
+For detailed usage instructions, see the [Foundry & Makefile Guide](./docs/FOUNDRY_MAKEFILE_GUIDE.md).
