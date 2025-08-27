@@ -8,8 +8,8 @@ import {Flyover} from "../libraries/Flyover.sol";
 contract RegisterCaller {
     function callRegister(
         address discovery,
-        string memory name,
-        string memory apiBaseUrl,
+        string calldata name,
+        string calldata apiBaseUrl,
         bool status,
         Flyover.ProviderType providerType
     ) external payable {
@@ -23,8 +23,8 @@ contract RegisterCaller {
 
     function callRegisterWithTypeUint(
         address discovery,
-        string memory name,
-        string memory apiBaseUrl,
+        string calldata name,
+        string calldata apiBaseUrl,
         bool status,
         uint256 providerTypeRaw
     ) external payable {
