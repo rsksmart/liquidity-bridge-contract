@@ -59,7 +59,7 @@ export const COLLATERAL_CONSTANTS = {
   TEST_DEFAULT_ADMIN_DELAY: 30n,
   TEST_MIN_COLLATERAL: ethers.parseEther("0.6"),
   TEST_RESIGN_DELAY_BLOCKS: 500n,
-  TEST_REWARD_PERCENTAGE: 10n,
+  TEST_REWARD_PERCENTAGE: 1000n,
 } as const;
 
 export enum ProviderType {

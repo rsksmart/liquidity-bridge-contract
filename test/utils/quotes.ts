@@ -144,7 +144,7 @@ export function getRewardForQuote(
   quote: { penaltyFee: BigNumberish },
   rewardPercentage: BigNumberish
 ) {
-  return (BigInt(quote.penaltyFee) * BigInt(rewardPercentage)) / 100n;
+  return (BigInt(quote.penaltyFee) * BigInt(rewardPercentage)) / 10000n;
 }
 
 export function getEmptyPegInQuote(): Quotes.PegInQuoteStruct {
