@@ -85,13 +85,16 @@ contract FlyoverDiscovery is
 
     /// @notice Resigns the caller as a Liquidity Provider
     /// @dev Reverts if the caller is not registered or already resigned
-    /// @dev Resignation is permanent and cannot be undone. To recover the collateral, the liquidity provider must go through the resignation process, if that happens and the same account wishes to register again, that would result in a different provider ID. 
+    /// @dev Resignation is permanent and cannot be undone. To recover the collateral, the liquidity provider must go
+    /// through the resignation process, if that happens and the same account wishes to register again, that would
+    /// result in a different provider ID.
     function resign() external override {
         address providerAddress = msg.sender;
-        if (_resignationBlockNum[providerAddress] != 0) revert AlreadyResigned(providerAddress);
+        if (_resignationBlockNum[providerAddress] != 0)
+        revert AlreadyResigned(providerAddress);
         if (
-            _collateralManagement.getPegInCollateral(providerAddress) <= 0 &&
-            _collateralManagement.getPegOutCollateral(providerAddress) <= 0
+            _collateralManagement.getPegInCollateral(providerAddress) < 1 &&
+            _collateralManagement.getPegOutCollateral(providerAddress) < 1
         ) {
             revert Flyover.ProviderNotRegistered(providerAddress);
         }
@@ -122,7 +125,7 @@ contract FlyoverDiscovery is
         if (bytes(name).length < 1 || bytes(apiBaseUrl).length < 1) revert InvalidProviderData(name, apiBaseUrl);
         Flyover.LiquidityProvider storage lp;
         address providerAddress = msg.sender;
-        for (uint i = 1; i <= lastProviderId; ++i) {
+        for (uint i = 1; i < lastProviderId + 1; ++i) {
             lp = _liquidityProviders[i];
             if (providerAddress == lp.providerAddress) {
                 lp.name = name;
@@ -147,14 +150,14 @@ contract FlyoverDiscovery is
     function getProviders() external view returns (Flyover.LiquidityProvider[] memory) {
         uint count = 0;
         Flyover.LiquidityProvider storage lp;
-        for (uint i = 1; i <= lastProviderId; ++i) {
+        for (uint i = 1; i < lastProviderId + 1; ++i) {
             if (_shouldBeListed(_liquidityProviders[i])) {
                 ++count;
             }
         }
         Flyover.LiquidityProvider[] memory providersToReturn = new Flyover.LiquidityProvider[](count);
         count = 0;
-        for (uint i = 1; i <= lastProviderId; ++i) {
+        for (uint i = 1; i < lastProviderId + 1; ++i) {
             lp = _liquidityProviders[i];
             if (_shouldBeListed(lp)) {
                 providersToReturn[count] = lp;
@@ -247,7 +250,7 @@ contract FlyoverDiscovery is
     }
 
     function _getProvider(address providerAddress) private view returns (Flyover.LiquidityProvider memory) {
-        for (uint i = 1; i <= lastProviderId; ++i) {
+        for (uint i = 1; i < lastProviderId + 1; ++i) {
             if (_liquidityProviders[i].providerAddress == providerAddress) {
                 return _liquidityProviders[i];
             }
