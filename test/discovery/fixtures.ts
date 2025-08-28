@@ -15,10 +15,17 @@ export async function deployDiscoveryFixture() {
   const MIN_COLLATERAL = ethers.parseEther("0.6");
   const INITIAL_DELAY = 500n;
   const RESIGN_DELAY = 500n;
+  const REWARD_PERCENTAGE = 50n; // 50% reward for punishers
 
   const collateralManagement = await upgrades.deployProxy(
     CollateralManagement,
-    [owner.address, INITIAL_DELAY, MIN_COLLATERAL, RESIGN_DELAY]
+    [
+      owner.address,
+      INITIAL_DELAY,
+      MIN_COLLATERAL,
+      RESIGN_DELAY,
+      REWARD_PERCENTAGE,
+    ]
   );
 
   const discovery = await upgrades.deployProxy(FlyoverDiscovery, [
