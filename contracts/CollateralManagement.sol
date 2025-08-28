@@ -28,6 +28,7 @@ contract CollateralManagementContract is
     /// @notice The role that can slash collateral from the contract by using
     /// the slashPegInCollateral or slashPegOutCollateral functions
     bytes32 public constant COLLATERAL_SLASHER = keccak256("COLLATERAL_SLASHER");
+    uint256 public constant TOTAL_REWARD_PERCENTAGE = 10_000;
 
     uint256 private _minCollateral;
     uint256 private _resignDelayInBlocks;
@@ -107,7 +108,6 @@ contract CollateralManagementContract is
         _minCollateral = minCollateral;
         _resignDelayInBlocks = resignDelayInBlocks;
         _rewardPercentage = rewardPercentage;
-        _penalties = 0;
     }
 
     /// @notice Sets the minimum collateral required for a liquidity provider **per operation**
@@ -145,7 +145,7 @@ contract CollateralManagementContract is
             _pegInCollateral[quote.liquidityProviderRskAddress]
         );
         _pegInCollateral[quote.liquidityProviderRskAddress] -= penalty;
-        uint256 punisherReward = (penalty * _rewardPercentage) / 100;
+        uint256 punisherReward = (penalty * _rewardPercentage) / TOTAL_REWARD_PERCENTAGE;
         _penalties += penalty - punisherReward;
         _rewards[punisher] += punisherReward;
         emit Penalized(
@@ -169,7 +169,7 @@ contract CollateralManagementContract is
             _pegOutCollateral[quote.lpRskAddress]
         );
         _pegOutCollateral[quote.lpRskAddress] -= penalty;
-        uint256 punisherReward = (penalty * _rewardPercentage) / 100;
+        uint256 punisherReward = (penalty * _rewardPercentage) / TOTAL_REWARD_PERCENTAGE;
         _penalties += penalty - punisherReward;
         _rewards[punisher] += punisherReward;
         emit Penalized(
