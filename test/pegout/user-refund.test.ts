@@ -206,6 +206,7 @@ describe("PegOutContract refundUserPegOut function should", () => {
       .to.emit(collateralManagement, "Penalized")
       .withArgs(
         fullLp.address,
+        user.address,
         getBytes(quoteHash),
         ProviderType.PegOut,
         quote.penaltyFee,

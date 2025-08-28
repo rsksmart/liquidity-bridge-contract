@@ -27,11 +27,31 @@ contract CollateralManagementMock is ICollateralManagement {
     }
 
     function slashPegInCollateral(address, Quotes.PegInQuote calldata, bytes32) external {
-        emit Penalized(address(0), bytes32(0), Flyover.ProviderType.PegOut, 0, 0);
+        emit Penalized(address(0), address(0), bytes32(0), Flyover.ProviderType.PegOut, 0, 0);
     }
 
     function slashPegOutCollateral(address, Quotes.PegOutQuote calldata, bytes32) external {
-        emit Penalized(address(0), bytes32(0), Flyover.ProviderType.PegOut, 0, 0);
+        emit Penalized(address(0), address(0), bytes32(0), Flyover.ProviderType.PegOut, 0, 0);
+    }
+
+    function withdrawRewards() external {
+        emit RewardsWithdrawn(address(0), 0);
+    }
+
+    function withdrawCollateral() external {
+        emit WithdrawCollateral(address(0), 0);
+    }
+
+    function resign() external {
+        emit Resigned(address(0));
+    }
+
+    function getRewards(address) external pure returns (uint256) {
+        return 0;
+    }
+
+    function getPenalties() external pure returns (uint256) {
+        return 0;
     }
 
     function getPegInCollateral(address) external pure returns (uint256) {
@@ -43,6 +63,14 @@ contract CollateralManagementMock is ICollateralManagement {
     }
 
     function getResignationBlock(address) external pure returns (uint256) {
+        return 0;
+    }
+
+    function getRewardPercentage() external pure returns (uint256) {
+        return 0;
+    }
+
+    function getResignDelayInBlocks() external pure returns (uint256) {
         return 0;
     }
 

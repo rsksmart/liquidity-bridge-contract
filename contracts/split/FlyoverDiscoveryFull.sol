@@ -346,7 +346,7 @@ contract FlyoverDiscoveryFull is
         _pegInCollateral[quote.liquidityProviderRskAddress] -= penalty;
         uint256 punisherReward = (penalty * rewardPercentage) / 100;
         _rewards[punisher] += punisherReward;
-        emit Penalized(quote.liquidityProviderRskAddress, quoteHash, Flyover.ProviderType.PegIn, penalty, punisherReward);
+        emit Penalized(quote.liquidityProviderRskAddress, punisher, quoteHash, Flyover.ProviderType.PegIn, penalty, punisherReward);
     }
 
     function slashPegOutCollateral(
@@ -361,7 +361,33 @@ contract FlyoverDiscoveryFull is
         _pegOutCollateral[quote.lpRskAddress] -= penalty;
         uint256 punisherReward = (penalty * rewardPercentage) / 100;
         _rewards[punisher] += punisherReward;
-        emit Penalized(quote.lpRskAddress, quoteHash, Flyover.ProviderType.PegOut, penalty, punisherReward);
+        emit Penalized(quote.lpRskAddress, punisher, quoteHash, Flyover.ProviderType.PegOut, penalty, punisherReward);
+    }
+
+    function getRewards(address addr) external view returns (uint256) {
+        return _rewards[addr];
+    }
+
+    function getPenalties() external pure returns (uint256) {
+        return 0;
+    }
+
+    function getRewardPercentage() external pure returns (uint256) {
+        return 0;
+    }
+
+    function getResignDelayInBlocks() external pure returns (uint256) {
+        return 0;
+    }
+
+    function withdrawRewards() external {
+        address addr = msg.sender;
+        uint256 rewards = _rewards[addr];
+        if (rewards < 1) revert NothingToWithdraw(addr);
+        _rewards[addr] = 0;
+        emit RewardsWithdrawn(addr, rewards);
+        (bool success,) = addr.call{value: rewards}("");
+        if (!success) revert WithdrawalFailed(addr, rewards);
     }
 
     function _min(uint a, uint b) private pure returns (uint) {
