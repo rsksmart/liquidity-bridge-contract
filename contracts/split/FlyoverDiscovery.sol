@@ -4,11 +4,11 @@ pragma solidity 0.8.25;
 import {
     Ownable2StepUpgradeable
 } from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
-import {IFlyoverDiscovery} from "../interfaces/IFlyoverDiscovery.sol";
+import {IFlyoverDiscoverySplit} from "../interfaces/IFlyoverDiscoverySplit.sol";
 import {ICollateralManagement} from "../interfaces/ICollateralManagement.sol";
 import {Flyover} from "../libraries/Flyover.sol";
 
-contract FlyoverDiscoveryContract is Ownable2StepUpgradeable, IFlyoverDiscovery {
+contract FlyoverDiscoveryContract is Ownable2StepUpgradeable, IFlyoverDiscoverySplit {
     event CollateralManagementSet(address oldContract, address newContract);
 
     ICollateralManagement public collateralManagement;
@@ -45,7 +45,7 @@ contract FlyoverDiscoveryContract is Ownable2StepUpgradeable, IFlyoverDiscovery 
             status: status,
             providerType: providerType
         });
-        emit IFlyoverDiscovery.Register(lastProviderId, msg.sender, msg.value);
+        emit IFlyoverDiscoverySplit.Register(lastProviderId, msg.sender, msg.value);
         _addCollateral(providerType, msg.sender);
         return (lastProviderId);
     }
@@ -89,7 +89,7 @@ contract FlyoverDiscoveryContract is Ownable2StepUpgradeable, IFlyoverDiscovery 
             revert NotAuthorized(msg.sender);
         }
         _liquidityProviders[providerId].status = status;
-        emit IFlyoverDiscovery.ProviderStatusSet(providerId, status);
+        emit IFlyoverDiscoverySplit.ProviderStatusSet(providerId, status);
     }
 
     function updateProvider(string memory name, string memory url) external {
@@ -101,7 +101,7 @@ contract FlyoverDiscoveryContract is Ownable2StepUpgradeable, IFlyoverDiscovery 
             if (providerAddress == lp.providerAddress) {
                 lp.name = name;
                 lp.apiBaseUrl = url;
-                emit IFlyoverDiscovery.ProviderUpdate(providerAddress, lp.name, lp.apiBaseUrl);
+                emit IFlyoverDiscoverySplit.ProviderUpdate(providerAddress, lp.name, lp.apiBaseUrl);
                 return;
             }
         }
