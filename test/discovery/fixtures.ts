@@ -31,7 +31,6 @@ export async function deployDiscoveryFixture() {
   const discovery = await upgrades.deployProxy(FlyoverDiscovery, [
     owner.address,
     INITIAL_DELAY,
-    MIN_COLLATERAL,
     await collateralManagement.getAddress(),
   ]);
 
