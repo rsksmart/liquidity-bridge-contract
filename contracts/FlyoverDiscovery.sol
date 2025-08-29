@@ -27,13 +27,6 @@ contract FlyoverDiscovery is
     uint public lastProviderId;
 
     // ------------------------------------------------------------
-    // Basic Configuration State Variables
-    // ------------------------------------------------------------
-
-    uint private _minCollateral;
-    mapping(address => uint256) private _resignationBlockNum;
-
-    // ------------------------------------------------------------
     // FlyoverDiscovery Public Functions and Modifiers
     // ------------------------------------------------------------
 
@@ -41,16 +34,13 @@ contract FlyoverDiscovery is
     /// @dev Uses OZ upgradeable admin rules. Must be called only once
     /// @param owner The Default Admin and initial owner address
     /// @param initialDelay The initial admin delay for `AccessControlDefaultAdminRulesUpgradeable`
-    /// @param minCollateral The minimum collateral required per service side
     /// @param collateralManagement The address of the `ICollateralManagement` contract
     function initialize(
         address owner,
         uint48 initialDelay,
-        uint minCollateral,
         address collateralManagement
     ) external initializer {
         __AccessControlDefaultAdminRules_init(initialDelay, owner);
-        _minCollateral = minCollateral;
         _collateralManagement = ICollateralManagement(collateralManagement);
     }
 
@@ -81,25 +71,6 @@ contract FlyoverDiscovery is
         });
         emit Register(lastProviderId, msg.sender, msg.value);
         return (lastProviderId);
-    }
-
-    /// @notice Resigns the caller as a Liquidity Provider
-    /// @dev Reverts if the caller is not registered or already resigned
-    /// @dev Resignation is permanent and cannot be undone. To recover the collateral, the liquidity provider must go
-    /// through the resignation process, if that happens and the same account wishes to register again, that would
-    /// result in a different provider ID.
-    function resign() external override {
-        address providerAddress = msg.sender;
-        if (_resignationBlockNum[providerAddress] != 0)
-        revert AlreadyResigned(providerAddress);
-        if (
-            _collateralManagement.getPegInCollateral(providerAddress) < 1 &&
-            _collateralManagement.getPegOutCollateral(providerAddress) < 1
-        ) {
-            revert Flyover.ProviderNotRegistered(providerAddress);
-        }
-        _resignationBlockNum[providerAddress] = block.number;
-        emit Resigned(providerAddress);
     }
 
     /// @notice Updates a provider status flag
@@ -137,13 +108,6 @@ contract FlyoverDiscovery is
         revert Flyover.ProviderNotRegistered(providerAddress);
     }
 
-        /// @notice Sets the minimum collateral threshold per service side
-        /// @dev Only callable by DEFAULT_ADMIN_ROLE
-        /// @param minCollateral New minimum collateral value
-        function setMinCollateral(uint minCollateral) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _minCollateral = minCollateral;
-    }
-
     /// @notice Lists LPs that should be visible to users
     /// @dev A provider is listed if it has sufficient collateral for at least one side and `status` is true
     /// @return providersToReturn Array of LP records to display
@@ -179,25 +143,13 @@ contract FlyoverDiscovery is
     /// @param addr The LP address
     /// @return isOp True if registered and peg-in collateral >= min
     function isOperational(Flyover.ProviderType, address addr) external view returns (bool) {
-        return _isRegistered(addr) && _collateralManagement.getPegInCollateral(addr) >= _minCollateral;
-    }
-
-    /// @notice Checks if an LP can operate for peg-out side
-    /// @param addr The LP address
-    /// @return isOp True if registered-for-pegout and peg-out collateral >= min
-    function isOperationalForPegout(address addr) external view returns (bool) {
-        return _isRegisteredForPegout(addr) && _collateralManagement.getPegOutCollateral(addr) >= _minCollateral;
+        return _collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegIn, addr) &&
+            _getProvider(addr).status;
     }
 
     // ------------------------------------------------------------
     // Getter Functions
     // ------------------------------------------------------------
-
-    /// @notice Returns the current minimum collateral threshold per side
-    /// @return minCollateral The minimum collateral value
-    function getMinCollateral() external view returns (uint256) {
-        return _minCollateral;
-    }
 
     /// @notice Returns the last assigned provider id
     /// @return lastId Last provider id
@@ -205,19 +157,12 @@ contract FlyoverDiscovery is
         return lastProviderId;
     }
 
-    /// @notice Returns the resignation starting block for an LP
-    /// @param addr The LP address
-    /// @return resignationBlock Block number when resignation started, or 0 if not resigned
-    function getResignationBlockNum(address addr) external view returns (uint256) {
-        return _resignationBlockNum[addr];
-    }
-
     // ------------------------------------------------------------
     // FlyoverDiscovery Private Functions
     // ------------------------------------------------------------
 
     function _shouldBeListed(Flyover.LiquidityProvider storage lp) private view returns(bool){
-        return (_isRegistered(lp.providerAddress) || _isRegisteredForPegout(lp.providerAddress)) && lp.status;
+        return _collateralManagement.isRegistered(lp.providerType, lp.providerAddress) && lp.status;
     }
 
     function _validateRegistration(
@@ -237,14 +182,14 @@ contract FlyoverDiscovery is
 
         if (providerType > type(Flyover.ProviderType).max) revert InvalidProviderType(providerType);
 
-        if (_resignationBlockNum[providerAddress] != 0) {
+        if (_collateralManagement.isRegistered(providerType, providerAddress)) {
             revert AlreadyRegistered(providerAddress);
         }
 
         // Check minimum collateral requirement
-        uint256 requiredCollateral = _minCollateral;
+        uint256 requiredCollateral = _collateralManagement.getMinCollateral();
         if (providerType == Flyover.ProviderType.Both) {
-            requiredCollateral = _minCollateral * 2;
+            requiredCollateral = requiredCollateral * 2;
         }
         if (msg.value < requiredCollateral) revert InsufficientCollateral(msg.value);
     }
@@ -256,13 +201,5 @@ contract FlyoverDiscovery is
             }
         }
         revert Flyover.ProviderNotRegistered(providerAddress);
-    }
-
-    function _isRegistered(address addr) private view returns (bool) {
-        return _collateralManagement.getPegInCollateral(addr) > 0 && _resignationBlockNum[addr] == 0;
-    }
-
-    function _isRegisteredForPegout(address addr) private view returns (bool) {
-        return _collateralManagement.getPegOutCollateral(addr) > 0 && _resignationBlockNum[addr] == 0;
     }
 }
