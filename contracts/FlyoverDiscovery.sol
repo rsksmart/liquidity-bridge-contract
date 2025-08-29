@@ -58,7 +58,7 @@ contract FlyoverDiscovery is
         Flyover.ProviderType providerType
     ) external payable returns (uint) {
 
-       _validateRegistration(name, apiBaseUrl, providerType, msg.sender);
+       _validateRegistration(name, apiBaseUrl, providerType, msg.sender, msg.value);
 
         ++lastProviderId;
         _liquidityProviders[lastProviderId] = Flyover.LiquidityProvider({
@@ -69,6 +69,7 @@ contract FlyoverDiscovery is
             status: status,
             providerType: providerType
         });
+        _addCollateral(providerType, msg.sender, msg.value);
         emit Register(lastProviderId, msg.sender, msg.value);
         return (lastProviderId);
     }
@@ -161,6 +162,23 @@ contract FlyoverDiscovery is
     // FlyoverDiscovery Private Functions
     // ------------------------------------------------------------
 
+    function _addCollateral(
+        Flyover.ProviderType providerType,
+        address providerAddress,
+        uint256 collateralAmount
+    ) private {
+        if (providerType == Flyover.ProviderType.PegIn) {
+            _collateralManagement.addPegInCollateralTo{value: collateralAmount}(providerAddress);
+        } else if (providerType == Flyover.ProviderType.PegOut) {
+            _collateralManagement.addPegOutCollateralTo{value: collateralAmount}(providerAddress);
+        } else if (providerType == Flyover.ProviderType.Both) {
+            uint256 halfAmount = collateralAmount / 2;
+            uint256 remainder = collateralAmount % 2;
+            _collateralManagement.addPegInCollateralTo{value: halfAmount + remainder}(providerAddress);
+            _collateralManagement.addPegOutCollateralTo{value: halfAmount}(providerAddress);
+        }
+    }
+
     function _shouldBeListed(Flyover.LiquidityProvider storage lp) private view returns(bool){
         return _collateralManagement.isRegistered(lp.providerType, lp.providerAddress) && lp.status;
     }
@@ -169,7 +187,8 @@ contract FlyoverDiscovery is
         string memory name,
         string memory apiBaseUrl,
         Flyover.ProviderType providerType,
-        address providerAddress
+        address providerAddress,
+        uint256 collateralAmount
     ) private view {
         if (providerAddress != msg.sender || providerAddress.code.length != 0) revert NotEOA(providerAddress);
 
@@ -182,16 +201,25 @@ contract FlyoverDiscovery is
 
         if (providerType > type(Flyover.ProviderType).max) revert InvalidProviderType(providerType);
 
-        if (_collateralManagement.isRegistered(providerType, providerAddress)) {
+        if (
+            _collateralManagement.getPegInCollateral(providerAddress) > 0 ||
+            _collateralManagement.getPegOutCollateral(providerAddress) > 0 ||
+            _collateralManagement.getResignationBlock(providerAddress) != 0
+        ) {
             revert AlreadyRegistered(providerAddress);
         }
 
         // Check minimum collateral requirement
-        uint256 requiredCollateral = _collateralManagement.getMinCollateral();
+        uint256 minCollateral = _collateralManagement.getMinCollateral();
         if (providerType == Flyover.ProviderType.Both) {
-            requiredCollateral = requiredCollateral * 2;
+            if (collateralAmount < minCollateral * 2) {
+                revert InsufficientCollateral(collateralAmount);
+            }
+        } else {
+            if (collateralAmount < minCollateral) {
+                revert InsufficientCollateral(collateralAmount);
+            }
         }
-        if (msg.value < requiredCollateral) revert InsufficientCollateral(msg.value);
     }
 
     function _getProvider(address providerAddress) private view returns (Flyover.LiquidityProvider memory) {
