@@ -24,24 +24,18 @@ describe("FlyoverDiscovery listing filters", () => {
 });
 
 describe("FlyoverDiscovery listing edge cases", () => {
-  it("does not list providers without sufficient collateral until collateral is added", async () => {
-    const { discovery, collateralManagement, signers, owner, MIN_COLLATERAL } =
-      await loadFixture(deployDiscoveryFixture);
+  it("lists providers immediately after registration since collateral is added automatically", async () => {
+    const { discovery, signers, MIN_COLLATERAL } = await loadFixture(
+      deployDiscoveryFixture
+    );
     const lp = signers.at(-1)!;
 
     await discovery
       .connect(lp)
       .register("N", "U", true, ProviderType.PegIn, { value: MIN_COLLATERAL });
 
-    let providers = await discovery.getProviders();
-    // Not listed because collateral management not yet funded for this LP
-    expect(providers.length).to.equal(0);
-
-    await collateralManagement
-      .connect(owner)
-      .addPegInCollateralTo(lp.address, { value: MIN_COLLATERAL });
-
-    providers = await discovery.getProviders();
+    const providers = await discovery.getProviders();
+    // Provider is immediately listed because collateral is added automatically during registration
     expect(providers.length).to.equal(1);
     expect(providers[0].providerAddress).to.equal(lp.address);
   });

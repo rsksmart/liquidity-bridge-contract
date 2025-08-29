@@ -124,30 +124,24 @@ describe("FlyoverDiscovery registration edge cases", () => {
     ).to.be.revertedWithPanic(0x21);
   });
 
-  it("allows multiple registrations by the same EOA (separate ids)", async () => {
-    const { discovery, collateralManagement, owner, signers, MIN_COLLATERAL } =
-      await loadFixture(deployDiscoveryFixture);
+  it("prevents multiple registrations by the same EOA", async () => {
+    const { discovery, signers, MIN_COLLATERAL } = await loadFixture(
+      deployDiscoveryFixture
+    );
     const lp = signers.at(-1)!;
     await discovery.connect(lp).register("N1", "U1", true, ProviderType.PegIn, {
       value: MIN_COLLATERAL,
     });
-    await discovery
-      .connect(lp)
-      .register("N2", "U2", true, ProviderType.PegOut, {
-        value: MIN_COLLATERAL,
-      });
 
-    // Fund both sides so both registrations are listable
-    await collateralManagement
-      .connect(owner)
-      .addPegInCollateralTo(lp.address, { value: MIN_COLLATERAL });
-    await collateralManagement
-      .connect(owner)
-      .addPegOutCollateralTo(lp.address, { value: MIN_COLLATERAL });
+    // Second registration by the same EOA should fail
+    await expect(
+      discovery.connect(lp).register("N2", "U2", true, ProviderType.PegOut, {
+        value: MIN_COLLATERAL,
+      })
+    ).to.be.revertedWithCustomError(discovery, "AlreadyRegistered");
 
     const providers = await discovery.getProviders();
-    expect(providers.length).to.equal(2);
+    expect(providers.length).to.equal(1);
     expect(providers[0].providerAddress).to.equal(lp.address);
-    expect(providers[1].providerAddress).to.equal(lp.address);
   });
 });
