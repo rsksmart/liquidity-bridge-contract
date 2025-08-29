@@ -26,7 +26,7 @@ repos:
         entry: npm run lint:sol
         language: system
         types: [file]
-        files: ^.*\.sol$
+        files: ^contracts/.*\.sol$
   - repo: local
     hooks:
       - id: code-style
