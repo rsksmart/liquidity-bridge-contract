@@ -39,6 +39,14 @@ export async function deployDiscoveryFixture() {
     .connect(owner)
     .grantRole(await collateralManagement.COLLATERAL_ADDER(), owner.address);
 
+  // Grant COLLATERAL_ADDER role to FlyoverDiscovery contract
+  await collateralManagement
+    .connect(owner)
+    .grantRole(
+      await collateralManagement.COLLATERAL_ADDER(),
+      await discovery.getAddress()
+    );
+
   return {
     discovery,
     collateralManagement,
@@ -58,7 +66,7 @@ export async function deployDiscoveryWithProvidersFixture() {
   if (!pegInLp || !pegOutLp || !fullLp)
     throw new Error("LP can't be undefined");
 
-  // Register providers (Discovery enforces msg.value but does not move funds)
+  // Register providers (Discovery now handles collateral addition automatically)
   await discovery
     .connect(pegInLp)
     .register("Pegin Provider", "lp1.com", true, ProviderType.PegIn, {
@@ -74,24 +82,6 @@ export async function deployDiscoveryWithProvidersFixture() {
     .register("Full Provider", "lp3.com", true, ProviderType.Both, {
       value: MIN_COLLATERAL * 2n,
     });
-
-  // Fund collateral management to reflect registration state
-  await collateralManagement
-    .connect(owner)
-    .addPegInCollateralTo(pegInLp.address, { value: MIN_COLLATERAL });
-
-  await collateralManagement
-    .connect(owner)
-    .addPegOutCollateralTo(pegOutLp.address, { value: MIN_COLLATERAL });
-
-  const half = MIN_COLLATERAL;
-  // For Both, split roughly half/half (rounding already exact as bigint)
-  await collateralManagement
-    .connect(owner)
-    .addPegInCollateralTo(fullLp.address, { value: half });
-  await collateralManagement
-    .connect(owner)
-    .addPegOutCollateralTo(fullLp.address, { value: half });
 
   return {
     discovery,
