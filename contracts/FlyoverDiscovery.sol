@@ -44,13 +44,7 @@ contract FlyoverDiscovery is
         _collateralManagement = ICollateralManagement(collateralManagement);
     }
 
-    /// @notice Registers the caller as a Liquidity Provider
-    /// @dev Reverts if caller is not an EOA, already resigned, provides invalid data, invalid type, or lacks collateral
-    /// @param name Human-readable LP name
-    /// @param apiBaseUrl Base URL of the LP public API
-    /// @param status Initial status flag (enabled/disabled)
-    /// @param providerType The service type(s) the LP offers
-    /// @return id The newly assigned LP identifier
+    /// @inheritdoc IFlyoverDiscovery
     function register(
         string calldata name,
         string calldata apiBaseUrl,
@@ -74,10 +68,7 @@ contract FlyoverDiscovery is
         return (lastProviderId);
     }
 
-    /// @notice Updates a provider status flag
-    /// @dev Callable by the LP itself or the contract owner
-    /// @param providerId The provider identifier
-    /// @param status The new status value
+    /// @inheritdoc IFlyoverDiscovery
     function setProviderStatus(
         uint providerId,
         bool status
@@ -89,10 +80,7 @@ contract FlyoverDiscovery is
         emit IFlyoverDiscovery.ProviderStatusSet(providerId, status);
     }
 
-    /// @notice Updates the caller LP metadata
-    /// @dev Reverts if the caller is not registered or provides invalid fields
-    /// @param name New LP name
-    /// @param apiBaseUrl New LP API base URL
+    /// @inheritdoc IFlyoverDiscovery
     function updateProvider(string calldata name, string calldata apiBaseUrl) external {
         if (bytes(name).length < 1 || bytes(apiBaseUrl).length < 1) revert InvalidProviderData(name, apiBaseUrl);
         Flyover.LiquidityProvider storage lp;
@@ -109,9 +97,7 @@ contract FlyoverDiscovery is
         revert Flyover.ProviderNotRegistered(providerAddress);
     }
 
-    /// @notice Lists LPs that should be visible to users
-    /// @dev A provider is listed if it has sufficient collateral for at least one side and `status` is true
-    /// @return providersToReturn Array of LP records to display
+    /// @inheritdoc IFlyoverDiscovery
     function getProviders() external view returns (Flyover.LiquidityProvider[] memory) {
         uint count = 0;
         Flyover.LiquidityProvider storage lp;
@@ -132,17 +118,12 @@ contract FlyoverDiscovery is
         return providersToReturn;
     }
 
-    /// @notice Returns a single LP by address
-    /// @param providerAddress The LP address
-    /// @return provider LP record, reverts if not found
+    /// @inheritdoc IFlyoverDiscovery
     function getProvider(address providerAddress) external view returns (Flyover.LiquidityProvider memory) {
         return _getProvider(providerAddress);
     }
 
-    /// @notice Checks if an LP can operate for peg-in side
-    /// @dev Ignores the first argument as compatibility stub with legacy signature
-    /// @param addr The LP address
-    /// @return isOp True if registered and peg-in collateral >= min
+    /// @inheritdoc IFlyoverDiscovery
     function isOperational(Flyover.ProviderType, address addr) external view returns (bool) {
         return _collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegIn, addr) &&
             _getProvider(addr).status;
@@ -152,8 +133,7 @@ contract FlyoverDiscovery is
     // Getter Functions
     // ------------------------------------------------------------
 
-    /// @notice Returns the last assigned provider id
-    /// @return lastId Last provider id
+    /// @inheritdoc IFlyoverDiscovery
     function getProvidersId() external view returns (uint) {
         return lastProviderId;
     }
@@ -162,6 +142,11 @@ contract FlyoverDiscovery is
     // FlyoverDiscovery Private Functions
     // ------------------------------------------------------------
 
+    /// @notice Adds collateral to the collateral management contract based on provider type
+    /// @dev Distributes collateral between peg-in and peg-out based on provider type
+    /// @param providerType The type of provider (PegIn, PegOut, or Both)
+    /// @param providerAddress The address of the provider
+    /// @param collateralAmount The total amount of collateral to add
     function _addCollateral(
         Flyover.ProviderType providerType,
         address providerAddress,
@@ -179,10 +164,21 @@ contract FlyoverDiscovery is
         }
     }
 
+    /// @notice Checks if a liquidity provider should be listed in the public provider list
+    /// @dev A provider is listed if it is registered and has status enabled
+    /// @param lp The liquidity provider storage reference
+    /// @return True if the provider should be listed, false otherwise
     function _shouldBeListed(Flyover.LiquidityProvider storage lp) private view returns(bool){
         return _collateralManagement.isRegistered(lp.providerType, lp.providerAddress) && lp.status;
     }
 
+    /// @notice Validates registration parameters and requirements
+    /// @dev Checks EOA status, data validity, provider type, registration status, and collateral requirements
+    /// @param name The provider name to validate
+    /// @param apiBaseUrl The provider API URL to validate
+    /// @param providerType The provider type to validate
+    /// @param providerAddress The provider address to validate
+    /// @param collateralAmount The collateral amount to validate against minimum requirements
     function _validateRegistration(
         string memory name,
         string memory apiBaseUrl,
@@ -222,6 +218,10 @@ contract FlyoverDiscovery is
         }
     }
 
+    /// @notice Retrieves a liquidity provider by address
+    /// @dev Searches through all registered providers to find a match
+    /// @param providerAddress The address of the provider to find
+    /// @return The liquidity provider record, reverts if not found
     function _getProvider(address providerAddress) private view returns (Flyover.LiquidityProvider memory) {
         for (uint i = 1; i < lastProviderId + 1; ++i) {
             if (_liquidityProviders[i].providerAddress == providerAddress) {
