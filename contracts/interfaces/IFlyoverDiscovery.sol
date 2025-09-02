@@ -51,7 +51,7 @@ interface IFlyoverDiscovery {
     /// @return provider LP record, reverts if not found
     function getProvider(address providerAddress) external view returns (Flyover.LiquidityProvider memory);
 
-    /// @notice Checks if an LP can operate for peg-in side
+    /// @notice Checks if an LP can operate for a specific type of operation
     /// @dev Ignores the first argument as compatibility stub with legacy signature
     /// @param providerType The provider type (ignored for compatibility)
     /// @param addr The LP address
