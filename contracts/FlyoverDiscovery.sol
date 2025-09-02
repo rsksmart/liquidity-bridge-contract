@@ -63,8 +63,8 @@ contract FlyoverDiscovery is
             status: status,
             providerType: providerType
         });
-        _addCollateral(providerType, msg.sender, msg.value);
         emit Register(lastProviderId, msg.sender, msg.value);
+        _addCollateral(providerType, msg.sender, msg.value);
         return (lastProviderId);
     }
 
