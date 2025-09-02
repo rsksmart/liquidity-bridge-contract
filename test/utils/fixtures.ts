@@ -9,12 +9,11 @@ import { deployCollateralManagement } from "../collateral/fixtures";
 export async function deployCollateralManagementAndDiscovery() {
   const { collateralManagement, signers, owner } =
     await deployCollateralManagement();
-  const FlyoverDiscovery = await ethers.getContractFactory(
-    "FlyoverDiscoveryContract"
-  );
+  const FlyoverDiscovery = await ethers.getContractFactory("FlyoverDiscovery");
 
   const discovery = await upgrades.deployProxy(FlyoverDiscovery, [
     owner.address,
+    5000n,
     await collateralManagement.getAddress(),
   ]);
   await collateralManagement
