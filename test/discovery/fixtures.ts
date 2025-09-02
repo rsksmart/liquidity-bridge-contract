@@ -1,32 +1,16 @@
 import { upgrades, ethers } from "hardhat";
 import { ProviderType } from "../utils/constants";
+import { deployCollateralManagement } from "../collateral/fixtures";
 
 export async function deployDiscoveryFixture() {
-  const CollateralManagement = await ethers.getContractFactory(
-    "CollateralManagementContract"
-  );
   const FlyoverDiscovery = await ethers.getContractFactory("FlyoverDiscovery");
 
-  const signers = await ethers.getSigners();
-  const lastSigner = signers.pop();
-  if (!lastSigner) throw new Error("owner can't be undefined");
-  const owner = lastSigner;
+  // Use the existing CollateralManagement fixture instead of manual deployment
+  const { collateralManagement, signers, owner } =
+    await deployCollateralManagement();
 
   const MIN_COLLATERAL = ethers.parseEther("0.6");
   const INITIAL_DELAY = 500n;
-  const RESIGN_DELAY = 500n;
-  const REWARD_PERCENTAGE = 50n; // 50% reward for punishers
-
-  const collateralManagement = await upgrades.deployProxy(
-    CollateralManagement,
-    [
-      owner.address,
-      INITIAL_DELAY,
-      MIN_COLLATERAL,
-      RESIGN_DELAY,
-      REWARD_PERCENTAGE,
-    ]
-  );
 
   const discovery = await upgrades.deployProxy(FlyoverDiscovery, [
     owner.address,
