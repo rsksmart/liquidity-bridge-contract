@@ -40,6 +40,7 @@ contract FlyoverDiscovery is
         uint48 initialDelay,
         address collateralManagement
     ) external initializer {
+        if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
         __AccessControlDefaultAdminRules_init(initialDelay, owner);
         _collateralManagement = ICollateralManagement(collateralManagement);
     }
