@@ -126,8 +126,8 @@ contract FlyoverDiscovery is
 
     /// @inheritdoc IFlyoverDiscovery
     function isOperational(address addr) external view returns (bool) {
-        return _collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegIn, addr) &&
-            _getProvider(addr).status;
+        return _getProvider(addr).status &&
+               _collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegIn, addr);
     }
 
     // ------------------------------------------------------------
