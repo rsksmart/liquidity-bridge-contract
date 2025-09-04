@@ -66,6 +66,30 @@ describe("SignatureValidator", function () {
     });
   });
 
+  describe("Zero address protection", function () {
+    it("should revert with ZeroAddress when addr is zero address", async function () {
+      const messageHash = ethers.keccak256(ethers.toUtf8Bytes(testMessage));
+      const signature = await signer.signMessage(testMessageHash);
+
+      await expect(
+        signatureValidator.verify(ethers.ZeroAddress, messageHash, signature)
+      ).to.be.revertedWithCustomError(signatureValidator, "ZeroAddress");
+    });
+
+    it("should revert with ZeroAddress before signature length checks", async function () {
+      const messageHash = ethers.keccak256(ethers.toUtf8Bytes(testMessage));
+      const malformedSignature = "0x1234";
+
+      await expect(
+        signatureValidator.verify(
+          ethers.ZeroAddress,
+          messageHash,
+          malformedSignature
+        )
+      ).to.be.revertedWithCustomError(signatureValidator, "ZeroAddress");
+    });
+  });
+
   describe("Signature length validation", function () {
     it("should revert with IncorrectSignature for undersized signature (1 byte)", async function () {
       const truncatedSignature = "0x01";

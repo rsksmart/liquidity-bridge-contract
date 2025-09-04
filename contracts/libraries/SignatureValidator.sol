@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 library SignatureValidator {
     error IncorrectSignature(address expectedAddress, bytes32 usedHash, bytes signature);
+    error ZeroAddress();
     /**
         @dev Verfies signature against address
         @param addr The signing address
@@ -11,6 +12,9 @@ library SignatureValidator {
         @return True if the signature is valid, false otherwise.
      */
     function verify(address addr, bytes32 quoteHash, bytes memory signature) public pure returns (bool) {
+        if (addr == address(0)) {
+            revert ZeroAddress();
+        }
         if (signature.length != 65) {
             revert IncorrectSignature(addr, quoteHash, signature);
         }
