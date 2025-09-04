@@ -124,7 +124,8 @@ deploy-lbc:
 	$(FORGE) forge-scripts/DeployLBC.s.sol:DeployLBC \
 		$(FORK_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
-		$(FORGE_OPTS)
+		--gas-limit $(GAS_LIMIT) \
+		--legacy
 
 # Deploy LiquidityBridgeContract (actual deployment)
 .PHONY: deploy-lbc-broadcast
@@ -180,7 +181,8 @@ upgrade-lbc:
 	$(FORGE) forge-scripts/UpgradeLBC.s.sol:UpgradeLBC \
 		$(FORK_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
-		$(FORGE_OPTS)
+		--gas-limit $(GAS_LIMIT) \
+		--legacy
 
 # Upgrade LiquidityBridgeContract to V2 (actual deployment)
 .PHONY: upgrade-lbc-broadcast
@@ -206,7 +208,8 @@ change-owner:
 	$(FORGE) forge-scripts/ChangeOwnerToMultiSig.s.sol:ChangeOwnerToMultiSig \
 		$(FORK_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
-		$(FORGE_OPTS)
+		--gas-limit $(GAS_LIMIT) \
+		--legacy
 
 # Change ownership to multisig (actual deployment)
 .PHONY: change-owner-broadcast
