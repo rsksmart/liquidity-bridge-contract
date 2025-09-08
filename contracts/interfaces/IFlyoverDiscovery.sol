@@ -53,9 +53,10 @@ interface IFlyoverDiscovery {
 
     /// @notice Checks if an LP can operate for a specific type of operation
     /// @dev Ignores the first argument as compatibility stub with legacy signature
+    /// @param providerType The type of provider
     /// @param addr The LP address
     /// @return isOp True if registered and peg-in collateral >= min
-    function isOperational(address addr) external view returns (bool);
+    function isOperational(Flyover.ProviderType providerType, address addr) external view returns (bool);
 
     /// @notice Returns the last assigned provider id
     /// @return lastId Last provider id
