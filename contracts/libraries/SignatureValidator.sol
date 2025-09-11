@@ -11,6 +11,9 @@ library SignatureValidator {
         @return True if the signature is valid, false otherwise.
      */
     function verify(address addr, bytes32 quoteHash, bytes memory signature) public pure returns (bool) {
+        if (signature.length != 65) {
+            revert IncorrectSignature(addr, quoteHash, signature);
+        }
         bytes32 r;
         bytes32 s;
         uint8 v;
