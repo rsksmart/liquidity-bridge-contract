@@ -12,7 +12,6 @@ library SignatureValidator {
         @return True if the signature is valid, false otherwise.
      */
     function verify(address addr, bytes32 quoteHash, bytes memory signature) public pure returns (bool) {
-        // Prevent zero address bypass vulnerability
         if (addr == address(0)) {
             revert ZeroAddress();
         }
