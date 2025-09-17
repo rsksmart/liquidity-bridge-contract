@@ -281,7 +281,7 @@ describe("PegOutContract depositPegOut function should", () => {
       .depositPegOut(quote, signature, { value: paidAmount });
     await expect(tx)
       .to.emit(contract, "PegOutDeposit")
-      .withArgs(quoteHash, user.address, paidAmount, matchAnyNumber);
+      .withArgs(quoteHash, user.address, matchAnyNumber, paidAmount);
     await expect(tx).not.to.emit(contract, "PegOutChangePaid");
     await expect(tx).to.changeEtherBalances(
       [user, contract],
@@ -315,7 +315,7 @@ describe("PegOutContract depositPegOut function should", () => {
       .depositPegOut(quote, signature, { value: paidAmount });
     await expect(tx)
       .to.emit(contract, "PegOutDeposit")
-      .withArgs(quoteHash, user.address, paidAmount, matchAnyNumber);
+      .withArgs(quoteHash, user.address, matchAnyNumber, paidAmount);
     await expect(tx)
       .to.emit(contract, "PegOutChangePaid")
       .withArgs(quoteHash, user.address, changeAmount);
