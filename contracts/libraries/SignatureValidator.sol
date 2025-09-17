@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+
 library SignatureValidator {
+
+    using ECDSA for bytes32;
+
     error IncorrectSignature(address expectedAddress, bytes32 usedHash, bytes signature);
     error ZeroAddress();
     /**
@@ -30,6 +35,6 @@ library SignatureValidator {
         // TODO use EIP712 compatible format instead
         bytes memory prefix = "\x19Ethereum Signed Message:\n32";
         bytes32 prefixedHash = keccak256(abi.encodePacked(prefix, quoteHash));
-        return ecrecover(prefixedHash, v, r, s) == addr;
+        return prefixedHash.recover(v, r, s) == addr;
     }
 }
