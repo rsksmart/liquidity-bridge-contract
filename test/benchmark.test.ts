@@ -127,7 +127,10 @@ describe("FlyoverDiscovery benchmark", () => {
       "-------------------------------- IS OPERATIONAL --------------------------------"
     );
     for (const account of providersData) {
-      const result = await discovery.isOperational(account.providerAddress);
+      const result = await discovery.isOperational(
+        account.providerType,
+        account.providerAddress
+      );
       console.log(account.name, "operational:", result);
     }
   });
