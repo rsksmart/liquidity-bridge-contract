@@ -97,7 +97,7 @@ contract PegOutContract is
         _pegOutQuotes[quoteHash] = quote;
         _pegOutRegistry[quoteHash].depositTimestamp = block.timestamp;
 
-        emit PegOutDeposit(quoteHash, msg.sender, msg.value, block.timestamp);
+        emit PegOutDeposit(quoteHash, msg.sender, block.timestamp, msg.value);
 
         if (dustThreshold > msg.value - requiredAmount) {
             return;
