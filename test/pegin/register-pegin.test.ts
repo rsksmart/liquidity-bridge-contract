@@ -234,9 +234,10 @@ describe("PegInContract registerPegIn function should", () => {
     );
   });
 
-  it("refund user when call was not done and user under paid the quote", async () => {
-    const { contract, fullLp, signers, bridgeMock, collateralManagement } =
-      await loadFixture(deployPegInContractFixture);
+  it("revert when user under paid the quote", async () => {
+    const { contract, fullLp, signers, bridgeMock } = await loadFixture(
+      deployPegInContractFixture
+    );
     const lbcAddress = await contract.getAddress();
     const user = signers[0];
 
@@ -259,6 +260,12 @@ describe("PegInContract registerPegIn function should", () => {
         nConfirmationSeconds: 600,
       });
 
+    const QuotesLib = new ethers.Contract(
+      ethers.ZeroAddress,
+      Quotes__factory.abi,
+      ethers.provider
+    );
+
     const height = PEGIN_CONSTANTS.HEIGHT_MOCK;
     const peginAmount = totalValue(quote) - ethers.parseEther("0.0001");
     await bridgeMock.setPegin(quoteHash, { value: peginAmount });
@@ -268,32 +275,22 @@ describe("PegInContract registerPegIn function should", () => {
       nConfirmationHeader
     );
 
-    const tx = contract
-      .connect(fullLp)
-      .registerPegIn(
-        quote,
-        signature,
-        PEGIN_CONSTANTS.RAW_TRANSACTION_MOCK,
-        PEGIN_CONSTANTS.PMT_MOCK,
-        height
-      );
-    await expect(tx)
-      .to.emit(contract, "PegInRegistered")
-      .withArgs(quoteHash, peginAmount);
-    await expect(tx).not.to.emit(collateralManagement, "Penalized");
-    await expect(tx)
-      .to.emit(contract, "Refund")
-      .withArgs(user.address, quoteHash, peginAmount, true);
-    await expect(tx).not.to.emit(contract, "CallForUser");
-    await expect(tx).not.to.emit(contract, "BridgeCapExceeded");
-    await expect(tx).not.to.emit(contract, "DaoContribution");
+    await expect(
+      contract
+        .connect(fullLp)
+        .registerPegIn(
+          quote,
+          signature,
+          PEGIN_CONSTANTS.RAW_TRANSACTION_MOCK,
+          PEGIN_CONSTANTS.PMT_MOCK,
+          height
+        )
+    )
+      .to.be.revertedWithCustomError(QuotesLib, "AmountTooLow")
+      .withArgs(peginAmount, totalValue(quote));
     await expect(contract.getCurrentContribution()).to.eventually.eq(0n);
     await expect(contract.getQuoteStatus(quoteHash)).to.eventually.eq(
-      PegInStates.PROCESSED_QUOTE
-    );
-    await expect(tx).to.changeEtherBalances(
-      [user, fullLp, contract],
-      [peginAmount, 0n, 0n]
+      PegInStates.UNPROCESSED_QUOTE
     );
     await expect(contract.getBalance(fullLp)).to.eventually.eq(0n);
   });
@@ -821,7 +818,6 @@ describe("PegInContract registerPegIn function should", () => {
       height + Number(quote.depositConfirmations) - 1,
       nConfirmationHeader
     );
-    const minValue = totalValue(quote) - totalValue(quote) / 10_000n;
     await expect(
       contract
         .connect(fullLp)
@@ -834,7 +830,7 @@ describe("PegInContract registerPegIn function should", () => {
         )
     )
       .to.be.revertedWithCustomError(QuotesLib, "AmountTooLow")
-      .withArgs(peginAmount, minValue);
+      .withArgs(peginAmount, totalValue(quote));
     await expect(contract.getCurrentContribution()).to.eventually.eq(0n);
     await expect(contract.getQuoteStatus(quoteHash)).to.eventually.eq(
       PegInStates.UNPROCESSED_QUOTE
