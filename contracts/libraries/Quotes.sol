@@ -57,11 +57,9 @@ library Quotes {
         agreedAmount = quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
 
 
-        uint delta = agreedAmount / 10000;
-        // transferred amount should not be lower than (agreed amount - delta),
-        // where delta is intended to tackle rounding problems
-        if (agreedAmount - delta > transferredAmount) {
-            revert AmountTooLow(transferredAmount, agreedAmount - delta);
+        // transferred amount should not be lower than agreed amount
+        if (agreedAmount > transferredAmount) {
+            revert AmountTooLow(transferredAmount, agreedAmount);
         }
     }
 
