@@ -13,12 +13,12 @@ library SignatureValidator {
      */
     function verify(address addr, bytes32 quoteHash, bytes memory signature) public pure returns (bool) {
 
-        if (signature.length != 65) {
-            revert IncorrectSignature(addr, quoteHash, signature);
-        }
-
         if (addr == address(0)) {
             revert ZeroAddress();
+        }
+
+        if (signature.length != 65) {
+            revert IncorrectSignature(addr, quoteHash, signature);
         }
 
 
