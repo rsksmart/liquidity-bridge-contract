@@ -1,23 +1,38 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { SignatureValidator } from "../typechain-types";
-import { deployContract } from "../scripts/deployment-utils/utils";
+import { SignatureValidatorWrapper } from "../typechain-types";
+import { deployLibraries } from "../scripts/deployment-utils/deploy-libraries";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import hre from "hardhat";
 
 describe("SignatureValidator", function () {
-  let signatureValidator: SignatureValidator;
+  let signatureValidator: SignatureValidatorWrapper;
   let signer: HardhatEthersSigner;
+  let otherSigner: HardhatEthersSigner;
   let testMessage: string;
   let testMessageHash: Uint8Array;
 
   beforeEach(async function () {
-    const SignatureValidatorFactory = await ethers.getContractFactory(
+    const libraries = await deployLibraries(
+      hre.network.name,
       "SignatureValidator"
     );
-    signatureValidator = await SignatureValidatorFactory.deploy();
 
-    [signer] = await ethers.getSigners();
+    const SignatureValidatorWrapper = await ethers.getContractFactory(
+      "SignatureValidatorWrapper",
+      {
+        libraries: {
+          SignatureValidator: libraries.SignatureValidator.address,
+        },
+      }
+    );
+    signatureValidator = await SignatureValidatorWrapper.deploy();
+    await signatureValidator.waitForDeployment();
+
+    const signers = await ethers.getSigners();
+    signer = signers[0];
+    otherSigner = signers[1];
+
     testMessage = "Test message for signature validation";
     testMessageHash = ethers.getBytes(
       ethers.keccak256(ethers.toUtf8Bytes(testMessage))
@@ -55,141 +70,141 @@ describe("SignatureValidator", function () {
     });
 
     it("should return false for signature from different signer", async function () {
-      const [, otherSigner] = await ethers.getSigners();
       const signature = await otherSigner.signMessage(testMessageHash);
 
       const result = await signatureValidator.verify(
-        signer.address, // Different from otherSigner
+        signer.address, // Using signer's address but otherSigner's signature
         ethers.keccak256(ethers.toUtf8Bytes(testMessage)),
         signature
       );
 
       expect(result).to.equal(false);
     });
+
+    it("should correctly verify valid signatures for non-zero addresses", async function () {
+      // Test with a different signer to ensure it works with various addresses
+      const signature = await otherSigner.signMessage(testMessageHash);
+
+      const result = await signatureValidator.verify(
+        otherSigner.address,
+        ethers.keccak256(ethers.toUtf8Bytes(testMessage)),
+        signature
+      );
+
+      expect(result).to.equal(true);
+    });
+
+    it("should reject invalid signatures for non-zero addresses", async function () {
+      const signature = await signer.signMessage(testMessageHash);
+
+      const result = await signatureValidator.verify(
+        otherSigner.address, // Wrong address for the signature
+        ethers.keccak256(ethers.toUtf8Bytes(testMessage)),
+        signature
+      );
+
+      expect(result).to.equal(false);
+    });
+
+    it("should handle signature verification with different message hashes", async function () {
+      const message1 = "First message";
+      const message2 = "Second message";
+      const hash1 = ethers.keccak256(ethers.toUtf8Bytes(message1));
+      const hash2 = ethers.keccak256(ethers.toUtf8Bytes(message2));
+
+      const messageBytes1 = ethers.getBytes(hash1);
+      const messageBytes2 = ethers.getBytes(hash2);
+
+      const signature1 = await signer.signMessage(messageBytes1);
+      const signature2 = await signer.signMessage(messageBytes2);
+
+      // Verify correct combinations
+      expect(
+        await signatureValidator.verify(signer.address, hash1, signature1)
+      ).to.equal(true);
+      expect(
+        await signatureValidator.verify(signer.address, hash2, signature2)
+      ).to.equal(true);
+
+      // Verify incorrect combinations
+      expect(
+        await signatureValidator.verify(signer.address, hash1, signature2)
+      ).to.equal(false);
+      expect(
+        await signatureValidator.verify(signer.address, hash2, signature1)
+      ).to.equal(false);
+    });
   });
 
   describe("Signature length validation", function () {
     it("should revert with IncorrectSignature for undersized signature (1 byte)", async function () {
-      const truncatedSignature = "0x01";
       const messageHash = ethers.keccak256(ethers.toUtf8Bytes(testMessage));
+      const shortSignature = "0x01";
 
       await expect(
-        signatureValidator.verify(
-          signer.address,
-          messageHash,
-          truncatedSignature
-        )
-      )
-        .to.be.revertedWithCustomError(signatureValidator, "IncorrectSignature")
-        .withArgs(signer.address, messageHash, truncatedSignature);
+        signatureValidator.verify(signer.address, messageHash, shortSignature)
+      ).to.be.revertedWithCustomError(signatureValidator, "IncorrectSignature");
     });
 
     it("should revert with IncorrectSignature for undersized signature (64 bytes)", async function () {
-      const truncatedSignature = "0x" + "01".repeat(64); // 64 bytes, just one short
       const messageHash = ethers.keccak256(ethers.toUtf8Bytes(testMessage));
+      // Create a 64-byte signature (missing 1 byte)
+      const shortSignature = "0x" + "a".repeat(128); // 64 bytes in hex
 
       await expect(
-        signatureValidator.verify(
-          signer.address,
-          messageHash,
-          truncatedSignature
-        )
-      )
-        .to.be.revertedWithCustomError(signatureValidator, "IncorrectSignature")
-        .withArgs(signer.address, messageHash, truncatedSignature);
+        signatureValidator.verify(signer.address, messageHash, shortSignature)
+      ).to.be.revertedWithCustomError(signatureValidator, "IncorrectSignature");
     });
 
     it("should revert with IncorrectSignature for oversized signature (66 bytes)", async function () {
-      const oversizedSignature = "0x" + "01".repeat(66); // 66 bytes
       const messageHash = ethers.keccak256(ethers.toUtf8Bytes(testMessage));
+      // Create a 66-byte signature (1 byte too long)
+      const longSignature = "0x" + "a".repeat(132); // 66 bytes in hex
 
       await expect(
-        signatureValidator.verify(
-          signer.address,
-          messageHash,
-          oversizedSignature
-        )
-      )
-        .to.be.revertedWithCustomError(signatureValidator, "IncorrectSignature")
-        .withArgs(signer.address, messageHash, oversizedSignature);
+        signatureValidator.verify(signer.address, messageHash, longSignature)
+      ).to.be.revertedWithCustomError(signatureValidator, "IncorrectSignature");
     });
 
     it("should revert with IncorrectSignature for empty signature", async function () {
-      const emptySignature = "0x";
       const messageHash = ethers.keccak256(ethers.toUtf8Bytes(testMessage));
+      const emptySignature = "0x";
 
       await expect(
         signatureValidator.verify(signer.address, messageHash, emptySignature)
-      )
-        .to.be.revertedWithCustomError(signatureValidator, "IncorrectSignature")
-        .withArgs(signer.address, messageHash, emptySignature);
-=======
-
-describe("SignatureValidator", () => {
-  let signatureValidator: SignatureValidator;
-  let signer: HardhatEthersSigner;
-  let otherSigner: HardhatEthersSigner;
-
-  beforeEach(async () => {
-    const signers = await ethers.getSigners();
-    signer = signers[0];
-    otherSigner = signers[1];
-
-    const deploymentInfo = await deployContract(
-      "SignatureValidator",
-      hre.network.name
-    );
-    signatureValidator = await ethers.getContractAt(
-      "SignatureValidator",
-      deploymentInfo.address
-    );
+      ).to.be.revertedWithCustomError(signatureValidator, "IncorrectSignature");
+    });
   });
 
-  describe("Zero Address Protection", () => {
-    it("should revert with ZeroAddress error when addr parameter is address(0)", async () => {
-      const testMessage = "test message";
+  describe("Zero Address Protection", function () {
+    it("should revert with ZeroAddress error when addr parameter is address(0)", async function () {
+      const signature = await signer.signMessage(testMessageHash);
       const messageHash = ethers.keccak256(ethers.toUtf8Bytes(testMessage));
-      const signature = await signer.signMessage(ethers.getBytes(messageHash));
 
-      // Attempt to verify with zero address should revert
       await expect(
         signatureValidator.verify(ethers.ZeroAddress, messageHash, signature)
       ).to.be.revertedWithCustomError(signatureValidator, "ZeroAddress");
     });
 
-    it("should prevent zero address bypass attack vector", async () => {
-      // This test demonstrates that the attack vector described is now prevented
-      // An attacker cannot pass address(0) and arbitrary invalid signature data
-      // to bypass authentication
+    it("should prevent zero address bypass attack vector", async function () {
+      const messageHash = ethers.keccak256(ethers.toUtf8Bytes(testMessage));
+      const signature = await signer.signMessage(testMessageHash);
 
-      const arbitraryHash = ethers.keccak256(
-        ethers.toUtf8Bytes("malicious data")
-      );
-      const invalidSignature =
-        "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12";
-
-      // Before the fix, this would have returned true, allowing the attack
-      // Now it should revert with ZeroAddress error, preventing the attack
+      // Attempt to use zero address should always revert, regardless of signature
       await expect(
-        signatureValidator.verify(
-          ethers.ZeroAddress,
-          arbitraryHash,
-          invalidSignature
-        )
+        signatureValidator.verify(ethers.ZeroAddress, messageHash, signature)
       ).to.be.revertedWithCustomError(signatureValidator, "ZeroAddress");
     });
 
-    it("should prevent zero address bypass with empty signature", async () => {
-      // Another variation of the attack with empty signature
-      const arbitraryHash = ethers.keccak256(
-        ethers.toUtf8Bytes("malicious data")
-      );
+    it("should prevent zero address bypass with empty signature", async function () {
+      const messageHash = ethers.keccak256(ethers.toUtf8Bytes(testMessage));
       const emptySignature = "0x";
 
+      // Zero address check should happen before signature length check
       await expect(
         signatureValidator.verify(
           ethers.ZeroAddress,
-          arbitraryHash,
+          messageHash,
           emptySignature
         )
       ).to.be.revertedWithCustomError(signatureValidator, "ZeroAddress");
@@ -213,89 +228,19 @@ describe("SignatureValidator", () => {
     });
   });
 
-  describe("Valid Signature Verification", () => {
-    it("should correctly verify valid signatures for non-zero addresses", async () => {
-      const testMessage = "test message for signature";
-      const messageHash = ethers.keccak256(ethers.toUtf8Bytes(testMessage));
-      const messageBytes = ethers.getBytes(messageHash);
-
-      // Sign the message hash with the signer
-      const signature = await signer.signMessage(messageBytes);
-
-      // Verify the signature should return true for the correct signer address
-      const isValid = await signatureValidator.verify(
-        signer.address,
-        messageHash,
-        signature
-      );
-      expect(isValid).to.equal(true);
-    });
-
-    it("should reject invalid signatures for non-zero addresses", async () => {
-      const testMessage = "test message for signature";
-      const messageHash = ethers.keccak256(ethers.toUtf8Bytes(testMessage));
-      const messageBytes = ethers.getBytes(messageHash);
-
-      // Sign with one signer
-      const signature = await signer.signMessage(messageBytes);
-
-      // Try to verify with different signer's address should return false
-      const isValid = await signatureValidator.verify(
-        otherSigner.address,
-        messageHash,
-        signature
-      );
-      expect(isValid).to.equal(false);
-    });
-
-    it("should handle signature verification with different message hashes", async () => {
-      const originalMessage = "original message";
-      const differentMessage = "different message";
-
-      const originalHash = ethers.keccak256(
-        ethers.toUtf8Bytes(originalMessage)
-      );
-      const differentHash = ethers.keccak256(
-        ethers.toUtf8Bytes(differentMessage)
-      );
-
-      const originalBytes = ethers.getBytes(originalHash);
-      const signature = await signer.signMessage(originalBytes);
-
-      // Should return true for original hash
-      const validOriginal = await signatureValidator.verify(
-        signer.address,
-        originalHash,
-        signature
-      );
-      expect(validOriginal).to.equal(true);
-
-      // Should return false for different hash
-      const validDifferent = await signatureValidator.verify(
-        signer.address,
-        differentHash,
-        signature
-      );
-      expect(validDifferent).to.equal(false);
-    });
-  });
-
-  describe("Edge Cases", () => {
+  describe("Edge Cases", function () {
     it("should handle very long signature data", async () => {
       const testMessage = "test message";
       const messageHash = ethers.keccak256(ethers.toUtf8Bytes(testMessage));
 
-      // Create an overly long signature (should still work if first 65 bytes are valid)
+      // Create an overly long signature (should revert due to strict length check)
       const messageBytes = ethers.getBytes(messageHash);
       const validSignature = await signer.signMessage(messageBytes);
       const longSignature = validSignature + "deadbeef"; // Add extra data
 
-      const isValid = await signatureValidator.verify(
-        signer.address,
-        messageHash,
-        longSignature
-      );
-      expect(isValid).to.equal(true);
+      await expect(
+        signatureValidator.verify(signer.address, messageHash, longSignature)
+      ).to.be.revertedWithCustomError(signatureValidator, "IncorrectSignature");
     });
 
     it("should handle short signature data gracefully", async () => {
@@ -303,13 +248,10 @@ describe("SignatureValidator", () => {
       const messageHash = ethers.keccak256(ethers.toUtf8Bytes(testMessage));
       const shortSignature = "0x1234"; // Too short to be a valid signature
 
-      // Should not revert but return false (ecrecover will return zero address, but we check for non-zero signer)
-      const isValid = await signatureValidator.verify(
-        signer.address,
-        messageHash,
-        shortSignature
-      );
-      expect(isValid).to.equal(false);
+      // Should revert with IncorrectSignature due to strict length check
+      await expect(
+        signatureValidator.verify(signer.address, messageHash, shortSignature)
+      ).to.be.revertedWithCustomError(signatureValidator, "IncorrectSignature");
     });
   });
 });
