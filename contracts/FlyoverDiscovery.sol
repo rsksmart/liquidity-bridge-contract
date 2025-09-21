@@ -6,6 +6,7 @@ pragma solidity 0.8.25;
 import {
     AccessControlDefaultAdminRulesUpgradeable
 } from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
+import {EmergencyPauser} from "./EmergencyPauser.sol";
 import {ICollateralManagement} from "./interfaces/ICollateralManagement.sol";
 import {IFlyoverDiscovery} from "./interfaces/IFlyoverDiscovery.sol";
 import {Flyover} from "./libraries/Flyover.sol";
@@ -15,6 +16,7 @@ import {Flyover} from "./libraries/Flyover.sol";
 /// @dev Keeps LP metadata and consults `ICollateralManagement` to decide listing and operational status
 contract FlyoverDiscovery is
     AccessControlDefaultAdminRulesUpgradeable,
+    EmergencyPauser,
     IFlyoverDiscovery
 {
 
@@ -51,7 +53,7 @@ contract FlyoverDiscovery is
         string calldata apiBaseUrl,
         bool status,
         Flyover.ProviderType providerType
-    ) external payable returns (uint) {
+    ) external payable whenNotPaused returns (uint) {
 
        _validateRegistration(name, apiBaseUrl, providerType, msg.sender, msg.value);
 
@@ -96,6 +98,17 @@ contract FlyoverDiscovery is
             }
         }
         revert Flyover.ProviderNotRegistered(providerAddress);
+    }
+
+    /// @notice Pauses the contract
+    /// @param reason The reason for pausing
+    function pause(string calldata reason) external onlyRole(_PAUSER_ROLE) {
+        _emergencyPause(reason);
+    }
+
+    /// @notice Unpauses the contract
+    function unpause() external onlyRole(_PAUSER_ROLE) {
+        _emergencyUnpause();
     }
 
     /// @inheritdoc IFlyoverDiscovery
