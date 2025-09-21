@@ -12,10 +12,6 @@ abstract contract EmergencyPauser is PausableUpgradeable {
     event EmergencyPaused(address indexed by, string reason);
     event EmergencyUnpaused(address indexed by);
 
-    function initialize() external initializer {
-        __Pausable_init();
-    }
-
     function pauseStatus() external view returns (bool isPaused, string memory reason, uint64 since) {
         return (paused(), _pauseReason, _pauseTimestamp);
     }

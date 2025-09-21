@@ -44,6 +44,7 @@ contract FlyoverDiscovery is
     ) external initializer {
         if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
         __AccessControlDefaultAdminRules_init(initialDelay, owner);
+        __Pausable_init();
         _collateralManagement = ICollateralManagement(collateralManagement);
     }
 
