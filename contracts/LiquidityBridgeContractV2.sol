@@ -6,6 +6,7 @@ import "./Bridge.sol";
 import "./QuotesV2.sol";
 import "./SignatureValidator.sol";
 import "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
+import "@rsksmart/btc-transaction-solidity-helper/contracts/OpCodes.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
@@ -34,6 +35,7 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
     uint constant public PAY_TO_ADDRESS_OUTPUT = 0;
     uint constant public QUOTE_HASH_OUTPUT = 1;
     uint constant public SAT_TO_WEI_CONVERSION = 10**10;
+
 
     struct Registry {
         uint32 timestamp;
@@ -766,13 +768,16 @@ contract LiquidityBridgeContractV2 is Initializable, OwnableUpgradeable, Reentra
                 quote.liquidityProviderBtcAddress
             )
         );
+        bytes1 OP_DROP = 0x75;
+        bytes1 OP_PUSHBYTES_32 = 0x20;
         bytes memory flyoverRedeemScript = bytes.concat(
-            hex"20",
+            OP_PUSHBYTES_32,
             derivationValue,
-            hex"75",
+            OP_DROP,
             bridge.getActivePowpegRedeemScript()
         );
-        return BtcUtils.validateP2SHAdress(depositAddress, flyoverRedeemScript, mainnet);
+        bytes memory segwitScript = bytes.concat(OpCodes.OP_0, OP_PUSHBYTES_32, sha256(flyoverRedeemScript));
+        return BtcUtils.validateP2SHAdress(depositAddress, segwitScript, mainnet);
     }
 
     /**
