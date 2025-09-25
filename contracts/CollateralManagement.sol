@@ -101,9 +101,9 @@ contract CollateralManagementContract is
         uint256 resignDelayInBlocks,
         uint256 rewardPercentage
     ) external initializer {
+        __ReentrancyGuard_init();
         __AccessControlDefaultAdminRules_init(initialDelay, owner);
         __Pausable_init();
-        __ReentrancyGuard_init();
         _minCollateral = minCollateral;
         _resignDelayInBlocks = resignDelayInBlocks;
         _rewardPercentage = rewardPercentage;
