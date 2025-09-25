@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 /* solhint-disable comprehensive-interface */
 
-import {EmergencyPauserDefaultAdmin} from "./EmergencyPauserDefaultAdmin.sol";
+import {EmergencyPauserDefaultAdmin} from "./EmergencyPause/EmergencyPauserDefaultAdmin.sol";
 import {ICollateralManagement} from "./interfaces/ICollateralManagement.sol";
 import {IFlyoverDiscovery} from "./interfaces/IFlyoverDiscovery.sol";
 import {Flyover} from "./libraries/Flyover.sol";
