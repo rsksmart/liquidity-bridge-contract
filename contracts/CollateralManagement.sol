@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {EmergencyPauserDefaultAdmin} from "./EmergencyPauserDefaultAdmin.sol";
+import {EmergencyPauserDefaultAdmin} from "./EmergencyPause/EmergencyPauserDefaultAdmin.sol";
 import {ICollateralManagement} from "./interfaces/ICollateralManagement.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 import {Quotes} from "./libraries/Quotes.sol";

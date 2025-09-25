@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import {OwnableDaoContributorUpgradeable} from "./DaoContributor.sol";
-import {EmergencyPauserPeg} from "./EmergencyPauserPeg.sol";
+import {EmergencyPauserPeg} from "./EmergencyPause/EmergencyPauserPeg.sol";
 import {IBridge} from "./interfaces/IBridge.sol";
 import {ICollateralManagement, CollateralManagementSet} from "./interfaces/ICollateralManagement.sol";
 import {IPegIn} from "./interfaces/IPegIn.sol";
