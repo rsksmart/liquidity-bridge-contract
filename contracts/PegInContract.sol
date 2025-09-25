@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import {OwnableDaoContributorUpgradeable} from "./DaoContributor.sol";
+import {EmergencyPauserPeg} from "./EmergencyPauserPeg.sol";
 import {IBridge} from "./interfaces/IBridge.sol";
 import {ICollateralManagement, CollateralManagementSet} from "./interfaces/ICollateralManagement.sol";
 import {IPegIn} from "./interfaces/IPegIn.sol";
@@ -16,6 +17,7 @@ import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 /// @author Rootstock Labs
 contract PegInContract is
     OwnableDaoContributorUpgradeable,
+    EmergencyPauserPeg,
     IPegIn {
 
     /// @notice This struct is used to store the information of a call on behalf of the user
@@ -91,6 +93,8 @@ contract PegInContract is
     ) external initializer {
         if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
         __OwnableDaoContributor_init(owner, daoFeePercentage, daoFeeCollector);
+        __Pausable_init();
+        __AccessControl_init();
         _bridge = IBridge(bridge);
         _collateralManagement = ICollateralManagement(collateralManagement);
         _mainnet = mainnet;
@@ -127,7 +131,7 @@ contract PegInContract is
     }
 
     /// @inheritdoc IPegIn
-    function deposit() external payable nonReentrant override {
+    function deposit() external payable nonReentrant whenNotPaused override {
         if(!_collateralManagement.isRegistered(_PEG_TYPE, msg.sender)) {
             revert Flyover.ProviderNotRegistered(msg.sender);
         }
@@ -151,7 +155,7 @@ contract PegInContract is
     /// @inheritdoc IPegIn
     function callForUser(
         Quotes.PegInQuote calldata quote
-    ) external payable nonReentrant override returns (bool) {
+    ) external payable nonReentrant whenNotPaused override returns (bool) {
         if(!_collateralManagement.isRegistered(_PEG_TYPE, msg.sender)) {
             revert Flyover.ProviderNotRegistered(msg.sender);
         }
@@ -206,7 +210,7 @@ contract PegInContract is
         bytes calldata btcRawTransaction,
         bytes calldata partialMerkleTree,
         uint256 height
-    ) external nonReentrant override returns (int256) {
+    ) external nonReentrant whenNotPaused override returns (int256) {
         bytes32 quoteHash = _hashPegInQuote(quote);
         _validateRegisterParams(quote, quoteHash, height, signature);
         int256 registerResult = _registerBridge(quote, btcRawTransaction, partialMerkleTree, height, quoteHash);
