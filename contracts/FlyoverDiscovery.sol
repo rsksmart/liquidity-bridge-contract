@@ -3,10 +3,7 @@ pragma solidity 0.8.25;
 
 /* solhint-disable comprehensive-interface */
 
-import {
-    AccessControlDefaultAdminRulesUpgradeable
-} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
-import {EmergencyPauser} from "./EmergencyPauser.sol";
+import {EmergencyPauserDefaultAdmin} from "./EmergencyPauserDefaultAdmin.sol";
 import {ICollateralManagement} from "./interfaces/ICollateralManagement.sol";
 import {IFlyoverDiscovery} from "./interfaces/IFlyoverDiscovery.sol";
 import {Flyover} from "./libraries/Flyover.sol";
@@ -15,8 +12,7 @@ import {Flyover} from "./libraries/Flyover.sol";
 /// @notice Registry and discovery of Liquidity Providers (LPs) for Flyover
 /// @dev Keeps LP metadata and consults `ICollateralManagement` to decide listing and operational status
 contract FlyoverDiscovery is
-    AccessControlDefaultAdminRulesUpgradeable,
-    EmergencyPauser,
+    EmergencyPauserDefaultAdmin,
     IFlyoverDiscovery
 {
 
@@ -85,7 +81,7 @@ contract FlyoverDiscovery is
     }
 
     /// @inheritdoc IFlyoverDiscovery
-    function updateProvider(string calldata name, string calldata apiBaseUrl) external {
+    function updateProvider(string calldata name, string calldata apiBaseUrl) external whenNotPaused {
         if (bytes(name).length < 1 || bytes(apiBaseUrl).length < 1) revert InvalidProviderData(name, apiBaseUrl);
         Flyover.LiquidityProvider storage lp;
         address providerAddress = msg.sender;
@@ -99,17 +95,6 @@ contract FlyoverDiscovery is
             }
         }
         revert Flyover.ProviderNotRegistered(providerAddress);
-    }
-
-    /// @notice Pauses the contract
-    /// @param reason The reason for pausing
-    function pause(string calldata reason) external onlyRole(_PAUSER_ROLE) {
-        _emergencyPause(reason);
-    }
-
-    /// @notice Unpauses the contract
-    function unpause() external onlyRole(_PAUSER_ROLE) {
-        _emergencyUnpause();
     }
 
     /// @inheritdoc IFlyoverDiscovery
