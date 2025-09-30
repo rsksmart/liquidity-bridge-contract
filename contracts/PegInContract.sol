@@ -439,6 +439,10 @@ contract PegInContract is
                 refundAmount,
                 success
             );
+            if (!success) {
+                // transfer funds to LP instead, if for some reason transfer to rskRefundAddress was unsuccessful
+                _increaseBalance(quote.liquidityProviderRskAddress, refundAmount);
+            }
         }
     }
 
