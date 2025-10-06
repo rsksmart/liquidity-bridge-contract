@@ -36,7 +36,7 @@ describe("PegOutContract hashPegOutQuote function should", () => {
     const testCases: { quote: ApiPegoutQuote; hash: string }[] = [
       {
         quote: {
-          lbcAddress: "0x51A1ceB83B83F1985a81C295d1fF28Afef186E02",
+          lbcAddress: "0x4C2F7092C2aE51D986bEFEe378e50BD4dB99C901",
           liquidityProviderRskAddress:
             "0x82a06ebdb97776a2da4041df8f2b2ea8d3257852",
           btcRefundAddress: "bc1qlc98wwylr3g6kknh86a8gkdqmhf6vly527h2yv",
@@ -57,11 +57,11 @@ describe("PegOutContract hashPegOutQuote function should", () => {
           gasFee: 5990000000000,
           productFeeAmount: 0,
         },
-        hash: "0x65cdc2fa61131a201c9fb50aa54e5ef00c0381367bc466bf692db23941ba7020",
+        hash: "0x493b70e349675078b709477c9be9f94a5607e5938c03a81823fb88da019521eb",
       },
       {
         quote: {
-          lbcAddress: "0x51A1ceB83B83F1985a81C295d1fF28Afef186E02",
+          lbcAddress: "0x4C2F7092C2aE51D986bEFEe378e50BD4dB99C901",
           liquidityProviderRskAddress:
             "0x82a06ebdb97776a2da4041df8f2b2ea8d3257852",
           btcRefundAddress: "1KMCKD5ySjvugtyBgiADNhvDJ42QRD9Erp",
@@ -82,11 +82,11 @@ describe("PegOutContract hashPegOutQuote function should", () => {
           gasFee: 11330000000000,
           productFeeAmount: 1,
         },
-        hash: "0x5abcfb321ca73510f574609aaafb0bc560fdca7630f5a19bcb054d63b81911c9",
+        hash: "0x4a3fa031ac917d6965a7cbce05cb574d0eee9c12d0cae136520b5a650e884cec",
       },
       {
         quote: {
-          lbcAddress: "0x51A1ceB83B83F1985a81C295d1fF28Afef186E02",
+          lbcAddress: "0x4C2F7092C2aE51D986bEFEe378e50BD4dB99C901",
           liquidityProviderRskAddress:
             "0x82a06ebdb97776a2da4041df8f2b2ea8d3257852",
           btcRefundAddress:
@@ -109,7 +109,7 @@ describe("PegOutContract hashPegOutQuote function should", () => {
           gasFee: 3140000000000,
           productFeeAmount: 3,
         },
-        hash: "0x89f7b303996fdfd4adc31681c6227fc2ecbdb850f7c9974717fc14cefd7f2b1e",
+        hash: "0x8832c1947f988c83c806ad5023dc36742b20e8924b73e90330e66982e7505803",
       },
     ];
     for (const testCase of testCases) {
