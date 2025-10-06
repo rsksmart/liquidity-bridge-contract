@@ -120,7 +120,7 @@ This method requests the Bridge contract on RSK a refund for the service.
 
 ### **isOperational**
 
-    function isOperational(address addr) external view returns (bool)
+    function isOperational(Flyover.ProviderType providerType, address addr) external view returns (bool)
 
 Checks whether a liquidity provider can deliver a pegin service
 
@@ -131,10 +131,6 @@ Checks whether a liquidity provider can deliver a pegin service
 #### Return value
 
     Whether the liquidity provider is registered and has enough locked collateral
-
-### **isOperationalForPegout**
-
-    function isOperationalForPegout(address addr) external view returns (bool)
 
 Checks whether a liquidity provider can deliver a pegout service
 
