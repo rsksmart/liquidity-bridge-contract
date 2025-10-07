@@ -31,10 +31,15 @@ contract UpgradeLBC is Script {
 
         // Deploy new V2 implementation (libraries are linked via command line)
         LiquidityBridgeContractV2 newImplementation = new LiquidityBridgeContractV2();
-        console.log("LiquidityBridgeContractV2 implementation:", address(newImplementation));
+        console.log(
+            "LiquidityBridgeContractV2 implementation:",
+            address(newImplementation)
+        );
 
         // Get the admin contract instance
-        LiquidityBridgeContractAdmin admin = LiquidityBridgeContractAdmin(adminAddress);
+        LiquidityBridgeContractAdmin admin = LiquidityBridgeContractAdmin(
+            adminAddress
+        );
 
         // Upgrade the proxy to point to the new implementation
         admin.upgradeAndCall(
@@ -48,8 +53,13 @@ contract UpgradeLBC is Script {
         console.log("New implementation:", address(newImplementation));
 
         // Verify the upgrade by checking the version
-        LiquidityBridgeContractV2 upgradedContract = LiquidityBridgeContractV2(payable(proxyAddress));
-        console.log("Contract version after upgrade:", upgradedContract.version());
+        LiquidityBridgeContractV2 upgradedContract = LiquidityBridgeContractV2(
+            payable(proxyAddress)
+        );
+        console.log(
+            "Contract version after upgrade:",
+            upgradedContract.version()
+        );
 
         vm.stopBroadcast();
     }
