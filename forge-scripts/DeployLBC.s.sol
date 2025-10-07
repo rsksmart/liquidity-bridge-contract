@@ -21,7 +21,10 @@ contract DeployLBC is Script {
 
         // 1) Deploy implementation
         LiquidityBridgeContract implementation = new LiquidityBridgeContract();
-        console.log("LiquidityBridgeContract implementation:", address(implementation));
+        console.log(
+            "LiquidityBridgeContract implementation:",
+            address(implementation)
+        );
 
         // 2) Deploy Proxy Admin (owner set to msg.sender inside the contract)
         LiquidityBridgeContractAdmin admin = new LiquidityBridgeContractAdmin();
@@ -51,7 +54,9 @@ contract DeployLBC is Script {
         console.log("LiquidityBridgeContract proxy:", address(proxy));
 
         // Optional: cast proxy to implementation ABI and read a value to sanity check
-        LiquidityBridgeContract lbc = LiquidityBridgeContract(payable(address(proxy)));
+        LiquidityBridgeContract lbc = LiquidityBridgeContract(
+            payable(address(proxy))
+        );
         console.log("Bridge set to:", lbc.getBridgeAddress());
 
         vm.stopBroadcast();

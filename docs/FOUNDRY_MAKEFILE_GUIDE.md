@@ -18,17 +18,20 @@ This guide explains how to use Foundry and the Makefile for deploying, upgrading
 ## Prerequisites
 
 ### Required Software
+
 - **Foundry**: Install from [getfoundry.sh](https://getfoundry.sh)
 - **Git**: For version control
 - **Node.js**: For additional dependencies
 
 ### Install Foundry
+
 ```bash
 curl -L https://foundry.paradigm.xyz | bash
 foundryup
 ```
 
 ### Verify Installation
+
 ```bash
 forge --version
 cast --version
@@ -38,12 +41,14 @@ anvil --version
 ## Environment Setup
 
 ### 1. Clone the Repository
+
 ```bash
 git clone <repository-url>
 cd liquidity-bridge-contract
 ```
 
 ### 2. Install Dependencies
+
 ```bash
 # Install Foundry dependencies
 forge install
@@ -53,6 +58,7 @@ npm install
 ```
 
 ### 3. Environment Configuration
+
 Copy the example environment file and configure it:
 
 ```bash
@@ -89,26 +95,34 @@ MULTISIG_OWNER_1_MAINNET=0x...
 ### Key Foundry Commands
 
 #### `forge build`
+
 Compile all contracts:
+
 ```bash
 forge build
 ```
 
 #### `forge test`
+
 Run tests:
+
 ```bash
 forge test
 forge test --gas-report  # With gas reporting
 ```
 
 #### `forge script`
+
 Execute deployment scripts:
+
 ```bash
 forge script <script_path> --rpc-url <url> --private-key <key> --broadcast
 ```
 
 #### `forge verify-contract`
+
 Verify contracts on block explorers:
+
 ```bash
 forge verify-contract <address> <contract_name> --chain-id <id> --etherscan-api-key <key>
 ```
@@ -138,12 +152,14 @@ rskMainnet = "${MAINNET_RPC_URL}"
 The Makefile provides a convenient interface for all Foundry operations with built-in safety features.
 
 ### Key Features
+
 - **Network Support**: Mainnet, Testnet, Dev environments
 - **Fork Testing**: Test against forked networks
 - **Safety Validation**: Environment checks and mainnet confirmations
 - **Simulation vs Deployment**: Separate commands for testing and actual deployment
 
 ### Basic Usage
+
 ```bash
 make <target> [NETWORK=<network>] [FORK_BLOCK=<block>] [VERIFY=<true|false>]
 ```
@@ -205,11 +221,11 @@ make safe-change-owner-broadcast NETWORK=mainnet
 
 ### Supported Networks
 
-| Network | Chain ID | RPC URL | Description |
-|---------|----------|---------|-------------|
-| mainnet | 30 | RSK Mainnet | Production network |
-| testnet | 31 | RSK Testnet | Test network |
-| dev | 1337 | Local | Development network |
+| Network | Chain ID | RPC URL     | Description         |
+| ------- | -------- | ----------- | ------------------- |
+| mainnet | 30       | RSK Mainnet | Production network  |
+| testnet | 31       | RSK Testnet | Test network        |
+| dev     | 1337     | Local       | Development network |
 
 ### Network-Specific Commands
 
@@ -342,27 +358,33 @@ make help
 ### Common Issues
 
 #### 1. Gas Price Errors
+
 **Error**: `invalid value 'auto' for '--gas-price'`
 
 **Solution**: The Makefile now uses `--legacy` flag and proper gas price handling.
 
 #### 2. Out of Gas Errors
+
 **Error**: `execution reverted: EvmError: OutOfGas`
 
 **Solution**: Use high gas commands:
+
 ```bash
 make deploy-lbc-high-gas NETWORK=testnet
 ```
 
 #### 3. EIP-1559 Fee Errors
+
 **Error**: `Failed to get EIP-1559 fees`
 
 **Solution**: The Makefile automatically uses `--legacy` flag.
 
 #### 4. Missing Dependencies
+
 **Error**: `No such file or directory: forge-std/Script.sol`
 
 **Solution**: Install dependencies:
+
 ```bash
 make install
 # or
@@ -370,6 +392,7 @@ forge install
 ```
 
 #### 5. Nonce Errors
+
 **Error**: `transaction nonce too low`
 
 **Solution**: This is expected when using a private key that has already been used. Use a fresh private key for testing.
@@ -377,6 +400,7 @@ forge install
 ### Environment Issues
 
 #### Private Key Not Set
+
 ```bash
 # Check if private key is set
 make check-env NETWORK=testnet
@@ -386,6 +410,7 @@ TESTNET_SIGNER_PRIVATE_KEY=your_private_key
 ```
 
 #### RPC URL Issues
+
 ```bash
 # Test RPC connection
 curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' https://public-node.testnet.rsk.co
@@ -464,6 +489,7 @@ make change-owner-broadcast NETWORK=testnet
 ## Best Practices
 
 ### 1. Always Test First
+
 ```bash
 # Always run simulation before actual deployment
 make deploy-lbc NETWORK=testnet
@@ -471,6 +497,7 @@ make deploy-lbc-broadcast NETWORK=testnet
 ```
 
 ### 2. Use Fork Testing
+
 ```bash
 # Test against real network state
 make testnet-fork-deploy
@@ -478,18 +505,21 @@ make mainnet-fork-deploy
 ```
 
 ### 3. Validate Environment
+
 ```bash
 # Check configuration before deployment
 make check-env NETWORK=mainnet
 ```
 
 ### 4. Use Safe Commands for Mainnet
+
 ```bash
 # Safe commands include additional validation
 make safe-deploy-lbc-broadcast NETWORK=mainnet
 ```
 
 ### 5. Monitor Gas Usage
+
 ```bash
 # Use gas reporting
 make gas-report
@@ -499,6 +529,7 @@ make deploy-lbc-high-gas NETWORK=testnet
 ```
 
 ### 6. Keep Dependencies Updated
+
 ```bash
 # Regular updates
 make update
@@ -507,21 +538,25 @@ make update
 ## Security Considerations
 
 ### Private Key Management
+
 - **NEVER** commit private keys to version control
 - Use environment variables for all private keys
 - Consider using hardware wallets for mainnet operations
 
 ### Network Selection
+
 - Always double-check the network before deployment
 - Use simulation commands first
 - Use safe commands for mainnet
 
 ### Gas Management
+
 - Monitor gas prices and limits
 - Use appropriate gas limits for complex operations
 - Consider gas price fluctuations
 
 ### Verification
+
 - Verify all contracts after deployment
 - Use `make get-versions` to confirm deployments
 - Monitor contract interactions
@@ -529,6 +564,7 @@ make update
 ## Support
 
 For issues and questions:
+
 1. Check the troubleshooting section
 2. Review the Foundry documentation
 3. Check the project's README.md
