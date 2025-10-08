@@ -4,7 +4,7 @@
 # Usage: ./scripts/get-btc-height.sh [rpc-url]
 
 BRIDGE_ADDRESS="0x0000000000000000000000000000000001000006"
-RPC_URL=${1:-"https://rootstock-testnet.drpc.org"}
+RPC_URL=${1:-"https://public-node.testnet.rsk.co"}
 
 echo "Getting Bitcoin blockchain best chain height..."
 echo "Bridge address: $BRIDGE_ADDRESS"
