@@ -3,7 +3,7 @@
 # Script to print the versions of the LiquidityBridgeContract and its libraries
 # Usage: ./forge-scripts/get-versions.sh [rpc-url]
 
-RPC_URL="${1:-https://rootstock-testnet.drpc.org}"
+RPC_URL="${1:-https://public-node.testnet.rsk.co}"
 
 # Get contract addresses from addresses.json
 LBC_ADDRESS=$(jq -r '.rskTestnet.LiquidityBridgeContract.address' ./addresses.json 2>/dev/null || echo "")
