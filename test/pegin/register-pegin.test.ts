@@ -17,6 +17,7 @@ import {
   getRewardForQuote,
   getTestPeginQuote,
   totalValue,
+  expectedRoundedAmount,
 } from "../utils/quotes";
 import { expect } from "chai";
 import { ethers } from "hardhat";
@@ -287,7 +288,7 @@ describe("PegInContract registerPegIn function should", () => {
         )
     )
       .to.be.revertedWithCustomError(QuotesLib, "AmountTooLow")
-      .withArgs(peginAmount, totalValue(quote));
+      .withArgs(peginAmount, expectedRoundedAmount(quote));
     await expect(contract.getCurrentContribution()).to.eventually.eq(0n);
     await expect(contract.getQuoteStatus(quoteHash)).to.eventually.eq(
       PegInStates.UNPROCESSED_QUOTE
@@ -830,7 +831,7 @@ describe("PegInContract registerPegIn function should", () => {
         )
     )
       .to.be.revertedWithCustomError(QuotesLib, "AmountTooLow")
-      .withArgs(peginAmount, totalValue(quote));
+      .withArgs(peginAmount, expectedRoundedAmount(quote));
     await expect(contract.getCurrentContribution()).to.eventually.eq(0n);
     await expect(contract.getQuoteStatus(quoteHash)).to.eventually.eq(
       PegInStates.UNPROCESSED_QUOTE
