@@ -27,6 +27,7 @@ REGTEST_RPC := $(or $(REGTEST_RPC_URL),http://localhost:4444)
 # Chain IDs
 MAINNET_CHAIN_ID := 30
 TESTNET_CHAIN_ID := 31
+REGTEST_CHAIN_ID := 33
 LOCAL_CHAIN_ID := 1337
 
 # Private keys
