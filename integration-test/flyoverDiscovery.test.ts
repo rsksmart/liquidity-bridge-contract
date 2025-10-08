@@ -286,14 +286,14 @@ describe("FlyoverDiscovery Integration Tests", () => {
       } = await loadFixture(deployDiscoveryFixture);
       const lp = signers.at(-1)!;
 
-      // Register with minimum collateral
+      // Register with extra collateral
       await discovery
         .connect(lp)
         .register("LP", "url", true, ProviderType.PegIn, {
-          value: MIN_COLLATERAL,
+          value: MIN_COLLATERAL * 2n,
         });
 
-      // Slash below minimum
+      // Slash below minimum (but not all)
       await collateralManagement
         .connect(owner)
         .grantRole(
@@ -303,17 +303,17 @@ describe("FlyoverDiscovery Integration Tests", () => {
       const { getEmptyPegInQuote } = await import("../test/utils/quotes");
       const quote = getEmptyPegInQuote();
       quote.liquidityProviderRskAddress = lp.address;
-      quote.penaltyFee = MIN_COLLATERAL;
+      quote.penaltyFee = MIN_COLLATERAL + MIN_COLLATERAL / 2n; // Slash to below minimum but not zero
       await collateralManagement
         .connect(owner)
         .slashPegInCollateral(ethers.ZeroAddress, quote, ethers.ZeroHash);
 
-      // Not operational
+      // Not operational (below minimum but still registered)
       expect(
         await discovery.isOperational(ProviderType.PegIn, lp.address)
       ).to.equal(false);
 
-      // Add collateral back
+      // Add collateral back (provider is still registered so this works)
       await collateralManagement
         .connect(lp)
         .addPegInCollateral({ value: MIN_COLLATERAL });
@@ -416,54 +416,59 @@ describe("FlyoverDiscovery Integration Tests", () => {
       ).to.equal(false);
     });
 
-    it("should support re-registration after full resignation and withdrawal", async () => {
+    it("should support re-registration with different provider after full resignation and withdrawal", async () => {
       const { discovery, collateralManagement, signers, MIN_COLLATERAL } =
         await loadFixture(deployDiscoveryFixture);
-      const lp = signers.at(-1)!;
+      const [lp1, lp2] = signers.slice(-2);
 
-      // Register as PegIn provider
+      // Register first provider as PegIn
       await discovery
-        .connect(lp)
-        .register("LP PegIn", "url1", true, ProviderType.PegIn, {
+        .connect(lp1)
+        .register("LP1 PegIn", "url1", true, ProviderType.PegIn, {
           value: MIN_COLLATERAL,
         });
 
-      let provider = await discovery.getProvider(lp.address);
+      let provider = await discovery.getProvider(lp1.address);
       expect(provider.providerType).to.equal(ProviderType.PegIn);
       expect(provider.id).to.equal(1n);
 
-      // Resign and withdraw
-      await collateralManagement.connect(lp).resign();
+      // Resign and withdraw first provider
+      await collateralManagement.connect(lp1).resign();
       await mine(COLLATERAL_CONSTANTS.TEST_RESIGN_DELAY_BLOCKS);
-      await collateralManagement.connect(lp).withdrawCollateral();
+      await collateralManagement.connect(lp1).withdrawCollateral();
 
-      // Re-register as PegOut provider
+      // Verify first provider is no longer operational
+      expect(
+        await discovery.isOperational(ProviderType.PegIn, lp1.address)
+      ).to.equal(false);
+
+      // Register second provider as PegOut (different address)
       await discovery
-        .connect(lp)
-        .register("LP PegOut", "url2", true, ProviderType.PegOut, {
+        .connect(lp2)
+        .register("LP2 PegOut", "url2", true, ProviderType.PegOut, {
           value: MIN_COLLATERAL,
         });
 
       // Verify new provider type in Discovery
-      provider = await discovery.getProvider(lp.address);
+      provider = await discovery.getProvider(lp2.address);
       expect(provider.providerType).to.equal(ProviderType.PegOut);
       expect(provider.id).to.equal(2n); // New ID assigned
-      expect(provider.name).to.equal("LP PegOut");
+      expect(provider.name).to.equal("LP2 PegOut");
 
       // Verify new collateral allocation in CollateralManagement
       expect(
-        await collateralManagement.getPegInCollateral(lp.address)
+        await collateralManagement.getPegInCollateral(lp2.address)
       ).to.equal(0n);
       expect(
-        await collateralManagement.getPegOutCollateral(lp.address)
+        await collateralManagement.getPegOutCollateral(lp2.address)
       ).to.equal(MIN_COLLATERAL);
 
-      // Verify operational for new type
+      // Verify operational for new provider
       expect(
-        await discovery.isOperational(ProviderType.PegOut, lp.address)
+        await discovery.isOperational(ProviderType.PegOut, lp2.address)
       ).to.equal(true);
       expect(
-        await discovery.isOperational(ProviderType.PegIn, lp.address)
+        await discovery.isOperational(ProviderType.PegIn, lp2.address)
       ).to.equal(false);
     });
   });

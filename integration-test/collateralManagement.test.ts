@@ -19,14 +19,14 @@ describe("CollateralManagement Integration Tests", () => {
       } = await loadFixture(deployDiscoveryFixture);
       const lp = signers.at(-1)!;
 
-      // Register with minimum collateral
+      // Register with extra collateral
       await discovery
         .connect(lp)
         .register("LP", "url", true, ProviderType.PegIn, {
-          value: MIN_COLLATERAL,
+          value: MIN_COLLATERAL * 2n,
         });
 
-      // Slash to below minimum
+      // Slash to below minimum (but not all)
       await collateralManagement
         .connect(owner)
         .grantRole(
@@ -36,7 +36,7 @@ describe("CollateralManagement Integration Tests", () => {
       const { getEmptyPegInQuote } = await import("../test/utils/quotes");
       const quote = getEmptyPegInQuote();
       quote.liquidityProviderRskAddress = lp.address;
-      quote.penaltyFee = MIN_COLLATERAL;
+      quote.penaltyFee = MIN_COLLATERAL + MIN_COLLATERAL / 2n; // Slash to below minimum but not zero
       await collateralManagement
         .connect(owner)
         .slashPegInCollateral(ethers.ZeroAddress, quote, ethers.ZeroHash);
@@ -55,9 +55,10 @@ describe("CollateralManagement Integration Tests", () => {
       expect(
         await discovery.isOperational(ProviderType.PegIn, lp.address)
       ).to.equal(true);
+      // Final collateral is: initial (2x) - slashed (1.5x) + added (1x) = 1.5x MIN_COLLATERAL
       expect(
         await collateralManagement.getPegInCollateral(lp.address)
-      ).to.equal(MIN_COLLATERAL);
+      ).to.equal(MIN_COLLATERAL / 2n + MIN_COLLATERAL);
     });
   });
 
@@ -322,7 +323,7 @@ describe("CollateralManagement Integration Tests", () => {
       let providers = await discovery.getProviders();
       expect(providers.length).to.equal(4);
 
-      // Slash LP1 by small amount (goes below minimum)
+      // Slash LP1 to go below minimum (but not to zero)
       await collateralManagement
         .connect(owner)
         .grantRole(
@@ -332,7 +333,7 @@ describe("CollateralManagement Integration Tests", () => {
       const { getEmptyPegInQuote } = await import("../test/utils/quotes");
       const quote1 = getEmptyPegInQuote();
       quote1.liquidityProviderRskAddress = lp1.address;
-      quote1.penaltyFee = MIN_COLLATERAL / 10n;
+      quote1.penaltyFee = MIN_COLLATERAL + 1n; // Slash all collateral (slashing caps at available amount)
       await collateralManagement
         .connect(owner)
         .slashPegInCollateral(ethers.ZeroAddress, quote1, ethers.ZeroHash);
