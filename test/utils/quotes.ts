@@ -109,6 +109,26 @@ export function totalValue(
 }
 
 /**
+ * Calculate the expected amount after rounding for SAT to WEI conversion
+ * This matches the logic in Quotes.checkAgreedAmount
+ */
+export function expectedRoundedAmount(
+  quote: QuotesV2.PeginQuoteStruct | QuotesV2.PegOutQuoteStruct
+): bigint {
+  const SAT_TO_WEI_CONVERSION = 10n ** 10n;
+  const agreedAmount = totalValue(quote);
+
+  if (
+    agreedAmount > SAT_TO_WEI_CONVERSION &&
+    agreedAmount % SAT_TO_WEI_CONVERSION !== 0n
+  ) {
+    return agreedAmount - (agreedAmount % SAT_TO_WEI_CONVERSION);
+  }
+
+  return agreedAmount;
+}
+
+/**
  * Get mock bitcoin block headers for the given quote
  * @param args.quote The quote to get the block headers for
  * @param args.firstConfirmationSeconds The time in seconds for the first confirmation
