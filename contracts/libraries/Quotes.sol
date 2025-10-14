@@ -47,6 +47,8 @@ library Quotes {
         bytes lpBtcAddress;
     }
 
+    uint256 public constant SAT_TO_WEI_CONVERSION = 10**10;
+
     error AmountTooLow(uint256 value, uint256 target);
 
     function checkAgreedAmount(
@@ -56,12 +58,15 @@ library Quotes {
         uint agreedAmount = 0;
         agreedAmount = quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
 
+        // Adjust for rounding when converting from wei to sats and back
+        // This protects users from precision issues when client apps don't round properly
+        if (agreedAmount > SAT_TO_WEI_CONVERSION && (agreedAmount % SAT_TO_WEI_CONVERSION) != 0) {
+            agreedAmount -= (agreedAmount % SAT_TO_WEI_CONVERSION);
+        }
 
-        uint delta = agreedAmount / 10000;
-        // transferred amount should not be lower than (agreed amount - delta),
-        // where delta is intended to tackle rounding problems
-        if (agreedAmount - delta > transferredAmount) {
-            revert AmountTooLow(transferredAmount, agreedAmount - delta);
+        // transferred amount should not be lower than agreed amount
+        if (agreedAmount > transferredAmount) {
+            revert AmountTooLow(transferredAmount, agreedAmount);
         }
     }
 
