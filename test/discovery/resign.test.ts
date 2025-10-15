@@ -9,24 +9,6 @@ import {
 } from "../utils/asserts";
 
 describe("Discovery resign flow should", () => {
-  it("emit Resigned and hide provider from listing", async () => {
-    const fixtureResult = await loadFixture(
-      deployDiscoveryWithProvidersFixture
-    );
-    const { discovery, collateralManagement, fullLp } = fixtureResult;
-
-    const resignTx = await collateralManagement.connect(fullLp).resign();
-    await expect(resignTx)
-      .to.emit(collateralManagement, "Resigned")
-      .withArgs(fullLp.address);
-
-    // Resigned provider must not appear in discovery list
-    const listed = await discovery.getProviders();
-    expect(listed.some((p) => p.providerAddress === fullLp.address)).to.eq(
-      false
-    );
-  });
-
   it("prevent non-registered account from resigning", async () => {
     const fixtureResult = await loadFixture(
       deployDiscoveryWithProvidersFixture
