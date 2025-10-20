@@ -3,9 +3,7 @@ pragma solidity 0.8.25;
 
 /* solhint-disable comprehensive-interface */
 
-import {
-    AccessControlDefaultAdminRulesUpgradeable
-} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
+import {EmergencyPauserDefaultAdmin} from "./EmergencyPause/EmergencyPauserDefaultAdmin.sol";
 import {ICollateralManagement} from "./interfaces/ICollateralManagement.sol";
 import {IFlyoverDiscovery} from "./interfaces/IFlyoverDiscovery.sol";
 import {Flyover} from "./libraries/Flyover.sol";
@@ -14,7 +12,7 @@ import {Flyover} from "./libraries/Flyover.sol";
 /// @notice Registry and discovery of Liquidity Providers (LPs) for Flyover
 /// @dev Keeps LP metadata and consults `ICollateralManagement` to decide listing and operational status
 contract FlyoverDiscovery is
-    AccessControlDefaultAdminRulesUpgradeable,
+    EmergencyPauserDefaultAdmin,
     IFlyoverDiscovery
 {
 
@@ -42,6 +40,7 @@ contract FlyoverDiscovery is
     ) external initializer {
         if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
         __AccessControlDefaultAdminRules_init(initialDelay, owner);
+        __Pausable_init();
         _collateralManagement = ICollateralManagement(collateralManagement);
     }
 
@@ -51,7 +50,7 @@ contract FlyoverDiscovery is
         string calldata apiBaseUrl,
         bool status,
         Flyover.ProviderType providerType
-    ) external payable returns (uint) {
+    ) external payable whenNotPaused returns (uint) {
 
        _validateRegistration(name, apiBaseUrl, providerType, msg.sender, msg.value);
 
@@ -82,7 +81,7 @@ contract FlyoverDiscovery is
     }
 
     /// @inheritdoc IFlyoverDiscovery
-    function updateProvider(string calldata name, string calldata apiBaseUrl) external {
+    function updateProvider(string calldata name, string calldata apiBaseUrl) external whenNotPaused {
         if (bytes(name).length < 1 || bytes(apiBaseUrl).length < 1) revert InvalidProviderData(name, apiBaseUrl);
         Flyover.LiquidityProvider storage lp;
         address providerAddress = msg.sender;

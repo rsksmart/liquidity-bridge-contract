@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import {OwnableDaoContributorUpgradeable} from "./DaoContributor.sol";
+import {EmergencyPauserPeg} from "./EmergencyPause/EmergencyPauserPeg.sol";
 import {IBridge} from "./interfaces/IBridge.sol";
 import {ICollateralManagement, CollateralManagementSet} from "./interfaces/ICollateralManagement.sol";
 import {IPegOut} from "./interfaces/IPegOut.sol";
@@ -15,6 +16,7 @@ import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 /// @author Rootstock Labs
 contract PegOutContract is
     OwnableDaoContributorUpgradeable,
+    EmergencyPauserPeg,
     IPegOut
 {
     /// @notice This struct is used to store the information of a peg out
@@ -65,7 +67,7 @@ contract PegOutContract is
     function depositPegOut(
         Quotes.PegOutQuote calldata quote,
         bytes calldata signature
-    ) external payable nonReentrant override {
+    ) external payable nonReentrant whenNotPaused override {
         if(!_collateralManagement.isRegistered(_PEG_TYPE, quote.lpRskAddress)) {
             revert Flyover.ProviderNotRegistered(quote.lpRskAddress);
         }
@@ -176,7 +178,7 @@ contract PegOutContract is
         bytes32 btcBlockHeaderHash,
         uint256 merkleBranchPath,
         bytes32[] calldata merkleBranchHashes
-    ) external nonReentrant override {
+    ) external nonReentrant whenNotPaused override {
         if(!_collateralManagement.isRegistered(_PEG_TYPE, msg.sender)) {
             revert Flyover.ProviderNotRegistered(msg.sender);
         }
@@ -210,7 +212,7 @@ contract PegOutContract is
     }
 
     /// @inheritdoc IPegOut
-    function refundUserPegOut(bytes32 quoteHash) external nonReentrant override {
+    function refundUserPegOut(bytes32 quoteHash) external nonReentrant whenNotPaused override {
         Quotes.PegOutQuote memory quote = _pegOutQuotes[quoteHash];
 
         if (quote.lbcAddress == address(0)) revert Flyover.QuoteNotFound(quoteHash);

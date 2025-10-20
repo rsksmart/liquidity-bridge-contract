@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {
-    AccessControlDefaultAdminRulesUpgradeable
-} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {EmergencyPauserDefaultAdmin} from "./EmergencyPause/EmergencyPauserDefaultAdmin.sol";
 import {ICollateralManagement} from "./interfaces/ICollateralManagement.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 import {Quotes} from "./libraries/Quotes.sol";
@@ -15,8 +13,8 @@ import {Quotes} from "./libraries/Quotes.sol";
 /// This involves adding, slashing, resigning and withdrawing collateral.
 /// @author Rootstock Labs
 contract CollateralManagementContract is
-    AccessControlDefaultAdminRulesUpgradeable,
     ReentrancyGuardUpgradeable,
+    EmergencyPauserDefaultAdmin,
     ICollateralManagement
 {
     /// @notice The version of the contract
@@ -70,22 +68,22 @@ contract CollateralManagementContract is
     }
 
     /// @inheritdoc ICollateralManagement
-    function addPegInCollateralTo(address addr) external onlyRole(COLLATERAL_ADDER) payable override {
+    function addPegInCollateralTo(address addr) external onlyRole(COLLATERAL_ADDER) whenNotPaused payable override {
         _addPegInCollateralTo(addr, msg.value);
     }
 
     /// @inheritdoc ICollateralManagement
-    function addPegInCollateral() external onlyRegisteredForPegIn(msg.sender) payable override {
+    function addPegInCollateral() external whenNotPaused onlyRegisteredForPegIn(msg.sender) payable override {
         _addPegInCollateralTo(msg.sender, msg.value);
     }
 
     /// @inheritdoc ICollateralManagement
-    function addPegOutCollateralTo(address addr) external onlyRole(COLLATERAL_ADDER) payable override {
+    function addPegOutCollateralTo(address addr) external whenNotPaused onlyRole(COLLATERAL_ADDER) payable override {
         _addPegOutCollateralTo(addr, msg.value);
     }
 
     /// @inheritdoc ICollateralManagement
-    function addPegOutCollateral() external onlyRegisteredForPegOut(msg.sender) payable override {
+    function addPegOutCollateral() external whenNotPaused onlyRegisteredForPegOut(msg.sender) payable override {
         _addPegOutCollateralTo(msg.sender, msg.value);
     }
 
@@ -103,8 +101,9 @@ contract CollateralManagementContract is
         uint256 resignDelayInBlocks,
         uint256 rewardPercentage
     ) external initializer {
-        __AccessControlDefaultAdminRules_init(initialDelay, owner);
         __ReentrancyGuard_init();
+        __AccessControlDefaultAdminRules_init(initialDelay, owner);
+        __Pausable_init();
         _minCollateral = minCollateral;
         _resignDelayInBlocks = resignDelayInBlocks;
         _rewardPercentage = rewardPercentage;
@@ -139,7 +138,7 @@ contract CollateralManagementContract is
         address punisher,
         Quotes.PegInQuote calldata quote,
         bytes32 quoteHash
-    ) external onlyRole(COLLATERAL_SLASHER) override {
+    ) external whenNotPaused onlyRole(COLLATERAL_SLASHER) override {
         uint256 penalty = Math.min(
             quote.penaltyFee,
             _pegInCollateral[quote.liquidityProviderRskAddress]
@@ -163,7 +162,7 @@ contract CollateralManagementContract is
         address punisher,
         Quotes.PegOutQuote calldata quote,
         bytes32 quoteHash
-    ) external onlyRole(COLLATERAL_SLASHER) override {
+    ) external whenNotPaused onlyRole(COLLATERAL_SLASHER) override {
         uint penalty = Math.min(
             quote.penaltyFee,
             _pegOutCollateral[quote.lpRskAddress]
@@ -214,7 +213,7 @@ contract CollateralManagementContract is
     }
 
     /// @inheritdoc ICollateralManagement
-    function resign() external override {
+    function resign() external whenNotPaused override {
         address providerAddress = msg.sender;
         if (_resignationBlockNum[providerAddress] != 0) revert AlreadyResigned(providerAddress);
         if (_pegInCollateral[providerAddress] < 1 && _pegOutCollateral[providerAddress] < 1) {
