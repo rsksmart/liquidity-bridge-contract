@@ -29,10 +29,12 @@ contract SignatureValidatorECDSATest is Test {
     uint256 constant MIN_COLLATERAL_TEST = 0.03 ether;
 
     // secp256k1 curve order
-    uint256 constant SECP256K1_N = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141;
+    uint256 constant SECP256K1_N =
+        0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141;
 
     // BTC address for pegout
-    bytes constant DECODED_P2PKH_ADDRESS = hex"6f89abcdefabbaabbaabbaabbaabbaabbaabbaabba";
+    bytes constant DECODED_P2PKH_ADDRESS =
+        hex"6f89abcdefabbaabbaabbaabbaabbaabbaabbaabba";
 
     function setUp() public {
         // Deploy BridgeMock
@@ -51,12 +53,21 @@ contract SignatureValidatorECDSATest is Test {
             uint256(900),
             false
         );
-        ERC1967Proxy lbcProxy = new ERC1967Proxy(address(lbcV1Impl), v1InitData);
+        ERC1967Proxy lbcProxy = new ERC1967Proxy(
+            address(lbcV1Impl),
+            v1InitData
+        );
 
         // Upgrade to V2
         LiquidityBridgeContractV2 lbcImpl = new LiquidityBridgeContractV2();
-        bytes32 implSlot = bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1);
-        vm.store(address(lbcProxy), implSlot, bytes32(uint256(uint160(address(lbcImpl)))));
+        bytes32 implSlot = bytes32(
+            uint256(keccak256("eip1967.proxy.implementation")) - 1
+        );
+        vm.store(
+            address(lbcProxy),
+            implSlot,
+            bytes32(uint256(uint160(address(lbcImpl))))
+        );
 
         lbc = LiquidityBridgeContractV2(payable(address(lbcProxy)));
 
@@ -69,13 +80,20 @@ contract SignatureValidatorECDSATest is Test {
 
         // Register LP with pegout support
         vm.prank(lp, lp);
-        lbc.register{value: LP_COLLATERAL}("LP", "http://lp.local", true, "both");
+        lbc.register{value: LP_COLLATERAL}(
+            "LP",
+            "http://lp.local",
+            true,
+            "both"
+        );
 
         // Deploy ECDSAError for custom error matching
         ecdsaError = new ECDSAError();
     }
 
-    function test_RevertsWithECDSAInvalidSignatureSWhenDepositPegoutGetsHighSSignature() public {
+    function test_RevertsWithECDSAInvalidSignatureSWhenDepositPegoutGetsHighSSignature()
+        public
+    {
         // Create a pegout quote
         QuotesV2.PegOutQuote memory quote = QuotesV2.PegOutQuote({
             lbcAddress: address(lbc),
@@ -99,7 +117,10 @@ contract SignatureValidatorECDSATest is Test {
             expireDate: uint32(block.timestamp + 7200)
         });
 
-        uint256 quoteValue = quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+        uint256 quoteValue = quote.value +
+            quote.callFee +
+            quote.productFeeAmount +
+            quote.gasFee;
 
         // Hash the quote
         bytes32 quoteHash = lbc.hashPegoutQuote(quote);
@@ -114,7 +135,11 @@ contract SignatureValidatorECDSATest is Test {
         uint256 sPrime = SECP256K1_N - uint256(s);
         uint8 vPrime = v == 27 ? 28 : 27;
 
-        bytes memory malleableSig = abi.encodePacked(r, bytes32(sPrime), vPrime);
+        bytes memory malleableSig = abi.encodePacked(
+            r,
+            bytes32(sPrime),
+            vPrime
+        );
 
         // Verify the signature is malleable (high-s)
         assertTrue(sPrime > SECP256K1_N / 2, "sPrime should be high-s");

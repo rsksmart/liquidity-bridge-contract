@@ -69,12 +69,15 @@ abstract contract PegInTestBase is Test {
                 TEST_MIN_PEGIN,
                 address(collateralManagement),
                 false, // mainnet
-                0,     // feePercentage
+                0, // feePercentage
                 payable(ZERO_ADDRESS) // feeCollector
             )
         );
 
-        ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), initData);
+        ERC1967Proxy proxy = new ERC1967Proxy(
+            address(implementation),
+            initData
+        );
         pegInContract = PegInContract(payable(address(proxy)));
 
         // Grant COLLATERAL_SLASHER role to PegInContract
@@ -99,12 +102,20 @@ abstract contract PegInTestBase is Test {
             )
         );
 
-        ERC1967Proxy cmProxy = new ERC1967Proxy(address(cmImplementation), cmInitData);
-        collateralManagement = CollateralManagementContract(payable(address(cmProxy)));
+        ERC1967Proxy cmProxy = new ERC1967Proxy(
+            address(cmImplementation),
+            cmInitData
+        );
+        collateralManagement = CollateralManagementContract(
+            payable(address(cmProxy))
+        );
 
         // Verify owner has admin role (should be automatic with delay = 0)
         require(
-            collateralManagement.hasRole(collateralManagement.DEFAULT_ADMIN_ROLE(), owner),
+            collateralManagement.hasRole(
+                collateralManagement.DEFAULT_ADMIN_ROLE(),
+                owner
+            ),
             "Owner should have DEFAULT_ADMIN_ROLE"
         );
     }
@@ -121,7 +132,10 @@ abstract contract PegInTestBase is Test {
             )
         );
 
-        ERC1967Proxy discoveryProxy = new ERC1967Proxy(address(discoveryImplementation), discoveryInitData);
+        ERC1967Proxy discoveryProxy = new ERC1967Proxy(
+            address(discoveryImplementation),
+            discoveryInitData
+        );
         discovery = FlyoverDiscovery(payable(address(discoveryProxy)));
 
         // Grant COLLATERAL_ADDER role to Discovery contract
@@ -146,12 +160,27 @@ abstract contract PegInTestBase is Test {
 
         // Register providers via Discovery
         vm.prank(pegInLp);
-        discovery.register{value: MIN_COLLATERAL}("Pegin Provider", "lp1.com", true, Flyover.ProviderType.PegIn);
+        discovery.register{value: MIN_COLLATERAL}(
+            "Pegin Provider",
+            "lp1.com",
+            true,
+            Flyover.ProviderType.PegIn
+        );
 
         vm.prank(pegOutLp);
-        discovery.register{value: MIN_COLLATERAL}("PegOut Provider", "lp2.com", true, Flyover.ProviderType.PegOut);
+        discovery.register{value: MIN_COLLATERAL}(
+            "PegOut Provider",
+            "lp2.com",
+            true,
+            Flyover.ProviderType.PegOut
+        );
 
         vm.prank(fullLp);
-        discovery.register{value: MIN_COLLATERAL * 2}("Full Provider", "lp3.com", true, Flyover.ProviderType.Both);
+        discovery.register{value: MIN_COLLATERAL * 2}(
+            "Full Provider",
+            "lp3.com",
+            true,
+            Flyover.ProviderType.Both
+        );
     }
 }

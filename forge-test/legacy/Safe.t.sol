@@ -33,22 +33,27 @@ contract SafeTest is Test {
         proxyFactory = new GnosisSafeProxyFactory();
     }
 
-    function createTestWallet(address[] memory signers) internal returns (GnosisSafe) {
+    function createTestWallet(
+        address[] memory signers
+    ) internal returns (GnosisSafe) {
         // Prepare initialization data for Safe
         bytes memory initializer = abi.encodeWithSelector(
             GnosisSafe.setup.selector,
-            signers,              // owners
-            2,                    // threshold (2 of 2)
-            address(0),           // to
-            hex"",                // data
-            address(0),           // fallbackHandler
-            address(0),           // paymentToken
-            0,                    // payment
-            address(0)            // paymentReceiver
+            signers, // owners
+            2, // threshold (2 of 2)
+            address(0), // to
+            hex"", // data
+            address(0), // fallbackHandler
+            address(0), // paymentToken
+            0, // payment
+            address(0) // paymentReceiver
         );
 
         // Create proxy
-        GnosisSafeProxy proxy = proxyFactory.createProxy(address(safeSingleton), initializer);
+        GnosisSafeProxy proxy = proxyFactory.createProxy(
+            address(safeSingleton),
+            initializer
+        );
 
         return GnosisSafe(payable(address(proxy)));
     }
@@ -90,8 +95,13 @@ contract SafeTest is Test {
             false
         );
 
-        ERC1967Proxy lbcProxy = new ERC1967Proxy(address(lbcV1Impl), v1InitData);
-        LiquidityBridgeContract lbc = LiquidityBridgeContract(payable(address(lbcProxy)));
+        ERC1967Proxy lbcProxy = new ERC1967Proxy(
+            address(lbcV1Impl),
+            v1InitData
+        );
+        LiquidityBridgeContract lbc = LiquidityBridgeContract(
+            payable(address(lbcProxy))
+        );
 
         // Verify initialization
         assertEq(lbc.owner(), signer1, "Initial owner should be signer1");

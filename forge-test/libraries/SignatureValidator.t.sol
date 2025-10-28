@@ -36,60 +36,110 @@ contract SignatureValidatorTest is Test {
     function test_ShouldVerifyAValid65ByteSignature() public view {
         // Sign the message hash (EIP-191 format)
         bytes32 ethSignedMessageHash = testMessageHash.toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKey, ethSignedMessageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+            signerKey,
+            ethSignedMessageHash
+        );
         bytes memory signature = abi.encodePacked(r, s, v);
 
         // Verify signature is 65 bytes
         assertEq(signature.length, 65, "Signature should be 65 bytes");
 
         // Verify signature
-        bool result = signatureValidator.verify(signer, testMessageHash, signature);
+        bool result = signatureValidator.verify(
+            signer,
+            testMessageHash,
+            signature
+        );
         assertTrue(result, "Signature should be valid");
     }
 
-    function test_ShouldReturnFalseForInvalidSignatureWithCorrectLength() public view {
+    function test_ShouldReturnFalseForInvalidSignatureWithCorrectLength()
+        public
+        view
+    {
         bytes32 ethSignedMessageHash = testMessageHash.toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKey, ethSignedMessageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+            signerKey,
+            ethSignedMessageHash
+        );
         bytes memory signature = abi.encodePacked(r, s, v);
 
         // Use wrong message
         bytes32 wrongMessage = keccak256(bytes("Wrong message"));
 
-        bool result = signatureValidator.verify(signer, wrongMessage, signature);
+        bool result = signatureValidator.verify(
+            signer,
+            wrongMessage,
+            signature
+        );
         assertFalse(result, "Signature should be invalid for wrong message");
     }
 
-    function test_ShouldReturnFalseForSignatureFromDifferentSigner() public view {
+    function test_ShouldReturnFalseForSignatureFromDifferentSigner()
+        public
+        view
+    {
         bytes32 ethSignedMessageHash = testMessageHash.toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(otherSignerKey, ethSignedMessageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+            otherSignerKey,
+            ethSignedMessageHash
+        );
         bytes memory signature = abi.encodePacked(r, s, v);
 
         // Use signer's address but otherSigner's signature
-        bool result = signatureValidator.verify(signer, testMessageHash, signature);
+        bool result = signatureValidator.verify(
+            signer,
+            testMessageHash,
+            signature
+        );
         assertFalse(result, "Signature should be invalid for different signer");
     }
 
-    function test_ShouldCorrectlyVerifyValidSignaturesForNonZeroAddresses() public view {
+    function test_ShouldCorrectlyVerifyValidSignaturesForNonZeroAddresses()
+        public
+        view
+    {
         // Test with otherSigner to ensure it works with various addresses
         bytes32 ethSignedMessageHash = testMessageHash.toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(otherSignerKey, ethSignedMessageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+            otherSignerKey,
+            ethSignedMessageHash
+        );
         bytes memory signature = abi.encodePacked(r, s, v);
 
-        bool result = signatureValidator.verify(otherSigner, testMessageHash, signature);
+        bool result = signatureValidator.verify(
+            otherSigner,
+            testMessageHash,
+            signature
+        );
         assertTrue(result, "Signature should be valid for correct signer");
     }
 
-    function test_ShouldRejectInvalidSignaturesForNonZeroAddresses() public view {
+    function test_ShouldRejectInvalidSignaturesForNonZeroAddresses()
+        public
+        view
+    {
         bytes32 ethSignedMessageHash = testMessageHash.toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKey, ethSignedMessageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+            signerKey,
+            ethSignedMessageHash
+        );
         bytes memory signature = abi.encodePacked(r, s, v);
 
         // Use wrong address for the signature
-        bool result = signatureValidator.verify(otherSigner, testMessageHash, signature);
+        bool result = signatureValidator.verify(
+            otherSigner,
+            testMessageHash,
+            signature
+        );
         assertFalse(result, "Signature should be invalid for wrong address");
     }
 
-    function test_ShouldHandleSignatureVerificationWithDifferentMessageHashes() public view {
+    function test_ShouldHandleSignatureVerificationWithDifferentMessageHashes()
+        public
+        view
+    {
         string memory message1 = "First message";
         string memory message2 = "Second message";
         bytes32 hash1 = keccak256(bytes(message1));
@@ -115,7 +165,9 @@ contract SignatureValidatorTest is Test {
 
     // ============ Signature Length Validation Tests ============
 
-    function test_ShouldRevertWithIncorrectSignatureForUndersizedSignature1Byte() public {
+    function test_ShouldRevertWithIncorrectSignatureForUndersizedSignature1Byte()
+        public
+    {
         bytes32 messageHash = keccak256(bytes(testMessage));
         bytes memory shortSignature = hex"01";
 
@@ -130,7 +182,9 @@ contract SignatureValidatorTest is Test {
         signatureValidator.verify(signer, messageHash, shortSignature);
     }
 
-    function test_ShouldRevertWithIncorrectSignatureForUndersizedSignature64Bytes() public {
+    function test_ShouldRevertWithIncorrectSignatureForUndersizedSignature64Bytes()
+        public
+    {
         bytes32 messageHash = keccak256(bytes(testMessage));
         // Create a 64-byte signature (missing 1 byte)
         bytes memory shortSignature = new bytes(64);
@@ -149,7 +203,9 @@ contract SignatureValidatorTest is Test {
         signatureValidator.verify(signer, messageHash, shortSignature);
     }
 
-    function test_ShouldRevertWithIncorrectSignatureForOversizedSignature66Bytes() public {
+    function test_ShouldRevertWithIncorrectSignatureForOversizedSignature66Bytes()
+        public
+    {
         bytes32 messageHash = keccak256(bytes(testMessage));
         // Create a 66-byte signature (1 byte too long)
         bytes memory longSignature = new bytes(66);
@@ -185,9 +241,14 @@ contract SignatureValidatorTest is Test {
 
     // ============ Zero Address Protection Tests ============
 
-    function test_ShouldRevertWithZeroAddressErrorWhenAddrParameterIsAddressZero() public {
+    function test_ShouldRevertWithZeroAddressErrorWhenAddrParameterIsAddressZero()
+        public
+    {
         bytes32 ethSignedMessageHash = testMessageHash.toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKey, ethSignedMessageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+            signerKey,
+            ethSignedMessageHash
+        );
         bytes memory signature = abi.encodePacked(r, s, v);
 
         bytes32 messageHash = keccak256(bytes(testMessage));
@@ -199,7 +260,10 @@ contract SignatureValidatorTest is Test {
     function test_ShouldPreventZeroAddressBypassAttackVector() public {
         bytes32 messageHash = keccak256(bytes(testMessage));
         bytes32 ethSignedMessageHash = testMessageHash.toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKey, ethSignedMessageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+            signerKey,
+            ethSignedMessageHash
+        );
         bytes memory signature = abi.encodePacked(r, s, v);
 
         // Attempt to use zero address should always revert, regardless of signature
@@ -216,13 +280,20 @@ contract SignatureValidatorTest is Test {
         signatureValidator.verify(address(0), messageHash, emptySignature);
     }
 
-    function test_ShouldPreventZeroAddressBypassWithMalformedSignature() public {
+    function test_ShouldPreventZeroAddressBypassWithMalformedSignature()
+        public
+    {
         // Test with malformed signature data that could cause ecrecover to return zero address
         bytes32 arbitraryHash = keccak256(bytes("malicious data"));
-        bytes memory malformedSignature = hex"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001c";
+        bytes
+            memory malformedSignature = hex"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001c";
 
         vm.expectRevert(SignatureValidatorWrapper.ZeroAddress.selector);
-        signatureValidator.verify(address(0), arbitraryHash, malformedSignature);
+        signatureValidator.verify(
+            address(0),
+            arbitraryHash,
+            malformedSignature
+        );
     }
 
     // ============ Edge Cases Tests ============
@@ -235,7 +306,10 @@ contract SignatureValidatorTest is Test {
         bytes32 messageBytes = messageHash.toEthSignedMessageHash();
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKey, messageBytes);
         bytes memory validSignature = abi.encodePacked(r, s, v);
-        bytes memory longSignature = abi.encodePacked(validSignature, hex"deadbeef"); // Add extra data
+        bytes memory longSignature = abi.encodePacked(
+            validSignature,
+            hex"deadbeef"
+        ); // Add extra data
 
         vm.expectRevert(
             abi.encodeWithSelector(

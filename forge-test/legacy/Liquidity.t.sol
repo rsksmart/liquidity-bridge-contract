@@ -37,16 +37,21 @@ contract LiquidityTest is Test {
     uint256 constant LP_COLLATERAL = 1.5 ether;
 
     // BTC address constants (decoded from base58check)
-    bytes constant DECODED_TEST_FED_ADDRESS = hex"c39bc4b53918d6058134363d6e57e11a22f9e8fb";
-    bytes constant DECODED_P2PKH_ZERO_ADDRESS_TESTNET = hex"6f0000000000000000000000000000000000000000";
-    bytes constant DECODED_TEST_P2PKH_ADDRESS = hex"6f89abcdefabbaabbaabbaabbaabbaabbaabbaabba";
+    bytes constant DECODED_TEST_FED_ADDRESS =
+        hex"c39bc4b53918d6058134363d6e57e11a22f9e8fb";
+    bytes constant DECODED_P2PKH_ZERO_ADDRESS_TESTNET =
+        hex"6f0000000000000000000000000000000000000000";
+    bytes constant DECODED_TEST_P2PKH_ADDRESS =
+        hex"6f89abcdefabbaabbaabbaabbaabbaabbaabbaabba";
 
     function setUp() public {
         lbcOwner = address(this);
 
         // Create test accounts
         for (uint i = 1; i <= 16; i++) {
-            address account = address(uint160(uint256(keccak256(abi.encodePacked("account", i)))));
+            address account = address(
+                uint160(uint256(keccak256(abi.encodePacked("account", i))))
+            );
             vm.deal(account, 100 ether);
             accounts.push(account);
         }
@@ -77,20 +82,65 @@ contract LiquidityTest is Test {
 
         // Register 3 liquidity providers
         vm.prank(lp1, lp1);
-        lbc.register{value: LP_COLLATERAL}("First LP", "http://localhost/api1", true, "both");
+        lbc.register{value: LP_COLLATERAL}(
+            "First LP",
+            "http://localhost/api1",
+            true,
+            "both"
+        );
 
         vm.prank(lp2, lp2);
-        lbc.register{value: LP_COLLATERAL / 2}("Second LP", "http://localhost/api2", true, "pegin");
+        lbc.register{value: LP_COLLATERAL / 2}(
+            "Second LP",
+            "http://localhost/api2",
+            true,
+            "pegin"
+        );
 
         vm.prank(lp3, lp3);
-        lbc.register{value: LP_COLLATERAL / 2}("Third LP", "http://localhost/api3", true, "pegout");
+        lbc.register{value: LP_COLLATERAL / 2}(
+            "Third LP",
+            "http://localhost/api3",
+            true,
+            "pegout"
+        );
 
-        liquidityProviders.push(LiquidityProviderInfo(lp1, lp1Key, "First LP", "http://localhost/api1", true, "both"));
-        liquidityProviders.push(LiquidityProviderInfo(lp2, lp2Key, "Second LP", "http://localhost/api2", true, "pegin"));
-        liquidityProviders.push(LiquidityProviderInfo(lp3, lp3Key, "Third LP", "http://localhost/api3", true, "pegout"));
+        liquidityProviders.push(
+            LiquidityProviderInfo(
+                lp1,
+                lp1Key,
+                "First LP",
+                "http://localhost/api1",
+                true,
+                "both"
+            )
+        );
+        liquidityProviders.push(
+            LiquidityProviderInfo(
+                lp2,
+                lp2Key,
+                "Second LP",
+                "http://localhost/api2",
+                true,
+                "pegin"
+            )
+        );
+        liquidityProviders.push(
+            LiquidityProviderInfo(
+                lp3,
+                lp3Key,
+                "Third LP",
+                "http://localhost/api3",
+                true,
+                "pegout"
+            )
+        );
     }
 
-    function test_MatchLPAddressWithAddressRetrievedFromEcrecover() public view {
+    function test_MatchLPAddressWithAddressRetrievedFromEcrecover()
+        public
+        view
+    {
         LiquidityProviderInfo memory provider = liquidityProviders[0];
         address destinationAddress = accounts[0];
 
@@ -108,7 +158,10 @@ contract LiquidityTest is Test {
 
         // Sign the quote (EIP-191 personal_sign format)
         bytes32 ethSignedMessageHash = quoteHash.toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(provider.privateKey, ethSignedMessageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+            provider.privateKey,
+            ethSignedMessageHash
+        );
         bytes memory signature = abi.encodePacked(r, s, v);
 
         // Verify signature using SignatureValidator
@@ -122,7 +175,11 @@ contract LiquidityTest is Test {
         address signatureAddress = ethSignedMessageHash.recover(signature);
 
         // Assertions
-        assertEq(signatureAddress, provider.signer, "Signature address should match provider address");
+        assertEq(
+            signatureAddress,
+            provider.signer,
+            "Signature address should match provider address"
+        );
         assertTrue(validSignature, "Signature should be valid");
     }
 
@@ -180,30 +237,34 @@ contract LiquidityTest is Test {
         uint256 productFee = (productFeePercentage * value) / 100;
 
         // Create nonce from current timestamp
-        bytes memory nonceBytes = abi.encodePacked(block.timestamp, uint256(0x1234567890abcdef));
+        bytes memory nonceBytes = abi.encodePacked(
+            block.timestamp,
+            uint256(0x1234567890abcdef)
+        );
         int64 nonce = int64(uint64(uint256(keccak256(nonceBytes)) >> 192)); // Take top 64 bits
 
-        return QuotesV2.PeginQuote({
-            fedBtcAddress: bytes20(DECODED_TEST_FED_ADDRESS),
-            lbcAddress: lbcAddress,
-            liquidityProviderRskAddress: liquidityProvider,
-            btcRefundAddress: DECODED_P2PKH_ZERO_ADDRESS_TESTNET,
-            rskRefundAddress: payable(refundAddress),
-            liquidityProviderBtcAddress: DECODED_TEST_P2PKH_ADDRESS,
-            callFee: 100000000000000,
-            penaltyFee: 10000000000000,
-            contractAddress: destinationAddress,
-            data: hex"",
-            gasLimit: 21000,
-            nonce: nonce,
-            value: value,
-            agreementTimestamp: uint32(block.timestamp),
-            timeForDeposit: 3600,
-            callTime: 7200,
-            depositConfirmations: 10,
-            callOnRegister: false,
-            productFeeAmount: productFee,
-            gasFee: 100
-        });
+        return
+            QuotesV2.PeginQuote({
+                fedBtcAddress: bytes20(DECODED_TEST_FED_ADDRESS),
+                lbcAddress: lbcAddress,
+                liquidityProviderRskAddress: liquidityProvider,
+                btcRefundAddress: DECODED_P2PKH_ZERO_ADDRESS_TESTNET,
+                rskRefundAddress: payable(refundAddress),
+                liquidityProviderBtcAddress: DECODED_TEST_P2PKH_ADDRESS,
+                callFee: 100000000000000,
+                penaltyFee: 10000000000000,
+                contractAddress: destinationAddress,
+                data: hex"",
+                gasLimit: 21000,
+                nonce: nonce,
+                value: value,
+                agreementTimestamp: uint32(block.timestamp),
+                timeForDeposit: 3600,
+                callTime: 7200,
+                depositConfirmations: 10,
+                callOnRegister: false,
+                productFeeAmount: productFee,
+                gasFee: 100
+            });
     }
 }

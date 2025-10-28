@@ -20,14 +20,16 @@ contract ConfigurationTest is CollateralTestBase {
     // ============ receive function tests ============
 
     function test_Receive_RejectsAnyRBTCSentToContract() public {
-        address payable contractAddress = payable(address(collateralManagement));
+        address payable contractAddress = payable(
+            address(collateralManagement)
+        );
 
         // Owner cannot send RBTC directly
         vm.prank(owner);
         vm.expectRevert(
             abi.encodeWithSelector(Flyover.PaymentNotAllowed.selector)
         );
-        (bool success,) = contractAddress.call{value: ONE_RBTC}("");
+        (bool success, ) = contractAddress.call{value: ONE_RBTC}("");
         success; // Suppress warning
 
         // Any other account cannot send RBTC directly
@@ -35,7 +37,7 @@ contract ConfigurationTest is CollateralTestBase {
         vm.expectRevert(
             abi.encodeWithSelector(Flyover.PaymentNotAllowed.selector)
         );
-        (success,) = contractAddress.call{value: ONE_RBTC}("");
+        (success, ) = contractAddress.call{value: ONE_RBTC}("");
         success; // Suppress warning
     }
 
@@ -43,7 +45,11 @@ contract ConfigurationTest is CollateralTestBase {
 
     function test_Initialize_InitializesProperly() public view {
         // Check VERSION
-        assertEq(collateralManagement.VERSION(), "1.0.0", "VERSION should be 1.0.0");
+        assertEq(
+            collateralManagement.VERSION(),
+            "1.0.0",
+            "VERSION should be 1.0.0"
+        );
 
         // Check minCollateral
         assertEq(
@@ -67,11 +73,7 @@ contract ConfigurationTest is CollateralTestBase {
         );
 
         // Check owner
-        assertEq(
-            collateralManagement.owner(),
-            owner,
-            "Owner should match"
-        );
+        assertEq(collateralManagement.owner(), owner, "Owner should match");
 
         // Check penalties
         assertEq(

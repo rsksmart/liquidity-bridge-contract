@@ -29,27 +29,35 @@ contract PegOutTest is Test {
 
     uint256 constant LP_COLLATERAL = 1.5 ether;
     address constant ZERO_ADDRESS = address(0);
-    bytes constant ANY_HEX = hex"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
-    uint256 constant WEI_TO_SAT_CONVERSION = 10**10;
+    bytes constant ANY_HEX =
+        hex"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+    uint256 constant WEI_TO_SAT_CONVERSION = 10 ** 10;
 
     // Test BTC addresses for different script types (using same format as working tests)
     // P2PKH: version 0x6f + 20 bytes hash160
-    bytes constant DECODED_P2PKH_ADDRESS = hex"6f89abcdefabbaabbaabbaabbaabbaabbaabbaabba";
+    bytes constant DECODED_P2PKH_ADDRESS =
+        hex"6f89abcdefabbaabbaabbaabbaabbaabbaabbaabba";
     // P2SH: version 0xc4 + 20 bytes hash160
-    bytes constant DECODED_P2SH_ADDRESS = hex"c489abcdefabbaabbaabbaabbaabbaabbaabbaabba";
+    bytes constant DECODED_P2SH_ADDRESS =
+        hex"c489abcdefabbaabbaabbaabbaabbaabbaabbaabba";
     // P2WPKH: version 0x00 + 20 bytes hash
-    bytes constant DECODED_P2WPKH_ADDRESS = hex"0089abcdefabbaabbaabbaabbaabbaabbaabbaabba";
+    bytes constant DECODED_P2WPKH_ADDRESS =
+        hex"0089abcdefabbaabbaabbaabbaabbaabbaabbaabba";
     // P2WSH: version 0x00 + 32 bytes hash
-    bytes constant DECODED_P2WSH_ADDRESS = hex"0089abcdefabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabba";
+    bytes constant DECODED_P2WSH_ADDRESS =
+        hex"0089abcdefabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabba";
     // P2TR: version 0x01 + 32 bytes hash
-    bytes constant DECODED_P2TR_ADDRESS = hex"0189abcdefabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabba";
+    bytes constant DECODED_P2TR_ADDRESS =
+        hex"0189abcdefabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabba";
 
     function setUp() public {
         lbcOwner = address(this);
 
         // Create 16 test accounts
         for (uint i = 1; i <= 16; i++) {
-            address account = address(uint160(uint256(keccak256(abi.encodePacked("account", i)))));
+            address account = address(
+                uint160(uint256(keccak256(abi.encodePacked("account", i))))
+            );
             vm.deal(account, 100 ether);
             accounts.push(account);
         }
@@ -70,11 +78,20 @@ contract PegOutTest is Test {
             uint256(1),
             false
         );
-        ERC1967Proxy lbcProxy = new ERC1967Proxy(address(lbcV1Impl), v1InitData);
+        ERC1967Proxy lbcProxy = new ERC1967Proxy(
+            address(lbcV1Impl),
+            v1InitData
+        );
 
         LiquidityBridgeContractV2 lbcImpl = new LiquidityBridgeContractV2();
-        bytes32 implSlot = bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1);
-        vm.store(address(lbcProxy), implSlot, bytes32(uint256(uint160(address(lbcImpl)))));
+        bytes32 implSlot = bytes32(
+            uint256(keccak256("eip1967.proxy.implementation")) - 1
+        );
+        vm.store(
+            address(lbcProxy),
+            implSlot,
+            bytes32(uint256(uint160(address(lbcImpl))))
+        );
 
         lbc = LiquidityBridgeContractV2(payable(address(lbcProxy)));
 
@@ -92,13 +109,28 @@ contract PegOutTest is Test {
         vm.deal(lp3, 100 ether);
 
         vm.prank(lp1, lp1);
-        lbc.register{value: LP_COLLATERAL}("First LP", "http://localhost/api1", true, "both");
+        lbc.register{value: LP_COLLATERAL}(
+            "First LP",
+            "http://localhost/api1",
+            true,
+            "both"
+        );
 
         vm.prank(lp2, lp2);
-        lbc.register{value: LP_COLLATERAL / 2}("Second LP", "http://localhost/api2", true, "pegin");
+        lbc.register{value: LP_COLLATERAL / 2}(
+            "Second LP",
+            "http://localhost/api2",
+            true,
+            "pegin"
+        );
 
         vm.prank(lp3, lp3);
-        lbc.register{value: LP_COLLATERAL / 2}("Third LP", "http://localhost/api3", true, "pegout");
+        lbc.register{value: LP_COLLATERAL / 2}(
+            "Third LP",
+            "http://localhost/api3",
+            true,
+            "pegout"
+        );
 
         liquidityProviders.push(LiquidityProviderInfo(lp1, lp1Key));
         liquidityProviders.push(LiquidityProviderInfo(lp2, lp2Key));
@@ -114,7 +146,9 @@ contract PegOutTest is Test {
         address liquidityProvider,
         bytes memory depositAddress
     ) internal view returns (QuotesV2.PegOutQuote memory quote) {
-        int64 nonce = int64(uint64(uint256(keccak256(abi.encodePacked(block.timestamp))) >> 192));
+        int64 nonce = int64(
+            uint64(uint256(keccak256(abi.encodePacked(block.timestamp))) >> 192)
+        );
 
         quote = QuotesV2.PegOutQuote({
             lbcAddress: lbcAddress,
@@ -139,8 +173,11 @@ contract PegOutTest is Test {
         });
     }
 
-    function totalValue(QuotesV2.PegOutQuote memory quote) internal pure returns (uint256) {
-        return quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+    function totalValue(
+        QuotesV2.PegOutQuote memory quote
+    ) internal pure returns (uint256) {
+        return
+            quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
     }
 
     function weiToSat(uint256 weiAmount) internal pure returns (uint64) {
@@ -182,31 +219,36 @@ contract PegOutTest is Test {
         bytes memory outputScript;
         bytes memory depositAddr = quote.deposityAddress;
 
-        if (scriptType == 0) { // p2pkh - needs 20 bytes after version
+        if (scriptType == 0) {
+            // p2pkh - needs 20 bytes after version
             bytes memory hash160 = new bytes(20);
             for (uint i = 0; i < 20 && i + 1 < depositAddr.length; i++) {
                 hash160[i] = depositAddr[i + 1];
             }
             outputScript = abi.encodePacked(hex"76a914", hash160, hex"88ac");
-        } else if (scriptType == 1) { // p2sh - needs 20 bytes after version
+        } else if (scriptType == 1) {
+            // p2sh - needs 20 bytes after version
             bytes memory hash160 = new bytes(20);
             for (uint i = 0; i < 20 && i + 1 < depositAddr.length; i++) {
                 hash160[i] = depositAddr[i + 1];
             }
             outputScript = abi.encodePacked(hex"a914", hash160, hex"87");
-        } else if (scriptType == 2) { // p2wpkh - needs 20 bytes after version
+        } else if (scriptType == 2) {
+            // p2wpkh - needs 20 bytes after version
             bytes memory hash = new bytes(20);
             for (uint i = 0; i < 20 && i + 1 < depositAddr.length; i++) {
                 hash[i] = depositAddr[i + 1];
             }
             outputScript = abi.encodePacked(hex"0014", hash);
-        } else if (scriptType == 3) { // p2wsh - needs 32 bytes after version
+        } else if (scriptType == 3) {
+            // p2wsh - needs 32 bytes after version
             bytes memory hash = new bytes(32);
             for (uint i = 0; i < 32 && i + 1 < depositAddr.length; i++) {
                 hash[i] = depositAddr[i + 1];
             }
             outputScript = abi.encodePacked(hex"0020", hash);
-        } else { // p2tr - needs 32 bytes after version
+        } else {
+            // p2tr - needs 32 bytes after version
             bytes memory hash = new bytes(32);
             for (uint i = 0; i < 32 && i + 1 < depositAddr.length; i++) {
                 hash[i] = depositAddr[i + 1];
@@ -217,20 +259,25 @@ contract PegOutTest is Test {
         uint64 satAmount = weiToSat(quote.value);
         bytes memory amountLE = toBytesLE(satAmount);
 
-        return abi.encodePacked(
-            hex"0100000001013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40",
-            hex"000000006a47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4",
-            hex"ffffffff02",
-            amountLE,
-            uint8(outputScript.length),
-            outputScript,
-            hex"0000000000000000226a20",
-            quoteHash,
-            hex"00000000"
-        );
+        return
+            abi.encodePacked(
+                hex"0100000001013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40",
+                hex"000000006a47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4",
+                hex"ffffffff02",
+                amountLE,
+                uint8(outputScript.length),
+                outputScript,
+                hex"0000000000000000226a20",
+                quoteHash,
+                hex"00000000"
+            );
     }
 
-    function sliceBytes(bytes memory data, uint256 start, uint256 end) internal pure returns (bytes memory) {
+    function sliceBytes(
+        bytes memory data,
+        uint256 start,
+        uint256 end
+    ) internal pure returns (bytes memory) {
         require(end >= start && end <= data.length, "Invalid slice range");
         bytes memory result = new bytes(end - start);
         for (uint i = 0; i < end - start; i++) {
@@ -243,9 +290,18 @@ contract PegOutTest is Test {
         QuotesV2.PegOutQuote memory quote,
         uint256 firstConfirmationSeconds,
         uint256 nConfirmationSeconds
-    ) internal pure returns (bytes memory firstConfirmationHeader, bytes memory nConfirmationHeader) {
-        uint256 firstConfirmationTime = quote.agreementTimestamp + firstConfirmationSeconds;
-        uint256 nConfirmationTime = quote.agreementTimestamp + nConfirmationSeconds;
+    )
+        internal
+        pure
+        returns (
+            bytes memory firstConfirmationHeader,
+            bytes memory nConfirmationHeader
+        )
+    {
+        uint256 firstConfirmationTime = quote.agreementTimestamp +
+            firstConfirmationSeconds;
+        uint256 nConfirmationTime = quote.agreementTimestamp +
+            nConfirmationSeconds;
 
         bytes memory firstTimeLE = abi.encodePacked(
             uint8(firstConfirmationTime),
@@ -278,20 +334,32 @@ contract PegOutTest is Test {
         );
     }
 
-    function getTestMerkleProof() internal pure returns (
-        bytes32 blockHeaderHash,
-        uint256 partialMerkleTree,
-        bytes32[] memory merkleBranchHashes
-    ) {
+    function getTestMerkleProof()
+        internal
+        pure
+        returns (
+            bytes32 blockHeaderHash,
+            uint256 partialMerkleTree,
+            bytes32[] memory merkleBranchHashes
+        )
+    {
         blockHeaderHash = 0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326;
         partialMerkleTree = 0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb426;
         merkleBranchHashes = new bytes32[](1);
-        merkleBranchHashes[0] = 0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326;
+        merkleBranchHashes[
+            0
+        ] = 0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326;
     }
 
-    function signQuote(bytes32 quoteHash, uint256 privateKey) internal pure returns (bytes memory) {
+    function signQuote(
+        bytes32 quoteHash,
+        uint256 privateKey
+    ) internal pure returns (bytes memory) {
         bytes32 ethSignedMessageHash = quoteHash.toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, ethSignedMessageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+            privateKey,
+            ethSignedMessageHash
+        );
         return abi.encodePacked(r, s, v);
     }
 
@@ -321,7 +389,10 @@ contract PegOutTest is Test {
     //     _testRefundPegOutForScriptType(4, "p2tr");
     // }
 
-    function _testRefundPegOutForScriptType(uint8 scriptType, string memory) internal {
+    function _testRefundPegOutForScriptType(
+        uint8 scriptType,
+        string memory
+    ) internal {
         QuotesV2.PegOutQuote memory quote = getTestPegoutQuote(
             address(lbc),
             0.5 ether,
@@ -335,7 +406,11 @@ contract PegOutTest is Test {
         uint256 lpEthBefore = liquidityProviders[0].signer.balance;
 
         (bytes memory h1, ) = getBtcPaymentBlockHeaders(quote, 100, 600);
-        (bytes32 bHash, uint256 pmt, bytes32[] memory merkle) = getTestMerkleProof();
+        (
+            bytes32 bHash,
+            uint256 pmt,
+            bytes32[] memory merkle
+        ) = getTestMerkleProof();
 
         bridgeMock.setHeaderByHash(bHash, h1);
 
@@ -357,7 +432,9 @@ contract PegOutTest is Test {
         assertEq(ZERO_ADDRESS.balance, quote.productFeeAmount);
     }
 
-    function _getAddressForScriptType(uint8 scriptType) internal pure returns (bytes memory) {
+    function _getAddressForScriptType(
+        uint8 scriptType
+    ) internal pure returns (bytes memory) {
         if (scriptType == 0) return DECODED_P2PKH_ADDRESS;
         if (scriptType == 1) return DECODED_P2SH_ADDRESS;
         if (scriptType == 2) return DECODED_P2WPKH_ADDRESS;
@@ -385,7 +462,11 @@ contract PegOutTest is Test {
         bytes memory sig = signQuote(qHash, liquidityProviders[0].privateKey);
 
         (bytes memory h1, ) = getBtcPaymentBlockHeaders(quote, 100, 600);
-        (bytes32 bHash, uint256 pmt, bytes32[] memory merkle) = getTestMerkleProof();
+        (
+            bytes32 bHash,
+            uint256 pmt,
+            bytes32[] memory merkle
+        ) = getTestMerkleProof();
         bridgeMock.setHeaderByHash(bHash, h1);
 
         vm.prank(accounts[0]);
@@ -401,26 +482,32 @@ contract PegOutTest is Test {
         assertEq(expectedSat - 1, weiToSat(quote.value) - 1);
     }
 
-    function _createTruncatedAmountTx(bytes32 qHash, uint64 satAmount) internal pure returns (bytes memory) {
+    function _createTruncatedAmountTx(
+        bytes32 qHash,
+        uint64 satAmount
+    ) internal pure returns (bytes memory) {
         bytes memory hash160 = new bytes(20);
         for (uint i = 0; i < 20; i++) {
             hash160[i] = DECODED_P2SH_ADDRESS[i + 1];
         }
 
-        return abi.encodePacked(
-            hex"0100000001013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40",
-            hex"000000006a47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4",
-            hex"ffffffff02",
-            toBytesLE(satAmount),
-            hex"17a914",
-            hash160,
-            hex"870000000000000000226a20",
-            qHash,
-            hex"00000000"
-        );
+        return
+            abi.encodePacked(
+                hex"0100000001013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40",
+                hex"000000006a47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4",
+                hex"ffffffff02",
+                toBytesLE(satAmount),
+                hex"17a914",
+                hash160,
+                hex"870000000000000000226a20",
+                qHash,
+                hex"00000000"
+            );
     }
 
-    function test_NotGenerateTransactionToDAOWhenProductFeeIsZeroInRefundPegOut() public {
+    function test_NotGenerateTransactionToDAOWhenProductFeeIsZeroInRefundPegOut()
+        public
+    {
         LiquidityProviderInfo memory provider = liquidityProviders[0];
         address user = accounts[0];
 
@@ -434,8 +521,16 @@ contract PegOutTest is Test {
 
         uint256 feeBalBefore = ZERO_ADDRESS.balance;
 
-        (bytes memory firstHeader, ) = getBtcPaymentBlockHeaders(quote, 100, 600);
-        (bytes32 blockHeaderHash, uint256 partialMerkleTree, bytes32[] memory merkleBranchHashes) = getTestMerkleProof();
+        (bytes memory firstHeader, ) = getBtcPaymentBlockHeaders(
+            quote,
+            100,
+            600
+        );
+        (
+            bytes32 blockHeaderHash,
+            uint256 partialMerkleTree,
+            bytes32[] memory merkleBranchHashes
+        ) = getTestMerkleProof();
 
         bridgeMock.setHeaderByHash(blockHeaderHash, firstHeader);
 
@@ -449,12 +544,20 @@ contract PegOutTest is Test {
 
         vm.recordLogs();
         vm.prank(provider.signer);
-        lbc.refundPegOut(quoteHash, btcTx, blockHeaderHash, partialMerkleTree, merkleBranchHashes);
+        lbc.refundPegOut(
+            quoteHash,
+            btcTx,
+            blockHeaderHash,
+            partialMerkleTree,
+            merkleBranchHashes
+        );
 
         // Verify no DaoFeeSent event
         Vm.Log[] memory logs = vm.getRecordedLogs();
         for (uint i = 0; i < logs.length; i++) {
-            assertFalse(logs[i].topics[0] == keccak256("DaoFeeSent(bytes32,uint256)"));
+            assertFalse(
+                logs[i].topics[0] == keccak256("DaoFeeSent(bytes32,uint256)")
+            );
         }
 
         assertEq(ZERO_ADDRESS.balance, feeBalBefore);
@@ -472,8 +575,16 @@ contract PegOutTest is Test {
             DECODED_P2PKH_ADDRESS
         );
 
-        (bytes memory firstHeader, ) = getBtcPaymentBlockHeaders(quote, 100, 600);
-        (bytes32 blockHeaderHash, uint256 partialMerkleTree, bytes32[] memory merkleBranchHashes) = getTestMerkleProof();
+        (bytes memory firstHeader, ) = getBtcPaymentBlockHeaders(
+            quote,
+            100,
+            600
+        );
+        (
+            bytes32 blockHeaderHash,
+            uint256 partialMerkleTree,
+            bytes32[] memory merkleBranchHashes
+        ) = getTestMerkleProof();
 
         bridgeMock.setHeaderByHash(blockHeaderHash, firstHeader);
 
@@ -486,7 +597,13 @@ contract PegOutTest is Test {
         bytes memory btcTx = generateRawTx(quoteHash, quote, 0);
 
         vm.prank(provider.signer);
-        lbc.refundPegOut(quoteHash, btcTx, blockHeaderHash, partialMerkleTree, merkleBranchHashes);
+        lbc.refundPegOut(
+            quoteHash,
+            btcTx,
+            blockHeaderHash,
+            partialMerkleTree,
+            merkleBranchHashes
+        );
 
         // Try to deposit again
         vm.prank(user);
@@ -505,16 +622,28 @@ contract PegOutTest is Test {
             DECODED_P2PKH_ADDRESS
         );
 
-        (bytes32 blockHeaderHash, uint256 partialMerkleTree, bytes32[] memory merkleBranchHashes) = getTestMerkleProof();
+        (
+            bytes32 blockHeaderHash,
+            uint256 partialMerkleTree,
+            bytes32[] memory merkleBranchHashes
+        ) = getTestMerkleProof();
         bytes32 quoteHash = lbc.hashPegoutQuote(quote);
 
         // Try to refund without depositing first
         vm.prank(liquidityProviders[0].signer);
         vm.expectRevert("LBC042");
-        lbc.refundPegOut(quoteHash, ANY_HEX, blockHeaderHash, partialMerkleTree, merkleBranchHashes);
+        lbc.refundPegOut(
+            quoteHash,
+            ANY_HEX,
+            blockHeaderHash,
+            partialMerkleTree,
+            merkleBranchHashes
+        );
     }
 
-    function test_RevertIfLPTriesToRefundAPegoutThatsAlreadyBeenRefundedByUser() public {
+    function test_RevertIfLPTriesToRefundAPegoutThatsAlreadyBeenRefundedByUser()
+        public
+    {
         LiquidityProviderInfo memory provider = liquidityProviders[0];
         address user = accounts[0];
 
@@ -528,7 +657,11 @@ contract PegOutTest is Test {
         quote.expireDate = uint32(quote.agreementTimestamp + 300);
         quote.expireBlock = uint32(block.number + 10);
 
-        (bytes32 blockHeaderHash, uint256 partialMerkleTree, bytes32[] memory merkleBranchHashes) = getTestMerkleProof();
+        (
+            bytes32 blockHeaderHash,
+            uint256 partialMerkleTree,
+            bytes32[] memory merkleBranchHashes
+        ) = getTestMerkleProof();
 
         bytes32 quoteHash = lbc.hashPegoutQuote(quote);
         bytes memory sig = signQuote(quoteHash, provider.privateKey);
@@ -547,7 +680,13 @@ contract PegOutTest is Test {
         // LP tries to refund
         vm.prank(provider.signer);
         vm.expectRevert("LBC064");
-        lbc.refundPegOut(quoteHash, ANY_HEX, blockHeaderHash, partialMerkleTree, merkleBranchHashes);
+        lbc.refundPegOut(
+            quoteHash,
+            ANY_HEX,
+            blockHeaderHash,
+            partialMerkleTree,
+            merkleBranchHashes
+        );
     }
 
     function test_PenalizeLPIfRefundsAfterExpiration() public {
@@ -564,8 +703,16 @@ contract PegOutTest is Test {
         quote.expireBlock = uint32(block.number + 10);
         quote.expireDate = uint32(block.timestamp + 100000);
 
-        (bytes32 blockHeaderHash, uint256 partialMerkleTree, bytes32[] memory merkleBranchHashes) = getTestMerkleProof();
-        (bytes memory firstHeader, ) = getBtcPaymentBlockHeaders(quote, 100, 600);
+        (
+            bytes32 blockHeaderHash,
+            uint256 partialMerkleTree,
+            bytes32[] memory merkleBranchHashes
+        ) = getTestMerkleProof();
+        (bytes memory firstHeader, ) = getBtcPaymentBlockHeaders(
+            quote,
+            100,
+            600
+        );
 
         bridgeMock.setHeaderByHash(blockHeaderHash, firstHeader);
 
@@ -584,13 +731,22 @@ contract PegOutTest is Test {
 
         vm.prank(provider.signer);
         vm.recordLogs();
-        lbc.refundPegOut(quoteHash, btcTx, blockHeaderHash, partialMerkleTree, merkleBranchHashes);
+        lbc.refundPegOut(
+            quoteHash,
+            btcTx,
+            blockHeaderHash,
+            partialMerkleTree,
+            merkleBranchHashes
+        );
 
         // Verify Penalized event
         Vm.Log[] memory logs = vm.getRecordedLogs();
         bool foundPenalized = false;
         for (uint i = 0; i < logs.length; i++) {
-            if (logs[i].topics[0] == keccak256("Penalized(address,uint256,bytes32)")) {
+            if (
+                logs[i].topics[0] ==
+                keccak256("Penalized(address,uint256,bytes32)")
+            ) {
                 foundPenalized = true;
                 break;
             }
@@ -598,7 +754,9 @@ contract PegOutTest is Test {
         assertTrue(foundPenalized);
     }
 
-    function test_FailIfProviderIsNotRegisteredForPegoutOnRefundPegout() public {
+    function test_FailIfProviderIsNotRegisteredForPegoutOnRefundPegout()
+        public
+    {
         address user = accounts[3];
         LiquidityProviderInfo memory provider = liquidityProviders[1]; // pegin-only LP
 
@@ -610,12 +768,22 @@ contract PegOutTest is Test {
             DECODED_P2PKH_ADDRESS
         );
 
-        (bytes32 blockHeaderHash, uint256 partialMerkleTree, bytes32[] memory merkleBranchHashes) = getTestMerkleProof();
+        (
+            bytes32 blockHeaderHash,
+            uint256 partialMerkleTree,
+            bytes32[] memory merkleBranchHashes
+        ) = getTestMerkleProof();
         bytes32 quoteHash = lbc.hashPegoutQuote(quote);
 
         vm.prank(provider.signer);
         vm.expectRevert("LBC001");
-        lbc.refundPegOut(quoteHash, ANY_HEX, blockHeaderHash, partialMerkleTree, merkleBranchHashes);
+        lbc.refundPegOut(
+            quoteHash,
+            ANY_HEX,
+            blockHeaderHash,
+            partialMerkleTree,
+            merkleBranchHashes
+        );
     }
 
     function test_EmitEventWhenPegoutIsDeposited() public {
@@ -643,7 +811,10 @@ contract PegOutTest is Test {
         Vm.Log[] memory logs = vm.getRecordedLogs();
         bool foundDeposit = false;
         for (uint i = 0; i < logs.length; i++) {
-            if (logs[i].topics[0] == keccak256("PegOutDeposit(bytes32,address,uint256,uint256)")) {
+            if (
+                logs[i].topics[0] ==
+                keccak256("PegOutDeposit(bytes32,address,uint256,uint256)")
+            ) {
                 foundDeposit = true;
                 break;
             }
@@ -847,7 +1018,9 @@ contract PegOutTest is Test {
         lbc.refundUserPegOut(quoteHash);
     }
 
-    function test_FailOnRefundPegoutIfBtcTxHasOpReturnWithIncorrectQuoteHash() public {
+    function test_FailOnRefundPegoutIfBtcTxHasOpReturnWithIncorrectQuoteHash()
+        public
+    {
         address user = accounts[3];
         LiquidityProviderInfo memory provider = liquidityProviders[0];
 
@@ -872,14 +1045,26 @@ contract PegOutTest is Test {
         bytes memory btcTx = generateRawTx(wrongHash, quote, 0);
         quote.transferConfirmations = originalTransferConf;
 
-        (bytes32 blockHeaderHash, uint256 partialMerkleTree, bytes32[] memory merkleBranchHashes) = getTestMerkleProof();
+        (
+            bytes32 blockHeaderHash,
+            uint256 partialMerkleTree,
+            bytes32[] memory merkleBranchHashes
+        ) = getTestMerkleProof();
 
         vm.prank(provider.signer);
         vm.expectRevert("LBC069");
-        lbc.refundPegOut(quoteHash, btcTx, blockHeaderHash, partialMerkleTree, merkleBranchHashes);
+        lbc.refundPegOut(
+            quoteHash,
+            btcTx,
+            blockHeaderHash,
+            partialMerkleTree,
+            merkleBranchHashes
+        );
     }
 
-    function test_FailOnRefundPegoutIfBtcTxNullDataScriptHasWrongFormat() public {
+    function test_FailOnRefundPegoutIfBtcTxNullDataScriptHasWrongFormat()
+        public
+    {
         address user = accounts[3];
         LiquidityProviderInfo memory provider = liquidityProviders[0];
 
@@ -898,14 +1083,28 @@ contract PegOutTest is Test {
         lbc.depositPegout{value: totalValue(quote)}(quote, sig);
 
         bytes memory btcTx = generateRawTx(quoteHash, quote, 0);
-        (bytes32 blockHeaderHash, uint256 partialMerkleTree, bytes32[] memory merkleBranchHashes) = getTestMerkleProof();
+        (
+            bytes32 blockHeaderHash,
+            uint256 partialMerkleTree,
+            bytes32[] memory merkleBranchHashes
+        ) = getTestMerkleProof();
 
         // Replace 6a20 with 6a40 (incorrect size byte)
-        bytes memory incorrectSizeByteTx = _replaceInBytes(btcTx, hex"6a20", hex"6a40");
+        bytes memory incorrectSizeByteTx = _replaceInBytes(
+            btcTx,
+            hex"6a20",
+            hex"6a40"
+        );
 
         vm.prank(provider.signer);
         vm.expectRevert("LBC075");
-        lbc.refundPegOut(quoteHash, incorrectSizeByteTx, blockHeaderHash, partialMerkleTree, merkleBranchHashes);
+        lbc.refundPegOut(
+            quoteHash,
+            incorrectSizeByteTx,
+            blockHeaderHash,
+            partialMerkleTree,
+            merkleBranchHashes
+        );
 
         // Replace 226a20 + hash with 216a19 + truncated hash (wrong hash size)
         bytes memory hashPart = abi.encodePacked(quoteHash);
@@ -918,10 +1117,20 @@ contract PegOutTest is Test {
 
         vm.prank(provider.signer);
         vm.expectRevert("LBC075");
-        lbc.refundPegOut(quoteHash, incorrectHashSizeTx, blockHeaderHash, partialMerkleTree, merkleBranchHashes);
+        lbc.refundPegOut(
+            quoteHash,
+            incorrectHashSizeTx,
+            blockHeaderHash,
+            partialMerkleTree,
+            merkleBranchHashes
+        );
     }
 
-    function _replaceInBytes(bytes memory data, bytes memory search, bytes memory replace) internal pure returns (bytes memory) {
+    function _replaceInBytes(
+        bytes memory data,
+        bytes memory search,
+        bytes memory replace
+    ) internal pure returns (bytes memory) {
         // Simple find and replace in bytes
         for (uint i = 0; i <= data.length - search.length; i++) {
             bool found = true;
@@ -932,7 +1141,9 @@ contract PegOutTest is Test {
                 }
             }
             if (found) {
-                bytes memory result = new bytes(data.length - search.length + replace.length);
+                bytes memory result = new bytes(
+                    data.length - search.length + replace.length
+                );
                 for (uint k = 0; k < i; k++) {
                     result[k] = data[k];
                 }
@@ -966,21 +1177,41 @@ contract PegOutTest is Test {
         vm.prank(user);
         lbc.depositPegout{value: totalValue(quote)}(quote, sig);
 
-        (bytes memory firstHeader, ) = getBtcPaymentBlockHeaders(quote, 100, 600);
-        (bytes32 blockHeaderHash, uint256 partialMerkleTree, bytes32[] memory merkleBranchHashes) = getTestMerkleProof();
+        (bytes memory firstHeader, ) = getBtcPaymentBlockHeaders(
+            quote,
+            100,
+            600
+        );
+        (
+            bytes32 blockHeaderHash,
+            uint256 partialMerkleTree,
+            bytes32[] memory merkleBranchHashes
+        ) = getTestMerkleProof();
 
         bridgeMock.setHeaderByHash(blockHeaderHash, firstHeader);
 
         bytes memory btcTx = generateRawTx(quoteHash, quote, 0);
         // Replace amount 80c3c90100000000 with 7fc3c90100000000 (slightly less)
-        bytes memory incorrectValueTx = _replaceInBytes(btcTx, hex"80c3c90100000000", hex"7fc3c90100000000");
+        bytes memory incorrectValueTx = _replaceInBytes(
+            btcTx,
+            hex"80c3c90100000000",
+            hex"7fc3c90100000000"
+        );
 
         vm.prank(provider.signer);
         vm.expectRevert("LBC067");
-        lbc.refundPegOut(quoteHash, incorrectValueTx, blockHeaderHash, partialMerkleTree, merkleBranchHashes);
+        lbc.refundPegOut(
+            quoteHash,
+            incorrectValueTx,
+            blockHeaderHash,
+            partialMerkleTree,
+            merkleBranchHashes
+        );
     }
 
-    function test_FailOnRefundPegoutIfBtcTxDoesNotHaveCorrectDestination() public {
+    function test_FailOnRefundPegoutIfBtcTxDoesNotHaveCorrectDestination()
+        public
+    {
         address user = accounts[3];
         LiquidityProviderInfo memory provider = liquidityProviders[0];
 
@@ -998,8 +1229,16 @@ contract PegOutTest is Test {
         vm.prank(user);
         lbc.depositPegout{value: totalValue(quote)}(quote, sig);
 
-        (bytes memory firstHeader, ) = getBtcPaymentBlockHeaders(quote, 100, 600);
-        (bytes32 blockHeaderHash, uint256 partialMerkleTree, bytes32[] memory merkleBranchHashes) = getTestMerkleProof();
+        (bytes memory firstHeader, ) = getBtcPaymentBlockHeaders(
+            quote,
+            100,
+            600
+        );
+        (
+            bytes32 blockHeaderHash,
+            uint256 partialMerkleTree,
+            bytes32[] memory merkleBranchHashes
+        ) = getTestMerkleProof();
 
         bridgeMock.setHeaderByHash(blockHeaderHash, firstHeader);
 
@@ -1008,7 +1247,13 @@ contract PegOutTest is Test {
 
         vm.prank(provider.signer);
         vm.expectRevert("LBC068");
-        lbc.refundPegOut(quoteHash, btcTx, blockHeaderHash, partialMerkleTree, merkleBranchHashes);
+        lbc.refundPegOut(
+            quoteHash,
+            btcTx,
+            blockHeaderHash,
+            partialMerkleTree,
+            merkleBranchHashes
+        );
     }
 
     function test_PenalizeLPOnPegoutIfTheTransferWasNotMadeOnTime() public {
@@ -1031,9 +1276,19 @@ contract PegOutTest is Test {
 
         // Setup headers with late confirmation
         uint256 BTC_BLOCK_TIME = 5400; // 1.5h
-        uint256 expirationTime = quote.agreementTimestamp + quote.transferTime + BTC_BLOCK_TIME;
-        (bytes memory firstHeader, ) = getBtcPaymentBlockHeaders(quote, expirationTime + 1, expirationTime + 600);
-        (bytes32 blockHeaderHash, uint256 partialMerkleTree, bytes32[] memory merkleBranchHashes) = getTestMerkleProof();
+        uint256 expirationTime = quote.agreementTimestamp +
+            quote.transferTime +
+            BTC_BLOCK_TIME;
+        (bytes memory firstHeader, ) = getBtcPaymentBlockHeaders(
+            quote,
+            expirationTime + 1,
+            expirationTime + 600
+        );
+        (
+            bytes32 blockHeaderHash,
+            uint256 partialMerkleTree,
+            bytes32[] memory merkleBranchHashes
+        ) = getTestMerkleProof();
 
         bridgeMock.setHeaderByHash(blockHeaderHash, firstHeader);
 
@@ -1041,13 +1296,22 @@ contract PegOutTest is Test {
 
         vm.recordLogs();
         vm.prank(provider.signer);
-        lbc.refundPegOut(quoteHash, btcTx, blockHeaderHash, partialMerkleTree, merkleBranchHashes);
+        lbc.refundPegOut(
+            quoteHash,
+            btcTx,
+            blockHeaderHash,
+            partialMerkleTree,
+            merkleBranchHashes
+        );
 
         // Verify Penalized event
         Vm.Log[] memory logs = vm.getRecordedLogs();
         bool foundPenalized = false;
         for (uint i = 0; i < logs.length; i++) {
-            if (logs[i].topics[0] == keccak256("Penalized(address,uint256,bytes32)")) {
+            if (
+                logs[i].topics[0] ==
+                keccak256("Penalized(address,uint256,bytes32)")
+            ) {
                 foundPenalized = true;
                 break;
             }

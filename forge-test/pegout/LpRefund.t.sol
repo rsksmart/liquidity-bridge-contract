@@ -56,13 +56,25 @@ contract LpRefundTest is PegOutTestBase {
 
         vm.prank(pegOutLp);
         vm.expectRevert(
-            abi.encodeWithSelector(Flyover.ProviderNotRegistered.selector, pegOutLp)
+            abi.encodeWithSelector(
+                Flyover.ProviderNotRegistered.selector,
+                pegOutLp
+            )
         );
-        pegOutContract.refundPegOut(quoteHash, btcTx, BLOCK_HEADER_HASH, PARTIAL_MERKLE_TREE, merkleHashes);
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
     }
 
     function test_RefundPegOut_RevertsIfQuoteWasNotPaid() public {
-        Quotes.PegOutQuote memory quote = createTestPegOutQuote(1 ether, pegOutLp);
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            1 ether,
+            pegOutLp
+        );
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
 
         // Don't deposit - try to refund directly
@@ -72,7 +84,13 @@ contract LpRefundTest is PegOutTestBase {
         vm.expectRevert(
             abi.encodeWithSelector(Flyover.QuoteNotFound.selector, quoteHash)
         );
-        pegOutContract.refundPegOut(quoteHash, btcTx, BLOCK_HEADER_HASH, PARTIAL_MERKLE_TREE, merkleHashes);
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
     }
 
     function test_RefundPegOut_RevertsIfNotCalledByLP() public {
@@ -84,9 +102,19 @@ contract LpRefundTest is PegOutTestBase {
         // fullLp tries to refund pegOutLp's quote
         vm.prank(fullLp);
         vm.expectRevert(
-            abi.encodeWithSelector(Flyover.InvalidSender.selector, pegOutLp, fullLp)
+            abi.encodeWithSelector(
+                Flyover.InvalidSender.selector,
+                pegOutLp,
+                fullLp
+            )
         );
-        pegOutContract.refundPegOut(quoteHash, btcTx, BLOCK_HEADER_HASH, PARTIAL_MERKLE_TREE, merkleHashes);
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
     }
 
     function test_RefundPegOut_RevertsIfBtcTxNotRelatedToQuote() public {
@@ -94,7 +122,10 @@ contract LpRefundTest is PegOutTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
 
         // Create a different quote and generate tx for it (different hash in OP_RETURN)
-        Quotes.PegOutQuote memory otherQuote = createTestPegOutQuote(0.5 ether, pegOutLp);
+        Quotes.PegOutQuote memory otherQuote = createTestPegOutQuote(
+            0.5 ether,
+            pegOutLp
+        );
         bytes32 otherQuoteHash = pegOutContract.hashPegOutQuote(otherQuote);
 
         // Generate BTC tx with the OTHER quote's hash
@@ -102,9 +133,19 @@ contract LpRefundTest is PegOutTestBase {
 
         vm.prank(pegOutLp);
         vm.expectRevert(
-            abi.encodeWithSelector(IPegOut.InvalidQuoteHash.selector, quoteHash, otherQuoteHash)
+            abi.encodeWithSelector(
+                IPegOut.InvalidQuoteHash.selector,
+                quoteHash,
+                otherQuoteHash
+            )
         );
-        pegOutContract.refundPegOut(quoteHash, btcTx, BLOCK_HEADER_HASH, PARTIAL_MERKLE_TREE, merkleHashes);
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
     }
 
     function test_RefundPegOut_RevertsIfNullDataMalformed() public {
@@ -115,15 +156,25 @@ contract LpRefundTest is PegOutTestBase {
         // Using a minimal invalid tx hex"010203" instead of properly formed tx
         vm.prank(pegOutLp);
         vm.expectRevert(); // MalformedTransaction
-        pegOutContract.refundPegOut(quoteHash, hex"010203", BLOCK_HEADER_HASH, PARTIAL_MERKLE_TREE, merkleHashes);
+        pegOutContract.refundPegOut(
+            quoteHash,
+            hex"010203",
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
     }
 
-    function test_RefundPegOut_RevertsIfCantGetConfirmationsFromBridge() public {
+    function test_RefundPegOut_RevertsIfCantGetConfirmationsFromBridge()
+        public
+    {
         Quotes.PegOutQuote memory quote = createAndDepositQuote();
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
 
         // Setup block header
-        bytes memory header = createBtcBlockHeader(uint32(block.timestamp + 100));
+        bytes memory header = createBtcBlockHeader(
+            uint32(block.timestamp + 100)
+        );
         bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
 
         // Set bridge to return negative confirmations (error)
@@ -133,9 +184,18 @@ contract LpRefundTest is PegOutTestBase {
 
         vm.prank(pegOutLp);
         vm.expectRevert(
-            abi.encodeWithSelector(IPegOut.UnableToGetConfirmations.selector, -5)
+            abi.encodeWithSelector(
+                IPegOut.UnableToGetConfirmations.selector,
+                -5
+            )
         );
-        pegOutContract.refundPegOut(quoteHash, btcTx, BLOCK_HEADER_HASH, PARTIAL_MERKLE_TREE, merkleHashes);
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
     }
 
     function test_RefundPegOut_RevertsIfNotEnoughConfirmations() public {
@@ -143,7 +203,9 @@ contract LpRefundTest is PegOutTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
 
         // Setup block header
-        bytes memory header = createBtcBlockHeader(uint32(block.timestamp + 100));
+        bytes memory header = createBtcBlockHeader(
+            uint32(block.timestamp + 100)
+        );
         bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
 
         // Set bridge to return only 1 confirmation (need 2)
@@ -159,10 +221,18 @@ contract LpRefundTest is PegOutTestBase {
                 1
             )
         );
-        pegOutContract.refundPegOut(quoteHash, btcTx, BLOCK_HEADER_HASH, PARTIAL_MERKLE_TREE, merkleHashes);
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
     }
 
-    function test_RefundPegOut_RevertsIfBtcTxDoesNotHaveHighEnoughAmount() public {
+    function test_RefundPegOut_RevertsIfBtcTxDoesNotHaveHighEnoughAmount()
+        public
+    {
         Quotes.PegOutQuote memory quote = createAndDepositQuote();
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         uint256 originalValue = quote.value; // Store original value before modification
@@ -173,17 +243,31 @@ contract LpRefundTest is PegOutTestBase {
         bytes memory btcTx = generateBtcTx(lowQuote, quoteHash); // Low amount!
 
         // Setup headers
-        bytes memory header = createBtcBlockHeader(uint32(block.timestamp + 100));
+        bytes memory header = createBtcBlockHeader(
+            uint32(block.timestamp + 100)
+        );
         bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
-        bridgeMock.setConfirmations(int256(uint256(quote.transferConfirmations)));
+        bridgeMock.setConfirmations(
+            int256(uint256(quote.transferConfirmations))
+        );
 
         uint256 lowAmountWei = 0.9 ether;
 
         vm.prank(pegOutLp);
         vm.expectRevert(
-            abi.encodeWithSelector(Flyover.InsufficientAmount.selector, lowAmountWei, originalValue)
+            abi.encodeWithSelector(
+                Flyover.InsufficientAmount.selector,
+                lowAmountWei,
+                originalValue
+            )
         );
-        pegOutContract.refundPegOut(quoteHash, btcTx, BLOCK_HEADER_HASH, PARTIAL_MERKLE_TREE, merkleHashes);
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
     }
 
     function test_RefundPegOut_RevertsIfBtcTxNotDirectedToUserAddress() public {
@@ -197,13 +281,23 @@ contract LpRefundTest is PegOutTestBase {
         bytes memory btcTx = generateBtcTx(wrongAddressQuote, quoteHash);
 
         // Setup headers
-        bytes memory header = createBtcBlockHeader(uint32(block.timestamp + 100));
+        bytes memory header = createBtcBlockHeader(
+            uint32(block.timestamp + 100)
+        );
         bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
-        bridgeMock.setConfirmations(int256(uint256(quote.transferConfirmations)));
+        bridgeMock.setConfirmations(
+            int256(uint256(quote.transferConfirmations))
+        );
 
         vm.prank(pegOutLp);
         vm.expectRevert(); // InvalidDestination
-        pegOutContract.refundPegOut(quoteHash, btcTx, BLOCK_HEADER_HASH, PARTIAL_MERKLE_TREE, merkleHashes);
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
     }
 
     function test_RefundPegOut_PenalizesLPForBeingExpiredByTime() public {
@@ -214,9 +308,13 @@ contract LpRefundTest is PegOutTestBase {
         vm.warp(quote.expireDate + 1);
 
         // Setup block header with late timestamp
-        bytes memory header = createBtcBlockHeader(uint32(quote.expireDate + 1));
+        bytes memory header = createBtcBlockHeader(
+            uint32(quote.expireDate + 1)
+        );
         bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
-        bridgeMock.setConfirmations(int256(uint256(quote.transferConfirmations)));
+        bridgeMock.setConfirmations(
+            int256(uint256(quote.transferConfirmations))
+        );
 
         bytes memory btcTx = generateBtcTx(quote, quoteHash);
 
@@ -224,7 +322,13 @@ contract LpRefundTest is PegOutTestBase {
         vm.prank(pegOutLp);
         vm.expectEmit(true, false, false, true);
         emit IPegOut.PegOutRefunded(quoteHash);
-        pegOutContract.refundPegOut(quoteHash, btcTx, BLOCK_HEADER_HASH, PARTIAL_MERKLE_TREE, merkleHashes);
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
     }
 
     function test_RefundPegOut_PenalizesLPForBeingExpiredByBlocks() public {
@@ -235,9 +339,13 @@ contract LpRefundTest is PegOutTestBase {
         vm.roll(quote.expireBlock + 1);
 
         // Setup block header
-        bytes memory header = createBtcBlockHeader(uint32(block.timestamp + 100));
+        bytes memory header = createBtcBlockHeader(
+            uint32(block.timestamp + 100)
+        );
         bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
-        bridgeMock.setConfirmations(int256(uint256(quote.transferConfirmations)));
+        bridgeMock.setConfirmations(
+            int256(uint256(quote.transferConfirmations))
+        );
 
         bytes memory btcTx = generateBtcTx(quote, quoteHash);
 
@@ -245,18 +353,33 @@ contract LpRefundTest is PegOutTestBase {
         vm.prank(pegOutLp);
         vm.expectEmit(true, false, false, true);
         emit IPegOut.PegOutRefunded(quoteHash);
-        pegOutContract.refundPegOut(quoteHash, btcTx, BLOCK_HEADER_HASH, PARTIAL_MERKLE_TREE, merkleHashes);
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
     }
 
-    function test_RefundPegOut_PenalizesLPForSendingBtcAfterExpectedFirstConfirmation() public {
+    function test_RefundPegOut_PenalizesLPForSendingBtcAfterExpectedFirstConfirmation()
+        public
+    {
         Quotes.PegOutQuote memory quote = createAndDepositQuote();
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
 
         // Setup header with late timestamp (after transferTime + btcBlockTime)
-        uint32 lateTime = uint32(quote.agreementTimestamp + quote.transferTime + TEST_BTC_BLOCK_TIME + 500);
+        uint32 lateTime = uint32(
+            quote.agreementTimestamp +
+                quote.transferTime +
+                TEST_BTC_BLOCK_TIME +
+                500
+        );
         bytes memory header = createBtcBlockHeader(lateTime);
         bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
-        bridgeMock.setConfirmations(int256(uint256(quote.transferConfirmations)));
+        bridgeMock.setConfirmations(
+            int256(uint256(quote.transferConfirmations))
+        );
 
         bytes memory btcTx = generateBtcTx(quote, quoteHash);
 
@@ -264,10 +387,18 @@ contract LpRefundTest is PegOutTestBase {
         vm.prank(pegOutLp);
         vm.expectEmit(true, false, false, true);
         emit IPegOut.PegOutRefunded(quoteHash);
-        pegOutContract.refundPegOut(quoteHash, btcTx, BLOCK_HEADER_HASH, PARTIAL_MERKLE_TREE, merkleHashes);
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
     }
 
-    function test_RefundPegOut_RevertsIfCantExtractFirstConfirmationHeader() public {
+    function test_RefundPegOut_RevertsIfCantExtractFirstConfirmationHeader()
+        public
+    {
         Quotes.PegOutQuote memory quote = createAndDepositQuote();
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
 
@@ -279,9 +410,18 @@ contract LpRefundTest is PegOutTestBase {
 
         vm.prank(pegOutLp);
         vm.expectRevert(
-            abi.encodeWithSelector(Flyover.EmptyBlockHeader.selector, BLOCK_HEADER_HASH)
+            abi.encodeWithSelector(
+                Flyover.EmptyBlockHeader.selector,
+                BLOCK_HEADER_HASH
+            )
         );
-        pegOutContract.refundPegOut(quoteHash, btcTx, BLOCK_HEADER_HASH, PARTIAL_MERKLE_TREE, merkleHashes);
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
     }
 
     // Note: The TypeScript test suite includes 100+ additional parameterized tests:
@@ -299,7 +439,10 @@ contract LpRefundTest is PegOutTestBase {
     /// @param quote The PegOut quote
     /// @param quoteHash The hash of the quote
     /// @return btcTx The raw BTC transaction bytes
-    function generateBtcTx(Quotes.PegOutQuote memory quote, bytes32 quoteHash) internal pure returns (bytes memory) {
+    function generateBtcTx(
+        Quotes.PegOutQuote memory quote,
+        bytes32 quoteHash
+    ) internal pure returns (bytes memory) {
         // BTC transaction structure:
         // - Version (4 bytes)
         // - Input count (1 byte)
@@ -352,7 +495,9 @@ contract LpRefundTest is PegOutTestBase {
     }
 
     /// @notice Converts uint64 to 8-byte little-endian
-    function toLittleEndian64(uint64 value) internal pure returns (bytes memory) {
+    function toLittleEndian64(
+        uint64 value
+    ) internal pure returns (bytes memory) {
         bytes memory result = new bytes(8);
         result[0] = bytes1(uint8(value));
         result[1] = bytes1(uint8(value >> 8));
@@ -368,7 +513,9 @@ contract LpRefundTest is PegOutTestBase {
     /// @notice Creates a BTC block header with a specific timestamp (little-endian encoded)
     /// @param timestamp The Unix timestamp for the block
     /// @return header The 80-byte BTC block header
-    function createBtcBlockHeader(uint32 timestamp) internal pure returns (bytes memory) {
+    function createBtcBlockHeader(
+        uint32 timestamp
+    ) internal pure returns (bytes memory) {
         bytes memory header = new bytes(80);
 
         // Convert timestamp to little-endian and place at offset 68
@@ -380,18 +527,30 @@ contract LpRefundTest is PegOutTestBase {
         return header;
     }
 
-    function createAndDepositQuote() internal returns (Quotes.PegOutQuote memory) {
-        Quotes.PegOutQuote memory quote = createTestPegOutQuote(1 ether, pegOutLp);
+    function createAndDepositQuote()
+        internal
+        returns (Quotes.PegOutQuote memory)
+    {
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            1 ether,
+            pegOutLp
+        );
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quoteHash);
 
         vm.prank(user);
-        pegOutContract.depositPegOut{value: getTotalValue(quote)}(quote, signature);
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(
+            quote,
+            signature
+        );
 
         return quote;
     }
 
-    function createTestPegOutQuote(uint256 value, address lp) internal view returns (Quotes.PegOutQuote memory) {
+    function createTestPegOutQuote(
+        uint256 value,
+        address lp
+    ) internal view returns (Quotes.PegOutQuote memory) {
         // Create a valid Bitcoin testnet P2PKH address (version byte 0x6f + 20 bytes hash160)
         // Using a non-zero hash to ensure it's a valid address for testing
         bytes memory testBtcAddress = abi.encodePacked(
@@ -400,34 +559,41 @@ contract LpRefundTest is PegOutTestBase {
         );
         uint32 currentTime = uint32(block.timestamp);
 
-        return Quotes.PegOutQuote({
-            callFee: 100000000000000,
-            penaltyFee: 10000000000000,
-            value: value,
-            productFeeAmount: (value * 2) / 100,
-            gasFee: 100,
-            lbcAddress: address(pegOutContract),
-            lpRskAddress: lp,
-            rskRefundAddress: user,
-            nonce: int64(uint64(block.timestamp)),
-            agreementTimestamp: currentTime,
-            depositDateLimit: currentTime + 600,
-            transferTime: 3600,
-            depositConfirmations: 10,
-            transferConfirmations: 2,
-            expireBlock: uint32(block.number + 4000),
-            expireDate: currentTime + 7200,
-            depositAddress: testBtcAddress,
-            btcRefundAddress: testBtcAddress,
-            lpBtcAddress: testBtcAddress
-        });
+        return
+            Quotes.PegOutQuote({
+                callFee: 100000000000000,
+                penaltyFee: 10000000000000,
+                value: value,
+                productFeeAmount: (value * 2) / 100,
+                gasFee: 100,
+                lbcAddress: address(pegOutContract),
+                lpRskAddress: lp,
+                rskRefundAddress: user,
+                nonce: int64(uint64(block.timestamp)),
+                agreementTimestamp: currentTime,
+                depositDateLimit: currentTime + 600,
+                transferTime: 3600,
+                depositConfirmations: 10,
+                transferConfirmations: 2,
+                expireBlock: uint32(block.number + 4000),
+                expireDate: currentTime + 7200,
+                depositAddress: testBtcAddress,
+                btcRefundAddress: testBtcAddress,
+                lpBtcAddress: testBtcAddress
+            });
     }
 
-    function getTotalValue(Quotes.PegOutQuote memory quote) internal pure returns (uint256) {
-        return quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+    function getTotalValue(
+        Quotes.PegOutQuote memory quote
+    ) internal pure returns (uint256) {
+        return
+            quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
     }
 
-    function signQuote(address signer, bytes32 quoteHash) internal view returns (bytes memory) {
+    function signQuote(
+        address signer,
+        bytes32 quoteHash
+    ) internal view returns (bytes memory) {
         uint256 privateKey;
         if (signer == fullLp) {
             privateKey = fullLpKey;
@@ -439,8 +605,13 @@ contract LpRefundTest is PegOutTestBase {
             revert("Unknown signer");
         }
 
-        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", quoteHash));
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, ethSignedMessageHash);
+        bytes32 ethSignedMessageHash = keccak256(
+            abi.encodePacked("\x19Ethereum Signed Message:\n32", quoteHash)
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+            privateKey,
+            ethSignedMessageHash
+        );
         return abi.encodePacked(r, s, v);
     }
 }

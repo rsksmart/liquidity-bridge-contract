@@ -31,7 +31,9 @@ contract ResignationTest is Test {
 
         // Create test accounts
         for (uint i = 1; i <= 16; i++) {
-            address account = address(uint160(uint256(keccak256(abi.encodePacked("account", i)))));
+            address account = address(
+                uint160(uint256(keccak256(abi.encodePacked("account", i))))
+            );
             vm.deal(account, 100 ether);
             accounts.push(account);
         }
@@ -52,11 +54,20 @@ contract ResignationTest is Test {
             uint256(1),
             false
         );
-        ERC1967Proxy lbcProxy = new ERC1967Proxy(address(lbcV1Impl), v1InitData);
+        ERC1967Proxy lbcProxy = new ERC1967Proxy(
+            address(lbcV1Impl),
+            v1InitData
+        );
 
         LiquidityBridgeContractV2 lbcImpl = new LiquidityBridgeContractV2();
-        bytes32 implSlot = bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1);
-        vm.store(address(lbcProxy), implSlot, bytes32(uint256(uint160(address(lbcImpl)))));
+        bytes32 implSlot = bytes32(
+            uint256(keccak256("eip1967.proxy.implementation")) - 1
+        );
+        vm.store(
+            address(lbcProxy),
+            implSlot,
+            bytes32(uint256(uint160(address(lbcImpl))))
+        );
 
         lbc = LiquidityBridgeContractV2(payable(address(lbcProxy)));
 
@@ -70,17 +81,38 @@ contract ResignationTest is Test {
         vm.deal(lp3, 100 ether);
 
         vm.prank(lp1, lp1);
-        lbc.register{value: LP_COLLATERAL}("First LP", "http://localhost/api1", true, "both");
+        lbc.register{value: LP_COLLATERAL}(
+            "First LP",
+            "http://localhost/api1",
+            true,
+            "both"
+        );
 
         vm.prank(lp2, lp2);
-        lbc.register{value: LP_COLLATERAL / 2}("Second LP", "http://localhost/api2", true, "pegin");
+        lbc.register{value: LP_COLLATERAL / 2}(
+            "Second LP",
+            "http://localhost/api2",
+            true,
+            "pegin"
+        );
 
         vm.prank(lp3, lp3);
-        lbc.register{value: LP_COLLATERAL / 2}("Third LP", "http://localhost/api3", true, "pegout");
+        lbc.register{value: LP_COLLATERAL / 2}(
+            "Third LP",
+            "http://localhost/api3",
+            true,
+            "pegout"
+        );
 
-        liquidityProviders.push(LiquidityProviderInfo(lp1, LP_COLLATERAL, "both"));
-        liquidityProviders.push(LiquidityProviderInfo(lp2, LP_COLLATERAL / 2, "pegin"));
-        liquidityProviders.push(LiquidityProviderInfo(lp3, LP_COLLATERAL / 2, "pegout"));
+        liquidityProviders.push(
+            LiquidityProviderInfo(lp1, LP_COLLATERAL, "both")
+        );
+        liquidityProviders.push(
+            LiquidityProviderInfo(lp2, LP_COLLATERAL / 2, "pegin")
+        );
+        liquidityProviders.push(
+            LiquidityProviderInfo(lp3, LP_COLLATERAL / 2, "pegout")
+        );
     }
 
     // ============ Happy Path Tests ============
@@ -102,7 +134,11 @@ contract ResignationTest is Test {
         lbc.resign();
 
         // Verify LBC balance unchanged after resign
-        assertEq(address(lbc).balance, lbcEthBalBefore, "LBC balance should not change on resign");
+        assertEq(
+            address(lbc).balance,
+            lbcEthBalBefore,
+            "LBC balance should not change on resign"
+        );
 
         // Withdraw protocol balance
         uint256 lpEthBefore = lp.signer.balance;
@@ -112,9 +148,20 @@ contract ResignationTest is Test {
         lbc.withdraw(LP_BALANCE);
 
         // Verify withdrawals
-        assertEq(address(lbc).balance, lbcEthBalBefore - LP_BALANCE, "LBC balance should decrease");
-        assertTrue(lp.signer.balance > lpEthBefore, "LP ETH balance should increase");
-        assertEq(lbc.getBalance(lp.signer), lpProtocolBalBefore - LP_BALANCE, "LP protocol balance should decrease");
+        assertEq(
+            address(lbc).balance,
+            lbcEthBalBefore - LP_BALANCE,
+            "LBC balance should decrease"
+        );
+        assertTrue(
+            lp.signer.balance > lpEthBefore,
+            "LP ETH balance should increase"
+        );
+        assertEq(
+            lbc.getBalance(lp.signer),
+            lpProtocolBalBefore - LP_BALANCE,
+            "LP protocol balance should decrease"
+        );
 
         // Mine blocks to pass resign delay
         vm.roll(block.number + resignBlocks);
@@ -131,10 +178,25 @@ contract ResignationTest is Test {
         lbc.withdrawCollateral();
 
         // Verify collateral withdrawal
-        assertTrue(lp.signer.balance > lpEthBefore, "LP should receive collateral");
-        assertEq(address(lbc).balance, lbcEthBalBefore - totalColl, "LBC should lose collateral");
-        assertEq(lbc.getCollateral(lp.signer), 0, "Pegin collateral should be 0");
-        assertEq(lbc.getPegoutCollateral(lp.signer), 0, "Pegout collateral should be 0");
+        assertTrue(
+            lp.signer.balance > lpEthBefore,
+            "LP should receive collateral"
+        );
+        assertEq(
+            address(lbc).balance,
+            lbcEthBalBefore - totalColl,
+            "LBC should lose collateral"
+        );
+        assertEq(
+            lbc.getCollateral(lp.signer),
+            0,
+            "Pegin collateral should be 0"
+        );
+        assertEq(
+            lbc.getPegoutCollateral(lp.signer),
+            0,
+            "Pegout collateral should be 0"
+        );
 
         // Verify collateral was half/half for "both" type
         assertEq(peginCollBefore, lp.collateral / 2);
@@ -237,7 +299,9 @@ contract ResignationTest is Test {
 
     // ============ Error Cases Tests ============
 
-    function test_FailWhenLiquidityProviderTryToWithdrawCollateralWithoutResignBefore() public {
+    function test_FailWhenLiquidityProviderTryToWithdrawCollateralWithoutResignBefore()
+        public
+    {
         LiquidityProviderInfo memory lp = liquidityProviders[0];
 
         vm.prank(lp.signer);

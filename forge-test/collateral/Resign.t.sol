@@ -18,7 +18,11 @@ contract ResignTest is CollateralTestBase {
     // Errors from ICollateralManagement
     error AlreadyResigned(address from);
     error NotResigned(address from);
-    error ResignationDelayNotMet(address from, uint resignationBlockNum, uint resignDelayInBlocks);
+    error ResignationDelayNotMet(
+        address from,
+        uint resignationBlockNum,
+        uint resignDelayInBlocks
+    );
     error NothingToWithdraw(address from);
 
     function setUp() public {
@@ -55,15 +59,28 @@ contract ResignTest is CollateralTestBase {
     function test_Resign_RevertsIfAccountNotRegistered() public {
         vm.prank(notProvider);
         vm.expectRevert(
-            abi.encodeWithSelector(Flyover.ProviderNotRegistered.selector, notProvider)
+            abi.encodeWithSelector(
+                Flyover.ProviderNotRegistered.selector,
+                notProvider
+            )
         );
         collateralManagement.resign();
     }
 
     function test_Resign_AllowsProvidersToResign() public {
         // Test pegInLp
-        assertTrue(collateralManagement.isRegistered(Flyover.ProviderType.PegIn, pegInLp));
-        assertTrue(collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegIn, pegInLp));
+        assertTrue(
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.PegIn,
+                pegInLp
+            )
+        );
+        assertTrue(
+            collateralManagement.isCollateralSufficient(
+                Flyover.ProviderType.PegIn,
+                pegInLp
+            )
+        );
 
         vm.prank(pegInLp);
         vm.expectEmit(true, false, false, true);
@@ -71,14 +88,38 @@ contract ResignTest is CollateralTestBase {
         collateralManagement.resign();
 
         uint256 resignBlock = collateralManagement.getResignationBlock(pegInLp);
-        assertEq(resignBlock, block.number, "Resignation block should match current block");
+        assertEq(
+            resignBlock,
+            block.number,
+            "Resignation block should match current block"
+        );
 
-        assertFalse(collateralManagement.isRegistered(Flyover.ProviderType.PegIn, pegInLp));
-        assertFalse(collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegIn, pegInLp));
+        assertFalse(
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.PegIn,
+                pegInLp
+            )
+        );
+        assertFalse(
+            collateralManagement.isCollateralSufficient(
+                Flyover.ProviderType.PegIn,
+                pegInLp
+            )
+        );
 
         // Test pegOutLp
-        assertTrue(collateralManagement.isRegistered(Flyover.ProviderType.PegOut, pegOutLp));
-        assertTrue(collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegOut, pegOutLp));
+        assertTrue(
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.PegOut,
+                pegOutLp
+            )
+        );
+        assertTrue(
+            collateralManagement.isCollateralSufficient(
+                Flyover.ProviderType.PegOut,
+                pegOutLp
+            )
+        );
 
         vm.prank(pegOutLp);
         vm.expectEmit(true, false, false, true);
@@ -86,16 +127,50 @@ contract ResignTest is CollateralTestBase {
         collateralManagement.resign();
 
         resignBlock = collateralManagement.getResignationBlock(pegOutLp);
-        assertEq(resignBlock, block.number, "Resignation block should match current block");
+        assertEq(
+            resignBlock,
+            block.number,
+            "Resignation block should match current block"
+        );
 
-        assertFalse(collateralManagement.isRegistered(Flyover.ProviderType.PegOut, pegOutLp));
-        assertFalse(collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegOut, pegOutLp));
+        assertFalse(
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.PegOut,
+                pegOutLp
+            )
+        );
+        assertFalse(
+            collateralManagement.isCollateralSufficient(
+                Flyover.ProviderType.PegOut,
+                pegOutLp
+            )
+        );
 
         // Test fullLp
-        assertTrue(collateralManagement.isRegistered(Flyover.ProviderType.PegIn, fullLp));
-        assertTrue(collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegIn, fullLp));
-        assertTrue(collateralManagement.isRegistered(Flyover.ProviderType.PegOut, fullLp));
-        assertTrue(collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegOut, fullLp));
+        assertTrue(
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.PegIn,
+                fullLp
+            )
+        );
+        assertTrue(
+            collateralManagement.isCollateralSufficient(
+                Flyover.ProviderType.PegIn,
+                fullLp
+            )
+        );
+        assertTrue(
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.PegOut,
+                fullLp
+            )
+        );
+        assertTrue(
+            collateralManagement.isCollateralSufficient(
+                Flyover.ProviderType.PegOut,
+                fullLp
+            )
+        );
 
         vm.prank(fullLp);
         vm.expectEmit(true, false, false, true);
@@ -103,12 +178,36 @@ contract ResignTest is CollateralTestBase {
         collateralManagement.resign();
 
         resignBlock = collateralManagement.getResignationBlock(fullLp);
-        assertEq(resignBlock, block.number, "Resignation block should match current block");
+        assertEq(
+            resignBlock,
+            block.number,
+            "Resignation block should match current block"
+        );
 
-        assertFalse(collateralManagement.isRegistered(Flyover.ProviderType.PegIn, fullLp));
-        assertFalse(collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegIn, fullLp));
-        assertFalse(collateralManagement.isRegistered(Flyover.ProviderType.PegOut, fullLp));
-        assertFalse(collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegOut, fullLp));
+        assertFalse(
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.PegIn,
+                fullLp
+            )
+        );
+        assertFalse(
+            collateralManagement.isCollateralSufficient(
+                Flyover.ProviderType.PegIn,
+                fullLp
+            )
+        );
+        assertFalse(
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.PegOut,
+                fullLp
+            )
+        );
+        assertFalse(
+            collateralManagement.isCollateralSufficient(
+                Flyover.ProviderType.PegOut,
+                fullLp
+            )
+        );
     }
 
     // ============ withdrawCollateral function tests ============
@@ -130,7 +229,9 @@ contract ResignTest is CollateralTestBase {
             vm.prank(provider);
             collateralManagement.resign();
 
-            uint256 resignBlockNum = collateralManagement.getResignationBlock(provider);
+            uint256 resignBlockNum = collateralManagement.getResignationBlock(
+                provider
+            );
 
             // Mine blocks but not enough to meet the delay
             vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS - 2);
@@ -158,7 +259,11 @@ contract ResignTest is CollateralTestBase {
         quote.liquidityProviderRskAddress = pegInLp;
 
         vm.prank(slasher);
-        collateralManagement.slashPegInCollateral(ZERO_ADDRESS, quote, bytes32(0));
+        collateralManagement.slashPegInCollateral(
+            ZERO_ADDRESS,
+            quote,
+            bytes32(0)
+        );
 
         // Wait for resign delay
         vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS);
@@ -178,7 +283,11 @@ contract ResignTest is CollateralTestBase {
         pegOutQuote.lpRskAddress = pegOutLp;
 
         vm.prank(slasher);
-        collateralManagement.slashPegOutCollateral(ZERO_ADDRESS, pegOutQuote, bytes32(0));
+        collateralManagement.slashPegOutCollateral(
+            ZERO_ADDRESS,
+            pegOutQuote,
+            bytes32(0)
+        );
 
         // Wait for resign delay
         vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS);
@@ -195,11 +304,19 @@ contract ResignTest is CollateralTestBase {
 
         quote.liquidityProviderRskAddress = fullLp;
         vm.prank(slasher);
-        collateralManagement.slashPegInCollateral(ZERO_ADDRESS, quote, bytes32(0));
+        collateralManagement.slashPegInCollateral(
+            ZERO_ADDRESS,
+            quote,
+            bytes32(0)
+        );
 
         pegOutQuote.lpRskAddress = fullLp;
         vm.prank(slasher);
-        collateralManagement.slashPegOutCollateral(ZERO_ADDRESS, pegOutQuote, bytes32(0));
+        collateralManagement.slashPegOutCollateral(
+            ZERO_ADDRESS,
+            pegOutQuote,
+            bytes32(0)
+        );
 
         // Wait for resign delay
         vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS);
@@ -211,9 +328,13 @@ contract ResignTest is CollateralTestBase {
         collateralManagement.withdrawCollateral();
     }
 
-    function test_WithdrawCollateral_AllowsProvidersToWithdrawCollateral() public {
+    function test_WithdrawCollateral_AllowsProvidersToWithdrawCollateral()
+        public
+    {
         // Test pegInLp
-        uint256 pegInCollateral = collateralManagement.getPegInCollateral(pegInLp);
+        uint256 pegInCollateral = collateralManagement.getPegInCollateral(
+            pegInLp
+        );
 
         // Slash half of the collateral
         Quotes.PegInQuote memory quote = getEmptyPegInQuote();
@@ -221,7 +342,11 @@ contract ResignTest is CollateralTestBase {
         quote.liquidityProviderRskAddress = pegInLp;
 
         vm.prank(slasher);
-        collateralManagement.slashPegInCollateral(ZERO_ADDRESS, quote, bytes32(0));
+        collateralManagement.slashPegInCollateral(
+            ZERO_ADDRESS,
+            quote,
+            bytes32(0)
+        );
 
         vm.prank(pegInLp);
         collateralManagement.resign();
@@ -237,19 +362,37 @@ contract ResignTest is CollateralTestBase {
         emit WithdrawCollateral(pegInLp, expectedWithdrawal);
         collateralManagement.withdrawCollateral();
 
-        assertEq(pegInLp.balance, balanceBefore + expectedWithdrawal, "Balance should increase");
-        assertEq(collateralManagement.getPegInCollateral(pegInLp), 0, "PegIn collateral should be 0");
-        assertEq(collateralManagement.getResignationBlock(pegInLp), 0, "Resignation block should be reset");
+        assertEq(
+            pegInLp.balance,
+            balanceBefore + expectedWithdrawal,
+            "Balance should increase"
+        );
+        assertEq(
+            collateralManagement.getPegInCollateral(pegInLp),
+            0,
+            "PegIn collateral should be 0"
+        );
+        assertEq(
+            collateralManagement.getResignationBlock(pegInLp),
+            0,
+            "Resignation block should be reset"
+        );
 
         // Test pegOutLp
-        uint256 pegOutCollateral = collateralManagement.getPegOutCollateral(pegOutLp);
+        uint256 pegOutCollateral = collateralManagement.getPegOutCollateral(
+            pegOutLp
+        );
 
         Quotes.PegOutQuote memory pegOutQuote = getEmptyPegOutQuote();
         pegOutQuote.penaltyFee = pegOutCollateral / 2;
         pegOutQuote.lpRskAddress = pegOutLp;
 
         vm.prank(slasher);
-        collateralManagement.slashPegOutCollateral(ZERO_ADDRESS, pegOutQuote, bytes32(0));
+        collateralManagement.slashPegOutCollateral(
+            ZERO_ADDRESS,
+            pegOutQuote,
+            bytes32(0)
+        );
 
         vm.prank(pegOutLp);
         collateralManagement.resign();
@@ -264,30 +407,57 @@ contract ResignTest is CollateralTestBase {
         emit WithdrawCollateral(pegOutLp, expectedWithdrawal);
         collateralManagement.withdrawCollateral();
 
-        assertEq(pegOutLp.balance, balanceBefore + expectedWithdrawal, "Balance should increase");
-        assertEq(collateralManagement.getPegOutCollateral(pegOutLp), 0, "PegOut collateral should be 0");
-        assertEq(collateralManagement.getResignationBlock(pegOutLp), 0, "Resignation block should be reset");
+        assertEq(
+            pegOutLp.balance,
+            balanceBefore + expectedWithdrawal,
+            "Balance should increase"
+        );
+        assertEq(
+            collateralManagement.getPegOutCollateral(pegOutLp),
+            0,
+            "PegOut collateral should be 0"
+        );
+        assertEq(
+            collateralManagement.getResignationBlock(pegOutLp),
+            0,
+            "Resignation block should be reset"
+        );
 
         // Test fullLp
-        uint256 fullLpPegInCollateral = collateralManagement.getPegInCollateral(fullLp);
-        uint256 fullLpPegOutCollateral = collateralManagement.getPegOutCollateral(fullLp);
+        uint256 fullLpPegInCollateral = collateralManagement.getPegInCollateral(
+            fullLp
+        );
+        uint256 fullLpPegOutCollateral = collateralManagement
+            .getPegOutCollateral(fullLp);
 
         quote.penaltyFee = fullLpPegInCollateral / 2;
         quote.liquidityProviderRskAddress = fullLp;
         vm.prank(slasher);
-        collateralManagement.slashPegInCollateral(ZERO_ADDRESS, quote, bytes32(0));
+        collateralManagement.slashPegInCollateral(
+            ZERO_ADDRESS,
+            quote,
+            bytes32(0)
+        );
 
         pegOutQuote.penaltyFee = fullLpPegOutCollateral / 2;
         pegOutQuote.lpRskAddress = fullLp;
         vm.prank(slasher);
-        collateralManagement.slashPegOutCollateral(ZERO_ADDRESS, pegOutQuote, bytes32(0));
+        collateralManagement.slashPegOutCollateral(
+            ZERO_ADDRESS,
+            pegOutQuote,
+            bytes32(0)
+        );
 
         vm.prank(fullLp);
         collateralManagement.resign();
 
         vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS);
 
-        expectedWithdrawal = fullLpPegInCollateral / 2 + fullLpPegOutCollateral / 2;
+        expectedWithdrawal =
+            fullLpPegInCollateral /
+            2 +
+            fullLpPegOutCollateral /
+            2;
         balanceBefore = fullLp.balance;
 
         vm.prank(fullLp);
@@ -295,10 +465,26 @@ contract ResignTest is CollateralTestBase {
         emit WithdrawCollateral(fullLp, expectedWithdrawal);
         collateralManagement.withdrawCollateral();
 
-        assertEq(fullLp.balance, balanceBefore + expectedWithdrawal, "Balance should increase");
-        assertEq(collateralManagement.getPegInCollateral(fullLp), 0, "PegIn collateral should be 0");
-        assertEq(collateralManagement.getPegOutCollateral(fullLp), 0, "PegOut collateral should be 0");
-        assertEq(collateralManagement.getResignationBlock(fullLp), 0, "Resignation block should be reset");
+        assertEq(
+            fullLp.balance,
+            balanceBefore + expectedWithdrawal,
+            "Balance should increase"
+        );
+        assertEq(
+            collateralManagement.getPegInCollateral(fullLp),
+            0,
+            "PegIn collateral should be 0"
+        );
+        assertEq(
+            collateralManagement.getPegOutCollateral(fullLp),
+            0,
+            "PegOut collateral should be 0"
+        );
+        assertEq(
+            collateralManagement.getResignationBlock(fullLp),
+            0,
+            "Resignation block should be reset"
+        );
     }
 
     function test_WithdrawCollateral_RevertsIfWithdrawalFails() public {
@@ -311,8 +497,12 @@ contract ResignTest is CollateralTestBase {
 
         // Add collateral to the wallet mock
         vm.startPrank(adder);
-        collateralManagement.addPegInCollateralTo{value: 100 ether}(walletAddress);
-        collateralManagement.addPegOutCollateralTo{value: 100 ether}(walletAddress);
+        collateralManagement.addPegInCollateralTo{value: 100 ether}(
+            walletAddress
+        );
+        collateralManagement.addPegOutCollateralTo{value: 100 ether}(
+            walletAddress
+        );
         vm.stopPrank();
 
         // Wallet resigns via execute function
@@ -334,27 +524,76 @@ contract ResignTest is CollateralTestBase {
 
         // The withdrawal should fail and emit TransactionRejected
         vm.expectEmit(true, true, false, false);
-        emit WalletMock.TransactionRejected(address(collateralManagement), 0, bytes(""));
+        emit WalletMock.TransactionRejected(
+            address(collateralManagement),
+            0,
+            bytes("")
+        );
         walletMock.execute(address(collateralManagement), 0, withdrawData);
     }
 
     // ============ isRegistered function tests ============
 
-    function test_IsRegistered_ReturnsTrueIfProviderHasCollateralAndHasNotResigned() public view {
+    function test_IsRegistered_ReturnsTrueIfProviderHasCollateralAndHasNotResigned()
+        public
+        view
+    {
         // Check pegInLp
-        assertTrue(collateralManagement.isRegistered(Flyover.ProviderType.PegIn, pegInLp));
-        assertFalse(collateralManagement.isRegistered(Flyover.ProviderType.PegOut, pegInLp));
-        assertFalse(collateralManagement.isRegistered(Flyover.ProviderType.Both, pegInLp));
+        assertTrue(
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.PegIn,
+                pegInLp
+            )
+        );
+        assertFalse(
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.PegOut,
+                pegInLp
+            )
+        );
+        assertFalse(
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.Both,
+                pegInLp
+            )
+        );
 
         // Check pegOutLp
-        assertTrue(collateralManagement.isRegistered(Flyover.ProviderType.PegOut, pegOutLp));
-        assertFalse(collateralManagement.isRegistered(Flyover.ProviderType.PegIn, pegOutLp));
-        assertFalse(collateralManagement.isRegistered(Flyover.ProviderType.Both, pegOutLp));
+        assertTrue(
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.PegOut,
+                pegOutLp
+            )
+        );
+        assertFalse(
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.PegIn,
+                pegOutLp
+            )
+        );
+        assertFalse(
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.Both,
+                pegOutLp
+            )
+        );
 
         // Check fullLp
-        assertTrue(collateralManagement.isRegistered(Flyover.ProviderType.PegIn, fullLp));
-        assertTrue(collateralManagement.isRegistered(Flyover.ProviderType.PegOut, fullLp));
-        assertTrue(collateralManagement.isRegistered(Flyover.ProviderType.Both, fullLp));
+        assertTrue(
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.PegIn,
+                fullLp
+            )
+        );
+        assertTrue(
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.PegOut,
+                fullLp
+            )
+        );
+        assertTrue(
+            collateralManagement.isRegistered(Flyover.ProviderType.Both, fullLp)
+        );
     }
 
     function test_IsRegistered_ReturnsFalseIfProviderHasResigned() public {
@@ -369,41 +608,133 @@ contract ResignTest is CollateralTestBase {
         collateralManagement.resign();
 
         // Check pegInLp
-        assertFalse(collateralManagement.isRegistered(Flyover.ProviderType.PegIn, pegInLp));
-        assertFalse(collateralManagement.isRegistered(Flyover.ProviderType.PegOut, pegInLp));
-        assertFalse(collateralManagement.isRegistered(Flyover.ProviderType.Both, pegInLp));
+        assertFalse(
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.PegIn,
+                pegInLp
+            )
+        );
+        assertFalse(
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.PegOut,
+                pegInLp
+            )
+        );
+        assertFalse(
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.Both,
+                pegInLp
+            )
+        );
 
         // Check pegOutLp
-        assertFalse(collateralManagement.isRegistered(Flyover.ProviderType.PegOut, pegOutLp));
-        assertFalse(collateralManagement.isRegistered(Flyover.ProviderType.PegIn, pegOutLp));
-        assertFalse(collateralManagement.isRegistered(Flyover.ProviderType.Both, pegOutLp));
+        assertFalse(
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.PegOut,
+                pegOutLp
+            )
+        );
+        assertFalse(
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.PegIn,
+                pegOutLp
+            )
+        );
+        assertFalse(
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.Both,
+                pegOutLp
+            )
+        );
 
         // Check fullLp
-        assertFalse(collateralManagement.isRegistered(Flyover.ProviderType.PegIn, fullLp));
-        assertFalse(collateralManagement.isRegistered(Flyover.ProviderType.PegOut, fullLp));
-        assertFalse(collateralManagement.isRegistered(Flyover.ProviderType.Both, fullLp));
+        assertFalse(
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.PegIn,
+                fullLp
+            )
+        );
+        assertFalse(
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.PegOut,
+                fullLp
+            )
+        );
+        assertFalse(
+            collateralManagement.isRegistered(Flyover.ProviderType.Both, fullLp)
+        );
     }
 
     // ============ isCollateralSufficient function tests ============
 
-    function test_IsCollateralSufficient_ReturnsTrueIfProviderHasMinimumCollateralAndHasNotResigned() public view {
+    function test_IsCollateralSufficient_ReturnsTrueIfProviderHasMinimumCollateralAndHasNotResigned()
+        public
+        view
+    {
         // Check pegInLp
-        assertTrue(collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegIn, pegInLp));
-        assertFalse(collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegOut, pegInLp));
-        assertFalse(collateralManagement.isCollateralSufficient(Flyover.ProviderType.Both, pegInLp));
+        assertTrue(
+            collateralManagement.isCollateralSufficient(
+                Flyover.ProviderType.PegIn,
+                pegInLp
+            )
+        );
+        assertFalse(
+            collateralManagement.isCollateralSufficient(
+                Flyover.ProviderType.PegOut,
+                pegInLp
+            )
+        );
+        assertFalse(
+            collateralManagement.isCollateralSufficient(
+                Flyover.ProviderType.Both,
+                pegInLp
+            )
+        );
 
         // Check pegOutLp
-        assertTrue(collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegOut, pegOutLp));
-        assertFalse(collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegIn, pegOutLp));
-        assertFalse(collateralManagement.isCollateralSufficient(Flyover.ProviderType.Both, pegOutLp));
+        assertTrue(
+            collateralManagement.isCollateralSufficient(
+                Flyover.ProviderType.PegOut,
+                pegOutLp
+            )
+        );
+        assertFalse(
+            collateralManagement.isCollateralSufficient(
+                Flyover.ProviderType.PegIn,
+                pegOutLp
+            )
+        );
+        assertFalse(
+            collateralManagement.isCollateralSufficient(
+                Flyover.ProviderType.Both,
+                pegOutLp
+            )
+        );
 
         // Check fullLp
-        assertTrue(collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegIn, fullLp));
-        assertTrue(collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegOut, fullLp));
-        assertTrue(collateralManagement.isCollateralSufficient(Flyover.ProviderType.Both, fullLp));
+        assertTrue(
+            collateralManagement.isCollateralSufficient(
+                Flyover.ProviderType.PegIn,
+                fullLp
+            )
+        );
+        assertTrue(
+            collateralManagement.isCollateralSufficient(
+                Flyover.ProviderType.PegOut,
+                fullLp
+            )
+        );
+        assertTrue(
+            collateralManagement.isCollateralSufficient(
+                Flyover.ProviderType.Both,
+                fullLp
+            )
+        );
     }
 
-    function test_IsCollateralSufficient_ReturnsFalseIfProviderHasResigned() public {
+    function test_IsCollateralSufficient_ReturnsFalseIfProviderHasResigned()
+        public
+    {
         address[3] memory providers = [pegInLp, pegOutLp, fullLp];
 
         for (uint i = 0; i < providers.length; i++) {
@@ -412,13 +743,30 @@ contract ResignTest is CollateralTestBase {
             vm.prank(provider);
             collateralManagement.resign();
 
-            assertFalse(collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegIn, provider));
-            assertFalse(collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegOut, provider));
-            assertFalse(collateralManagement.isCollateralSufficient(Flyover.ProviderType.Both, provider));
+            assertFalse(
+                collateralManagement.isCollateralSufficient(
+                    Flyover.ProviderType.PegIn,
+                    provider
+                )
+            );
+            assertFalse(
+                collateralManagement.isCollateralSufficient(
+                    Flyover.ProviderType.PegOut,
+                    provider
+                )
+            );
+            assertFalse(
+                collateralManagement.isCollateralSufficient(
+                    Flyover.ProviderType.Both,
+                    provider
+                )
+            );
         }
     }
 
-    function test_IsCollateralSufficient_ReturnsFalseIfProviderHasLessThanMinimumCollateral() public {
+    function test_IsCollateralSufficient_ReturnsFalseIfProviderHasLessThanMinimumCollateral()
+        public
+    {
         address[3] memory providers = [pegInLp, pegOutLp, fullLp];
 
         for (uint i = 0; i < providers.length; i++) {
@@ -434,14 +782,37 @@ contract ResignTest is CollateralTestBase {
             pegOutQuote.lpRskAddress = provider;
 
             vm.prank(slasher);
-            collateralManagement.slashPegInCollateral(ZERO_ADDRESS, pegInQuote, bytes32(0));
+            collateralManagement.slashPegInCollateral(
+                ZERO_ADDRESS,
+                pegInQuote,
+                bytes32(0)
+            );
 
             vm.prank(slasher);
-            collateralManagement.slashPegOutCollateral(ZERO_ADDRESS, pegOutQuote, bytes32(0));
+            collateralManagement.slashPegOutCollateral(
+                ZERO_ADDRESS,
+                pegOutQuote,
+                bytes32(0)
+            );
 
-            assertFalse(collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegIn, provider));
-            assertFalse(collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegOut, provider));
-            assertFalse(collateralManagement.isCollateralSufficient(Flyover.ProviderType.Both, provider));
+            assertFalse(
+                collateralManagement.isCollateralSufficient(
+                    Flyover.ProviderType.PegIn,
+                    provider
+                )
+            );
+            assertFalse(
+                collateralManagement.isCollateralSufficient(
+                    Flyover.ProviderType.PegOut,
+                    provider
+                )
+            );
+            assertFalse(
+                collateralManagement.isCollateralSufficient(
+                    Flyover.ProviderType.Both,
+                    provider
+                )
+            );
         }
     }
 }

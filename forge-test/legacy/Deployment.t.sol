@@ -8,7 +8,8 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
 
 contract DeploymentTest is Test {
-    address constant BRIDGE_ADDRESS = 0x0000000000000000000000000000000001000006;
+    address constant BRIDGE_ADDRESS =
+        0x0000000000000000000000000000000001000006;
     address constant ZERO_ADDRESS = address(0);
 
     address public proxyAddress;
@@ -51,9 +52,19 @@ contract DeploymentTest is Test {
         assertTrue(proxyAddress != address(0), "Proxy should be deployed");
 
         // Cast proxy to V1 contract and verify initialization
-        LiquidityBridgeContract lbcProxy = LiquidityBridgeContract(payable(proxyAddress));
-        assertEq(lbcProxy.getMinCollateral(), MINIMUM_COLLATERAL, "MinCollateral should be initialized");
-        assertEq(lbcProxy.getRewardPercentage(), REWARD_PERCENTAGE, "Reward percentage should be initialized");
+        LiquidityBridgeContract lbcProxy = LiquidityBridgeContract(
+            payable(proxyAddress)
+        );
+        assertEq(
+            lbcProxy.getMinCollateral(),
+            MINIMUM_COLLATERAL,
+            "MinCollateral should be initialized"
+        );
+        assertEq(
+            lbcProxy.getRewardPercentage(),
+            REWARD_PERCENTAGE,
+            "Reward percentage should be initialized"
+        );
     }
 
     function test_UpgradeProxyToLiquidityBridgeContractV2() public {
@@ -65,17 +76,25 @@ contract DeploymentTest is Test {
 
         // Manually upgrade the proxy by updating the implementation slot
         // ERC1967 implementation slot: bytes32(uint256(keccak256('eip1967.proxy.implementation')) - 1)
-        bytes32 implementationSlot = bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1);
+        bytes32 implementationSlot = bytes32(
+            uint256(keccak256("eip1967.proxy.implementation")) - 1
+        );
 
         // Update the implementation slot to point to V2
-        vm.store(proxyAddress, implementationSlot, bytes32(uint256(uint160(address(lbcV2Impl)))));
+        vm.store(
+            proxyAddress,
+            implementationSlot,
+            bytes32(uint256(uint160(address(lbcV2Impl))))
+        );
 
         // Cast proxy to V2 and verify version
         // Note: initializeV2() doesn't need to be called in this test context since:
         // 1. V1 already initialized Ownable and ReentrancyGuard
         // 2. The test just validates the upgrade mechanism works
         // 3. The version() function doesn't depend on initializeV2
-        LiquidityBridgeContractV2 lbcV2 = LiquidityBridgeContractV2(payable(proxyAddress));
+        LiquidityBridgeContractV2 lbcV2 = LiquidityBridgeContractV2(
+            payable(proxyAddress)
+        );
         string memory version = lbcV2.version();
         assertEq(version, "1.3.1", "Version should be 1.3.1");
     }
@@ -158,8 +177,13 @@ contract DeploymentTest is Test {
 
             if (testCase.shouldSucceed) {
                 // Should not revert
-                ERC1967Proxy proxy = new ERC1967Proxy(address(lbcImpl), initData);
-                LiquidityBridgeContract lbcV1 = LiquidityBridgeContract(payable(address(proxy)));
+                ERC1967Proxy proxy = new ERC1967Proxy(
+                    address(lbcImpl),
+                    initData
+                );
+                LiquidityBridgeContract lbcV1 = LiquidityBridgeContract(
+                    payable(address(proxy))
+                );
 
                 // Try to reinitialize - should revert
                 vm.expectRevert();
@@ -201,29 +225,52 @@ contract DeploymentTest is Test {
         proxyAddress = address(proxy);
 
         // Verify proxy initialization
-        LiquidityBridgeContract lbcProxyV1 = LiquidityBridgeContract(payable(proxyAddress));
-        assertEq(lbcProxyV1.getMinCollateral(), 0.03 ether, "Proxy should be initialized");
+        LiquidityBridgeContract lbcProxyV1 = LiquidityBridgeContract(
+            payable(proxyAddress)
+        );
+        assertEq(
+            lbcProxyV1.getMinCollateral(),
+            0.03 ether,
+            "Proxy should be initialized"
+        );
 
         // Deploy V2 implementation (without upgrading proxy)
         LiquidityBridgeContractV2 lbcV2Impl = new LiquidityBridgeContractV2();
 
         // Cast both to their respective types
-        LiquidityBridgeContract lbcProxy = LiquidityBridgeContract(payable(proxyAddress));
+        LiquidityBridgeContract lbcProxy = LiquidityBridgeContract(
+            payable(proxyAddress)
+        );
 
         // Verify addresses are different
-        assertTrue(proxyAddress != address(lbcV2Impl), "Proxy and implementation should have different addresses");
+        assertTrue(
+            proxyAddress != address(lbcV2Impl),
+            "Proxy and implementation should have different addresses"
+        );
 
         // Verify proxy has state (minCollateral)
-        assertEq(lbcProxy.getMinCollateral(), 0.03 ether, "Proxy should have initialized state");
+        assertEq(
+            lbcProxy.getMinCollateral(),
+            0.03 ether,
+            "Proxy should have initialized state"
+        );
 
         // Verify implementation has no state
-        assertEq(lbcV2Impl.getMinCollateral(), 0, "Implementation should have no state");
+        assertEq(
+            lbcV2Impl.getMinCollateral(),
+            0,
+            "Implementation should have no state"
+        );
 
         // Verify proxy doesn't have version() (V1 doesn't have it)
         vm.expectRevert();
         LiquidityBridgeContractV2(payable(proxyAddress)).version();
 
         // Verify implementation has version()
-        assertEq(lbcV2Impl.version(), "1.3.1", "Implementation should have version 1.3.1");
+        assertEq(
+            lbcV2Impl.version(),
+            "1.3.1",
+            "Implementation should have version 1.3.1"
+        );
     }
 }

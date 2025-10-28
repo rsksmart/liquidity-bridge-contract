@@ -23,7 +23,9 @@ contract ConfigurationTest is PegInTestBase {
 
     // ============ receive function tests ============
 
-    function test_Receive_RejectsPaymentsFromAddressesThatAreNotBridge() public {
+    function test_Receive_RejectsPaymentsFromAddressesThatAreNotBridge()
+        public
+    {
         address payable contractAddress = payable(address(pegInContract));
 
         // Try sending from notOwner
@@ -31,7 +33,7 @@ contract ConfigurationTest is PegInTestBase {
         vm.expectRevert(
             abi.encodeWithSelector(Flyover.PaymentNotAllowed.selector)
         );
-        (bool success,) = contractAddress.call{value: 1 ether}("");
+        (bool success, ) = contractAddress.call{value: 1 ether}("");
         success; // Suppress warning
 
         // Try sending from owner
@@ -39,7 +41,7 @@ contract ConfigurationTest is PegInTestBase {
         vm.expectRevert(
             abi.encodeWithSelector(Flyover.PaymentNotAllowed.selector)
         );
-        (success,) = contractAddress.call{value: 1 ether}("");
+        (success, ) = contractAddress.call{value: 1 ether}("");
         success; // Suppress warning
     }
 
@@ -64,11 +66,7 @@ contract ConfigurationTest is PegInTestBase {
         );
 
         // Check owner
-        assertEq(
-            pegInContract.owner(),
-            owner,
-            "owner should match"
-        );
+        assertEq(pegInContract.owner(), owner, "owner should match");
 
         // Check feePercentage
         assertEq(
@@ -151,7 +149,10 @@ contract ConfigurationTest is PegInTestBase {
 
         vm.prank(owner);
         vm.expectEmit(true, true, false, true);
-        emit PegInContract.DustThresholdSet(TEST_DUST_THRESHOLD, newDustThreshold);
+        emit PegInContract.DustThresholdSet(
+            TEST_DUST_THRESHOLD,
+            newDustThreshold
+        );
         pegInContract.setDustThreshold(newDustThreshold);
 
         assertEq(
@@ -168,7 +169,13 @@ contract ConfigurationTest is PegInTestBase {
         CollateralManagementContract otherCM = new CollateralManagementContract();
         bytes memory initData = abi.encodeCall(
             CollateralManagementContract.initialize,
-            (owner, TEST_DEFAULT_ADMIN_DELAY, TEST_MIN_COLLATERAL, TEST_RESIGN_DELAY_BLOCKS, TEST_REWARD_PERCENTAGE)
+            (
+                owner,
+                TEST_DEFAULT_ADMIN_DELAY,
+                TEST_MIN_COLLATERAL,
+                TEST_RESIGN_DELAY_BLOCKS,
+                TEST_REWARD_PERCENTAGE
+            )
         );
         ERC1967Proxy otherProxy = new ERC1967Proxy(address(otherCM), initData);
         address otherAddress = address(otherProxy);
@@ -183,7 +190,9 @@ contract ConfigurationTest is PegInTestBase {
         pegInContract.setCollateralManagement(otherAddress);
     }
 
-    function test_SetCollateralManagement_RevertsIfAddressDoesNotHaveCode() public {
+    function test_SetCollateralManagement_RevertsIfAddressDoesNotHaveCode()
+        public
+    {
         address eoa = makeAddr("eoa");
 
         // Try with zero address
@@ -206,7 +215,13 @@ contract ConfigurationTest is PegInTestBase {
         CollateralManagementContract otherCM = new CollateralManagementContract();
         bytes memory initData = abi.encodeCall(
             CollateralManagementContract.initialize,
-            (owner, TEST_DEFAULT_ADMIN_DELAY, TEST_MIN_COLLATERAL, TEST_RESIGN_DELAY_BLOCKS, TEST_REWARD_PERCENTAGE)
+            (
+                owner,
+                TEST_DEFAULT_ADMIN_DELAY,
+                TEST_MIN_COLLATERAL,
+                TEST_RESIGN_DELAY_BLOCKS,
+                TEST_REWARD_PERCENTAGE
+            )
         );
         ERC1967Proxy otherProxy = new ERC1967Proxy(address(otherCM), initData);
         address otherAddress = address(otherProxy);
