@@ -2,13 +2,13 @@
 pragma solidity 0.8.25;
 
 import "forge-std/Test.sol";
-import {FlyoverDiscovery} from "../../contracts/FlyoverDiscovery.sol";
-import {CollateralManagementContract} from "../../contracts/CollateralManagement.sol";
-import {PegInContract} from "../../contracts/PegInContract.sol";
-import {PegOutContract} from "../../contracts/PegOutContract.sol";
-import {BridgeMock} from "../../contracts/test-contracts/BridgeMock.sol";
+import {FlyoverDiscovery} from "contracts/FlyoverDiscovery.sol";
+import {CollateralManagementContract} from "contracts/CollateralManagement.sol";
+import {PegInContract} from "contracts/PegInContract.sol";
+import {PegOutContract} from "contracts/PegOutContract.sol";
+import {BridgeMock} from "contracts/test-contracts/BridgeMock.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {Flyover} from "../../contracts/libraries/Flyover.sol";
+import {Flyover} from "contracts/libraries/Flyover.sol";
 
 /// @title System-wide Pause Functionality Tests
 /// @notice Tests that verify pause/unpause operations across all contracts in the system

@@ -17,7 +17,8 @@ remappings = [
   "@openzeppelin/=node_modules/@openzeppelin/",
   "@rsksmart/=node_modules/@rsksmart/",
   "@rsksmart/btc-transaction-solidity-helper/=node_modules/@rsksmart/btc-transaction-solidity-helper/",
-  "forge-std/=lib/forge-std/src/"
+  "forge-std/=lib/forge-std/src/",
+  "contracts/=contracts/"
 ]
 
 [rpc_endpoints]
