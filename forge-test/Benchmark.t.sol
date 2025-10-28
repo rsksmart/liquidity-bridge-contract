@@ -25,7 +25,9 @@ contract BenchmarkTest is Test {
 
         // Create test accounts
         for (uint i = 1; i <= 5; i++) {
-            address account = address(uint160(uint256(keccak256(abi.encodePacked("account", i)))));
+            address account = address(
+                uint160(uint256(keccak256(abi.encodePacked("account", i))))
+            );
             accounts.push(account);
             vm.deal(account, 100 ether);
         }
@@ -44,7 +46,9 @@ contract BenchmarkTest is Test {
             address(collateralManagementImpl),
             collateralInitData
         );
-        collateralManagement = CollateralManagementContract(payable(address(collateralManagementProxy)));
+        collateralManagement = CollateralManagementContract(
+            payable(address(collateralManagementProxy))
+        );
 
         // Deploy FlyoverDiscovery
         discoveryImpl = new FlyoverDiscovery();
@@ -113,22 +117,35 @@ contract BenchmarkTest is Test {
             );
         }
 
-        console.log("-------------------------------- GET PROVIDERS --------------------------------");
-        Flyover.LiquidityProvider[] memory discoveryProviders = discovery.getProviders();
+        console.log(
+            "-------------------------------- GET PROVIDERS --------------------------------"
+        );
+        Flyover.LiquidityProvider[] memory discoveryProviders = discovery
+            .getProviders();
         for (uint i = 0; i < discoveryProviders.length; i++) {
             console.log("Provider", i);
             console.log("  id:", discoveryProviders[i].id);
             console.log("  name:", discoveryProviders[i].name);
-            console.log("  providerAddress:", discoveryProviders[i].providerAddress);
+            console.log(
+                "  providerAddress:",
+                discoveryProviders[i].providerAddress
+            );
             console.log("  apiBaseUrl:", discoveryProviders[i].apiBaseUrl);
             console.log("  status:", discoveryProviders[i].status);
-            console.log("  providerType:", uint(discoveryProviders[i].providerType));
+            console.log(
+                "  providerType:",
+                uint(discoveryProviders[i].providerType)
+            );
             console.log("");
         }
 
-        console.log("-------------------------------- GET PROVIDER --------------------------------");
+        console.log(
+            "-------------------------------- GET PROVIDER --------------------------------"
+        );
         for (uint i = 0; i < providersData.length; i++) {
-            Flyover.LiquidityProvider memory result = discovery.getProvider(providersData[i].account);
+            Flyover.LiquidityProvider memory result = discovery.getProvider(
+                providersData[i].account
+            );
             console.log("Provider:", providersData[i].name);
             console.log("  id:", result.id);
             console.log("  name:", result.name);
@@ -139,9 +156,14 @@ contract BenchmarkTest is Test {
             console.log("");
         }
 
-        console.log("-------------------------------- IS OPERATIONAL --------------------------------");
+        console.log(
+            "-------------------------------- IS OPERATIONAL --------------------------------"
+        );
         for (uint i = 0; i < providersData.length; i++) {
-            bool result = discovery.isOperational(providersData[i].providerType, providersData[i].account);
+            bool result = discovery.isOperational(
+                providersData[i].providerType,
+                providersData[i].account
+            );
             console.log(providersData[i].name, "operational:", result);
         }
     }

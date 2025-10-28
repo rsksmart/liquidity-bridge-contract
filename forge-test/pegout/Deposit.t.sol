@@ -26,31 +26,52 @@ contract DepositTest is PegOutTestBase {
     // ============ depositPegOut function tests ============
 
     function test_DepositPegOut_RevertsIfLPDoesNotHaveCollateral() public {
-        Quotes.PegOutQuote memory quote = createTestPegOutQuote(1.03 ether, notLp);
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            1.03 ether,
+            notLp
+        );
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(notLp, quoteHash);
 
         vm.prank(user);
         vm.expectRevert(
-            abi.encodeWithSelector(Flyover.ProviderNotRegistered.selector, notLp)
+            abi.encodeWithSelector(
+                Flyover.ProviderNotRegistered.selector,
+                notLp
+            )
         );
-        pegOutContract.depositPegOut{value: getTotalValue(quote)}(quote, signature);
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(
+            quote,
+            signature
+        );
     }
 
     function test_DepositPegOut_RevertsIfLPDoesNotSupportPegOut() public {
-        Quotes.PegOutQuote memory quote = createTestPegOutQuote(1.03 ether, pegInLp);
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            1.03 ether,
+            pegInLp
+        );
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegInLp, quoteHash);
 
         vm.prank(user);
         vm.expectRevert(
-            abi.encodeWithSelector(Flyover.ProviderNotRegistered.selector, pegInLp)
+            abi.encodeWithSelector(
+                Flyover.ProviderNotRegistered.selector,
+                pegInLp
+            )
         );
-        pegOutContract.depositPegOut{value: getTotalValue(quote)}(quote, signature);
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(
+            quote,
+            signature
+        );
     }
 
     function test_DepositPegOut_RevertsIfAmountIsNotEnough() public {
-        Quotes.PegOutQuote memory quote = createTestPegOutQuote(1.03 ether, fullLp);
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            1.03 ether,
+            fullLp
+        );
         uint256 totalVal = getTotalValue(quote);
         uint256 sentAmount = totalVal - 1;
 
@@ -69,7 +90,10 @@ contract DepositTest is PegOutTestBase {
     }
 
     function test_DepositPegOut_RevertsIfQuoteIsExpiredByDate() public {
-        Quotes.PegOutQuote memory quote = createTestPegOutQuote(1 ether, fullLp);
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            1 ether,
+            fullLp
+        );
 
         // Warp time forward
         vm.warp(2000000);
@@ -89,11 +113,17 @@ contract DepositTest is PegOutTestBase {
                 quote.expireDate
             )
         );
-        pegOutContract.depositPegOut{value: getTotalValue(quote)}(quote, signature);
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(
+            quote,
+            signature
+        );
     }
 
     function test_DepositPegOut_RevertsIfQuoteIsExpiredByBlocks() public {
-        Quotes.PegOutQuote memory quote = createTestPegOutQuote(1.03 ether, fullLp);
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            1.03 ether,
+            fullLp
+        );
 
         uint256 currentBlock = block.number;
         quote.expireBlock = uint32(currentBlock + 3);
@@ -112,11 +142,17 @@ contract DepositTest is PegOutTestBase {
                 quote.expireBlock
             )
         );
-        pegOutContract.depositPegOut{value: getTotalValue(quote)}(quote, signature);
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(
+            quote,
+            signature
+        );
     }
 
     function test_DepositPegOut_RevertsIfSignatureIsInvalid() public {
-        Quotes.PegOutQuote memory quote = createTestPegOutQuote(1.03 ether, pegOutLp);
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            1.03 ether,
+            pegOutLp
+        );
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
 
         // Sign with wrong LP
@@ -131,7 +167,10 @@ contract DepositTest is PegOutTestBase {
                 wrongSignature
             )
         );
-        pegOutContract.depositPegOut{value: getTotalValue(quote)}(quote, wrongSignature);
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(
+            quote,
+            wrongSignature
+        );
     }
 
     function test_DepositPegOut_RevertsIfQuoteAlreadyCompleted() public {
@@ -140,7 +179,10 @@ contract DepositTest is PegOutTestBase {
         // For now, we verify the check exists by testing the "already paid" scenario
         // Full completion testing is in the TypeScript integration tests
 
-        Quotes.PegOutQuote memory quote = createTestPegOutQuote(1.03 ether, pegOutLp);
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            1.03 ether,
+            pegOutLp
+        );
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quoteHash);
         uint256 totalVal = getTotalValue(quote);
@@ -161,7 +203,10 @@ contract DepositTest is PegOutTestBase {
     }
 
     function test_DepositPegOut_RevertsIfQuoteAlreadyPaid() public {
-        Quotes.PegOutQuote memory quote = createTestPegOutQuote(1.03 ether, pegOutLp);
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            1.03 ether,
+            pegOutLp
+        );
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quoteHash);
         uint256 totalVal = getTotalValue(quote);
@@ -181,8 +226,13 @@ contract DepositTest is PegOutTestBase {
         pegOutContract.depositPegOut{value: totalVal}(quote, signature);
     }
 
-    function test_DepositPegOut_ReceivesDepositSuccessfullyWithoutPayingChange() public {
-        Quotes.PegOutQuote memory quote = createTestPegOutQuote(1.03 ether, pegOutLp);
+    function test_DepositPegOut_ReceivesDepositSuccessfullyWithoutPayingChange()
+        public
+    {
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            1.03 ether,
+            pegOutLp
+        );
 
         uint256 totalVal = getTotalValue(quote);
         // Pay slightly more but less than dust threshold
@@ -218,8 +268,13 @@ contract DepositTest is PegOutTestBase {
         );
     }
 
-    function test_DepositPegOut_ReceivesDepositSuccessfullyPayingChange() public {
-        Quotes.PegOutQuote memory quote = createTestPegOutQuote(1.03 ether, pegOutLp);
+    function test_DepositPegOut_ReceivesDepositSuccessfullyPayingChange()
+        public
+    {
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            1.03 ether,
+            pegOutLp
+        );
 
         uint256 totalVal = getTotalValue(quote);
         uint256 paidAmount = totalVal + TEST_DUST_THRESHOLD;
@@ -253,7 +308,10 @@ contract DepositTest is PegOutTestBase {
 
     function test_DepositPegOut_RevertsIfChangePaymentFails() public {
         // Create quote with refund address that will reject payments
-        Quotes.PegOutQuote memory quote = createTestPegOutQuote(1 ether, fullLp);
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            1 ether,
+            fullLp
+        );
 
         // Deploy mock contract that rejects payments
         PegOutChangeReceiver changeReceiver = new PegOutChangeReceiver();
@@ -275,7 +333,10 @@ contract DepositTest is PegOutTestBase {
 
     function test_DepositPegOut_RevertsIfChangePaymentHasReentrancy() public {
         // Create quote with receiver that attempts reentrancy
-        Quotes.PegOutQuote memory quote = createTestPegOutQuote(1 ether, fullLp);
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            1 ether,
+            fullLp
+        );
 
         // Deploy receiver that will attempt reentrancy during change payment
         PegOutChangeReceiver changeReceiver = new PegOutChangeReceiver();
@@ -298,38 +359,48 @@ contract DepositTest is PegOutTestBase {
 
     // ============ Helper Functions ============
 
-    function createTestPegOutQuote(uint256 value, address lp) internal view returns (Quotes.PegOutQuote memory) {
+    function createTestPegOutQuote(
+        uint256 value,
+        address lp
+    ) internal view returns (Quotes.PegOutQuote memory) {
         bytes memory testBtcAddress = new bytes(21);
         uint32 currentTime = uint32(block.timestamp);
 
-        return Quotes.PegOutQuote({
-            callFee: 100000000000000,
-            penaltyFee: 10000000000000,
-            value: value,
-            productFeeAmount: 0,
-            gasFee: 100,
-            lbcAddress: address(pegOutContract),
-            lpRskAddress: lp,
-            rskRefundAddress: user,
-            nonce: int64(uint64(block.timestamp)),
-            agreementTimestamp: currentTime,
-            depositDateLimit: currentTime + 7200,
-            transferTime: 3600,
-            depositConfirmations: 10,
-            transferConfirmations: 2,
-            expireBlock: uint32(block.number + 1000),
-            expireDate: currentTime + 20000,
-            depositAddress: testBtcAddress,
-            btcRefundAddress: testBtcAddress,
-            lpBtcAddress: testBtcAddress
-        });
+        return
+            Quotes.PegOutQuote({
+                callFee: 100000000000000,
+                penaltyFee: 10000000000000,
+                value: value,
+                productFeeAmount: 0,
+                gasFee: 100,
+                lbcAddress: address(pegOutContract),
+                lpRskAddress: lp,
+                rskRefundAddress: user,
+                nonce: int64(uint64(block.timestamp)),
+                agreementTimestamp: currentTime,
+                depositDateLimit: currentTime + 7200,
+                transferTime: 3600,
+                depositConfirmations: 10,
+                transferConfirmations: 2,
+                expireBlock: uint32(block.number + 1000),
+                expireDate: currentTime + 20000,
+                depositAddress: testBtcAddress,
+                btcRefundAddress: testBtcAddress,
+                lpBtcAddress: testBtcAddress
+            });
     }
 
-    function getTotalValue(Quotes.PegOutQuote memory quote) internal pure returns (uint256) {
-        return quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+    function getTotalValue(
+        Quotes.PegOutQuote memory quote
+    ) internal pure returns (uint256) {
+        return
+            quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
     }
 
-    function signQuote(address signer, bytes32 quoteHash) internal returns (bytes memory) {
+    function signQuote(
+        address signer,
+        bytes32 quoteHash
+    ) internal returns (bytes memory) {
         // Get private key for the signer
         uint256 privateKey;
         if (signer == fullLp) {
@@ -344,8 +415,13 @@ contract DepositTest is PegOutTestBase {
         }
 
         // Sign the hash using Ethereum signed message format
-        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", quoteHash));
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, ethSignedMessageHash);
+        bytes32 ethSignedMessageHash = keccak256(
+            abi.encodePacked("\x19Ethereum Signed Message:\n32", quoteHash)
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+            privateKey,
+            ethSignedMessageHash
+        );
         return abi.encodePacked(r, s, v);
     }
 }

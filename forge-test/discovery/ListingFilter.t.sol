@@ -34,17 +34,28 @@ contract ListingFilterTest is DiscoveryTestBase {
 
     // ============ Listing edge cases tests ============
 
-    function test_GetProviders_ListsProvidersImmediatelyAfterRegistration() public {
+    function test_GetProviders_ListsProvidersImmediatelyAfterRegistration()
+        public
+    {
         address lp = makeAddr("newLp");
         vm.deal(lp, 100 ether);
 
         vm.prank(lp);
-        discovery.register{value: MIN_COLLATERAL}("N", "U", true, Flyover.ProviderType.PegIn);
+        discovery.register{value: MIN_COLLATERAL}(
+            "N",
+            "U",
+            true,
+            Flyover.ProviderType.PegIn
+        );
 
         // Provider is immediately listed because collateral is added automatically during registration
         Flyover.LiquidityProvider[] memory providers = discovery.getProviders();
         assertEq(providers.length, 1, "Should have 1 provider");
-        assertEq(providers[0].providerAddress, lp, "Provider address should match");
+        assertEq(
+            providers[0].providerAddress,
+            lp,
+            "Provider address should match"
+        );
     }
 
     function test_GetProviders_ReturnsProvidersOrderedById() public {
@@ -57,13 +68,28 @@ contract ListingFilterTest is DiscoveryTestBase {
         vm.deal(c, 100 ether);
 
         vm.prank(a);
-        discovery.register{value: MIN_COLLATERAL}("A", "U1", true, Flyover.ProviderType.PegIn);
+        discovery.register{value: MIN_COLLATERAL}(
+            "A",
+            "U1",
+            true,
+            Flyover.ProviderType.PegIn
+        );
 
         vm.prank(b);
-        discovery.register{value: MIN_COLLATERAL}("B", "U2", true, Flyover.ProviderType.PegIn);
+        discovery.register{value: MIN_COLLATERAL}(
+            "B",
+            "U2",
+            true,
+            Flyover.ProviderType.PegIn
+        );
 
         vm.prank(c);
-        discovery.register{value: MIN_COLLATERAL}("C", "U3", true, Flyover.ProviderType.PegIn);
+        discovery.register{value: MIN_COLLATERAL}(
+            "C",
+            "U3",
+            true,
+            Flyover.ProviderType.PegIn
+        );
 
         Flyover.LiquidityProvider[] memory providers = discovery.getProviders();
         assertEq(providers.length, 3, "Should have 3 providers");

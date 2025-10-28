@@ -13,7 +13,9 @@ contract RegistrationTest is DiscoveryTestBase {
 
     // ============ Registration tests ============
 
-    function test_Register_RegistersProvidersAndIncrementsLastProviderId() public {
+    function test_Register_RegistersProvidersAndIncrementsLastProviderId()
+        public
+    {
         address lp1 = makeAddr("lp1");
         address lp2 = makeAddr("lp2");
         address lp3 = makeAddr("lp3");
@@ -26,19 +28,34 @@ contract RegistrationTest is DiscoveryTestBase {
         vm.prank(lp1);
         vm.expectEmit(false, false, false, false);
         emit IFlyoverDiscovery.Register(0, address(0), 0);
-        discovery.register{value: MIN_COLLATERAL * 2}("LP1", "http://localhost/api1", true, Flyover.ProviderType.Both);
+        discovery.register{value: MIN_COLLATERAL * 2}(
+            "LP1",
+            "http://localhost/api1",
+            true,
+            Flyover.ProviderType.Both
+        );
 
         // Register LP2
         vm.prank(lp2);
         vm.expectEmit(false, false, false, false);
         emit IFlyoverDiscovery.Register(0, address(0), 0);
-        discovery.register{value: MIN_COLLATERAL}("LP2", "http://localhost/api2", true, Flyover.ProviderType.PegIn);
+        discovery.register{value: MIN_COLLATERAL}(
+            "LP2",
+            "http://localhost/api2",
+            true,
+            Flyover.ProviderType.PegIn
+        );
 
         // Register LP3
         vm.prank(lp3);
         vm.expectEmit(false, false, false, false);
         emit IFlyoverDiscovery.Register(0, address(0), 0);
-        discovery.register{value: MIN_COLLATERAL}("LP3", "http://localhost/api3", true, Flyover.ProviderType.PegOut);
+        discovery.register{value: MIN_COLLATERAL}(
+            "LP3",
+            "http://localhost/api3",
+            true,
+            Flyover.ProviderType.PegOut
+        );
 
         uint256 lastId = discovery.getProvidersId();
         assertEq(lastId, 3, "Last provider ID should be 3");
@@ -57,7 +74,12 @@ contract RegistrationTest is DiscoveryTestBase {
                 "http://localhost/api"
             )
         );
-        discovery.register{value: MIN_COLLATERAL}("", "http://localhost/api", true, Flyover.ProviderType.PegIn);
+        discovery.register{value: MIN_COLLATERAL}(
+            "",
+            "http://localhost/api",
+            true,
+            Flyover.ProviderType.PegIn
+        );
 
         // Empty URL
         vm.prank(lp);
@@ -68,10 +90,17 @@ contract RegistrationTest is DiscoveryTestBase {
                 ""
             )
         );
-        discovery.register{value: MIN_COLLATERAL}("LP", "", true, Flyover.ProviderType.PegIn);
+        discovery.register{value: MIN_COLLATERAL}(
+            "LP",
+            "",
+            true,
+            Flyover.ProviderType.PegIn
+        );
     }
 
-    function test_Register_RevertsOnInsufficientCollateralDependingOnProviderType() public {
+    function test_Register_RevertsOnInsufficientCollateralDependingOnProviderType()
+        public
+    {
         address lpBoth = makeAddr("lpBoth");
         address lpIn = makeAddr("lpIn");
         address lpOut = makeAddr("lpOut");
@@ -88,7 +117,12 @@ contract RegistrationTest is DiscoveryTestBase {
                 MIN_COLLATERAL
             )
         );
-        discovery.register{value: MIN_COLLATERAL}("LPB", "url", true, Flyover.ProviderType.Both);
+        discovery.register{value: MIN_COLLATERAL}(
+            "LPB",
+            "url",
+            true,
+            Flyover.ProviderType.Both
+        );
 
         // PegIn with insufficient collateral
         vm.prank(lpIn);
@@ -98,7 +132,12 @@ contract RegistrationTest is DiscoveryTestBase {
                 MIN_COLLATERAL - 1
             )
         );
-        discovery.register{value: MIN_COLLATERAL - 1}("LPI", "url", true, Flyover.ProviderType.PegIn);
+        discovery.register{value: MIN_COLLATERAL - 1}(
+            "LPI",
+            "url",
+            true,
+            Flyover.ProviderType.PegIn
+        );
 
         // PegOut with insufficient collateral
         vm.prank(lpOut);
@@ -108,10 +147,17 @@ contract RegistrationTest is DiscoveryTestBase {
                 MIN_COLLATERAL - 1
             )
         );
-        discovery.register{value: MIN_COLLATERAL - 1}("LPO", "url", true, Flyover.ProviderType.PegOut);
+        discovery.register{value: MIN_COLLATERAL - 1}(
+            "LPO",
+            "url",
+            true,
+            Flyover.ProviderType.PegOut
+        );
     }
 
-    function test_Register_ReturnsLastProviderIdAfterPreRegisteredProviders() public {
+    function test_Register_ReturnsLastProviderIdAfterPreRegisteredProviders()
+        public
+    {
         setupProviders();
 
         uint256 lastId = discovery.getProvidersId();
@@ -143,18 +189,35 @@ contract RegistrationTest is DiscoveryTestBase {
 
         // First registration succeeds
         vm.prank(lp);
-        discovery.register{value: MIN_COLLATERAL}("N1", "U1", true, Flyover.ProviderType.PegIn);
+        discovery.register{value: MIN_COLLATERAL}(
+            "N1",
+            "U1",
+            true,
+            Flyover.ProviderType.PegIn
+        );
 
         // Second registration by the same EOA should fail
         vm.prank(lp);
         vm.expectRevert(
-            abi.encodeWithSelector(IFlyoverDiscovery.AlreadyRegistered.selector, lp)
+            abi.encodeWithSelector(
+                IFlyoverDiscovery.AlreadyRegistered.selector,
+                lp
+            )
         );
-        discovery.register{value: MIN_COLLATERAL}("N2", "U2", true, Flyover.ProviderType.PegOut);
+        discovery.register{value: MIN_COLLATERAL}(
+            "N2",
+            "U2",
+            true,
+            Flyover.ProviderType.PegOut
+        );
 
         // Verify only 1 provider exists
         Flyover.LiquidityProvider[] memory providers = discovery.getProviders();
         assertEq(providers.length, 1, "Should have 1 provider");
-        assertEq(providers[0].providerAddress, lp, "Provider address should match");
+        assertEq(
+            providers[0].providerAddress,
+            lp,
+            "Provider address should match"
+        );
     }
 }

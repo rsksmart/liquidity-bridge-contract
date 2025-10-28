@@ -23,14 +23,20 @@ contract DepositTest is PegInTestBase {
         // Not a provider - should revert
         vm.prank(notProvider);
         vm.expectRevert(
-            abi.encodeWithSelector(Flyover.ProviderNotRegistered.selector, notProvider)
+            abi.encodeWithSelector(
+                Flyover.ProviderNotRegistered.selector,
+                notProvider
+            )
         );
         pegInContract.deposit{value: 1 ether}();
 
         // PegOut provider trying to deposit in PegIn contract - should revert
         vm.prank(pegOutLp);
         vm.expectRevert(
-            abi.encodeWithSelector(Flyover.ProviderNotRegistered.selector, pegOutLp)
+            abi.encodeWithSelector(
+                Flyover.ProviderNotRegistered.selector,
+                pegOutLp
+            )
         );
         pegInContract.deposit{value: 1 ether}();
 
@@ -83,7 +89,8 @@ contract DepositTest is PegInTestBase {
         // No BalanceIncrease event should be emitted
         for (uint i = 0; i < entries.length; i++) {
             assertFalse(
-                entries[i].topics[0] == keccak256("BalanceIncrease(address,uint256)"),
+                entries[i].topics[0] ==
+                    keccak256("BalanceIncrease(address,uint256)"),
                 "BalanceIncrease event should not be emitted for zero amount"
             );
         }

@@ -19,12 +19,16 @@ contract StatusTest is DiscoveryTestBase {
 
     // ============ setProviderStatus tests ============
 
-    function test_SetProviderStatus_AllowsProviderToDisableAndEnableItself() public {
+    function test_SetProviderStatus_AllowsProviderToDisableAndEnableItself()
+        public
+    {
         // Disable provider
         vm.prank(pegOutLp);
         discovery.setProviderStatus(2, false);
 
-        Flyover.LiquidityProvider memory provider = discovery.getProvider(pegOutLp);
+        Flyover.LiquidityProvider memory provider = discovery.getProvider(
+            pegOutLp
+        );
         assertFalse(provider.status, "Provider should be disabled");
 
         // Enable provider
@@ -40,7 +44,9 @@ contract StatusTest is DiscoveryTestBase {
         vm.prank(owner);
         discovery.setProviderStatus(1, false);
 
-        Flyover.LiquidityProvider memory provider = discovery.getProvider(pegInLp);
+        Flyover.LiquidityProvider memory provider = discovery.getProvider(
+            pegInLp
+        );
         assertFalse(provider.status, "Provider should be disabled");
 
         // Owner enables provider
@@ -54,7 +60,10 @@ contract StatusTest is DiscoveryTestBase {
     function test_SetProviderStatus_RevertsForUnauthorizedAddress() public {
         vm.prank(stranger);
         vm.expectRevert(
-            abi.encodeWithSelector(IFlyoverDiscovery.NotAuthorized.selector, stranger)
+            abi.encodeWithSelector(
+                IFlyoverDiscovery.NotAuthorized.selector,
+                stranger
+            )
         );
         discovery.setProviderStatus(1, false);
     }

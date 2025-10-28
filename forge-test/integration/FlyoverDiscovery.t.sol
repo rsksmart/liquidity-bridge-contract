@@ -23,33 +23,40 @@ contract FlyoverDiscoveryIntegrationTest is Test {
     uint256 constant MIN_COLLATERAL = 0.6 ether;
     uint256 constant RESIGN_DELAY_BLOCKS = 500;
 
-    bytes constant DECODED_TEST_FED_ADDRESS = hex"c39bc4b53918d6058134363d6e57e11a22f9e8fb";
-    bytes constant DECODED_P2PKH_ZERO_ADDRESS_TESTNET = hex"6f0000000000000000000000000000000000000000";
+    bytes constant DECODED_TEST_FED_ADDRESS =
+        hex"c39bc4b53918d6058134363d6e57e11a22f9e8fb";
+    bytes constant DECODED_P2PKH_ZERO_ADDRESS_TESTNET =
+        hex"6f0000000000000000000000000000000000000000";
     address constant ZERO_ADDRESS = address(0);
 
-    function getEmptyPegInQuote() internal pure returns (Quotes.PegInQuote memory) {
-        return Quotes.PegInQuote({
-            callFee: 0,
-            value: 0,
-            productFeeAmount: 0,
-            gasFee: 0,
-            agreementTimestamp: 0,
-            timeForDeposit: 0,
-            callTime: 0,
-            depositConfirmations: 0,
-            callOnRegister: false,
-            fedBtcAddress: bytes20(DECODED_TEST_FED_ADDRESS),
-            lbcAddress: ZERO_ADDRESS,
-            liquidityProviderRskAddress: ZERO_ADDRESS,
-            btcRefundAddress: DECODED_P2PKH_ZERO_ADDRESS_TESTNET,
-            rskRefundAddress: payable(ZERO_ADDRESS),
-            liquidityProviderBtcAddress: DECODED_P2PKH_ZERO_ADDRESS_TESTNET,
-            penaltyFee: 0,
-            contractAddress: ZERO_ADDRESS,
-            nonce: 0,
-            gasLimit: 0,
-            data: hex""
-        });
+    function getEmptyPegInQuote()
+        internal
+        pure
+        returns (Quotes.PegInQuote memory)
+    {
+        return
+            Quotes.PegInQuote({
+                callFee: 0,
+                value: 0,
+                productFeeAmount: 0,
+                gasFee: 0,
+                agreementTimestamp: 0,
+                timeForDeposit: 0,
+                callTime: 0,
+                depositConfirmations: 0,
+                callOnRegister: false,
+                fedBtcAddress: bytes20(DECODED_TEST_FED_ADDRESS),
+                lbcAddress: ZERO_ADDRESS,
+                liquidityProviderRskAddress: ZERO_ADDRESS,
+                btcRefundAddress: DECODED_P2PKH_ZERO_ADDRESS_TESTNET,
+                rskRefundAddress: payable(ZERO_ADDRESS),
+                liquidityProviderBtcAddress: DECODED_P2PKH_ZERO_ADDRESS_TESTNET,
+                penaltyFee: 0,
+                contractAddress: ZERO_ADDRESS,
+                nonce: 0,
+                gasLimit: 0,
+                data: hex""
+            });
     }
 
     function setUp() public {
@@ -69,7 +76,9 @@ contract FlyoverDiscoveryIntegrationTest is Test {
             (owner, 30, MIN_COLLATERAL, RESIGN_DELAY_BLOCKS, 1000)
         );
         ERC1967Proxy cmProxy = new ERC1967Proxy(address(cmImpl), cmInitData);
-        collateralManagement = CollateralManagementContract(payable(address(cmProxy)));
+        collateralManagement = CollateralManagementContract(
+            payable(address(cmProxy))
+        );
 
         // Deploy FlyoverDiscovery
         FlyoverDiscovery discoveryImpl = new FlyoverDiscovery();
@@ -77,12 +86,18 @@ contract FlyoverDiscoveryIntegrationTest is Test {
             FlyoverDiscovery.initialize,
             (owner, 5000, address(collateralManagement))
         );
-        ERC1967Proxy discoveryProxy = new ERC1967Proxy(address(discoveryImpl), discoveryInitData);
+        ERC1967Proxy discoveryProxy = new ERC1967Proxy(
+            address(discoveryImpl),
+            discoveryInitData
+        );
         discovery = FlyoverDiscovery(payable(address(discoveryProxy)));
 
         // Wait for admin delay and grant COLLATERAL_ADDER role
         vm.warp(block.timestamp + 31);
-        collateralManagement.grantRole(collateralManagement.COLLATERAL_ADDER(), address(discovery));
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_ADDER(),
+            address(discovery)
+        );
     }
 
     function setupProviders() internal {
@@ -91,18 +106,35 @@ contract FlyoverDiscoveryIntegrationTest is Test {
         fullLp = signers[signers.length - 1];
 
         vm.prank(pegInLp);
-        discovery.register{value: MIN_COLLATERAL}("Pegin Provider", "lp1.com", true, Flyover.ProviderType.PegIn);
+        discovery.register{value: MIN_COLLATERAL}(
+            "Pegin Provider",
+            "lp1.com",
+            true,
+            Flyover.ProviderType.PegIn
+        );
 
         vm.prank(pegOutLp);
-        discovery.register{value: MIN_COLLATERAL}("PegOut Provider", "lp2.com", true, Flyover.ProviderType.PegOut);
+        discovery.register{value: MIN_COLLATERAL}(
+            "PegOut Provider",
+            "lp2.com",
+            true,
+            Flyover.ProviderType.PegOut
+        );
 
         vm.prank(fullLp);
-        discovery.register{value: MIN_COLLATERAL * 2}("Full Provider", "lp3.com", true, Flyover.ProviderType.Both);
+        discovery.register{value: MIN_COLLATERAL * 2}(
+            "Full Provider",
+            "lp3.com",
+            true,
+            Flyover.ProviderType.Both
+        );
     }
 
     // ============ Cross-contract: Collateral Allocation During Registration ============
 
-    function test_ShouldCorrectlyAllocateCollateralForProviderTypePegIn() public {
+    function test_ShouldCorrectlyAllocateCollateralForProviderTypePegIn()
+        public
+    {
         address lp = signers[signers.length - 1];
 
         uint256 collateralAmount = MIN_COLLATERAL;
@@ -120,7 +152,9 @@ contract FlyoverDiscoveryIntegrationTest is Test {
         assertEq(collateralManagement.getPegOutCollateral(lp), 0);
     }
 
-    function test_ShouldCorrectlyAllocateCollateralForProviderTypePegOut() public {
+    function test_ShouldCorrectlyAllocateCollateralForProviderTypePegOut()
+        public
+    {
         address lp = signers[signers.length - 2];
 
         uint256 collateralAmount = MIN_COLLATERAL;
@@ -135,10 +169,15 @@ contract FlyoverDiscoveryIntegrationTest is Test {
 
         // Verify collateral allocation in CollateralManagement contract
         assertEq(collateralManagement.getPegInCollateral(lp), 0);
-        assertEq(collateralManagement.getPegOutCollateral(lp), collateralAmount);
+        assertEq(
+            collateralManagement.getPegOutCollateral(lp),
+            collateralAmount
+        );
     }
 
-    function test_ShouldCorrectlyAllocateCollateralForProviderTypeBothWithEvenAmount() public {
+    function test_ShouldCorrectlyAllocateCollateralForProviderTypeBothWithEvenAmount()
+        public
+    {
         address lp = signers[signers.length - 3];
 
         uint256 evenAmount = MIN_COLLATERAL * 2;
@@ -157,7 +196,9 @@ contract FlyoverDiscoveryIntegrationTest is Test {
         assertEq(collateralManagement.getPegOutCollateral(lp), expectedHalf);
     }
 
-    function test_ShouldCorrectlyAllocateCollateralForProviderTypeBothWithOddAmount() public {
+    function test_ShouldCorrectlyAllocateCollateralForProviderTypeBothWithOddAmount()
+        public
+    {
         address lp = signers[signers.length - 4];
 
         uint256 oddAmount = MIN_COLLATERAL * 2 + 1;
@@ -181,11 +222,13 @@ contract FlyoverDiscoveryIntegrationTest is Test {
 
         // Verify total allocation equals the original amount
         uint256 totalAllocated = collateralManagement.getPegInCollateral(lp) +
-                                  collateralManagement.getPegOutCollateral(lp);
+            collateralManagement.getPegOutCollateral(lp);
         assertEq(totalAllocated, oddAmount);
     }
 
-    function test_ShouldVerifyCollateralIsActuallyTransferredToCollateralManagementContract() public {
+    function test_ShouldVerifyCollateralIsActuallyTransferredToCollateralManagementContract()
+        public
+    {
         address lp = signers[signers.length - 5];
 
         // Get initial balance of CollateralManagement contract
@@ -206,7 +249,9 @@ contract FlyoverDiscoveryIntegrationTest is Test {
         assertEq(finalBalance - initialBalance, collateralAmount);
     }
 
-    function test_ShouldEmitCorrectEventsInBothContractsDuringRegistration() public {
+    function test_ShouldEmitCorrectEventsInBothContractsDuringRegistration()
+        public
+    {
         address lp = signers[signers.length - 6];
 
         uint256 collateralAmount = MIN_COLLATERAL;
@@ -228,37 +273,62 @@ contract FlyoverDiscoveryIntegrationTest is Test {
 
         for (uint i = 0; i < logs.length; i++) {
             // Register(uint256 indexed id, address indexed from, uint256 indexed amount)
-            if (logs[i].topics[0] == keccak256("Register(uint256,address,uint256)")) {
+            if (
+                logs[i].topics[0] ==
+                keccak256("Register(uint256,address,uint256)")
+            ) {
                 foundRegisterEvent = true;
             }
             // PegInCollateralAdded(address indexed provider, uint256 indexed amount)
-            if (logs[i].topics[0] == keccak256("PegInCollateralAdded(address,uint256)")) {
+            if (
+                logs[i].topics[0] ==
+                keccak256("PegInCollateralAdded(address,uint256)")
+            ) {
                 foundPegInCollateralAddedEvent = true;
             }
         }
 
         assertTrue(foundRegisterEvent, "Should emit Register event");
-        assertTrue(foundPegInCollateralAddedEvent, "Should emit PegInCollateralAdded event");
+        assertTrue(
+            foundPegInCollateralAddedEvent,
+            "Should emit PegInCollateralAdded event"
+        );
     }
 
     // ============ Cross-contract: isOperational Checks ============
 
-    function test_ShouldReturnTrueOnlyForProvidersWithSufficientCollateralForTheirType() public {
+    function test_ShouldReturnTrueOnlyForProvidersWithSufficientCollateralForTheirType()
+        public
+    {
         setupProviders();
 
         // Test PegIn operations (Discovery queries CollateralManagement)
-        assertTrue(discovery.isOperational(Flyover.ProviderType.PegIn, pegInLp));
+        assertTrue(
+            discovery.isOperational(Flyover.ProviderType.PegIn, pegInLp)
+        );
         assertTrue(discovery.isOperational(Flyover.ProviderType.PegIn, fullLp));
-        assertFalse(discovery.isOperational(Flyover.ProviderType.PegIn, pegOutLp));
+        assertFalse(
+            discovery.isOperational(Flyover.ProviderType.PegIn, pegOutLp)
+        );
 
         // Test PegOut operations
-        assertFalse(discovery.isOperational(Flyover.ProviderType.PegOut, pegInLp));
-        assertTrue(discovery.isOperational(Flyover.ProviderType.PegOut, fullLp));
-        assertTrue(discovery.isOperational(Flyover.ProviderType.PegOut, pegOutLp));
+        assertFalse(
+            discovery.isOperational(Flyover.ProviderType.PegOut, pegInLp)
+        );
+        assertTrue(
+            discovery.isOperational(Flyover.ProviderType.PegOut, fullLp)
+        );
+        assertTrue(
+            discovery.isOperational(Flyover.ProviderType.PegOut, pegOutLp)
+        );
 
         // Test Both operations (requires sufficient collateral for both PegIn AND PegOut)
-        assertFalse(discovery.isOperational(Flyover.ProviderType.Both, pegInLp)); // Only has PegIn collateral
-        assertFalse(discovery.isOperational(Flyover.ProviderType.Both, pegOutLp)); // Only has PegOut collateral
+        assertFalse(
+            discovery.isOperational(Flyover.ProviderType.Both, pegInLp)
+        ); // Only has PegIn collateral
+        assertFalse(
+            discovery.isOperational(Flyover.ProviderType.Both, pegOutLp)
+        ); // Only has PegOut collateral
         assertTrue(discovery.isOperational(Flyover.ProviderType.Both, fullLp)); // Has both PegIn and PegOut collateral
     }
 
@@ -267,20 +337,32 @@ contract FlyoverDiscoveryIntegrationTest is Test {
 
         // Register with enough collateral
         vm.prank(lp);
-        discovery.register{value: MIN_COLLATERAL * 2}("LP", "url", true, Flyover.ProviderType.PegIn);
+        discovery.register{value: MIN_COLLATERAL * 2}(
+            "LP",
+            "url",
+            true,
+            Flyover.ProviderType.PegIn
+        );
 
         // Initially operational
         assertTrue(discovery.isOperational(Flyover.ProviderType.PegIn, lp));
 
         // Grant COLLATERAL_SLASHER role
-        collateralManagement.grantRole(collateralManagement.COLLATERAL_SLASHER(), owner);
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_SLASHER(),
+            owner
+        );
 
         // Slash some collateral (but still above minimum)
         Quotes.PegInQuote memory quote1 = getEmptyPegInQuote();
         quote1.liquidityProviderRskAddress = lp;
         quote1.penaltyFee = MIN_COLLATERAL / 2;
 
-        collateralManagement.slashPegInCollateral(ZERO_ADDRESS, quote1, bytes32(0));
+        collateralManagement.slashPegInCollateral(
+            ZERO_ADDRESS,
+            quote1,
+            bytes32(0)
+        );
 
         // Still operational
         assertTrue(discovery.isOperational(Flyover.ProviderType.PegIn, lp));
@@ -290,7 +372,11 @@ contract FlyoverDiscoveryIntegrationTest is Test {
         quote2.liquidityProviderRskAddress = lp;
         quote2.penaltyFee = MIN_COLLATERAL;
 
-        collateralManagement.slashPegInCollateral(ZERO_ADDRESS, quote2, bytes32(0));
+        collateralManagement.slashPegInCollateral(
+            ZERO_ADDRESS,
+            quote2,
+            bytes32(0)
+        );
 
         // No longer operational
         assertFalse(discovery.isOperational(Flyover.ProviderType.PegIn, lp));
@@ -301,16 +387,28 @@ contract FlyoverDiscoveryIntegrationTest is Test {
 
         // Register with extra collateral
         vm.prank(lp);
-        discovery.register{value: MIN_COLLATERAL * 2}("LP", "url", true, Flyover.ProviderType.PegIn);
+        discovery.register{value: MIN_COLLATERAL * 2}(
+            "LP",
+            "url",
+            true,
+            Flyover.ProviderType.PegIn
+        );
 
         // Grant COLLATERAL_SLASHER role and slash below minimum (but not all)
-        collateralManagement.grantRole(collateralManagement.COLLATERAL_SLASHER(), owner);
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_SLASHER(),
+            owner
+        );
 
         Quotes.PegInQuote memory quote = getEmptyPegInQuote();
         quote.liquidityProviderRskAddress = lp;
         quote.penaltyFee = MIN_COLLATERAL + MIN_COLLATERAL / 2;
 
-        collateralManagement.slashPegInCollateral(ZERO_ADDRESS, quote, bytes32(0));
+        collateralManagement.slashPegInCollateral(
+            ZERO_ADDRESS,
+            quote,
+            bytes32(0)
+        );
 
         // Not operational (below minimum but still registered)
         assertFalse(discovery.isOperational(Flyover.ProviderType.PegIn, lp));
@@ -332,13 +430,28 @@ contract FlyoverDiscoveryIntegrationTest is Test {
 
         // Register multiple providers
         vm.prank(lp1);
-        discovery.register{value: MIN_COLLATERAL}("LP1", "url1", true, Flyover.ProviderType.PegIn);
+        discovery.register{value: MIN_COLLATERAL}(
+            "LP1",
+            "url1",
+            true,
+            Flyover.ProviderType.PegIn
+        );
 
         vm.prank(lp2);
-        discovery.register{value: MIN_COLLATERAL}("LP2", "url2", true, Flyover.ProviderType.PegIn);
+        discovery.register{value: MIN_COLLATERAL}(
+            "LP2",
+            "url2",
+            true,
+            Flyover.ProviderType.PegIn
+        );
 
         vm.prank(lp3);
-        discovery.register{value: MIN_COLLATERAL}("LP3", "url3", true, Flyover.ProviderType.PegIn);
+        discovery.register{value: MIN_COLLATERAL}(
+            "LP3",
+            "url3",
+            true,
+            Flyover.ProviderType.PegIn
+        );
 
         // Verify all listed
         Flyover.LiquidityProvider[] memory providers = discovery.getProviders();
@@ -362,12 +475,19 @@ contract FlyoverDiscoveryIntegrationTest is Test {
         assertFalse(discovery.isOperational(Flyover.ProviderType.PegIn, lp2));
     }
 
-    function test_ShouldCompleteFullResignationAndWithdrawalLifecycleAffectingDiscovery() public {
+    function test_ShouldCompleteFullResignationAndWithdrawalLifecycleAffectingDiscovery()
+        public
+    {
         address lp = signers[signers.length - 1];
 
         // Register provider (appears in Discovery)
         vm.prank(lp);
-        discovery.register{value: MIN_COLLATERAL * 2}("LP", "url", true, Flyover.ProviderType.PegIn);
+        discovery.register{value: MIN_COLLATERAL * 2}(
+            "LP",
+            "url",
+            true,
+            Flyover.ProviderType.PegIn
+        );
 
         assertEq(discovery.getProviders().length, 1);
         assertTrue(discovery.isOperational(Flyover.ProviderType.PegIn, lp));
@@ -395,16 +515,26 @@ contract FlyoverDiscoveryIntegrationTest is Test {
         assertFalse(discovery.isOperational(Flyover.ProviderType.PegIn, lp));
     }
 
-    function test_ShouldSupportReRegistrationWithDifferentProviderTypeAfterFullResignationAndWithdrawal() public {
+    function test_ShouldSupportReRegistrationWithDifferentProviderTypeAfterFullResignationAndWithdrawal()
+        public
+    {
         address lp1 = signers[signers.length - 2];
         address lp2 = signers[signers.length - 1];
 
         // Register first provider as PegIn
         vm.prank(lp1);
-        discovery.register{value: MIN_COLLATERAL}("LP1 PegIn", "url1", true, Flyover.ProviderType.PegIn);
+        discovery.register{value: MIN_COLLATERAL}(
+            "LP1 PegIn",
+            "url1",
+            true,
+            Flyover.ProviderType.PegIn
+        );
 
         Flyover.LiquidityProvider memory provider = discovery.getProvider(lp1);
-        assertEq(uint8(provider.providerType), uint8(Flyover.ProviderType.PegIn));
+        assertEq(
+            uint8(provider.providerType),
+            uint8(Flyover.ProviderType.PegIn)
+        );
         assertEq(provider.id, 1);
 
         // Resign and withdraw first provider
@@ -421,11 +551,19 @@ contract FlyoverDiscoveryIntegrationTest is Test {
 
         // Register second provider as PegOut (different address)
         vm.prank(lp2);
-        discovery.register{value: MIN_COLLATERAL}("LP2 PegOut", "url2", true, Flyover.ProviderType.PegOut);
+        discovery.register{value: MIN_COLLATERAL}(
+            "LP2 PegOut",
+            "url2",
+            true,
+            Flyover.ProviderType.PegOut
+        );
 
         // Verify new provider type in Discovery
         provider = discovery.getProvider(lp2);
-        assertEq(uint8(provider.providerType), uint8(Flyover.ProviderType.PegOut));
+        assertEq(
+            uint8(provider.providerType),
+            uint8(Flyover.ProviderType.PegOut)
+        );
         assertEq(provider.id, 2); // New ID assigned
         assertEq(provider.name, "LP2 PegOut");
 

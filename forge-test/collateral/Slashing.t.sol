@@ -48,7 +48,11 @@ contract SlashingTest is CollateralTestBase {
         vm.deal(notSlasher, 100 ether);
     }
 
-    function createPegInQuote() internal view returns (Quotes.PegInQuote memory quote) {
+    function createPegInQuote()
+        internal
+        view
+        returns (Quotes.PegInQuote memory quote)
+    {
         bytes memory emptyBytes = new bytes(0);
         bytes memory testBtcAddress = new bytes(20);
 
@@ -65,7 +69,11 @@ contract SlashingTest is CollateralTestBase {
         quote.data = emptyBytes;
     }
 
-    function createPegOutQuote() internal view returns (Quotes.PegOutQuote memory quote) {
+    function createPegOutQuote()
+        internal
+        view
+        returns (Quotes.PegOutQuote memory quote)
+    {
         bytes memory testBtcAddress = new bytes(20);
 
         quote.callFee = CALL_FEE;
@@ -82,14 +90,21 @@ contract SlashingTest is CollateralTestBase {
     function setupCollateral() internal {
         // Add collateral to liquidity provider
         vm.startPrank(adder);
-        collateralManagement.addPegInCollateralTo{value: BASE_COLLATERAL}(liquidityProvider);
-        collateralManagement.addPegOutCollateralTo{value: BASE_COLLATERAL}(liquidityProvider);
+        collateralManagement.addPegInCollateralTo{value: BASE_COLLATERAL}(
+            liquidityProvider
+        );
+        collateralManagement.addPegOutCollateralTo{value: BASE_COLLATERAL}(
+            liquidityProvider
+        );
         vm.stopPrank();
     }
 
     // ============ Helper Functions ============
 
-    function getRewardForQuote(uint256 penaltyFee, uint256 rewardPercentage) internal pure returns (uint256) {
+    function getRewardForQuote(
+        uint256 penaltyFee,
+        uint256 rewardPercentage
+    ) internal pure returns (uint256) {
         return (penaltyFee * rewardPercentage) / 10000;
     }
 
@@ -109,7 +124,11 @@ contract SlashingTest is CollateralTestBase {
                 slasherRole
             )
         );
-        collateralManagement.slashPegOutCollateral(punisher, pegOutQuote, quoteHash);
+        collateralManagement.slashPegOutCollateral(
+            punisher,
+            pegOutQuote,
+            quoteHash
+        );
 
         // Try to slash PegIn collateral without role
         vm.prank(notSlasher);
@@ -120,7 +139,11 @@ contract SlashingTest is CollateralTestBase {
                 slasherRole
             )
         );
-        collateralManagement.slashPegInCollateral(punisher, pegInQuote, quoteHash);
+        collateralManagement.slashPegInCollateral(
+            punisher,
+            pegInQuote,
+            quoteHash
+        );
     }
 
     function test_SlashPegInCollateral_SlashesProperly() public {
@@ -146,7 +169,11 @@ contract SlashingTest is CollateralTestBase {
             penalty,
             reward
         );
-        collateralManagement.slashPegInCollateral(punisher, pegInQuote, quoteHash);
+        collateralManagement.slashPegInCollateral(
+            punisher,
+            pegInQuote,
+            quoteHash
+        );
 
         // Verify collateral was slashed
         assertEq(
@@ -193,7 +220,11 @@ contract SlashingTest is CollateralTestBase {
             penalty,
             reward
         );
-        collateralManagement.slashPegOutCollateral(punisher, pegOutQuote, quoteHash);
+        collateralManagement.slashPegOutCollateral(
+            punisher,
+            pegOutQuote,
+            quoteHash
+        );
 
         // Verify collateral was slashed
         assertEq(
@@ -222,14 +253,28 @@ contract SlashingTest is CollateralTestBase {
         Quotes.PegOutQuote memory pegOutQuote = createPegOutQuote();
         uint256 pegInPenalty = pegInQuote.penaltyFee;
         uint256 pegOutPenalty = pegOutQuote.penaltyFee;
-        uint256 pegInReward = getRewardForQuote(pegInPenalty, TEST_REWARD_PERCENTAGE);
-        uint256 pegOutReward = getRewardForQuote(pegOutPenalty, TEST_REWARD_PERCENTAGE);
+        uint256 pegInReward = getRewardForQuote(
+            pegInPenalty,
+            TEST_REWARD_PERCENTAGE
+        );
+        uint256 pegOutReward = getRewardForQuote(
+            pegOutPenalty,
+            TEST_REWARD_PERCENTAGE
+        );
         uint256 totalReward = pegInReward + pegOutReward;
 
         // Slash both types of collateral
         vm.startPrank(slasher);
-        collateralManagement.slashPegInCollateral(punisher, pegInQuote, quoteHash);
-        collateralManagement.slashPegOutCollateral(punisher, pegOutQuote, quoteHash);
+        collateralManagement.slashPegInCollateral(
+            punisher,
+            pegInQuote,
+            quoteHash
+        );
+        collateralManagement.slashPegOutCollateral(
+            punisher,
+            pegOutQuote,
+            quoteHash
+        );
         vm.stopPrank();
 
         // Verify rewards accumulated
@@ -282,8 +327,16 @@ contract SlashingTest is CollateralTestBase {
 
         // Slash collateral (rewards go to punisher, not slasher)
         vm.startPrank(slasher);
-        collateralManagement.slashPegInCollateral(punisher, pegInQuote, quoteHash);
-        collateralManagement.slashPegOutCollateral(punisher, pegOutQuote, quoteHash);
+        collateralManagement.slashPegInCollateral(
+            punisher,
+            pegInQuote,
+            quoteHash
+        );
+        collateralManagement.slashPegOutCollateral(
+            punisher,
+            pegOutQuote,
+            quoteHash
+        );
         vm.stopPrank();
 
         // Slasher tries to withdraw (should fail as they have no rewards)
@@ -307,8 +360,16 @@ contract SlashingTest is CollateralTestBase {
 
         // Slash collateral with walletMock as punisher
         vm.startPrank(slasher);
-        collateralManagement.slashPegInCollateral(walletAddress, pegInQuote, quoteHash);
-        collateralManagement.slashPegOutCollateral(walletAddress, pegOutQuote, quoteHash);
+        collateralManagement.slashPegInCollateral(
+            walletAddress,
+            pegInQuote,
+            quoteHash
+        );
+        collateralManagement.slashPegOutCollateral(
+            walletAddress,
+            pegOutQuote,
+            quoteHash
+        );
         vm.stopPrank();
 
         // Set wallet to reject funds
@@ -320,7 +381,11 @@ contract SlashingTest is CollateralTestBase {
         );
 
         vm.expectEmit(true, true, false, false);
-        emit WalletMock.TransactionRejected(address(collateralManagement), 0, bytes(""));
+        emit WalletMock.TransactionRejected(
+            address(collateralManagement),
+            0,
+            bytes("")
+        );
         walletMock.execute(address(collateralManagement), 0, withdrawData);
     }
 }

@@ -30,7 +30,9 @@ contract ResignTest is DiscoveryTestBase {
         collateralManagement.resign();
     }
 
-    function test_Resign_PreventsCollateralWithdrawalBeforeDelayAndAllowsAfter() public {
+    function test_Resign_PreventsCollateralWithdrawalBeforeDelayAndAllowsAfter()
+        public
+    {
         uint256 resignBlocks = collateralManagement.getResignDelayInBlocks();
 
         // Cannot withdraw before resigning
@@ -123,8 +125,16 @@ contract ResignTest is DiscoveryTestBase {
         );
 
         // Verify collaterals are zero
-        assertEq(collateralManagement.getPegInCollateral(fullLp), 0, "PegIn collateral should be 0");
-        assertEq(collateralManagement.getPegOutCollateral(fullLp), 0, "PegOut collateral should be 0");
+        assertEq(
+            collateralManagement.getPegInCollateral(fullLp),
+            0,
+            "PegIn collateral should be 0"
+        );
+        assertEq(
+            collateralManagement.getPegOutCollateral(fullLp),
+            0,
+            "PegOut collateral should be 0"
+        );
     }
 
     function test_Resign_AllowsResignWhenLPIsPegInOnly() public {
@@ -172,8 +182,16 @@ contract ResignTest is DiscoveryTestBase {
         );
 
         // Verify collaterals are zero
-        assertEq(collateralManagement.getPegInCollateral(pegInLp), 0, "PegIn collateral should be 0");
-        assertEq(collateralManagement.getPegOutCollateral(pegInLp), 0, "PegOut collateral should be 0");
+        assertEq(
+            collateralManagement.getPegInCollateral(pegInLp),
+            0,
+            "PegIn collateral should be 0"
+        );
+        assertEq(
+            collateralManagement.getPegOutCollateral(pegInLp),
+            0,
+            "PegOut collateral should be 0"
+        );
     }
 
     function test_Resign_AllowsResignWhenLPIsPegOutOnly() public {
@@ -221,7 +239,15 @@ contract ResignTest is DiscoveryTestBase {
         );
 
         // Verify collaterals are zero
-        assertEq(collateralManagement.getPegInCollateral(pegOutLp), 0, "PegIn collateral should be 0");
-        assertEq(collateralManagement.getPegOutCollateral(pegOutLp), 0, "PegOut collateral should be 0");
+        assertEq(
+            collateralManagement.getPegInCollateral(pegOutLp),
+            0,
+            "PegIn collateral should be 0"
+        );
+        assertEq(
+            collateralManagement.getPegOutCollateral(pegOutLp),
+            0,
+            "PegOut collateral should be 0"
+        );
     }
 }

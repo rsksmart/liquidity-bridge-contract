@@ -29,7 +29,9 @@ contract HashingTest is PegInTestBase {
         pegInContract.hashPegInQuote(quote);
     }
 
-    function test_HashPegInQuote_RevertsIfDestinationAddressIsTheBridgeAddress() public {
+    function test_HashPegInQuote_RevertsIfDestinationAddressIsTheBridgeAddress()
+        public
+    {
         Quotes.PegInQuote memory quote = createBasicPegInQuote();
         quote.contractAddress = address(bridgeMock);
 
@@ -42,7 +44,9 @@ contract HashingTest is PegInTestBase {
         pegInContract.hashPegInQuote(quote);
     }
 
-    function test_HashPegInQuote_RevertsIfBtcRefundAddressDoesNotHaveProperLength() public {
+    function test_HashPegInQuote_RevertsIfBtcRefundAddressDoesNotHaveProperLength()
+        public
+    {
         Quotes.PegInQuote memory quote = createBasicPegInQuote();
         // Invalid length (should be 21 bytes for P2PKH/P2SH, not random length)
         quote.btcRefundAddress = new bytes(15); // Wrong length
@@ -56,7 +60,9 @@ contract HashingTest is PegInTestBase {
         pegInContract.hashPegInQuote(quote);
     }
 
-    function test_HashPegInQuote_RevertsIfLiquidityProviderBtcAddressDoesNotHaveProperLength() public {
+    function test_HashPegInQuote_RevertsIfLiquidityProviderBtcAddressDoesNotHaveProperLength()
+        public
+    {
         Quotes.PegInQuote memory quote = createBasicPegInQuote();
         // Invalid length
         quote.liquidityProviderBtcAddress = new bytes(15); // Wrong length
@@ -70,7 +76,9 @@ contract HashingTest is PegInTestBase {
         pegInContract.hashPegInQuote(quote);
     }
 
-    function test_HashPegInQuote_RevertsIfQuoteTotalIsUnderBridgeMinimum() public {
+    function test_HashPegInQuote_RevertsIfQuoteTotalIsUnderBridgeMinimum()
+        public
+    {
         Quotes.PegInQuote memory quote = createBasicPegInQuote();
         // Set values that sum to less than 0.5 ether (TEST_MIN_PEGIN)
         quote.productFeeAmount = 99_999_999_999_999_999; // Just under 0.1 ether
@@ -96,10 +104,7 @@ contract HashingTest is PegInTestBase {
         quote.timeForDeposit = MAX_UINT32 / 2 + 2;
 
         vm.expectRevert(
-            abi.encodeWithSelector(
-                Flyover.Overflow.selector,
-                MAX_UINT32
-            )
+            abi.encodeWithSelector(Flyover.Overflow.selector, MAX_UINT32)
         );
         pegInContract.hashPegInQuote(quote);
     }
@@ -123,7 +128,10 @@ contract HashingTest is PegInTestBase {
         quote2.lbcAddress = address(pegInContract); // Update to actual contract
         bytes32 hash2 = pegInContract.hashPegInQuote(quote2);
 
-        assertTrue(hash1a != hash2, "Different quotes should produce different hashes");
+        assertTrue(
+            hash1a != hash2,
+            "Different quotes should produce different hashes"
+        );
 
         // Verify hash changes when quote value changes
         Quotes.PegInQuote memory quote3 = createSpecificPegInQuote1();
@@ -136,112 +144,143 @@ contract HashingTest is PegInTestBase {
 
     // ============ Helper Functions ============
 
-    function createBasicPegInQuote() internal returns (Quotes.PegInQuote memory) {
+    function createBasicPegInQuote()
+        internal
+        returns (Quotes.PegInQuote memory)
+    {
         bytes memory testBtcAddress = new bytes(21);
 
-        return Quotes.PegInQuote({
-            callFee: 100000000000000,
-            penaltyFee: 10000000000000,
-            value: 1 ether,
-            productFeeAmount: 0,
-            gasFee: 100,
-            fedBtcAddress: bytes20(testBtcAddress),
-            lbcAddress: address(pegInContract),
-            liquidityProviderRskAddress: makeAddr("lp"),
-            contractAddress: makeAddr("user"),
-            rskRefundAddress: payable(makeAddr("refund")),
-            nonce: 1,
-            gasLimit: 21000,
-            agreementTimestamp: uint32(block.timestamp),
-            timeForDeposit: 3600,
-            callTime: 7200,
-            depositConfirmations: 10,
-            callOnRegister: false,
-            btcRefundAddress: testBtcAddress,
-            liquidityProviderBtcAddress: testBtcAddress,
-            data: new bytes(0)
-        });
+        return
+            Quotes.PegInQuote({
+                callFee: 100000000000000,
+                penaltyFee: 10000000000000,
+                value: 1 ether,
+                productFeeAmount: 0,
+                gasFee: 100,
+                fedBtcAddress: bytes20(testBtcAddress),
+                lbcAddress: address(pegInContract),
+                liquidityProviderRskAddress: makeAddr("lp"),
+                contractAddress: makeAddr("user"),
+                rskRefundAddress: payable(makeAddr("refund")),
+                nonce: 1,
+                gasLimit: 21000,
+                agreementTimestamp: uint32(block.timestamp),
+                timeForDeposit: 3600,
+                callTime: 7200,
+                depositConfirmations: 10,
+                callOnRegister: false,
+                btcRefundAddress: testBtcAddress,
+                liquidityProviderBtcAddress: testBtcAddress,
+                data: new bytes(0)
+            });
     }
 
-    function createSpecificPegInQuote1() internal pure returns (Quotes.PegInQuote memory) {
+    function createSpecificPegInQuote1()
+        internal
+        pure
+        returns (Quotes.PegInQuote memory)
+    {
         // This matches QUOTE_MOCK from the TypeScript test
         bytes memory testBtcAddress = new bytes(21);
 
-        return Quotes.PegInQuote({
-            callFee: 100000000000000,
-            penaltyFee: 10000000000000,
-            value: 985215170000000000,
-            productFeeAmount: 0,
-            gasFee: 547377600000,
-            fedBtcAddress: bytes20(0x6b9a1d6634133e163A35eC8d7b6f496C32Cc16b0),
-            lbcAddress: 0x2E2Ed0Cfd3AD2f1d34481277b3204d807Ca2F8c2,
-            liquidityProviderRskAddress: 0x82a06eBDB97776a2da4041dF8f2b2ea8D3257852,
-            contractAddress: 0xaC31A4bEedd7EC916B7A48a612230cb85c1aaf56,
-            rskRefundAddress: payable(0xaC31A4bEedd7EC916B7A48a612230cb85c1aaf56),
-            nonce: 3635227228603468300,
-            gasLimit: 21000,
-            agreementTimestamp: 1752739488,
-            timeForDeposit: 5400,
-            callTime: 7200,
-            depositConfirmations: 3,
-            callOnRegister: false,
-            btcRefundAddress: testBtcAddress,
-            liquidityProviderBtcAddress: testBtcAddress,
-            data: new bytes(0)
-        });
+        return
+            Quotes.PegInQuote({
+                callFee: 100000000000000,
+                penaltyFee: 10000000000000,
+                value: 985215170000000000,
+                productFeeAmount: 0,
+                gasFee: 547377600000,
+                fedBtcAddress: bytes20(
+                    0x6b9a1d6634133e163A35eC8d7b6f496C32Cc16b0
+                ),
+                lbcAddress: 0x2E2Ed0Cfd3AD2f1d34481277b3204d807Ca2F8c2,
+                liquidityProviderRskAddress: 0x82a06eBDB97776a2da4041dF8f2b2ea8D3257852,
+                contractAddress: 0xaC31A4bEedd7EC916B7A48a612230cb85c1aaf56,
+                rskRefundAddress: payable(
+                    0xaC31A4bEedd7EC916B7A48a612230cb85c1aaf56
+                ),
+                nonce: 3635227228603468300,
+                gasLimit: 21000,
+                agreementTimestamp: 1752739488,
+                timeForDeposit: 5400,
+                callTime: 7200,
+                depositConfirmations: 3,
+                callOnRegister: false,
+                btcRefundAddress: testBtcAddress,
+                liquidityProviderBtcAddress: testBtcAddress,
+                data: new bytes(0)
+            });
     }
 
-    function createSpecificPegInQuote2() internal pure returns (Quotes.PegInQuote memory) {
+    function createSpecificPegInQuote2()
+        internal
+        pure
+        returns (Quotes.PegInQuote memory)
+    {
         bytes memory testBtcAddress = new bytes(21);
 
-        return Quotes.PegInQuote({
-            callFee: 1478412310000000,
-            penaltyFee: 10000000000000,
-            value: 517700700000000000,
-            productFeeAmount: 0,
-            gasFee: 547377600000,
-            fedBtcAddress: bytes20(0x6b9a1d6634133e163A35eC8d7b6f496C32Cc16b0),
-            lbcAddress: 0x2E2Ed0Cfd3AD2f1d34481277b3204d807Ca2F8c2,
-            liquidityProviderRskAddress: 0x82a06eBDB97776a2da4041dF8f2b2ea8D3257852,
-            contractAddress: 0x129d2280f9C35C0Caf3f172d487Fd9A3f894fD26,
-            rskRefundAddress: payable(0x129d2280f9C35C0Caf3f172d487Fd9A3f894fD26),
-            nonce: 6080686644105603000,
-            gasLimit: 21000,
-            agreementTimestamp: 1755356567,
-            timeForDeposit: 7200,
-            callTime: 10800,
-            depositConfirmations: 2,
-            callOnRegister: false,
-            btcRefundAddress: testBtcAddress,
-            liquidityProviderBtcAddress: testBtcAddress,
-            data: new bytes(0)
-        });
+        return
+            Quotes.PegInQuote({
+                callFee: 1478412310000000,
+                penaltyFee: 10000000000000,
+                value: 517700700000000000,
+                productFeeAmount: 0,
+                gasFee: 547377600000,
+                fedBtcAddress: bytes20(
+                    0x6b9a1d6634133e163A35eC8d7b6f496C32Cc16b0
+                ),
+                lbcAddress: 0x2E2Ed0Cfd3AD2f1d34481277b3204d807Ca2F8c2,
+                liquidityProviderRskAddress: 0x82a06eBDB97776a2da4041dF8f2b2ea8D3257852,
+                contractAddress: 0x129d2280f9C35C0Caf3f172d487Fd9A3f894fD26,
+                rskRefundAddress: payable(
+                    0x129d2280f9C35C0Caf3f172d487Fd9A3f894fD26
+                ),
+                nonce: 6080686644105603000,
+                gasLimit: 21000,
+                agreementTimestamp: 1755356567,
+                timeForDeposit: 7200,
+                callTime: 10800,
+                depositConfirmations: 2,
+                callOnRegister: false,
+                btcRefundAddress: testBtcAddress,
+                liquidityProviderBtcAddress: testBtcAddress,
+                data: new bytes(0)
+            });
     }
 
-    function createSpecificPegInQuote3() internal pure returns (Quotes.PegInQuote memory) {
+    function createSpecificPegInQuote3()
+        internal
+        pure
+        returns (Quotes.PegInQuote memory)
+    {
         bytes memory testBtcAddress = new bytes(21);
 
-        return Quotes.PegInQuote({
-            callFee: 2009314000000000,
-            penaltyFee: 10000000000000,
-            value: 578580000000000000,
-            productFeeAmount: 0,
-            gasFee: 547377600000,
-            fedBtcAddress: bytes20(0x6b9a1d6634133e163A35eC8d7b6f496C32Cc16b0),
-            lbcAddress: 0x2E2Ed0Cfd3AD2f1d34481277b3204d807Ca2F8c2,
-            liquidityProviderRskAddress: 0x82a06eBDB97776a2da4041dF8f2b2ea8D3257852,
-            contractAddress: 0xaC31A4bEedd7EC916B7A48a612230cb85c1aaf56,
-            rskRefundAddress: payable(0xaC31A4bEedd7EC916B7A48a612230cb85c1aaf56),
-            nonce: 7756734892733337000,
-            gasLimit: 21000,
-            agreementTimestamp: 1755682139,
-            timeForDeposit: 7200,
-            callTime: 10800,
-            depositConfirmations: 2,
-            callOnRegister: false,
-            btcRefundAddress: testBtcAddress,
-            liquidityProviderBtcAddress: testBtcAddress,
-            data: new bytes(0)
-        });
+        return
+            Quotes.PegInQuote({
+                callFee: 2009314000000000,
+                penaltyFee: 10000000000000,
+                value: 578580000000000000,
+                productFeeAmount: 0,
+                gasFee: 547377600000,
+                fedBtcAddress: bytes20(
+                    0x6b9a1d6634133e163A35eC8d7b6f496C32Cc16b0
+                ),
+                lbcAddress: 0x2E2Ed0Cfd3AD2f1d34481277b3204d807Ca2F8c2,
+                liquidityProviderRskAddress: 0x82a06eBDB97776a2da4041dF8f2b2ea8D3257852,
+                contractAddress: 0xaC31A4bEedd7EC916B7A48a612230cb85c1aaf56,
+                rskRefundAddress: payable(
+                    0xaC31A4bEedd7EC916B7A48a612230cb85c1aaf56
+                ),
+                nonce: 7756734892733337000,
+                gasLimit: 21000,
+                agreementTimestamp: 1755682139,
+                timeForDeposit: 7200,
+                callTime: 10800,
+                depositConfirmations: 2,
+                callOnRegister: false,
+                btcRefundAddress: testBtcAddress,
+                liquidityProviderBtcAddress: testBtcAddress,
+                data: new bytes(0)
+            });
     }
 }

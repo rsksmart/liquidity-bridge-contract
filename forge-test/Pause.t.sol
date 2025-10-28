@@ -44,33 +44,96 @@ contract PauseTest is Test {
         bridgeMock = new BridgeMock();
 
         CollateralManagementContract cmImpl = new CollateralManagementContract();
-        collateralManagement = CollateralManagementContract(payable(address(new ERC1967Proxy(
-            address(cmImpl),
-            abi.encodeCall(cmImpl.initialize, (owner, 30, TEST_MIN_COLLATERAL, 500, 1000))
-        ))));
+        collateralManagement = CollateralManagementContract(
+            payable(
+                address(
+                    new ERC1967Proxy(
+                        address(cmImpl),
+                        abi.encodeCall(
+                            cmImpl.initialize,
+                            (owner, 30, TEST_MIN_COLLATERAL, 500, 1000)
+                        )
+                    )
+                )
+            )
+        );
 
         FlyoverDiscovery dImpl = new FlyoverDiscovery();
-        flyoverDiscovery = FlyoverDiscovery(payable(address(new ERC1967Proxy(
-            address(dImpl),
-            abi.encodeCall(dImpl.initialize, (owner, 5000, address(collateralManagement)))
-        ))));
+        flyoverDiscovery = FlyoverDiscovery(
+            payable(
+                address(
+                    new ERC1967Proxy(
+                        address(dImpl),
+                        abi.encodeCall(
+                            dImpl.initialize,
+                            (owner, 5000, address(collateralManagement))
+                        )
+                    )
+                )
+            )
+        );
 
         PegInContract piImpl = new PegInContract();
-        pegInContract = PegInContract(payable(address(new ERC1967Proxy(
-            address(piImpl),
-            abi.encodeCall(piImpl.initialize, (owner, payable(address(bridgeMock)), 2300 * 65164000, 0.5 ether, address(collateralManagement), false, 0, payable(address(0))))
-        ))));
+        pegInContract = PegInContract(
+            payable(
+                address(
+                    new ERC1967Proxy(
+                        address(piImpl),
+                        abi.encodeCall(
+                            piImpl.initialize,
+                            (
+                                owner,
+                                payable(address(bridgeMock)),
+                                2300 * 65164000,
+                                0.5 ether,
+                                address(collateralManagement),
+                                false,
+                                0,
+                                payable(address(0))
+                            )
+                        )
+                    )
+                )
+            )
+        );
 
         PegOutContract poImpl = new PegOutContract();
-        pegOutContract = PegOutContract(payable(address(new ERC1967Proxy(
-            address(poImpl),
-            abi.encodeCall(poImpl.initialize, (owner, payable(address(bridgeMock)), 2300 * 65164000, address(collateralManagement), false, 900, 0, payable(address(0))))
-        ))));
+        pegOutContract = PegOutContract(
+            payable(
+                address(
+                    new ERC1967Proxy(
+                        address(poImpl),
+                        abi.encodeCall(
+                            poImpl.initialize,
+                            (
+                                owner,
+                                payable(address(bridgeMock)),
+                                2300 * 65164000,
+                                address(collateralManagement),
+                                false,
+                                900,
+                                0,
+                                payable(address(0))
+                            )
+                        )
+                    )
+                )
+            )
+        );
 
         vm.warp(block.timestamp + 31);
-        collateralManagement.grantRole(collateralManagement.COLLATERAL_ADDER(), address(flyoverDiscovery));
-        collateralManagement.grantRole(collateralManagement.COLLATERAL_SLASHER(), address(pegInContract));
-        collateralManagement.grantRole(collateralManagement.COLLATERAL_SLASHER(), address(pegOutContract));
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_ADDER(),
+            address(flyoverDiscovery)
+        );
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_SLASHER(),
+            address(pegInContract)
+        );
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_SLASHER(),
+            address(pegOutContract)
+        );
     }
 
     function _grantPauserRole() internal {
@@ -86,8 +149,10 @@ contract PauseTest is Test {
         collateralManagement.pause("Emergency system-wide pause");
         vm.stopPrank();
 
-        (bool isPausedD, string memory reasonD, ) = flyoverDiscovery.pauseStatus();
-        (bool isPausedC, string memory reasonC, ) = collateralManagement.pauseStatus();
+        (bool isPausedD, string memory reasonD, ) = flyoverDiscovery
+            .pauseStatus();
+        (bool isPausedC, string memory reasonC, ) = collateralManagement
+            .pauseStatus();
 
         assertTrue(isPausedD);
         assertEq(reasonD, "Emergency system-wide pause");
@@ -139,7 +204,9 @@ contract PauseTest is Test {
         assertEq(timeD, timeC);
     }
 
-    function test_BlocksCriticalOperationsAcrossAllContractsWhenPaused() public {
+    function test_BlocksCriticalOperationsAcrossAllContractsWhenPaused()
+        public
+    {
         _grantPauserRole();
 
         vm.startPrank(pauser);
@@ -149,9 +216,17 @@ contract PauseTest is Test {
 
         vm.prank(signers[1]);
         vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
-        flyoverDiscovery.register{value: 1 ether}("Test LP", "http://localhost/api", true, Flyover.ProviderType.PegIn);
+        flyoverDiscovery.register{value: 1 ether}(
+            "Test LP",
+            "http://localhost/api",
+            true,
+            Flyover.ProviderType.PegIn
+        );
 
-        collateralManagement.grantRole(collateralManagement.COLLATERAL_ADDER(), owner);
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_ADDER(),
+            owner
+        );
 
         vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
         collateralManagement.addPegInCollateralTo{value: 1 ether}(signers[1]);
@@ -192,14 +267,25 @@ contract PauseTest is Test {
         assertFalse(isPausedC);
 
         vm.prank(signers[1]);
-        flyoverDiscovery.register{value: 1 ether}("Test LP", "http://localhost/api", true, Flyover.ProviderType.PegIn);
+        flyoverDiscovery.register{value: 1 ether}(
+            "Test LP",
+            "http://localhost/api",
+            true,
+            Flyover.ProviderType.PegIn
+        );
 
         assertEq(flyoverDiscovery.getProvidersId(), 1);
 
-        collateralManagement.grantRole(collateralManagement.COLLATERAL_ADDER(), owner);
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_ADDER(),
+            owner
+        );
         collateralManagement.addPegInCollateralTo{value: 0.5 ether}(signers[1]);
 
-        assertEq(collateralManagement.getPegInCollateral(signers[1]), 1.5 ether);
+        assertEq(
+            collateralManagement.getPegInCollateral(signers[1]),
+            1.5 ether
+        );
     }
 
     function test_HandlesWhereSomeContractsFailToPause() public {
@@ -219,7 +305,8 @@ contract PauseTest is Test {
     function test_CanPerformEmergencyPauseWithCustomReason() public {
         _grantPauserRole();
 
-        string memory reason = "Critical security vulnerability detected - immediate pause required";
+        string
+            memory reason = "Critical security vulnerability detected - immediate pause required";
 
         vm.startPrank(pauser);
         flyoverDiscovery.pause(reason);
@@ -244,10 +331,20 @@ contract PauseTest is Test {
         vm.startPrank(signers[1]);
 
         vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
-        flyoverDiscovery.register{value: 1 ether}("LP1", "url1", true, Flyover.ProviderType.PegIn);
+        flyoverDiscovery.register{value: 1 ether}(
+            "LP1",
+            "url1",
+            true,
+            Flyover.ProviderType.PegIn
+        );
 
         vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
-        flyoverDiscovery.register{value: 1 ether}("LP2", "url2", true, Flyover.ProviderType.PegOut);
+        flyoverDiscovery.register{value: 1 ether}(
+            "LP2",
+            "url2",
+            true,
+            Flyover.ProviderType.PegOut
+        );
 
         vm.stopPrank();
 

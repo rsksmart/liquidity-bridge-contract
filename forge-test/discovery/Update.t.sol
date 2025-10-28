@@ -19,7 +19,9 @@ contract UpdateTest is DiscoveryTestBase {
 
     // ============ updateProvider tests ============
 
-    function test_UpdateProvider_UpdatesNameAndApiBaseUrlAndEmitsEvent() public {
+    function test_UpdateProvider_UpdatesNameAndApiBaseUrlAndEmitsEvent()
+        public
+    {
         string memory newName = "Modified Name";
         string memory newUrl = "https://modified.example";
 
@@ -28,7 +30,9 @@ contract UpdateTest is DiscoveryTestBase {
         emit IFlyoverDiscovery.ProviderUpdate(fullLp, newName, newUrl);
         discovery.updateProvider(newName, newUrl);
 
-        Flyover.LiquidityProvider memory updated = discovery.getProvider(fullLp);
+        Flyover.LiquidityProvider memory updated = discovery.getProvider(
+            fullLp
+        );
         assertEq(updated.name, newName, "Name should be updated");
         assertEq(updated.apiBaseUrl, newUrl, "URL should be updated");
     }
@@ -37,22 +41,35 @@ contract UpdateTest is DiscoveryTestBase {
         // Empty name
         vm.prank(fullLp);
         vm.expectRevert(
-            abi.encodeWithSelector(IFlyoverDiscovery.InvalidProviderData.selector, "", "x")
+            abi.encodeWithSelector(
+                IFlyoverDiscovery.InvalidProviderData.selector,
+                "",
+                "x"
+            )
         );
         discovery.updateProvider("", "x");
 
         // Empty URL
         vm.prank(fullLp);
         vm.expectRevert(
-            abi.encodeWithSelector(IFlyoverDiscovery.InvalidProviderData.selector, "x", "")
+            abi.encodeWithSelector(
+                IFlyoverDiscovery.InvalidProviderData.selector,
+                "x",
+                ""
+            )
         );
         discovery.updateProvider("x", "");
     }
 
-    function test_UpdateProvider_RevertsIfUnregisteredAddressCallsUpdate() public {
+    function test_UpdateProvider_RevertsIfUnregisteredAddressCallsUpdate()
+        public
+    {
         vm.prank(stranger);
         vm.expectRevert(
-            abi.encodeWithSelector(Flyover.ProviderNotRegistered.selector, stranger)
+            abi.encodeWithSelector(
+                Flyover.ProviderNotRegistered.selector,
+                stranger
+            )
         );
         discovery.updateProvider("n", "u");
     }

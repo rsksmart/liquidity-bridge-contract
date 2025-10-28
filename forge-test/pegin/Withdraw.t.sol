@@ -52,11 +52,7 @@ contract WithdrawTest is PegInTestBase {
         pegInContract.withdraw(balance);
 
         // Verify balance is 0
-        assertEq(
-            pegInContract.getBalance(fullLp),
-            0,
-            "Balance should be 0"
-        );
+        assertEq(pegInContract.getBalance(fullLp), 0, "Balance should be 0");
     }
 
     function test_Withdraw_DecreasesBalanceProperly() public {
@@ -91,7 +87,13 @@ contract WithdrawTest is PegInTestBase {
         CollateralManagementContract mockCM = new CollateralManagementContract();
         bytes memory initData = abi.encodeCall(
             CollateralManagementContract.initialize,
-            (owner, TEST_DEFAULT_ADMIN_DELAY, TEST_MIN_COLLATERAL, TEST_RESIGN_DELAY_BLOCKS, TEST_REWARD_PERCENTAGE)
+            (
+                owner,
+                TEST_DEFAULT_ADMIN_DELAY,
+                TEST_MIN_COLLATERAL,
+                TEST_RESIGN_DELAY_BLOCKS,
+                TEST_REWARD_PERCENTAGE
+            )
         );
         ERC1967Proxy mockCMProxy = new ERC1967Proxy(address(mockCM), initData);
 
@@ -106,7 +108,11 @@ contract WithdrawTest is PegInTestBase {
         bytes memory depositData = abi.encodeWithSelector(
             pegInContract.deposit.selector
         );
-        walletMock.execute{value: depositAmount}(address(pegInContract), depositAmount, depositData);
+        walletMock.execute{value: depositAmount}(
+            address(pegInContract),
+            depositAmount,
+            depositData
+        );
 
         // Set wallet to reject funds
         walletMock.setRejectFunds(true);
@@ -118,7 +124,11 @@ contract WithdrawTest is PegInTestBase {
         );
 
         vm.expectEmit(true, true, false, false);
-        emit WalletMock.TransactionRejected(address(pegInContract), 0, bytes(""));
+        emit WalletMock.TransactionRejected(
+            address(pegInContract),
+            0,
+            bytes("")
+        );
         walletMock.execute(address(pegInContract), 0, withdrawData);
     }
 }

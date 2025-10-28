@@ -46,28 +46,38 @@ abstract contract DiscoveryTestBase is Test {
                 TEST_REWARD_PERCENTAGE
             )
         );
-        ERC1967Proxy cmProxy = new ERC1967Proxy(address(cmImplementation), cmInitData);
-        collateralManagement = CollateralManagementContract(payable(address(cmProxy)));
+        ERC1967Proxy cmProxy = new ERC1967Proxy(
+            address(cmImplementation),
+            cmInitData
+        );
+        collateralManagement = CollateralManagementContract(
+            payable(address(cmProxy))
+        );
 
         // Deploy FlyoverDiscovery
         FlyoverDiscovery discoveryImplementation = new FlyoverDiscovery();
         bytes memory discoveryInitData = abi.encodeCall(
             FlyoverDiscovery.initialize,
-            (
-                owner,
-                uint48(INITIAL_DELAY),
-                address(collateralManagement)
-            )
+            (owner, uint48(INITIAL_DELAY), address(collateralManagement))
         );
-        ERC1967Proxy discoveryProxy = new ERC1967Proxy(address(discoveryImplementation), discoveryInitData);
+        ERC1967Proxy discoveryProxy = new ERC1967Proxy(
+            address(discoveryImplementation),
+            discoveryInitData
+        );
         discovery = FlyoverDiscovery(payable(address(discoveryProxy)));
 
         // Grant roles
         vm.startPrank(owner);
         // Allow owner to add collateral directly for test setup
-        collateralManagement.grantRole(collateralManagement.COLLATERAL_ADDER(), owner);
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_ADDER(),
+            owner
+        );
         // Grant COLLATERAL_ADDER role to FlyoverDiscovery contract
-        collateralManagement.grantRole(collateralManagement.COLLATERAL_ADDER(), address(discovery));
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_ADDER(),
+            address(discovery)
+        );
         vm.stopPrank();
     }
 
@@ -84,12 +94,27 @@ abstract contract DiscoveryTestBase is Test {
 
         // Register providers
         vm.prank(pegInLp);
-        discovery.register{value: MIN_COLLATERAL}("Pegin Provider", "lp1.com", true, Flyover.ProviderType.PegIn);
+        discovery.register{value: MIN_COLLATERAL}(
+            "Pegin Provider",
+            "lp1.com",
+            true,
+            Flyover.ProviderType.PegIn
+        );
 
         vm.prank(pegOutLp);
-        discovery.register{value: MIN_COLLATERAL}("PegOut Provider", "lp2.com", true, Flyover.ProviderType.PegOut);
+        discovery.register{value: MIN_COLLATERAL}(
+            "PegOut Provider",
+            "lp2.com",
+            true,
+            Flyover.ProviderType.PegOut
+        );
 
         vm.prank(fullLp);
-        discovery.register{value: MIN_COLLATERAL * 2}("Full Provider", "lp3.com", true, Flyover.ProviderType.Both);
+        discovery.register{value: MIN_COLLATERAL * 2}(
+            "Full Provider",
+            "lp3.com",
+            true,
+            Flyover.ProviderType.Both
+        );
     }
 }

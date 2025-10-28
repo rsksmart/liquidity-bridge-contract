@@ -17,7 +17,10 @@ contract NotEoaTest is DiscoveryTestBase {
         RegisterCaller caller = new RegisterCaller();
 
         vm.expectRevert(
-            abi.encodeWithSelector(IFlyoverDiscovery.NotEOA.selector, address(caller))
+            abi.encodeWithSelector(
+                IFlyoverDiscovery.NotEOA.selector,
+                address(caller)
+            )
         );
         caller.callRegister{value: MIN_COLLATERAL}(
             address(discovery),

@@ -23,7 +23,12 @@ contract EventsTest is DiscoveryTestBase {
         vm.prank(newLp);
         vm.expectEmit(true, true, true, true);
         emit IFlyoverDiscovery.Register(1, newLp, MIN_COLLATERAL);
-        discovery.register{value: MIN_COLLATERAL}("N", "U", true, Flyover.ProviderType.PegIn);
+        discovery.register{value: MIN_COLLATERAL}(
+            "N",
+            "U",
+            true,
+            Flyover.ProviderType.PegIn
+        );
     }
 
     // ============ ProviderStatusSet event tests ============

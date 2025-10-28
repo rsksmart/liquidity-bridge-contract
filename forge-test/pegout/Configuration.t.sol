@@ -42,11 +42,7 @@ contract ConfigurationTest is PegOutTestBase {
         );
 
         // Check owner
-        assertEq(
-            pegOutContract.owner(),
-            owner,
-            "owner should match"
-        );
+        assertEq(pegOutContract.owner(), owner, "owner should match");
 
         // Check feePercentage
         assertEq(
@@ -129,7 +125,10 @@ contract ConfigurationTest is PegOutTestBase {
 
         vm.prank(owner);
         vm.expectEmit(true, true, false, true);
-        emit PegOutContract.DustThresholdSet(TEST_DUST_THRESHOLD, newDustThreshold);
+        emit PegOutContract.DustThresholdSet(
+            TEST_DUST_THRESHOLD,
+            newDustThreshold
+        );
         pegOutContract.setDustThreshold(newDustThreshold);
 
         assertEq(
@@ -157,7 +156,10 @@ contract ConfigurationTest is PegOutTestBase {
 
         vm.prank(owner);
         vm.expectEmit(true, true, false, true);
-        emit PegOutContract.BtcBlockTimeSet(TEST_BTC_BLOCK_TIME, newBtcBlockTime);
+        emit PegOutContract.BtcBlockTimeSet(
+            TEST_BTC_BLOCK_TIME,
+            newBtcBlockTime
+        );
         pegOutContract.setBtcBlockTime(newBtcBlockTime);
 
         assertEq(
@@ -174,7 +176,13 @@ contract ConfigurationTest is PegOutTestBase {
         CollateralManagementContract otherCM = new CollateralManagementContract();
         bytes memory initData = abi.encodeCall(
             CollateralManagementContract.initialize,
-            (owner, TEST_DEFAULT_ADMIN_DELAY, TEST_MIN_COLLATERAL, TEST_RESIGN_DELAY_BLOCKS, TEST_REWARD_PERCENTAGE)
+            (
+                owner,
+                TEST_DEFAULT_ADMIN_DELAY,
+                TEST_MIN_COLLATERAL,
+                TEST_RESIGN_DELAY_BLOCKS,
+                TEST_REWARD_PERCENTAGE
+            )
         );
         ERC1967Proxy otherProxy = new ERC1967Proxy(address(otherCM), initData);
         address otherAddress = address(otherProxy);
@@ -189,7 +197,9 @@ contract ConfigurationTest is PegOutTestBase {
         pegOutContract.setCollateralManagement(otherAddress);
     }
 
-    function test_SetCollateralManagement_RevertsIfAddressDoesNotHaveCode() public {
+    function test_SetCollateralManagement_RevertsIfAddressDoesNotHaveCode()
+        public
+    {
         address eoa = makeAddr("eoa");
 
         // Try with zero address
@@ -212,7 +222,13 @@ contract ConfigurationTest is PegOutTestBase {
         CollateralManagementContract otherCM = new CollateralManagementContract();
         bytes memory initData = abi.encodeCall(
             CollateralManagementContract.initialize,
-            (owner, TEST_DEFAULT_ADMIN_DELAY, TEST_MIN_COLLATERAL, TEST_RESIGN_DELAY_BLOCKS, TEST_REWARD_PERCENTAGE)
+            (
+                owner,
+                TEST_DEFAULT_ADMIN_DELAY,
+                TEST_MIN_COLLATERAL,
+                TEST_RESIGN_DELAY_BLOCKS,
+                TEST_REWARD_PERCENTAGE
+            )
         );
         ERC1967Proxy otherProxy = new ERC1967Proxy(address(otherCM), initData);
         address otherAddress = address(otherProxy);

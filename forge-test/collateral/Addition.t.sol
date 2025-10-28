@@ -65,19 +65,34 @@ contract AdditionTest is Test {
         );
 
         // Deploy proxy
-        ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), initData);
-        collateralManagement = CollateralManagementContract(payable(address(proxy)));
+        ERC1967Proxy proxy = new ERC1967Proxy(
+            address(implementation),
+            initData
+        );
+        collateralManagement = CollateralManagementContract(
+            payable(address(proxy))
+        );
 
         // Grant roles
         vm.startPrank(owner);
-        collateralManagement.grantRole(collateralManagement.COLLATERAL_ADDER(), adder);
-        collateralManagement.grantRole(collateralManagement.COLLATERAL_SLASHER(), slasher);
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_ADDER(),
+            adder
+        );
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_SLASHER(),
+            slasher
+        );
         vm.stopPrank();
 
         // Register accounts by having adder add collateral to them
         vm.startPrank(adder);
-        collateralManagement.addPegInCollateralTo{value: ONE_RBTC}(registeredPegInAccount);
-        collateralManagement.addPegOutCollateralTo{value: ONE_RBTC}(registeredPegOutAccount);
+        collateralManagement.addPegInCollateralTo{value: ONE_RBTC}(
+            registeredPegInAccount
+        );
+        collateralManagement.addPegOutCollateralTo{value: ONE_RBTC}(
+            registeredPegOutAccount
+        );
         vm.stopPrank();
     }
 
@@ -85,7 +100,9 @@ contract AdditionTest is Test {
     function test_AddPegInCollateral_OnlyAllowsRegisteredAccounts() public {
         // Adder can add collateral to registered accounts
         vm.prank(adder);
-        collateralManagement.addPegInCollateralTo{value: ONE_RBTC}(registeredPegInAccount);
+        collateralManagement.addPegInCollateralTo{value: ONE_RBTC}(
+            registeredPegInAccount
+        );
 
         // Not registered account cannot add collateral to themselves
         vm.prank(notRegisteredAccount1);
@@ -110,7 +127,10 @@ contract AdditionTest is Test {
         // Registered account can add collateral to themselves
         vm.prank(registeredPegInAccount);
         vm.expectEmit(true, true, false, true);
-        emit ICollateralManagement.PegInCollateralAdded(registeredPegInAccount, ONE_RBTC);
+        emit ICollateralManagement.PegInCollateralAdded(
+            registeredPegInAccount,
+            ONE_RBTC
+        );
         collateralManagement.addPegInCollateral{value: ONE_RBTC}();
 
         // Verify total collateral (initial 1 RBTC + 1 RBTC from adder + 1 RBTC from self)
@@ -125,7 +145,9 @@ contract AdditionTest is Test {
     function test_AddPegOutCollateral_OnlyAllowsRegisteredAccounts() public {
         // Adder can add collateral to registered accounts
         vm.prank(adder);
-        collateralManagement.addPegOutCollateralTo{value: ONE_RBTC}(registeredPegOutAccount);
+        collateralManagement.addPegOutCollateralTo{value: ONE_RBTC}(
+            registeredPegOutAccount
+        );
 
         // Not registered account cannot add collateral to themselves
         vm.prank(notRegisteredAccount2);
@@ -150,7 +172,10 @@ contract AdditionTest is Test {
         // Registered account can add collateral to themselves
         vm.prank(registeredPegOutAccount);
         vm.expectEmit(true, true, false, true);
-        emit ICollateralManagement.PegOutCollateralAdded(registeredPegOutAccount, ONE_RBTC);
+        emit ICollateralManagement.PegOutCollateralAdded(
+            registeredPegOutAccount,
+            ONE_RBTC
+        );
         collateralManagement.addPegOutCollateral{value: ONE_RBTC}();
 
         // Verify total collateral (initial 1 RBTC + 1 RBTC from adder + 1 RBTC from self)
@@ -168,8 +193,13 @@ contract AdditionTest is Test {
         // Adder can add collateral to registered accounts
         vm.prank(adder);
         vm.expectEmit(true, true, false, true);
-        emit ICollateralManagement.PegInCollateralAdded(registeredPegInAccount, ONE_RBTC);
-        collateralManagement.addPegInCollateralTo{value: ONE_RBTC}(registeredPegInAccount);
+        emit ICollateralManagement.PegInCollateralAdded(
+            registeredPegInAccount,
+            ONE_RBTC
+        );
+        collateralManagement.addPegInCollateralTo{value: ONE_RBTC}(
+            registeredPegInAccount
+        );
 
         // Verify collateral was added
         assertEq(
@@ -187,7 +217,9 @@ contract AdditionTest is Test {
                 adderRole
             )
         );
-        collateralManagement.addPegInCollateralTo{value: ONE_RBTC}(registeredPegInAccount);
+        collateralManagement.addPegInCollateralTo{value: ONE_RBTC}(
+            registeredPegInAccount
+        );
 
         // Registered account cannot use addPegInCollateralTo (they don't have COLLATERAL_ADDER role)
         vm.prank(registeredPegInAccount);
@@ -198,18 +230,27 @@ contract AdditionTest is Test {
                 adderRole
             )
         );
-        collateralManagement.addPegInCollateralTo{value: ONE_RBTC}(registeredPegInAccount);
+        collateralManagement.addPegInCollateralTo{value: ONE_RBTC}(
+            registeredPegInAccount
+        );
     }
 
     // Test: addPegOutCollateralTo - only adder can add to other accounts
-    function test_AddPegOutCollateralTo_OnlyAdderCanAddToOtherAccounts() public {
+    function test_AddPegOutCollateralTo_OnlyAdderCanAddToOtherAccounts()
+        public
+    {
         bytes32 adderRole = collateralManagement.COLLATERAL_ADDER();
 
         // Adder can add collateral to registered accounts
         vm.prank(adder);
         vm.expectEmit(true, true, false, true);
-        emit ICollateralManagement.PegOutCollateralAdded(registeredPegOutAccount, ONE_RBTC);
-        collateralManagement.addPegOutCollateralTo{value: ONE_RBTC}(registeredPegOutAccount);
+        emit ICollateralManagement.PegOutCollateralAdded(
+            registeredPegOutAccount,
+            ONE_RBTC
+        );
+        collateralManagement.addPegOutCollateralTo{value: ONE_RBTC}(
+            registeredPegOutAccount
+        );
 
         // Verify collateral was added
         assertEq(
@@ -227,7 +268,9 @@ contract AdditionTest is Test {
                 adderRole
             )
         );
-        collateralManagement.addPegOutCollateralTo{value: ONE_RBTC}(registeredPegOutAccount);
+        collateralManagement.addPegOutCollateralTo{value: ONE_RBTC}(
+            registeredPegOutAccount
+        );
 
         // Registered account cannot use addPegOutCollateralTo (they don't have COLLATERAL_ADDER role)
         vm.prank(registeredPegOutAccount);
@@ -238,6 +281,8 @@ contract AdditionTest is Test {
                 adderRole
             )
         );
-        collateralManagement.addPegOutCollateralTo{value: ONE_RBTC}(registeredPegOutAccount);
+        collateralManagement.addPegOutCollateralTo{value: ONE_RBTC}(
+            registeredPegOutAccount
+        );
     }
 }

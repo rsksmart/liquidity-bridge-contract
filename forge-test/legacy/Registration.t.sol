@@ -32,7 +32,9 @@ contract RegistrationTest is Test {
 
         // Create test accounts
         for (uint i = 0; i <= 16; i++) {
-            address account = address(uint160(uint256(keccak256(abi.encodePacked("account", i)))));
+            address account = address(
+                uint160(uint256(keccak256(abi.encodePacked("account", i))))
+            );
             vm.deal(account, 100 ether);
             accounts.push(account);
         }
@@ -53,11 +55,20 @@ contract RegistrationTest is Test {
             uint256(1),
             false
         );
-        ERC1967Proxy lbcProxy = new ERC1967Proxy(address(lbcV1Impl), v1InitData);
+        ERC1967Proxy lbcProxy = new ERC1967Proxy(
+            address(lbcV1Impl),
+            v1InitData
+        );
 
         LiquidityBridgeContractV2 lbcImpl = new LiquidityBridgeContractV2();
-        bytes32 implSlot = bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1);
-        vm.store(address(lbcProxy), implSlot, bytes32(uint256(uint160(address(lbcImpl)))));
+        bytes32 implSlot = bytes32(
+            uint256(keccak256("eip1967.proxy.implementation")) - 1
+        );
+        vm.store(
+            address(lbcProxy),
+            implSlot,
+            bytes32(uint256(uint160(address(lbcImpl))))
+        );
 
         lbc = LiquidityBridgeContractV2(payable(address(lbcProxy)));
 
@@ -95,7 +106,13 @@ contract RegistrationTest is Test {
         TestCase[3] memory cases = [
             TestCase("", "http://localhost/api", true, "both", "LBC010"),
             TestCase("First contract", "", true, "both", "LBC017"),
-            TestCase("First contract", "http://localhost/api", true, "", "LBC018")
+            TestCase(
+                "First contract",
+                "http://localhost/api",
+                true,
+                "",
+                "LBC018"
+            )
         ];
 
         for (uint i = 0; i < cases.length; i++) {

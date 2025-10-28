@@ -7,3 +7,5 @@ node_modules
 errorCodes.json
 coverage/
 coverage.json
+out/
+forge-cache/

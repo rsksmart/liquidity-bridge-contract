@@ -33,7 +33,9 @@ contract DiscoveryTest is Test {
 
         // Create test accounts (1-16 for regular accounts, last 3 for LPs)
         for (uint i = 1; i <= 19; i++) {
-            address account = address(uint160(uint256(keccak256(abi.encodePacked("account", i)))));
+            address account = address(
+                uint160(uint256(keccak256(abi.encodePacked("account", i))))
+            );
             vm.deal(account, 100 ether);
             if (i <= 16) {
                 accounts.push(account);
@@ -52,39 +54,91 @@ contract DiscoveryTest is Test {
         lbc = LiquidityBridgeContractV2(payable(address(lbcProxy)));
 
         // Register 3 liquidity providers
-        address lp1 = address(uint160(uint256(keccak256(abi.encodePacked("account", uint(17))))));
-        address lp2 = address(uint160(uint256(keccak256(abi.encodePacked("account", uint(18))))));
-        address lp3 = address(uint160(uint256(keccak256(abi.encodePacked("account", uint(19))))));
+        address lp1 = address(
+            uint160(uint256(keccak256(abi.encodePacked("account", uint(17)))))
+        );
+        address lp2 = address(
+            uint160(uint256(keccak256(abi.encodePacked("account", uint(18)))))
+        );
+        address lp3 = address(
+            uint160(uint256(keccak256(abi.encodePacked("account", uint(19)))))
+        );
 
         vm.deal(lp1, 100 ether);
         vm.deal(lp2, 100 ether);
         vm.deal(lp3, 100 ether);
 
         vm.prank(lp1, lp1); // Set both msg.sender and tx.origin
-        lbc.register{value: LP_COLLATERAL}("First LP", "http://localhost/api1", true, "both");
+        lbc.register{value: LP_COLLATERAL}(
+            "First LP",
+            "http://localhost/api1",
+            true,
+            "both"
+        );
 
         vm.prank(lp2, lp2); // Set both msg.sender and tx.origin
-        lbc.register{value: LP_COLLATERAL / 2}("Second LP", "http://localhost/api2", true, "pegin");
+        lbc.register{value: LP_COLLATERAL / 2}(
+            "Second LP",
+            "http://localhost/api2",
+            true,
+            "pegin"
+        );
 
         vm.prank(lp3, lp3); // Set both msg.sender and tx.origin
-        lbc.register{value: LP_COLLATERAL / 2}("Third LP", "http://localhost/api3", true, "pegout");
+        lbc.register{value: LP_COLLATERAL / 2}(
+            "Third LP",
+            "http://localhost/api3",
+            true,
+            "pegout"
+        );
 
-        liquidityProviders.push(LiquidityProviderInfo(lp1, "First LP", "http://localhost/api1", true, "both"));
-        liquidityProviders.push(LiquidityProviderInfo(lp2, "Second LP", "http://localhost/api2", true, "pegin"));
-        liquidityProviders.push(LiquidityProviderInfo(lp3, "Third LP", "http://localhost/api3", true, "pegout"));
+        liquidityProviders.push(
+            LiquidityProviderInfo(
+                lp1,
+                "First LP",
+                "http://localhost/api1",
+                true,
+                "both"
+            )
+        );
+        liquidityProviders.push(
+            LiquidityProviderInfo(
+                lp2,
+                "Second LP",
+                "http://localhost/api2",
+                true,
+                "pegin"
+            )
+        );
+        liquidityProviders.push(
+            LiquidityProviderInfo(
+                lp3,
+                "Third LP",
+                "http://localhost/api3",
+                true,
+                "pegout"
+            )
+        );
     }
 
     function test_ListRegisteredProviders() public view {
-        LiquidityBridgeContractV2.LiquidityProvider[] memory providerList = lbc.getProviders();
+        LiquidityBridgeContractV2.LiquidityProvider[] memory providerList = lbc
+            .getProviders();
         assertEq(providerList.length, 3);
 
         for (uint i = 0; i < providerList.length; i++) {
             assertEq(providerList[i].id, i + 1);
             assertEq(providerList[i].provider, liquidityProviders[i].signer);
             assertEq(providerList[i].name, liquidityProviders[i].name);
-            assertEq(providerList[i].apiBaseUrl, liquidityProviders[i].apiBaseUrl);
+            assertEq(
+                providerList[i].apiBaseUrl,
+                liquidityProviders[i].apiBaseUrl
+            );
             assertEq(providerList[i].status, liquidityProviders[i].status);
-            assertEq(providerList[i].providerType, liquidityProviders[i].providerType);
+            assertEq(
+                providerList[i].providerType,
+                liquidityProviders[i].providerType
+            );
         }
     }
 
@@ -99,7 +153,8 @@ contract DiscoveryTest is Test {
         vm.prank(lpSigner);
         lbc.setProviderStatus(2, false);
 
-        LiquidityBridgeContractV2.LiquidityProvider memory provider = lbc.getProvider(lpSigner);
+        LiquidityBridgeContractV2.LiquidityProvider memory provider = lbc
+            .getProvider(lpSigner);
         assertEq(provider.status, false);
     }
 
@@ -127,7 +182,8 @@ contract DiscoveryTest is Test {
         vm.prank(lp1);
         lbc.setProviderStatus(1, false);
 
-        LiquidityBridgeContractV2.LiquidityProvider memory provider = lbc.getProvider(lp1);
+        LiquidityBridgeContractV2.LiquidityProvider memory provider = lbc
+            .getProvider(lp1);
         assertEq(provider.status, false);
         assertEq(provider.name, "First LP");
         assertEq(provider.apiBaseUrl, "http://localhost/api1");
@@ -147,7 +203,8 @@ contract DiscoveryTest is Test {
 
         vm.prank(lpSigner);
         lbc.setProviderStatus(2, false);
-        LiquidityBridgeContractV2.LiquidityProvider memory provider = lbc.getProvider(lpSigner);
+        LiquidityBridgeContractV2.LiquidityProvider memory provider = lbc
+            .getProvider(lpSigner);
         assertEq(provider.status, false);
 
         vm.prank(lpSigner);
@@ -161,7 +218,8 @@ contract DiscoveryTest is Test {
 
         vm.prank(lbcOwner);
         lbc.setProviderStatus(2, false);
-        LiquidityBridgeContractV2.LiquidityProvider memory provider = lbc.getProvider(lpSigner);
+        LiquidityBridgeContractV2.LiquidityProvider memory provider = lbc
+            .getProvider(lpSigner);
         assertEq(provider.status, false);
 
         vm.prank(lbcOwner);
@@ -182,8 +240,11 @@ contract DiscoveryTest is Test {
         uint providerIndex = 1;
         address providerSigner = liquidityProviders[providerIndex].signer;
 
-        LiquidityBridgeContractV2.LiquidityProvider[] memory providers = lbc.getProviders();
-        LiquidityBridgeContractV2.LiquidityProvider memory provider = providers[providerIndex];
+        LiquidityBridgeContractV2.LiquidityProvider[] memory providers = lbc
+            .getProviders();
+        LiquidityBridgeContractV2.LiquidityProvider memory provider = providers[
+            providerIndex
+        ];
 
         // Store initial state
         uint initialId = provider.id;
@@ -198,7 +259,11 @@ contract DiscoveryTest is Test {
 
         vm.prank(providerSigner);
         vm.expectEmit(true, false, false, true);
-        emit LiquidityBridgeContractV2.ProviderUpdate(providerSigner, newName, newApiBaseUrl);
+        emit LiquidityBridgeContractV2.ProviderUpdate(
+            providerSigner,
+            newName,
+            newApiBaseUrl
+        );
         lbc.updateProvider(newName, newApiBaseUrl);
 
         providers = lbc.getProviders();
@@ -211,8 +276,13 @@ contract DiscoveryTest is Test {
         assertEq(provider.providerType, initialProviderType);
 
         // Verify changed fields
-        assertTrue(keccak256(bytes(provider.name)) != keccak256(bytes(initialName)));
-        assertTrue(keccak256(bytes(provider.apiBaseUrl)) != keccak256(bytes(initialApiBaseUrl)));
+        assertTrue(
+            keccak256(bytes(provider.name)) != keccak256(bytes(initialName))
+        );
+        assertTrue(
+            keccak256(bytes(provider.apiBaseUrl)) !=
+                keccak256(bytes(initialApiBaseUrl))
+        );
         assertEq(provider.name, newName);
         assertEq(provider.apiBaseUrl, newApiBaseUrl);
     }
@@ -270,7 +340,10 @@ contract DiscoveryTest is Test {
             vm.prank(accounts[accountIdx], accounts[accountIdx]); // Set both msg.sender and tx.origin
             lbc.register{value: LP_COLLATERAL}(
                 string.concat("LP account ", vm.toString(accountIdx)),
-                string.concat("http://localhost/api-account", vm.toString(accountIdx)),
+                string.concat(
+                    "http://localhost/api-account",
+                    vm.toString(accountIdx)
+                ),
                 true,
                 "both"
             );
@@ -291,7 +364,8 @@ contract DiscoveryTest is Test {
         lbc.resign();
 
         // Get providers list
-        LiquidityBridgeContractV2.LiquidityProvider[] memory result = lbc.getProviders();
+        LiquidityBridgeContractV2.LiquidityProvider[] memory result = lbc
+            .getProviders();
 
         // Should only show 4 providers: LP1, LP3, LP4, LP7
         assertEq(result.length, 4);

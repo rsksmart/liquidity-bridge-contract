@@ -37,20 +37,26 @@ contract PegInTest is Test {
 
     uint256 constant LP_COLLATERAL = 1.5 ether;
     address constant ZERO_ADDRESS = address(0);
-    bytes constant ANY_HEX = hex"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+    bytes constant ANY_HEX =
+        hex"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
     uint256 constant ANY_NUMBER = 10;
 
     // BTC address constants
-    bytes constant DECODED_TEST_FED_ADDRESS = hex"c39bc4b53918d6058134363d6e57e11a22f9e8fb";
-    bytes constant DECODED_P2PKH_ZERO_ADDRESS_TESTNET = hex"6f0000000000000000000000000000000000000000";
-    bytes constant DECODED_TEST_P2PKH_ADDRESS = hex"6f89abcdefabbaabbaabbaabbaabbaabbaabbaabba";
+    bytes constant DECODED_TEST_FED_ADDRESS =
+        hex"c39bc4b53918d6058134363d6e57e11a22f9e8fb";
+    bytes constant DECODED_P2PKH_ZERO_ADDRESS_TESTNET =
+        hex"6f0000000000000000000000000000000000000000";
+    bytes constant DECODED_TEST_P2PKH_ADDRESS =
+        hex"6f89abcdefabbaabbaabbaabbaabbaabbaabbaabba";
 
     function setUp() public {
         lbcOwner = address(this);
 
         // Create 16 test accounts
         for (uint i = 1; i <= 16; i++) {
-            address account = address(uint160(uint256(keccak256(abi.encodePacked("account", i)))));
+            address account = address(
+                uint160(uint256(keccak256(abi.encodePacked("account", i))))
+            );
             vm.deal(account, 100 ether);
             accounts.push(account);
         }
@@ -75,8 +81,14 @@ contract PegInTest is Test {
 
         // Upgrade to V2
         lbcImpl = new LiquidityBridgeContractV2();
-        bytes32 implementationSlot = bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1);
-        vm.store(address(lbcProxy), implementationSlot, bytes32(uint256(uint160(address(lbcImpl)))));
+        bytes32 implementationSlot = bytes32(
+            uint256(keccak256("eip1967.proxy.implementation")) - 1
+        );
+        vm.store(
+            address(lbcProxy),
+            implementationSlot,
+            bytes32(uint256(uint160(address(lbcImpl))))
+        );
 
         // Cast to V2 (no need to call initializeV2 since V1 already initialized Ownable/ReentrancyGuard)
         lbc = LiquidityBridgeContractV2(payable(address(lbcProxy)));
@@ -96,17 +108,59 @@ contract PegInTest is Test {
 
         // Register 3 liquidity providers
         vm.prank(lp1, lp1);
-        lbc.register{value: LP_COLLATERAL}("First LP", "http://localhost/api1", true, "both");
+        lbc.register{value: LP_COLLATERAL}(
+            "First LP",
+            "http://localhost/api1",
+            true,
+            "both"
+        );
 
         vm.prank(lp2, lp2);
-        lbc.register{value: LP_COLLATERAL / 2}("Second LP", "http://localhost/api2", true, "pegin");
+        lbc.register{value: LP_COLLATERAL / 2}(
+            "Second LP",
+            "http://localhost/api2",
+            true,
+            "pegin"
+        );
 
         vm.prank(lp3, lp3);
-        lbc.register{value: LP_COLLATERAL / 2}("Third LP", "http://localhost/api3", true, "pegout");
+        lbc.register{value: LP_COLLATERAL / 2}(
+            "Third LP",
+            "http://localhost/api3",
+            true,
+            "pegout"
+        );
 
-        liquidityProviders.push(LiquidityProviderInfo(lp1, lp1Key, "First LP", "http://localhost/api1", true, "both"));
-        liquidityProviders.push(LiquidityProviderInfo(lp2, lp2Key, "Second LP", "http://localhost/api2", true, "pegin"));
-        liquidityProviders.push(LiquidityProviderInfo(lp3, lp3Key, "Third LP", "http://localhost/api3", true, "pegout"));
+        liquidityProviders.push(
+            LiquidityProviderInfo(
+                lp1,
+                lp1Key,
+                "First LP",
+                "http://localhost/api1",
+                true,
+                "both"
+            )
+        );
+        liquidityProviders.push(
+            LiquidityProviderInfo(
+                lp2,
+                lp2Key,
+                "Second LP",
+                "http://localhost/api2",
+                true,
+                "pegin"
+            )
+        );
+        liquidityProviders.push(
+            LiquidityProviderInfo(
+                lp3,
+                lp3Key,
+                "Third LP",
+                "http://localhost/api3",
+                true,
+                "pegout"
+            )
+        );
     }
 
     // ============ Helper Functions ============
@@ -132,7 +186,18 @@ contract PegInTest is Test {
         address refundAddress,
         bytes memory data
     ) internal view returns (QuotesV2.PeginQuote memory quote) {
-        int64 nonce = int64(uint64(uint256(keccak256(abi.encodePacked(block.timestamp, uint256(0x1234567890abcdef)))) >> 192));
+        int64 nonce = int64(
+            uint64(
+                uint256(
+                    keccak256(
+                        abi.encodePacked(
+                            block.timestamp,
+                            uint256(0x1234567890abcdef)
+                        )
+                    )
+                ) >> 192
+            )
+        );
 
         quote = QuotesV2.PeginQuote({
             fedBtcAddress: bytes20(DECODED_TEST_FED_ADDRESS),
@@ -158,33 +223,56 @@ contract PegInTest is Test {
         });
     }
 
-    function signQuote(bytes32 quoteHash, uint256 privateKey) internal pure returns (bytes memory) {
+    function signQuote(
+        bytes32 quoteHash,
+        uint256 privateKey
+    ) internal pure returns (bytes memory) {
         bytes32 ethSignedMessageHash = quoteHash.toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, ethSignedMessageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+            privateKey,
+            ethSignedMessageHash
+        );
         return abi.encodePacked(r, s, v);
     }
 
-    function captureBalances(address lpAddr, address userAddr, address refundAddr) internal view returns (BalanceSnapshot memory) {
-        return BalanceSnapshot({
-            lpBalance: lbc.getBalance(lpAddr),
-            lpCollateral: lbc.getCollateral(lpAddr),
-            lbcEthBalance: address(lbc).balance,
-            userBalance: userAddr.balance,
-            refundBalance: refundAddr.balance
-        });
+    function captureBalances(
+        address lpAddr,
+        address userAddr,
+        address refundAddr
+    ) internal view returns (BalanceSnapshot memory) {
+        return
+            BalanceSnapshot({
+                lpBalance: lbc.getBalance(lpAddr),
+                lpCollateral: lbc.getCollateral(lpAddr),
+                lbcEthBalance: address(lbc).balance,
+                userBalance: userAddr.balance,
+                refundBalance: refundAddr.balance
+            });
     }
 
-    function totalValue(QuotesV2.PeginQuote memory quote) internal pure returns (uint256) {
-        return quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+    function totalValue(
+        QuotesV2.PeginQuote memory quote
+    ) internal pure returns (uint256) {
+        return
+            quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
     }
 
     function getBtcPaymentBlockHeaders(
         QuotesV2.PeginQuote memory quote,
         uint256 firstConfirmationSeconds,
         uint256 nConfirmationSeconds
-    ) internal pure returns (bytes memory firstConfirmationHeader, bytes memory nConfirmationHeader) {
-        uint256 firstConfirmationTime = quote.agreementTimestamp + firstConfirmationSeconds;
-        uint256 nConfirmationTime = quote.agreementTimestamp + nConfirmationSeconds;
+    )
+        internal
+        pure
+        returns (
+            bytes memory firstConfirmationHeader,
+            bytes memory nConfirmationHeader
+        )
+    {
+        uint256 firstConfirmationTime = quote.agreementTimestamp +
+            firstConfirmationSeconds;
+        uint256 nConfirmationTime = quote.agreementTimestamp +
+            nConfirmationSeconds;
 
         // Convert timestamps to little-endian 4-byte hex
         bytes memory firstTimeLE = abi.encodePacked(
@@ -219,15 +307,21 @@ contract PegInTest is Test {
         );
     }
 
-    function getTestMerkleProof() internal pure returns (
-        bytes memory blockHeaderHash,
-        bytes memory partialMerkleTree,
-        bytes32[] memory merkleBranchHashes
-    ) {
+    function getTestMerkleProof()
+        internal
+        pure
+        returns (
+            bytes memory blockHeaderHash,
+            bytes memory partialMerkleTree,
+            bytes32[] memory merkleBranchHashes
+        )
+    {
         blockHeaderHash = hex"02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326";
         partialMerkleTree = hex"02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb426";
         merkleBranchHashes = new bytes32[](1);
-        merkleBranchHashes[0] = 0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326;
+        merkleBranchHashes[
+            0
+        ] = 0x02327049330a25d4d17e53e79f478cbb79c53a509679b1d8a1505c5697afb326;
     }
 
     // ============ Tests ============
@@ -245,12 +339,23 @@ contract PegInTest is Test {
             abi.encodeWithSelector(Mock.set.selector, int(12))
         );
 
-        BalanceSnapshot memory before = captureBalances(liquidityProviders[0].signer, address(mockContract), accounts[0]);
+        BalanceSnapshot memory before = captureBalances(
+            liquidityProviders[0].signer,
+            address(mockContract),
+            accounts[0]
+        );
 
         bytes32 quoteHash = lbc.hashQuote(quote);
-        bytes memory sig = signQuote(quoteHash, liquidityProviders[0].privateKey);
+        bytes memory sig = signQuote(
+            quoteHash,
+            liquidityProviders[0].privateKey
+        );
 
-        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(quote, 300, 600);
+        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(
+            quote,
+            300,
+            600
+        );
         bridgeMock.setPegin{value: totalValue(quote)}(quoteHash);
         bridgeMock.setHeader(10, h1);
         bridgeMock.setHeader(19, h2);
@@ -258,15 +363,27 @@ contract PegInTest is Test {
         vm.prank(liquidityProviders[0].signer);
         lbc.callForUser{value: quote.value}(quote);
 
-        assertEq(lbc.getBalance(liquidityProviders[0].signer), before.lpBalance);
+        assertEq(
+            lbc.getBalance(liquidityProviders[0].signer),
+            before.lpBalance
+        );
 
         vm.prank(liquidityProviders[0].signer);
         int256 result = lbc.registerPegIn(quote, sig, hex"1010", hex"0202", 10);
 
         assertEq(result, int256(totalValue(quote)));
-        assertEq(lbc.getBalance(liquidityProviders[0].signer) - before.lpBalance, totalValue(quote));
-        assertEq(address(lbc).balance - before.lbcEthBalance, totalValue(quote));
-        assertEq(lbc.getCollateral(liquidityProviders[0].signer), before.lpCollateral);
+        assertEq(
+            lbc.getBalance(liquidityProviders[0].signer) - before.lpBalance,
+            totalValue(quote)
+        );
+        assertEq(
+            address(lbc).balance - before.lbcEthBalance,
+            totalValue(quote)
+        );
+        assertEq(
+            lbc.getCollateral(liquidityProviders[0].signer),
+            before.lpCollateral
+        );
         assertEq(mockContract.check(), 12);
     }
 
@@ -399,7 +516,9 @@ contract PegInTest is Test {
         }
     }
 
-    function test_FailOnContractCallDueToQuoteValuePlusFeeBelowMinPegIn() public {
+    function test_FailOnContractCallDueToQuoteValuePlusFeeBelowMinPegIn()
+        public
+    {
         LiquidityProviderInfo memory provider = liquidityProviders[1];
         address destinationAddress = accounts[2];
 
@@ -437,32 +556,60 @@ contract PegInTest is Test {
         );
         quote.productFeeAmount = 100000000000;
 
-        BalanceSnapshot memory before = captureBalances(liquidityProviders[1].signer, accounts[1], accounts[2]);
+        BalanceSnapshot memory before = captureBalances(
+            liquidityProviders[1].signer,
+            accounts[1],
+            accounts[2]
+        );
         uint256 feeBalanceBefore = ZERO_ADDRESS.balance;
 
         bytes32 quoteHash = lbc.hashQuote(quote);
-        bytes memory sig = signQuote(quoteHash, liquidityProviders[1].privateKey);
+        bytes memory sig = signQuote(
+            quoteHash,
+            liquidityProviders[1].privateKey
+        );
 
-        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(quote, 300, 600);
+        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(
+            quote,
+            300,
+            600
+        );
         bridgeMock.setPegin{value: totalValue(quote)}(quoteHash);
         bridgeMock.setHeader(10, h1);
         bridgeMock.setHeader(19, h2);
 
         vm.prank(liquidityProviders[1].signer);
         lbc.callForUser{value: quote.value}(quote);
-        assertEq(lbc.getBalance(liquidityProviders[1].signer), before.lpBalance);
+        assertEq(
+            lbc.getBalance(liquidityProviders[1].signer),
+            before.lpBalance
+        );
 
         vm.prank(liquidityProviders[1].signer);
         lbc.registerPegIn(quote, sig, ANY_HEX, ANY_HEX, 10);
 
         assertEq(accounts[1].balance - before.userBalance, quote.value);
-        assertEq(address(lbc).balance - before.lbcEthBalance, totalValue(quote) - quote.productFeeAmount);
-        assertEq(lbc.getBalance(liquidityProviders[1].signer) - before.lpBalance, totalValue(quote) - quote.productFeeAmount);
-        assertEq(ZERO_ADDRESS.balance - feeBalanceBefore, quote.productFeeAmount);
-        assertEq(lbc.getCollateral(liquidityProviders[1].signer), before.lpCollateral);
+        assertEq(
+            address(lbc).balance - before.lbcEthBalance,
+            totalValue(quote) - quote.productFeeAmount
+        );
+        assertEq(
+            lbc.getBalance(liquidityProviders[1].signer) - before.lpBalance,
+            totalValue(quote) - quote.productFeeAmount
+        );
+        assertEq(
+            ZERO_ADDRESS.balance - feeBalanceBefore,
+            quote.productFeeAmount
+        );
+        assertEq(
+            lbc.getCollateral(liquidityProviders[1].signer),
+            before.lpCollateral
+        );
     }
 
-    function test_NotGenerateTransactionToDAOWhenProductFeeIsZeroInRegisterPegIn() public {
+    function test_NotGenerateTransactionToDAOWhenProductFeeIsZeroInRegisterPegIn()
+        public
+    {
         LiquidityProviderInfo memory provider = liquidityProviders[1];
         address destinationAddress = accounts[1];
 
@@ -480,11 +627,17 @@ contract PegInTest is Test {
         // Hash and sign
         bytes32 quoteHash = lbc.hashQuote(quote);
         bytes32 ethSignedMessageHash = quoteHash.toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(provider.privateKey, ethSignedMessageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+            provider.privateKey,
+            ethSignedMessageHash
+        );
         bytes memory signature = abi.encodePacked(r, s, v);
 
         // Setup bridge
-        (bytes memory firstHeader, bytes memory nHeader) = getBtcPaymentBlockHeaders(quote, 300, 600);
+        (
+            bytes memory firstHeader,
+            bytes memory nHeader
+        ) = getBtcPaymentBlockHeaders(quote, 300, 600);
         uint256 height = 10;
         uint256 feeCollectorBalanceBefore = ZERO_ADDRESS.balance;
 
@@ -519,7 +672,9 @@ contract PegInTest is Test {
         assertEq(ZERO_ADDRESS.balance, feeCollectorBalanceBefore);
     }
 
-    function test_ThrowErrorInHashQuoteIfSummingQuoteAgreementTimestampAndTimeForDepositCauseOverflow() public {
+    function test_ThrowErrorInHashQuoteIfSummingQuoteAgreementTimestampAndTimeForDepositCauseOverflow()
+        public
+    {
         address user = accounts[0];
 
         QuotesV2.PeginQuote memory quote = getTestPeginQuote(
@@ -549,34 +704,61 @@ contract PegInTest is Test {
         );
 
         uint256 additionalFunds = 1000000000000;
-        BalanceSnapshot memory before = captureBalances(liquidityProviders[1].signer, accounts[1], accounts[2]);
+        BalanceSnapshot memory before = captureBalances(
+            liquidityProviders[1].signer,
+            accounts[1],
+            accounts[2]
+        );
 
         bytes32 quoteHash = lbc.hashQuote(quote);
-        bytes memory sig = signQuote(quoteHash, liquidityProviders[1].privateKey);
+        bytes memory sig = signQuote(
+            quoteHash,
+            liquidityProviders[1].privateKey
+        );
 
-        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(quote, 300, 600);
+        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(
+            quote,
+            300,
+            600
+        );
         (bytes memory bHash, bytes memory pmt, ) = getTestMerkleProof();
 
-        bridgeMock.setPegin{value: totalValue(quote) + additionalFunds}(quoteHash);
+        bridgeMock.setPegin{value: totalValue(quote) + additionalFunds}(
+            quoteHash
+        );
         bridgeMock.setHeader(10, h1);
         bridgeMock.setHeader(19, h2);
 
         vm.prank(liquidityProviders[1].signer);
         lbc.callForUser{value: quote.value}(quote);
-        assertEq(lbc.getBalance(liquidityProviders[1].signer), before.lpBalance);
+        assertEq(
+            lbc.getBalance(liquidityProviders[1].signer),
+            before.lpBalance
+        );
 
         vm.prank(liquidityProviders[1].signer);
         int256 result = lbc.registerPegIn(quote, sig, bHash, pmt, 10);
 
         assertEq(result, int256(totalValue(quote) + additionalFunds));
         assertEq(accounts[1].balance - before.userBalance, quote.value);
-        assertEq(address(lbc).balance - before.lbcEthBalance, totalValue(quote));
-        assertEq(lbc.getBalance(liquidityProviders[1].signer) - before.lpBalance, totalValue(quote));
+        assertEq(
+            address(lbc).balance - before.lbcEthBalance,
+            totalValue(quote)
+        );
+        assertEq(
+            lbc.getBalance(liquidityProviders[1].signer) - before.lpBalance,
+            totalValue(quote)
+        );
         assertEq(accounts[2].balance - before.refundBalance, additionalFunds);
-        assertEq(lbc.getCollateral(liquidityProviders[1].signer), before.lpCollateral);
+        assertEq(
+            lbc.getCollateral(liquidityProviders[1].signer),
+            before.lpCollateral
+        );
     }
 
-    function test_RefundRemainingAmountToLPInCaseRefundingToQuoteRskRefundAddressFails() public {
+    function test_RefundRemainingAmountToLPInCaseRefundingToQuoteRskRefundAddressFails()
+        public
+    {
         WalletMock walletMock = new WalletMock();
         walletMock.setRejectFunds(true);
 
@@ -590,31 +772,56 @@ contract PegInTest is Test {
         );
 
         uint256 additionalFunds = 1000000000000;
-        BalanceSnapshot memory before = captureBalances(liquidityProviders[0].signer, accounts[1], address(walletMock));
+        BalanceSnapshot memory before = captureBalances(
+            liquidityProviders[0].signer,
+            accounts[1],
+            address(walletMock)
+        );
 
         bytes32 quoteHash = lbc.hashQuote(quote);
-        bytes memory sig = signQuote(quoteHash, liquidityProviders[0].privateKey);
+        bytes memory sig = signQuote(
+            quoteHash,
+            liquidityProviders[0].privateKey
+        );
 
-        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(quote, 300, 600);
+        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(
+            quote,
+            300,
+            600
+        );
         (bytes memory bHash, bytes memory pmt, ) = getTestMerkleProof();
 
-        bridgeMock.setPegin{value: totalValue(quote) + additionalFunds}(quoteHash);
+        bridgeMock.setPegin{value: totalValue(quote) + additionalFunds}(
+            quoteHash
+        );
         bridgeMock.setHeader(10, h1);
         bridgeMock.setHeader(19, h2);
 
         vm.prank(liquidityProviders[0].signer);
         lbc.callForUser{value: quote.value}(quote);
-        assertEq(lbc.getBalance(liquidityProviders[0].signer), before.lpBalance);
+        assertEq(
+            lbc.getBalance(liquidityProviders[0].signer),
+            before.lpBalance
+        );
 
         vm.prank(liquidityProviders[0].signer);
         int256 result = lbc.registerPegIn(quote, sig, bHash, pmt, 10);
 
         assertEq(result, int256(totalValue(quote) + additionalFunds));
         assertEq(accounts[1].balance - before.userBalance, quote.value);
-        assertEq(address(lbc).balance - before.lbcEthBalance, totalValue(quote) + additionalFunds);
-        assertEq(lbc.getBalance(liquidityProviders[0].signer) - before.lpBalance, totalValue(quote) + additionalFunds);
+        assertEq(
+            address(lbc).balance - before.lbcEthBalance,
+            totalValue(quote) + additionalFunds
+        );
+        assertEq(
+            lbc.getBalance(liquidityProviders[0].signer) - before.lpBalance,
+            totalValue(quote) + additionalFunds
+        );
         assertEq(address(walletMock).balance, before.refundBalance);
-        assertEq(lbc.getCollateral(liquidityProviders[0].signer), before.lpCollateral);
+        assertEq(
+            lbc.getCollateral(liquidityProviders[0].signer),
+            before.lpCollateral
+        );
     }
 
     function test_RefundUserOnFailedCall() public {
@@ -629,12 +836,23 @@ contract PegInTest is Test {
             abi.encodeWithSelector(Mock.fail.selector)
         );
 
-        BalanceSnapshot memory before = captureBalances(liquidityProviders[0].signer, address(mockContract), accounts[2]);
+        BalanceSnapshot memory before = captureBalances(
+            liquidityProviders[0].signer,
+            address(mockContract),
+            accounts[2]
+        );
 
         bytes32 quoteHash = lbc.hashQuote(quote);
-        bytes memory sig = signQuote(quoteHash, liquidityProviders[0].privateKey);
+        bytes memory sig = signQuote(
+            quoteHash,
+            liquidityProviders[0].privateKey
+        );
 
-        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(quote, 300, 600);
+        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(
+            quote,
+            300,
+            600
+        );
         (bytes memory bHash, bytes memory pmt, ) = getTestMerkleProof();
 
         bridgeMock.setPegin{value: totalValue(quote)}(quoteHash);
@@ -643,16 +861,25 @@ contract PegInTest is Test {
 
         vm.prank(liquidityProviders[0].signer);
         lbc.callForUser{value: quote.value}(quote);
-        assertEq(lbc.getBalance(liquidityProviders[0].signer) - before.lpBalance, quote.value);
+        assertEq(
+            lbc.getBalance(liquidityProviders[0].signer) - before.lpBalance,
+            quote.value
+        );
 
         uint256 lpBal = lbc.getBalance(liquidityProviders[0].signer);
 
         vm.prank(liquidityProviders[0].signer);
         lbc.registerPegIn(quote, sig, bHash, pmt, 10);
 
-        assertEq(lbc.getBalance(liquidityProviders[0].signer) - lpBal, quote.callFee + quote.gasFee);
+        assertEq(
+            lbc.getBalance(liquidityProviders[0].signer) - lpBal,
+            quote.callFee + quote.gasFee
+        );
         assertEq(accounts[2].balance - before.refundBalance, quote.value);
-        assertEq(lbc.getCollateral(liquidityProviders[0].signer), before.lpCollateral);
+        assertEq(
+            lbc.getCollateral(liquidityProviders[0].signer),
+            before.lpCollateral
+        );
         assertEq(address(mockContract).balance, before.userBalance);
     }
 
@@ -667,12 +894,23 @@ contract PegInTest is Test {
         );
 
         uint256 reward = (quote.penaltyFee * lbc.getRewardPercentage()) / 100;
-        BalanceSnapshot memory before = captureBalances(liquidityProviders[0].signer, accounts[1], accounts[2]);
+        BalanceSnapshot memory before = captureBalances(
+            liquidityProviders[0].signer,
+            accounts[1],
+            accounts[2]
+        );
 
         bytes32 quoteHash = lbc.hashQuote(quote);
-        bytes memory sig = signQuote(quoteHash, liquidityProviders[0].privateKey);
+        bytes memory sig = signQuote(
+            quoteHash,
+            liquidityProviders[0].privateKey
+        );
 
-        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(quote, 300, 600);
+        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(
+            quote,
+            300,
+            600
+        );
         (bytes memory bHash, bytes memory pmt, ) = getTestMerkleProof();
 
         bridgeMock.setPegin{value: totalValue(quote)}(quoteHash);
@@ -683,13 +921,24 @@ contract PegInTest is Test {
         lbc.registerPegIn(quote, sig, bHash, pmt, 10);
 
         assertEq(accounts[1].balance, before.userBalance);
-        assertEq(accounts[2].balance - before.refundBalance, quote.value + quote.callFee + quote.gasFee);
-        assertEq(lbc.getBalance(liquidityProviders[0].signer) - before.lpBalance, reward);
-        assertEq(lbc.getCollateral(liquidityProviders[0].signer), before.lpCollateral - quote.penaltyFee);
+        assertEq(
+            accounts[2].balance - before.refundBalance,
+            quote.value + quote.callFee + quote.gasFee
+        );
+        assertEq(
+            lbc.getBalance(liquidityProviders[0].signer) - before.lpBalance,
+            reward
+        );
+        assertEq(
+            lbc.getCollateral(liquidityProviders[0].signer),
+            before.lpCollateral - quote.penaltyFee
+        );
         assertEq(address(lbc).balance, before.lbcEthBalance);
     }
 
-    function test_NoOneBeRefundedInRegisterPegInOnMissedCallInCaseRefundingToQuoteRskRefundAddressFails() public {
+    function test_NoOneBeRefundedInRegisterPegInOnMissedCallInCaseRefundingToQuoteRskRefundAddressFails()
+        public
+    {
         WalletMock walletMock = new WalletMock();
         walletMock.setRejectFunds(true);
 
@@ -709,9 +958,16 @@ contract PegInTest is Test {
         uint256 callerBalBefore = lbc.getBalance(accounts[2]);
 
         bytes32 quoteHash = lbc.hashQuote(quote);
-        bytes memory sig = signQuote(quoteHash, liquidityProviders[0].privateKey);
+        bytes memory sig = signQuote(
+            quoteHash,
+            liquidityProviders[0].privateKey
+        );
 
-        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(quote, 300, 600);
+        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(
+            quote,
+            300,
+            600
+        );
         (bytes memory bHash, bytes memory pmt, ) = getTestMerkleProof();
 
         bridgeMock.setPegin{value: totalValue(quote)}(quoteHash);
@@ -721,7 +977,10 @@ contract PegInTest is Test {
         vm.prank(accounts[2]);
         lbc.registerPegIn(quote, sig, bHash, pmt, 10);
 
-        assertEq(lbc.getCollateral(liquidityProviders[0].signer), lpCollBefore - quote.penaltyFee);
+        assertEq(
+            lbc.getCollateral(liquidityProviders[0].signer),
+            lpCollBefore - quote.penaltyFee
+        );
         assertEq(address(walletMock).balance, 0);
         assertEq(address(lbc).balance - lbcEthBefore, totalValue(quote));
         assertEq(lbc.getBalance(accounts[2]) - callerBalBefore, reward);
@@ -743,9 +1002,16 @@ contract PegInTest is Test {
         uint256 refundBefore = accounts[2].balance;
 
         bytes32 quoteHash = lbc.hashQuote(quote);
-        bytes memory sig = signQuote(quoteHash, liquidityProviders[0].privateKey);
+        bytes memory sig = signQuote(
+            quoteHash,
+            liquidityProviders[0].privateKey
+        );
 
-        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(quote, 300, 600);
+        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(
+            quote,
+            300,
+            600
+        );
         (bytes memory bHash, bytes memory pmt, ) = getTestMerkleProof();
 
         bridgeMock.setPegin{value: totalValue(quote)}(quoteHash);
@@ -758,7 +1024,10 @@ contract PegInTest is Test {
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
         for (uint i = 0; i < logs.length; i++) {
-            assertFalse(logs[i].topics[0] == keccak256("Penalized(address,uint256,bytes32)"));
+            assertFalse(
+                logs[i].topics[0] ==
+                    keccak256("Penalized(address,uint256,bytes32)")
+            );
         }
 
         assertEq(lbc.getCollateral(liquidityProviders[0].signer), lpCollBefore);
@@ -780,9 +1049,16 @@ contract PegInTest is Test {
         uint256 refundBefore = accounts[2].balance;
 
         bytes32 quoteHash = lbc.hashQuote(quote);
-        bytes memory sig = signQuote(quoteHash, liquidityProviders[0].privateKey);
+        bytes memory sig = signQuote(
+            quoteHash,
+            liquidityProviders[0].privateKey
+        );
 
-        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(quote, 300, 600);
+        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(
+            quote,
+            300,
+            600
+        );
         (bytes memory bHash, bytes memory pmt, ) = getTestMerkleProof();
 
         bridgeMock.setPegin{value: insufficientDeposit}(quoteHash);
@@ -795,7 +1071,10 @@ contract PegInTest is Test {
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
         for (uint i = 0; i < logs.length; i++) {
-            assertFalse(logs[i].topics[0] == keccak256("Penalized(address,uint256,bytes32)"));
+            assertFalse(
+                logs[i].topics[0] ==
+                    keccak256("Penalized(address,uint256,bytes32)")
+            );
         }
 
         assertEq(lbc.getCollateral(liquidityProviders[0].signer), lpCollBefore);
@@ -814,14 +1093,25 @@ contract PegInTest is Test {
         quote.callTime = 1;
 
         uint256 reward = (quote.penaltyFee * lbc.getRewardPercentage()) / 100;
-        BalanceSnapshot memory before = captureBalances(liquidityProviders[0].signer, accounts[1], accounts[2]);
+        BalanceSnapshot memory before = captureBalances(
+            liquidityProviders[0].signer,
+            accounts[1],
+            accounts[2]
+        );
 
         vm.warp(block.timestamp + 300);
 
         bytes32 quoteHash = lbc.hashQuote(quote);
-        bytes memory sig = signQuote(quoteHash, liquidityProviders[0].privateKey);
+        bytes memory sig = signQuote(
+            quoteHash,
+            liquidityProviders[0].privateKey
+        );
 
-        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(quote, 100, 200);
+        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(
+            quote,
+            100,
+            200
+        );
         (bytes memory bHash, bytes memory pmt, ) = getTestMerkleProof();
 
         bridgeMock.setPegin{value: totalValue(quote)}(quoteHash);
@@ -834,9 +1124,15 @@ contract PegInTest is Test {
         vm.prank(liquidityProviders[0].signer);
         lbc.registerPegIn(quote, sig, bHash, pmt, 10);
 
-        assertEq(lbc.getCollateral(liquidityProviders[0].signer), before.lpCollateral - quote.penaltyFee);
+        assertEq(
+            lbc.getCollateral(liquidityProviders[0].signer),
+            before.lpCollateral - quote.penaltyFee
+        );
         assertEq(accounts[1].balance - before.userBalance, quote.value);
-        assertEq(lbc.getBalance(liquidityProviders[0].signer) - before.lpBalance, reward + totalValue(quote));
+        assertEq(
+            lbc.getBalance(liquidityProviders[0].signer) - before.lpBalance,
+            reward + totalValue(quote)
+        );
     }
 
     function test_NotUnderflowWhenPenaltyIsHigherThanCollateral() public {
@@ -851,15 +1147,27 @@ contract PegInTest is Test {
         quote.penaltyFee = LP_COLLATERAL + 1;
         quote.callTime = 1;
 
-        uint256 reward = (LP_COLLATERAL / 2 * lbc.getRewardPercentage()) / 100;
-        BalanceSnapshot memory before = captureBalances(liquidityProviders[0].signer, accounts[1], accounts[2]);
+        uint256 reward = ((LP_COLLATERAL / 2) * lbc.getRewardPercentage()) /
+            100;
+        BalanceSnapshot memory before = captureBalances(
+            liquidityProviders[0].signer,
+            accounts[1],
+            accounts[2]
+        );
 
         vm.warp(block.timestamp + 300);
 
         bytes32 quoteHash = lbc.hashQuote(quote);
-        bytes memory sig = signQuote(quoteHash, liquidityProviders[0].privateKey);
+        bytes memory sig = signQuote(
+            quoteHash,
+            liquidityProviders[0].privateKey
+        );
 
-        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(quote, 100, 200);
+        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(
+            quote,
+            100,
+            200
+        );
         (bytes memory bHash, bytes memory pmt, ) = getTestMerkleProof();
 
         bridgeMock.setPegin{value: totalValue(quote)}(quoteHash);
@@ -872,7 +1180,10 @@ contract PegInTest is Test {
         vm.prank(liquidityProviders[0].signer);
         lbc.registerPegIn(quote, sig, bHash, pmt, 10);
 
-        assertEq(lbc.getBalance(liquidityProviders[0].signer) - before.lpBalance, reward + totalValue(quote));
+        assertEq(
+            lbc.getBalance(liquidityProviders[0].signer) - before.lpBalance,
+            reward + totalValue(quote)
+        );
         assertEq(accounts[1].balance, before.userBalance + quote.value);
         assertEq(lbc.getCollateral(liquidityProviders[0].signer), 0);
     }
@@ -915,11 +1226,17 @@ contract PegInTest is Test {
         // Hash and sign
         bytes32 quoteHash = lbc.hashQuote(quote);
         bytes32 ethSignedMessageHash = quoteHash.toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(attackingLP.privateKey, ethSignedMessageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+            attackingLP.privateKey,
+            ethSignedMessageHash
+        );
         bytes memory signature = abi.encodePacked(r, s, v);
 
         // Setup bridge
-        (bytes memory firstHeader, bytes memory nHeader) = getBtcPaymentBlockHeaders(quote, 300, 600);
+        (
+            bytes memory firstHeader,
+            bytes memory nHeader
+        ) = getBtcPaymentBlockHeaders(quote, 300, 600);
         uint256 height = 10;
 
         bridgeMock.setHeader(height, firstHeader);
@@ -932,7 +1249,9 @@ contract PegInTest is Test {
         lbc.registerPegIn(quote, signature, hex"0101", hex"0202", height);
     }
 
-    function test_PayWithInsufficientDepositThatIsNotLowerThanAgreedAmountMinusDelta() public {
+    function test_PayWithInsufficientDepositThatIsNotLowerThanAgreedAmountMinusDelta()
+        public
+    {
         QuotesV2.PeginQuote memory quote = getTestPeginQuote(
             address(lbc),
             liquidityProviders[0].signer,
@@ -947,12 +1266,23 @@ contract PegInTest is Test {
         uint256 delta = totalValue(quote) / 10000;
         uint256 peginAmount = totalValue(quote) - delta;
 
-        BalanceSnapshot memory before = captureBalances(liquidityProviders[0].signer, accounts[1], accounts[2]);
+        BalanceSnapshot memory before = captureBalances(
+            liquidityProviders[0].signer,
+            accounts[1],
+            accounts[2]
+        );
 
         bytes32 quoteHash = lbc.hashQuote(quote);
-        bytes memory sig = signQuote(quoteHash, liquidityProviders[0].privateKey);
+        bytes memory sig = signQuote(
+            quoteHash,
+            liquidityProviders[0].privateKey
+        );
 
-        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(quote, 100, 200);
+        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(
+            quote,
+            100,
+            200
+        );
         (bytes memory bHash, bytes memory pmt, ) = getTestMerkleProof();
 
         bridgeMock.setHeader(10, h1);
@@ -966,8 +1296,14 @@ contract PegInTest is Test {
         int256 result = lbc.registerPegIn(quote, sig, bHash, pmt, 10);
 
         assertEq(result, int256(peginAmount));
-        assertEq(lbc.getCollateral(liquidityProviders[0].signer), before.lpCollateral);
-        assertEq(lbc.getBalance(liquidityProviders[0].signer) - before.lpBalance, peginAmount);
+        assertEq(
+            lbc.getCollateral(liquidityProviders[0].signer),
+            before.lpCollateral
+        );
+        assertEq(
+            lbc.getBalance(liquidityProviders[0].signer) - before.lpBalance,
+            peginAmount
+        );
         assertEq(address(lbc).balance - before.lbcEthBalance, peginAmount);
         assertEq(accounts[1].balance - before.userBalance, quote.value);
     }
@@ -984,12 +1320,21 @@ contract PegInTest is Test {
         quote.callFee = 0.000005 ether;
         quote.gasFee = 0.000006 ether;
 
-        uint256 peginAmount = totalValue(quote) - (totalValue(quote) / 10000) - 1;
+        uint256 peginAmount = totalValue(quote) -
+            (totalValue(quote) / 10000) -
+            1;
 
         bytes32 quoteHash = lbc.hashQuote(quote);
-        bytes memory sig = signQuote(quoteHash, liquidityProviders[0].privateKey);
+        bytes memory sig = signQuote(
+            quoteHash,
+            liquidityProviders[0].privateKey
+        );
 
-        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(quote, 100, 200);
+        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(
+            quote,
+            100,
+            200
+        );
         (bytes memory bHash, bytes memory pmt, ) = getTestMerkleProof();
 
         bridgeMock.setHeader(10, h1);
@@ -1001,7 +1346,9 @@ contract PegInTest is Test {
         lbc.registerPegIn(quote, sig, bHash, pmt, 10);
     }
 
-    function test_ShouldDemonstrateFundsBeingLockedWhenRskRefundAddressRevertsOnRegisterPegInWithoutCallForUser() public {
+    function test_ShouldDemonstrateFundsBeingLockedWhenRskRefundAddressRevertsOnRegisterPegInWithoutCallForUser()
+        public
+    {
         WalletMock maliciousContract = new WalletMock();
         maliciousContract.setRejectFunds(true);
 
@@ -1018,9 +1365,16 @@ contract PegInTest is Test {
         uint256 malBalBefore = lbc.getBalance(address(maliciousContract));
 
         bytes32 quoteHash = lbc.hashQuote(quote);
-        bytes memory sig = signQuote(quoteHash, liquidityProviders[0].privateKey);
+        bytes memory sig = signQuote(
+            quoteHash,
+            liquidityProviders[0].privateKey
+        );
 
-        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(quote, 300, 600);
+        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(
+            quote,
+            300,
+            600
+        );
         bridgeMock.setPegin{value: totalValue(quote)}(quoteHash);
         bridgeMock.setHeader(10, h1);
         bridgeMock.setHeader(19, h2);
@@ -1032,9 +1386,19 @@ contract PegInTest is Test {
         Vm.Log[] memory logs = vm.getRecordedLogs();
         bool foundBalInc = false;
         for (uint i = 0; i < logs.length; i++) {
-            if (logs[i].topics[0] == keccak256("BalanceIncrease(address,uint256)")) {
-                (address dest, uint256 amt) = abi.decode(logs[i].data, (address, uint256));
-                if ((dest == address(maliciousContract) || dest == liquidityProviders[0].signer) && amt == totalValue(quote)) {
+            if (
+                logs[i].topics[0] ==
+                keccak256("BalanceIncrease(address,uint256)")
+            ) {
+                (address dest, uint256 amt) = abi.decode(
+                    logs[i].data,
+                    (address, uint256)
+                );
+                if (
+                    (dest == address(maliciousContract) ||
+                        dest == liquidityProviders[0].signer) &&
+                    amt == totalValue(quote)
+                ) {
                     foundBalInc = true;
                 }
             }
@@ -1046,7 +1410,9 @@ contract PegInTest is Test {
         assertEq(address(maliciousContract).balance, 0);
     }
 
-    function test_ShouldHandleRefundCorrectlyWhenRskRefundAddressCanReceiveFundsOnRegisterPegInWithoutCallForUser() public {
+    function test_ShouldHandleRefundCorrectlyWhenRskRefundAddressCanReceiveFundsOnRegisterPegInWithoutCallForUser()
+        public
+    {
         QuotesV2.PeginQuote memory quote = getTestPeginQuote(
             address(lbc),
             liquidityProviders[0].signer,
@@ -1059,9 +1425,16 @@ contract PegInTest is Test {
         uint256 refundBefore = accounts[2].balance;
 
         bytes32 quoteHash = lbc.hashQuote(quote);
-        bytes memory sig = signQuote(quoteHash, liquidityProviders[0].privateKey);
+        bytes memory sig = signQuote(
+            quoteHash,
+            liquidityProviders[0].privateKey
+        );
 
-        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(quote, 300, 600);
+        (bytes memory h1, bytes memory h2) = getBtcPaymentBlockHeaders(
+            quote,
+            300,
+            600
+        );
         bridgeMock.setPegin{value: totalValue(quote)}(quoteHash);
         bridgeMock.setHeader(10, h1);
         bridgeMock.setHeader(19, h2);
@@ -1074,8 +1447,14 @@ contract PegInTest is Test {
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
         for (uint i = 0; i < logs.length; i++) {
-            if (logs[i].topics[0] == keccak256("BalanceIncrease(address,uint256)")) {
-                (address dest, uint256 amt) = abi.decode(logs[i].data, (address, uint256));
+            if (
+                logs[i].topics[0] ==
+                keccak256("BalanceIncrease(address,uint256)")
+            ) {
+                (address dest, uint256 amt) = abi.decode(
+                    logs[i].data,
+                    (address, uint256)
+                );
                 assertFalse(dest == accounts[2] && amt == totalValue(quote));
             }
         }

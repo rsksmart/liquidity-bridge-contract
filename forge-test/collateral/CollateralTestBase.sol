@@ -57,8 +57,13 @@ abstract contract CollateralTestBase is Test {
         );
 
         // Deploy proxy
-        ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), initData);
-        collateralManagement = CollateralManagementContract(payable(address(proxy)));
+        ERC1967Proxy proxy = new ERC1967Proxy(
+            address(implementation),
+            initData
+        );
+        collateralManagement = CollateralManagementContract(
+            payable(address(proxy))
+        );
     }
 
     /// @notice Setup roles (equivalent to deployCollateralManagementWithRoles fixture)
@@ -72,8 +77,14 @@ abstract contract CollateralTestBase is Test {
 
         // Grant roles
         vm.startPrank(owner);
-        collateralManagement.grantRole(collateralManagement.COLLATERAL_ADDER(), adder);
-        collateralManagement.grantRole(collateralManagement.COLLATERAL_SLASHER(), slasher);
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_ADDER(),
+            adder
+        );
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_SLASHER(),
+            slasher
+        );
         vm.stopPrank();
     }
 
@@ -90,66 +101,84 @@ abstract contract CollateralTestBase is Test {
 
         // Add collateral for providers
         vm.startPrank(adder);
-        collateralManagement.addPegInCollateralTo{value: BASE_COLLATERAL}(pegInLp);
-        collateralManagement.addPegOutCollateralTo{value: BASE_COLLATERAL}(pegOutLp);
-        collateralManagement.addPegInCollateralTo{value: BASE_COLLATERAL}(fullLp);
-        collateralManagement.addPegOutCollateralTo{value: BASE_COLLATERAL}(fullLp);
+        collateralManagement.addPegInCollateralTo{value: BASE_COLLATERAL}(
+            pegInLp
+        );
+        collateralManagement.addPegOutCollateralTo{value: BASE_COLLATERAL}(
+            pegOutLp
+        );
+        collateralManagement.addPegInCollateralTo{value: BASE_COLLATERAL}(
+            fullLp
+        );
+        collateralManagement.addPegOutCollateralTo{value: BASE_COLLATERAL}(
+            fullLp
+        );
         vm.stopPrank();
     }
 
     /// @notice Helper to create an empty PegIn quote
-    function getEmptyPegInQuote() internal pure returns (Quotes.PegInQuote memory) {
+    function getEmptyPegInQuote()
+        internal
+        pure
+        returns (Quotes.PegInQuote memory)
+    {
         bytes memory emptyBytes = new bytes(0);
         bytes memory testAddress = new bytes(20);
 
-        return Quotes.PegInQuote({
-            callFee: 0,
-            penaltyFee: 0,
-            value: 0,
-            productFeeAmount: 0,
-            gasFee: 0,
-            fedBtcAddress: bytes20(testAddress),
-            lbcAddress: ZERO_ADDRESS,
-            liquidityProviderRskAddress: ZERO_ADDRESS,
-            contractAddress: ZERO_ADDRESS,
-            rskRefundAddress: payable(ZERO_ADDRESS),
-            nonce: 0,
-            gasLimit: 0,
-            agreementTimestamp: 0,
-            timeForDeposit: 0,
-            callTime: 0,
-            depositConfirmations: 0,
-            callOnRegister: false,
-            btcRefundAddress: testAddress,
-            liquidityProviderBtcAddress: testAddress,
-            data: emptyBytes
-        });
+        return
+            Quotes.PegInQuote({
+                callFee: 0,
+                penaltyFee: 0,
+                value: 0,
+                productFeeAmount: 0,
+                gasFee: 0,
+                fedBtcAddress: bytes20(testAddress),
+                lbcAddress: ZERO_ADDRESS,
+                liquidityProviderRskAddress: ZERO_ADDRESS,
+                contractAddress: ZERO_ADDRESS,
+                rskRefundAddress: payable(ZERO_ADDRESS),
+                nonce: 0,
+                gasLimit: 0,
+                agreementTimestamp: 0,
+                timeForDeposit: 0,
+                callTime: 0,
+                depositConfirmations: 0,
+                callOnRegister: false,
+                btcRefundAddress: testAddress,
+                liquidityProviderBtcAddress: testAddress,
+                data: emptyBytes
+            });
     }
 
     /// @notice Helper to create an empty PegOut quote
-    function getEmptyPegOutQuote() internal pure returns (Quotes.PegOutQuote memory) {
+    function getEmptyPegOutQuote()
+        internal
+        pure
+        returns (Quotes.PegOutQuote memory)
+    {
         bytes memory testAddress = new bytes(20);
 
-        return Quotes.PegOutQuote({
-            callFee: 0,
-            penaltyFee: 0,
-            value: 0,
-            productFeeAmount: 0,
-            gasFee: 0,
-            lbcAddress: ZERO_ADDRESS,
-            lpRskAddress: ZERO_ADDRESS,
-            rskRefundAddress: ZERO_ADDRESS,
-            nonce: 0,
-            agreementTimestamp: 0,
-            depositDateLimit: 0,
-            transferTime: 0,
-            expireDate: 0,
-            expireBlock: 0,
-            depositConfirmations: 0,
-            transferConfirmations: 0,
-            depositAddress: testAddress,
-            btcRefundAddress: testAddress,
-            lpBtcAddress: testAddress
-        });
+        return
+            Quotes.PegOutQuote({
+                callFee: 0,
+                penaltyFee: 0,
+                value: 0,
+                productFeeAmount: 0,
+                gasFee: 0,
+                lbcAddress: ZERO_ADDRESS,
+                lpRskAddress: ZERO_ADDRESS,
+                rskRefundAddress: ZERO_ADDRESS,
+                nonce: 0,
+                agreementTimestamp: 0,
+                depositDateLimit: 0,
+                transferTime: 0,
+                expireDate: 0,
+                expireBlock: 0,
+                depositConfirmations: 0,
+                transferConfirmations: 0,
+                depositAddress: testAddress,
+                btcRefundAddress: testAddress,
+                lpBtcAddress: testAddress
+            });
     }
 }
