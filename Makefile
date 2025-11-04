@@ -244,13 +244,13 @@ change-owner-broadcast:
 .PHONY: get-btc-height
 get-btc-height:
 	@echo "Getting BTC block height..."
-	@bash forge-scripts/GetBtcHeight.sh
+	@bash forge-scripts/tasks/GetBtcHeight.sh
 
 # Get contract versions
 .PHONY: get-versions
 get-versions:
 	@echo "Getting contract versions..."
-	@bash forge-scripts/GetVersions.sh
+	@bash forge-scripts/tasks/GetVersions.sh
 
 # Build contracts
 .PHONY: build
