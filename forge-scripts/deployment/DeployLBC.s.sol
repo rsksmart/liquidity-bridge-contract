@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {Script, console} from "forge-std/Script.sol";
+import {Script, console} from "lib/forge-std/src/Script.sol";
 
-import {HelperConfig} from "./HelperConfig.s.sol";
+import {HelperConfig} from "../HelperConfig.s.sol";
 
-import {LiquidityBridgeContract} from "../contracts/legacy/LiquidityBridgeContract.sol";
-import {LiquidityBridgeContractProxy} from "../contracts/legacy/LiquidityBridgeContractProxy.sol";
-import {LiquidityBridgeContractAdmin} from "../contracts/legacy/LiquidityBridgeContractAdmin.sol";
+import {LiquidityBridgeContract} from "../../contracts/legacy/LiquidityBridgeContract.sol";
+import {LiquidityBridgeContractProxy} from "../../contracts/legacy/LiquidityBridgeContractProxy.sol";
+import {LiquidityBridgeContractAdmin} from "../../contracts/legacy/LiquidityBridgeContractAdmin.sol";
 
 contract DeployLBC is Script {
     function run() external {
