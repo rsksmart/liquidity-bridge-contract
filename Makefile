@@ -122,7 +122,7 @@ deploy-lbc:
 	@echo "Chain ID: $(call get_chain_id,$(NETWORK))"
 	@echo "Fork Block: $(FORK_BLOCK)"
 	@echo "Gas Limit: $(GAS_LIMIT)"
-	$(FORGE) forge-scripts/DeployLBC.s.sol:DeployLBC \
+	$(FORGE) forge-scripts/deployment/DeployLBC.s.sol:DeployLBC \
 		$(FORK_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
 		--gas-limit $(GAS_LIMIT) \
@@ -136,7 +136,7 @@ deploy-lbc-broadcast:
 	@echo "Chain ID: $(call get_chain_id,$(NETWORK))"
 	@echo "Fork Block: $(FORK_BLOCK)"
 	@echo "Gas Limit: $(GAS_LIMIT)"
-	$(FORGE) forge-scripts/DeployLBC.s.sol:DeployLBC \
+	$(FORGE) forge-scripts/deployment/DeployLBC.s.sol:DeployLBC \
 		$(FORK_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
 		--gas-limit $(GAS_LIMIT) \
@@ -151,7 +151,7 @@ deploy-lbc-high-gas:
 	@echo "Chain ID: $(call get_chain_id,$(NETWORK))"
 	@echo "Fork Block: $(FORK_BLOCK)"
 	@echo "Gas Limit: 15000000"
-	$(FORGE) forge-scripts/DeployLBC.s.sol:DeployLBC \
+	$(FORGE) forge-scripts/deployment/DeployLBC.s.sol:DeployLBC \
 		$(FORK_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
 		--gas-limit 15000000 \
@@ -172,6 +172,20 @@ deploy-lbc-high-gas-broadcast:
 		--legacy \
 		--broadcast
 
+# Deploy V2 implementation (without upgrading proxy)
+.PHONY: prepare-upgrade
+prepare-upgrade:
+	@echo "Deploying LiquidityBridgeContractV2 implementation on $(NETWORK)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@echo "Chain ID: $(call get_chain_id,$(NETWORK))"
+	$(FORGE) forge-scripts/deployment/PrepareUpgrade.s.sol:PrepareUpgrade \
+		$(DEPLOY_OPTS) \
+		$(PRIVATE_KEY_OPTS) \
+		--gas-limit $(GAS_LIMIT) \
+		--legacy \
+		--broadcast \
+		--verify
+
 # Upgrade LiquidityBridgeContract to V2 (simulation)
 .PHONY: upgrade-lbc
 upgrade-lbc:
@@ -179,7 +193,7 @@ upgrade-lbc:
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Chain ID: $(call get_chain_id,$(NETWORK))"
 	@echo "Fork Block: $(FORK_BLOCK)"
-	$(FORGE) forge-scripts/UpgradeLBC.s.sol:UpgradeLBC \
+	$(FORGE) forge-scripts/deployment/UpgradeLBC.s.sol:UpgradeLBC \
 		$(FORK_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
 		--gas-limit $(GAS_LIMIT) \
@@ -192,7 +206,7 @@ upgrade-lbc-broadcast:
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Chain ID: $(call get_chain_id,$(NETWORK))"
 	@echo "Fork Block: $(FORK_BLOCK)"
-	$(FORGE) forge-scripts/UpgradeLBC.s.sol:UpgradeLBC \
+	$(FORGE) forge-scripts/deployment/UpgradeLBC.s.sol:UpgradeLBC \
 		$(FORK_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
 		--gas-limit $(GAS_LIMIT) \
@@ -206,7 +220,7 @@ change-owner:
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Chain ID: $(call get_chain_id,$(NETWORK))"
 	@echo "Fork Block: $(FORK_BLOCK)"
-	$(FORGE) forge-scripts/ChangeOwnerToMultiSig.s.sol:ChangeOwnerToMultiSig \
+	$(FORGE) forge-scripts/deployment/ChangeOwnerToMultiSig.s.sol:ChangeOwnerToMultiSig \
 		$(FORK_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
 		--gas-limit $(GAS_LIMIT) \
@@ -219,7 +233,7 @@ change-owner-broadcast:
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Chain ID: $(call get_chain_id,$(NETWORK))"
 	@echo "Fork Block: $(FORK_BLOCK)"
-	$(FORGE) forge-scripts/ChangeOwnerToMultiSig.s.sol:ChangeOwnerToMultiSig \
+	$(FORGE) forge-scripts/deployment/ChangeOwnerToMultiSig.s.sol:ChangeOwnerToMultiSig \
 		$(FORK_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
 		--gas-limit $(GAS_LIMIT) \
