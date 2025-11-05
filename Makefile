@@ -10,6 +10,10 @@ GAS_LIMIT ?= 10000000
 GAS_PRICE ?= 0
 PRIORITY_GAS_PRICE ?= 0
 
+# Hash-quote defaults
+QUOTE_TYPE ?= pegin
+QUOTE_FILE ?= tasks/hash-quote.example.json
+
 # Environment file
 ENV_FILE ?= .env
 
@@ -99,6 +103,7 @@ help:
 	@echo "  change-owner-broadcast - Transfer ownership to multisig (actual)"
 	@echo "  deploy-lbc-high-gas - Deploy with high gas limit (15M) (simulation)"
 	@echo "  deploy-lbc-high-gas-broadcast - Deploy with high gas limit (15M) (actual)"
+	@echo "  hash-quote        - Hash a PegIn or PegOut quote"
 	@echo "  get-btc-height    - Get current BTC block height"
 	@echo "  get-versions      - Get contract versions"
 	@echo "  clean             - Clean build artifacts"
@@ -113,6 +118,8 @@ help:
 	@echo "  make testnet-fork-deploy-broadcast                 # Testnet fork actual deployment"
 	@echo "  make upgrade-lbc NETWORK=mainnet FORK_BLOCK=6020639 # Simulation"
 	@echo "  make upgrade-lbc-broadcast NETWORK=mainnet         # Actual upgrade"
+	@echo "  make hash-quote pegin testnet                      # Hash PegIn quote"
+	@echo "  make hash-quote pegout mainnet my-quote.json       # Hash PegOut with custom file"
 
 # Deploy LiquidityBridgeContract (simulation)
 .PHONY: deploy-lbc
@@ -251,6 +258,31 @@ get-btc-height:
 get-versions:
 	@echo "Getting contract versions..."
 	@bash forge-scripts/tasks/GetVersions.sh
+
+# Hash quote - supports both syntaxes:
+# make hash-quote pegin testnet
+# make hash-quote QUOTE_TYPE=pegin NETWORK=testnet QUOTE_FILE=file.json
+.PHONY: hash-quote
+hash-quote:
+	@$(eval ARGS := $(filter-out $@,$(MAKECMDGOALS)))
+	@$(eval QUOTE_TYPE_ARG := $(word 1,$(ARGS)))
+	@$(eval NETWORK_ARG := $(word 2,$(ARGS)))
+	@$(eval FILE_ARG := $(word 3,$(ARGS)))
+	@$(eval FINAL_TYPE := $(if $(QUOTE_TYPE_ARG),$(QUOTE_TYPE_ARG),$(QUOTE_TYPE)))
+	@$(eval FINAL_NETWORK := $(if $(NETWORK_ARG),$(NETWORK_ARG),$(NETWORK)))
+	@$(eval FINAL_FILE := $(if $(FILE_ARG),$(FILE_ARG),$(QUOTE_FILE)))
+	@if [ "$(FINAL_TYPE)" != "pegin" ] && [ "$(FINAL_TYPE)" != "pegout" ]; then \
+		echo "Error: Type must be 'pegin' or 'pegout'"; \
+		exit 1; \
+	fi
+	@echo "Hashing $(FINAL_TYPE) quote on $(FINAL_NETWORK)..."
+	@echo "File: $(FINAL_FILE)"
+	@echo "RPC URL: $(call get_network_config,$(FINAL_NETWORK))"
+	@bash forge-scripts/tasks/hash-quote.sh \
+		--type $(FINAL_TYPE) \
+		--file $(FINAL_FILE) \
+		--network $(FINAL_NETWORK) \
+		--rpc-url $(call get_network_config,$(FINAL_NETWORK))
 
 # Build contracts
 .PHONY: build
@@ -404,3 +436,13 @@ safe-change-owner: validate-deploy change-owner
 .PHONY: docs
 docs:
 	@echo "Documentation is available in docs/FOUNDRY_MAKEFILE_GUIDE.md"
+
+# Catch-all target for hash-quote arguments (pegin/pegout, network names, file paths)
+# This prevents make from complaining about unknown targets when using: make hash-quote pegin testnet
+ifneq (,$(findstring hash-quote,$(MAKECMDGOALS)))
+pegin pegout mainnet testnet local regtest rskMainnet rskTestnet rskRegtest rskDevelopment:
+	@:
+# Also catch file arguments (anything ending in .json)
+%.json:
+	@:
+endif
