@@ -14,6 +14,10 @@ PRIORITY_GAS_PRICE ?= 0
 QUOTE_TYPE ?= pegin
 QUOTE_FILE ?= tasks/hash-quote.example.json
 
+# Pause-system defaults
+PAUSE_REASON ?= Emergency maintenance
+USE_LEDGER ?= false
+
 # Environment file
 ENV_FILE ?= .env
 
@@ -73,6 +77,11 @@ define get_chain_id
 $(if $(filter mainnet,$(1)),$(MAINNET_CHAIN_ID),$(if $(filter testnet,$(1)),$(TESTNET_CHAIN_ID),$(LOCAL_CHAIN_ID)))
 endef
 
+# Map simplified network names to RSK network names for forge scripts
+define get_rsk_network_name
+$(if $(filter mainnet,$(1)),rskMainnet,$(if $(filter testnet,$(1)),rskTestnet,rskRegtest))
+endef
+
 # Fork options
 FORK_OPTS := --fork-url $(call get_network_config,$(NETWORK))
 ifneq ($(FORK_BLOCK),latest)
@@ -106,6 +115,11 @@ help:
 	@echo "  hash-quote        - Hash a PegIn or PegOut quote"
 	@echo "  get-btc-height    - Get current BTC block height"
 	@echo "  get-versions      - Get contract versions"
+	@echo "  pause-status      - Check pause status of all system contracts"
+	@echo "  pause-system      - Pause all system contracts (simulation)"
+	@echo "  pause-system-broadcast - Pause all system contracts (actual)"
+	@echo "  unpause-system    - Unpause all system contracts (simulation)"
+	@echo "  unpause-system-broadcast - Unpause all system contracts (actual)"
 	@echo "  clean             - Clean build artifacts"
 	@echo "  build             - Build contracts"
 	@echo "  test              - Run tests"
@@ -120,6 +134,10 @@ help:
 	@echo "  make upgrade-lbc-broadcast NETWORK=mainnet         # Actual upgrade"
 	@echo "  make hash-quote pegin testnet                      # Hash PegIn quote"
 	@echo "  make hash-quote pegout mainnet my-quote.json       # Hash PegOut with custom file"
+	@echo "  make pause-status NETWORK=testnet                  # Check pause status"
+	@echo "  make pause-system NETWORK=testnet PAUSE_REASON=\"Security incident\" # Pause (simulation)"
+	@echo "  make pause-system-broadcast NETWORK=mainnet USE_LEDGER=true PAUSE_REASON=\"Emergency\" # Pause mainnet with Ledger"
+	@echo "  make unpause-system-broadcast NETWORK=testnet      # Unpause testnet"
 
 # Deploy LiquidityBridgeContract (simulation)
 .PHONY: deploy-lbc
@@ -283,6 +301,78 @@ hash-quote:
 		--file $(FINAL_FILE) \
 		--network $(FINAL_NETWORK) \
 		--rpc-url $(call get_network_config,$(FINAL_NETWORK))
+
+# Check pause status of all system contracts
+.PHONY: pause-status
+pause-status:
+	@echo "Checking pause status on $(NETWORK)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@bash forge-scripts/tasks/pause-system.sh \
+		--action status \
+		--network $(call get_rsk_network_name,$(NETWORK))
+
+# Pause all system contracts (simulation)
+.PHONY: pause-system
+pause-system:
+	@echo "Pausing system contracts on $(NETWORK) (SIMULATION)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@echo "Reason: $(PAUSE_REASON)"
+	@bash forge-scripts/tasks/pause-system.sh \
+		--action pause \
+		--reason "$(PAUSE_REASON)" \
+		--network $(call get_rsk_network_name,$(NETWORK))
+
+# Pause all system contracts (actual broadcast)
+.PHONY: pause-system-broadcast
+pause-system-broadcast:
+	@echo "Pausing system contracts on $(NETWORK) (ACTUAL BROADCAST)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@echo "Reason: $(PAUSE_REASON)"
+	@if [ "$(USE_LEDGER)" = "true" ]; then \
+		echo "Using Ledger hardware wallet..."; \
+		bash forge-scripts/tasks/pause-system.sh \
+			--action pause \
+			--reason "$(PAUSE_REASON)" \
+			--network $(call get_rsk_network_name,$(NETWORK)) \
+			--broadcast \
+			--ledger; \
+	else \
+		bash forge-scripts/tasks/pause-system.sh \
+			--action pause \
+			--reason "$(PAUSE_REASON)" \
+			--network $(call get_rsk_network_name,$(NETWORK)) \
+			--broadcast \
+			--private-key $(call get_network_key,$(NETWORK)); \
+	fi
+
+# Unpause all system contracts (simulation)
+.PHONY: unpause-system
+unpause-system:
+	@echo "Unpausing system contracts on $(NETWORK) (SIMULATION)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@bash forge-scripts/tasks/pause-system.sh \
+		--action unpause \
+		--network $(call get_rsk_network_name,$(NETWORK))
+
+# Unpause all system contracts (actual broadcast)
+.PHONY: unpause-system-broadcast
+unpause-system-broadcast:
+	@echo "Unpausing system contracts on $(NETWORK) (ACTUAL BROADCAST)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@if [ "$(USE_LEDGER)" = "true" ]; then \
+		echo "Using Ledger hardware wallet..."; \
+		bash forge-scripts/tasks/pause-system.sh \
+			--action unpause \
+			--network $(call get_rsk_network_name,$(NETWORK)) \
+			--broadcast \
+			--ledger; \
+	else \
+		bash forge-scripts/tasks/pause-system.sh \
+			--action unpause \
+			--network $(call get_rsk_network_name,$(NETWORK)) \
+			--broadcast \
+			--private-key $(call get_network_key,$(NETWORK)); \
+	fi
 
 # Build contracts
 .PHONY: build
