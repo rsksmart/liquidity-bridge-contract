@@ -82,9 +82,9 @@ interface ILiquidityBridgeContract {
  */
 contract RegisterPegin is Script {
     string constant HELPER_SCRIPT_BTC_ADDRESS =
-        "forge-scripts/helpers/parse-btc-address.js";
+        "forge-scripts/helpers/parse-btc-address.ts";
     string constant HELPER_SCRIPT_FETCH_TX =
-        "forge-scripts/helpers/fetch-btc-tx-data.js";
+        "forge-scripts/helpers/fetch-btc-tx-data.ts";
 
     /**
      * @notice Parse Bitcoin address using FFI helper script
@@ -94,10 +94,11 @@ contract RegisterPegin is Script {
     function parseBtcAddress(
         string memory btcAddress
     ) internal returns (bytes memory) {
-        string[] memory inputs = new string[](3);
-        inputs[0] = "node";
-        inputs[1] = HELPER_SCRIPT_BTC_ADDRESS;
-        inputs[2] = btcAddress;
+        string[] memory inputs = new string[](4);
+        inputs[0] = "npx";
+        inputs[1] = "ts-node";
+        inputs[2] = HELPER_SCRIPT_BTC_ADDRESS;
+        inputs[3] = btcAddress;
 
         bytes memory result = vm.ffi(inputs);
         return result;
@@ -135,11 +136,12 @@ contract RegisterPegin is Script {
         string memory txId,
         string memory btcNetwork
     ) internal returns (bytes memory rawTx, bytes memory pmt, uint256 height) {
-        string[] memory inputs = new string[](4);
-        inputs[0] = "node";
-        inputs[1] = HELPER_SCRIPT_FETCH_TX;
-        inputs[2] = txId;
-        inputs[3] = btcNetwork;
+        string[] memory inputs = new string[](5);
+        inputs[0] = "npx";
+        inputs[1] = "ts-node";
+        inputs[2] = HELPER_SCRIPT_FETCH_TX;
+        inputs[3] = txId;
+        inputs[4] = btcNetwork;
 
         bytes memory result = vm.ffi(inputs);
         string memory json = string(result);
