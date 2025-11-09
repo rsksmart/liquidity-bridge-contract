@@ -37,9 +37,10 @@ contract PegOutTest is Test {
     // P2PKH: version 0x6f + 20 bytes hash160
     bytes constant DECODED_P2PKH_ADDRESS =
         hex"6f89abcdefabbaabbaabbaabbaabbaabbaabbaabba";
-    // P2SH: version 0xc4 + 20 bytes hash160
+    // P2SH: Real testnet address 2N4DTeBWDF9yaF9TJVGcgcZDM7EQtsGwFjX decoded
+    // version 0xc4 + 20 bytes hash160
     bytes constant DECODED_P2SH_ADDRESS =
-        hex"c489abcdefabbaabbaabbaabbaabbaabbaabbaabba";
+        hex"c47853f2f139767d6548f38193afbdc136bfc9a962";
     // P2WPKH: version 0x00 + 20 bytes hash
     bytes constant DECODED_P2WPKH_ADDRESS =
         hex"0089abcdefabbaabbaabbaabbaabbaabbaabbaabba";
@@ -444,9 +445,8 @@ contract PegOutTest is Test {
 
     // ============ Other PegOut Tests ============
 
-    // Note: This test is commented out because it requires a specific real mainnet P2SH address
-    // that needs exact bech32 decoding. The concept is tested but with different addresses.
-    function skip_test_RefundPegOutWithWrongRounding() public {
+    // Test for WEI to SAT rounding with real P2SH address
+    function test_RefundPegOutWithWrongRounding() public {
         QuotesV2.PegOutQuote memory quote = getTestPegoutQuote(
             address(lbc),
             72160329123080000,
