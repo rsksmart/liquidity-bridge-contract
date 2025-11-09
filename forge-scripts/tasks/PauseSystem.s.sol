@@ -75,8 +75,13 @@ import "lib/forge-std/src/console.sol";
 
 interface IPausable {
     function pause(string calldata reason) external;
+
     function unpause() external;
-    function pauseStatus() external view returns (bool isPaused, string memory reason, uint64 since);
+
+    function pauseStatus()
+        external
+        view
+        returns (bool isPaused, string memory reason, uint64 since);
 }
 
 contract PauseSystem is Script {
@@ -94,7 +99,10 @@ contract PauseSystem is Script {
      * @param jsonKey Key in addresses.json
      * @return The contract address
      */
-    function getContractAddress(string memory envVarName, string memory jsonKey) internal view returns (address) {
+    function getContractAddress(
+        string memory envVarName,
+        string memory jsonKey
+    ) internal view returns (address) {
         // First try environment variable
         try vm.envAddress(envVarName) returns (address addr) {
             if (addr != address(0)) {
@@ -106,7 +114,13 @@ contract PauseSystem is Script {
         try vm.readFile("addresses.json") returns (string memory json) {
             // Get network from environment or default to rskRegtest
             string memory network = vm.envOr("NETWORK", string("rskRegtest"));
-            string memory key = string.concat(".", network, ".", jsonKey, ".address");
+            string memory key = string.concat(
+                ".",
+                network,
+                ".",
+                jsonKey,
+                ".address"
+            );
 
             try vm.parseJsonAddress(json, key) returns (address addr) {
                 if (addr != address(0)) {
@@ -115,7 +129,15 @@ contract PauseSystem is Script {
             } catch {}
         } catch {}
 
-        revert(string.concat("Failed to find ", jsonKey, " address. Set ", envVarName, " env var or ensure addresses.json is configured."));
+        revert(
+            string.concat(
+                "Failed to find ",
+                jsonKey,
+                " address. Set ",
+                envVarName,
+                " env var or ensure addresses.json is configured."
+            )
+        );
     }
 
     /**
@@ -126,16 +148,28 @@ contract PauseSystem is Script {
         ContractInfo[] memory contracts = new ContractInfo[](4);
 
         contracts[0].name = "FlyoverDiscovery";
-        contracts[0].addr = getContractAddress("FLYOVER_DISCOVERY_ADDRESS", "FlyoverDiscovery");
+        contracts[0].addr = getContractAddress(
+            "FLYOVER_DISCOVERY_ADDRESS",
+            "FlyoverDiscovery"
+        );
 
         contracts[1].name = "PegInContract";
-        contracts[1].addr = getContractAddress("PEGIN_CONTRACT_ADDRESS", "PegInContract");
+        contracts[1].addr = getContractAddress(
+            "PEGIN_CONTRACT_ADDRESS",
+            "PegInContract"
+        );
 
         contracts[2].name = "PegOutContract";
-        contracts[2].addr = getContractAddress("PEGOUT_CONTRACT_ADDRESS", "PegOutContract");
+        contracts[2].addr = getContractAddress(
+            "PEGOUT_CONTRACT_ADDRESS",
+            "PegOutContract"
+        );
 
         contracts[3].name = "CollateralManagementContract";
-        contracts[3].addr = getContractAddress("COLLATERAL_MANAGEMENT_ADDRESS", "CollateralManagementContract");
+        contracts[3].addr = getContractAddress(
+            "COLLATERAL_MANAGEMENT_ADDRESS",
+            "CollateralManagementContract"
+        );
 
         return contracts;
     }
@@ -151,18 +185,36 @@ contract PauseSystem is Script {
         console.log("Contract Addresses:");
         for (uint i = 0; i < contracts.length; i++) {
             console.log(string.concat("  ", contracts[i].name, ":"));
-            console.log(string.concat("    Address: ", vm.toString(contracts[i].addr)));
+            console.log(
+                string.concat("    Address: ", vm.toString(contracts[i].addr))
+            );
         }
 
         console.log("\nCurrent Pause Status:");
         for (uint i = 0; i < contracts.length; i++) {
             IPausable pausable = IPausable(contracts[i].addr);
-            (bool isPaused, string memory reason, uint64 since) = pausable.pauseStatus();
+            (bool isPaused, string memory reason, uint64 since) = pausable
+                .pauseStatus();
 
-            console.log(string.concat("  ", contracts[i].name, ": ", isPaused ? "PAUSED" : "ACTIVE"));
+            console.log(
+                string.concat(
+                    "  ",
+                    contracts[i].name,
+                    ": ",
+                    isPaused ? "PAUSED" : "ACTIVE"
+                )
+            );
             if (isPaused) {
                 console.log(string.concat("    - Reason: ", reason));
-                console.log(string.concat("    - Since: ", vm.toString(since), " (", vm.toString(block.timestamp - since), "s ago)"));
+                console.log(
+                    string.concat(
+                        "    - Since: ",
+                        vm.toString(since),
+                        " (",
+                        vm.toString(block.timestamp - since),
+                        "s ago)"
+                    )
+                );
             }
         }
 
@@ -185,12 +237,23 @@ contract PauseSystem is Script {
         console.log("\nCurrent pause status:");
         for (uint i = 0; i < contracts.length; i++) {
             IPausable pausable = IPausable(contracts[i].addr);
-            (bool isPaused, string memory currentReason, uint64 since) = pausable.pauseStatus();
+            (
+                bool isPaused,
+                string memory currentReason,
+                uint64 since
+            ) = pausable.pauseStatus();
             contracts[i].isPaused = isPaused;
             contracts[i].reason = currentReason;
             contracts[i].since = since;
 
-            console.log(string.concat("  ", contracts[i].name, ": ", isPaused ? "PAUSED" : "ACTIVE"));
+            console.log(
+                string.concat(
+                    "  ",
+                    contracts[i].name,
+                    ": ",
+                    isPaused ? "PAUSED" : "ACTIVE"
+                )
+            );
             if (isPaused) {
                 console.log(string.concat("    - Reason: ", currentReason));
             }
@@ -206,13 +269,27 @@ contract PauseSystem is Script {
 
         for (uint i = 0; i < contracts.length; i++) {
             try IPausable(contracts[i].addr).pause(reason) {
-                console.log(string.concat("  [OK] ", contracts[i].name, " paused successfully"));
+                console.log(
+                    string.concat(
+                        "  [OK] ",
+                        contracts[i].name,
+                        " paused successfully"
+                    )
+                );
                 successCount++;
             } catch Error(string memory error) {
-                console.log(string.concat("  [FAIL] ", contracts[i].name, " - ", error));
+                console.log(
+                    string.concat("  [FAIL] ", contracts[i].name, " - ", error)
+                );
                 failCount++;
             } catch (bytes memory) {
-                console.log(string.concat("  [FAIL] ", contracts[i].name, " - Unknown error"));
+                console.log(
+                    string.concat(
+                        "  [FAIL] ",
+                        contracts[i].name,
+                        " - Unknown error"
+                    )
+                );
                 failCount++;
             }
         }
@@ -223,9 +300,17 @@ contract PauseSystem is Script {
         console.log("\nFinal pause status:");
         for (uint i = 0; i < contracts.length; i++) {
             IPausable pausable = IPausable(contracts[i].addr);
-            (bool isPaused, string memory finalReason, uint64 since) = pausable.pauseStatus();
+            (bool isPaused, string memory finalReason, uint64 since) = pausable
+                .pauseStatus();
 
-            console.log(string.concat("  ", contracts[i].name, ": ", isPaused ? "PAUSED" : "ACTIVE"));
+            console.log(
+                string.concat(
+                    "  ",
+                    contracts[i].name,
+                    ": ",
+                    isPaused ? "PAUSED" : "ACTIVE"
+                )
+            );
             if (isPaused) {
                 console.log(string.concat("    - Reason: ", finalReason));
                 console.log(string.concat("    - Since: ", vm.toString(since)));
@@ -234,8 +319,22 @@ contract PauseSystem is Script {
 
         // Summary
         console.log("\n=== OPERATION SUMMARY ===");
-        console.log(string.concat("Successful: ", vm.toString(successCount), "/", vm.toString(contracts.length)));
-        console.log(string.concat("Failed: ", vm.toString(failCount), "/", vm.toString(contracts.length)));
+        console.log(
+            string.concat(
+                "Successful: ",
+                vm.toString(successCount),
+                "/",
+                vm.toString(contracts.length)
+            )
+        );
+        console.log(
+            string.concat(
+                "Failed: ",
+                vm.toString(failCount),
+                "/",
+                vm.toString(contracts.length)
+            )
+        );
 
         require(failCount == 0, "Pause operation failed for some contracts");
 
@@ -254,12 +353,23 @@ contract PauseSystem is Script {
         console.log("Current pause status:");
         for (uint i = 0; i < contracts.length; i++) {
             IPausable pausable = IPausable(contracts[i].addr);
-            (bool isPaused, string memory currentReason, uint64 since) = pausable.pauseStatus();
+            (
+                bool isPaused,
+                string memory currentReason,
+                uint64 since
+            ) = pausable.pauseStatus();
             contracts[i].isPaused = isPaused;
             contracts[i].reason = currentReason;
             contracts[i].since = since;
 
-            console.log(string.concat("  ", contracts[i].name, ": ", isPaused ? "PAUSED" : "ACTIVE"));
+            console.log(
+                string.concat(
+                    "  ",
+                    contracts[i].name,
+                    ": ",
+                    isPaused ? "PAUSED" : "ACTIVE"
+                )
+            );
             if (isPaused) {
                 console.log(string.concat("    - Reason: ", currentReason));
             }
@@ -275,13 +385,27 @@ contract PauseSystem is Script {
 
         for (uint i = 0; i < contracts.length; i++) {
             try IPausable(contracts[i].addr).unpause() {
-                console.log(string.concat("  [OK] ", contracts[i].name, " unpaused successfully"));
+                console.log(
+                    string.concat(
+                        "  [OK] ",
+                        contracts[i].name,
+                        " unpaused successfully"
+                    )
+                );
                 successCount++;
             } catch Error(string memory error) {
-                console.log(string.concat("  [FAIL] ", contracts[i].name, " - ", error));
+                console.log(
+                    string.concat("  [FAIL] ", contracts[i].name, " - ", error)
+                );
                 failCount++;
             } catch (bytes memory) {
-                console.log(string.concat("  [FAIL] ", contracts[i].name, " - Unknown error"));
+                console.log(
+                    string.concat(
+                        "  [FAIL] ",
+                        contracts[i].name,
+                        " - Unknown error"
+                    )
+                );
                 failCount++;
             }
         }
@@ -292,9 +416,17 @@ contract PauseSystem is Script {
         console.log("\nFinal pause status:");
         for (uint i = 0; i < contracts.length; i++) {
             IPausable pausable = IPausable(contracts[i].addr);
-            (bool isPaused, string memory finalReason,) = pausable.pauseStatus();
+            (bool isPaused, string memory finalReason, ) = pausable
+                .pauseStatus();
 
-            console.log(string.concat("  ", contracts[i].name, ": ", isPaused ? "PAUSED" : "ACTIVE"));
+            console.log(
+                string.concat(
+                    "  ",
+                    contracts[i].name,
+                    ": ",
+                    isPaused ? "PAUSED" : "ACTIVE"
+                )
+            );
             if (isPaused) {
                 console.log(string.concat("    - Reason: ", finalReason));
             }
@@ -302,8 +434,22 @@ contract PauseSystem is Script {
 
         // Summary
         console.log("\n=== OPERATION SUMMARY ===");
-        console.log(string.concat("Successful: ", vm.toString(successCount), "/", vm.toString(contracts.length)));
-        console.log(string.concat("Failed: ", vm.toString(failCount), "/", vm.toString(contracts.length)));
+        console.log(
+            string.concat(
+                "Successful: ",
+                vm.toString(successCount),
+                "/",
+                vm.toString(contracts.length)
+            )
+        );
+        console.log(
+            string.concat(
+                "Failed: ",
+                vm.toString(failCount),
+                "/",
+                vm.toString(contracts.length)
+            )
+        );
 
         require(failCount == 0, "Unpause operation failed for some contracts");
 

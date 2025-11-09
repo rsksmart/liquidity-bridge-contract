@@ -85,9 +85,15 @@ contract UpgradeLBCTest is Test {
         console.log("1. Current implementation (V1):", address(lbcV1));
 
         // Get the actual admin from storage
-        bytes32 adminSlot = bytes32(uint256(keccak256("eip1967.proxy.admin")) - 1);
-        address proxyAdminAddress = address(uint160(uint256(vm.load(address(proxy), adminSlot))));
-        LiquidityBridgeContractAdmin actualAdmin = LiquidityBridgeContractAdmin(proxyAdminAddress);
+        bytes32 adminSlot = bytes32(
+            uint256(keccak256("eip1967.proxy.admin")) - 1
+        );
+        address proxyAdminAddress = address(
+            uint160(uint256(vm.load(address(proxy), adminSlot)))
+        );
+        LiquidityBridgeContractAdmin actualAdmin = LiquidityBridgeContractAdmin(
+            proxyAdminAddress
+        );
         address adminOwner = actualAdmin.owner();
 
         // Deploy V2 implementation
@@ -107,13 +113,19 @@ contract UpgradeLBCTest is Test {
 
         // Verify upgrade
         console.log("\n4. Verifying upgrade...");
-        LiquidityBridgeContractV2 lbcV2Proxy = LiquidityBridgeContractV2(payable(address(proxy)));
+        LiquidityBridgeContractV2 lbcV2Proxy = LiquidityBridgeContractV2(
+            payable(address(proxy))
+        );
 
         string memory version = lbcV2Proxy.version();
         console.log("   Contract version:", version);
 
         // Verify V2 functionality exists
-        assertEq(bytes(version).length > 0, true, "Version should not be empty");
+        assertEq(
+            bytes(version).length > 0,
+            true,
+            "Version should not be empty"
+        );
 
         console.log("\n[PASS] Upgrade to V2 successful!");
         console.log("[PASS] State preserved after upgrade!");
@@ -125,21 +137,31 @@ contract UpgradeLBCTest is Test {
         // This test validates reading from EIP-1967 storage slots and upgrading
 
         // Get proxy admin address from storage slot
-        bytes32 adminSlot = bytes32(uint256(keccak256("eip1967.proxy.admin")) - 1);
-        address proxyAdminAddress = address(uint160(uint256(vm.load(address(proxy), adminSlot))));
+        bytes32 adminSlot = bytes32(
+            uint256(keccak256("eip1967.proxy.admin")) - 1
+        );
+        address proxyAdminAddress = address(
+            uint160(uint256(vm.load(address(proxy), adminSlot)))
+        );
 
         console.log("Proxy admin from storage slot:", proxyAdminAddress);
         assertTrue(proxyAdminAddress != address(0), "Admin should not be zero");
 
         // Get implementation address from storage slot
-        bytes32 implSlot = bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1);
-        address currentImpl = address(uint160(uint256(vm.load(address(proxy), implSlot))));
+        bytes32 implSlot = bytes32(
+            uint256(keccak256("eip1967.proxy.implementation")) - 1
+        );
+        address currentImpl = address(
+            uint160(uint256(vm.load(address(proxy), implSlot)))
+        );
 
         console.log("Current implementation:", currentImpl);
         assertEq(currentImpl, address(lbcV1), "Should point to V1 initially");
 
         // Get the actual admin and perform upgrade
-        LiquidityBridgeContractAdmin actualAdmin = LiquidityBridgeContractAdmin(proxyAdminAddress);
+        LiquidityBridgeContractAdmin actualAdmin = LiquidityBridgeContractAdmin(
+            proxyAdminAddress
+        );
         address adminOwner = actualAdmin.owner();
 
         // Deploy and upgrade to V2
@@ -152,9 +174,15 @@ contract UpgradeLBCTest is Test {
         );
 
         // Verify implementation changed
-        address newImpl = address(uint160(uint256(vm.load(address(proxy), implSlot))));
+        address newImpl = address(
+            uint160(uint256(vm.load(address(proxy), implSlot)))
+        );
         console.log("New implementation:", newImpl);
-        assertEq(newImpl, address(lbcV2Impl), "Should point to V2 after upgrade");
+        assertEq(
+            newImpl,
+            address(lbcV2Impl),
+            "Should point to V2 after upgrade"
+        );
 
         console.log("\n[PASS] Upgrade pattern validated!");
         console.log("[PASS] EIP-1967 storage slots work correctly!");
@@ -164,9 +192,15 @@ contract UpgradeLBCTest is Test {
         console.log("\n=== TEST V2 FUNCTIONS AFTER UPGRADE ===\n");
 
         // Get the actual admin from storage
-        bytes32 adminSlot = bytes32(uint256(keccak256("eip1967.proxy.admin")) - 1);
-        address proxyAdminAddress = address(uint160(uint256(vm.load(address(proxy), adminSlot))));
-        LiquidityBridgeContractAdmin actualAdmin = LiquidityBridgeContractAdmin(proxyAdminAddress);
+        bytes32 adminSlot = bytes32(
+            uint256(keccak256("eip1967.proxy.admin")) - 1
+        );
+        address proxyAdminAddress = address(
+            uint160(uint256(vm.load(address(proxy), adminSlot)))
+        );
+        LiquidityBridgeContractAdmin actualAdmin = LiquidityBridgeContractAdmin(
+            proxyAdminAddress
+        );
         address adminOwner = actualAdmin.owner();
 
         // Deploy and upgrade to V2
@@ -182,7 +216,9 @@ contract UpgradeLBCTest is Test {
 
         // Get V2 interface through proxy
         console.log("\n2. Testing V2 functions...");
-        LiquidityBridgeContractV2 lbcV2 = LiquidityBridgeContractV2(payable(address(proxy)));
+        LiquidityBridgeContractV2 lbcV2 = LiquidityBridgeContractV2(
+            payable(address(proxy))
+        );
 
         string memory version = lbcV2.version();
         console.log("   version():", version);

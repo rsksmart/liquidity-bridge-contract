@@ -36,7 +36,10 @@ contract UpgradeLBC is Script {
         address wrapperAddress = cfg.existingAdmin;
 
         require(proxyAddress != address(0), "Proxy address must be provided");
-        require(wrapperAddress != address(0), "Admin wrapper address must be provided");
+        require(
+            wrapperAddress != address(0),
+            "Admin wrapper address must be provided"
+        );
 
         vm.startBroadcast(deployerKey);
 
@@ -58,9 +61,16 @@ contract UpgradeLBC is Script {
         }
 
         // Get the actual ProxyAdmin address from the proxy
-        address proxyAdminAddress = address(uint160(uint256(
-            vm.load(proxyAddress, bytes32(uint256(keccak256("eip1967.proxy.admin")) - 1))
-        )));
+        address proxyAdminAddress = address(
+            uint160(
+                uint256(
+                    vm.load(
+                        proxyAddress,
+                        bytes32(uint256(keccak256("eip1967.proxy.admin")) - 1)
+                    )
+                )
+            )
+        );
         console.log("ProxyAdmin address:", proxyAdminAddress);
 
         // Get the ProxyAdmin contract instance

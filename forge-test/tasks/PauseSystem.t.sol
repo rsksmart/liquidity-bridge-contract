@@ -38,7 +38,10 @@ contract PauseSystemTest is Test {
         vm.setEnv("FLYOVER_DISCOVERY_ADDRESS", vm.toString(address(discovery)));
         vm.setEnv("PEGIN_CONTRACT_ADDRESS", vm.toString(address(pegIn)));
         vm.setEnv("PEGOUT_CONTRACT_ADDRESS", vm.toString(address(pegOut)));
-        vm.setEnv("COLLATERAL_MANAGEMENT_ADDRESS", vm.toString(address(collateral)));
+        vm.setEnv(
+            "COLLATERAL_MANAGEMENT_ADDRESS",
+            vm.toString(address(collateral))
+        );
     }
 
     function test_CheckStatus() public view {
@@ -54,10 +57,10 @@ contract PauseSystemTest is Test {
         console.log("\n=== TEST PAUSE ALL CONTRACTS ===\n");
 
         // Verify all contracts are active initially
-        (bool d1,,) = discovery.pauseStatus();
-        (bool p1,,) = pegIn.pauseStatus();
-        (bool p2,,) = pegOut.pauseStatus();
-        (bool c1,,) = collateral.pauseStatus();
+        (bool d1, , ) = discovery.pauseStatus();
+        (bool p1, , ) = pegIn.pauseStatus();
+        (bool p2, , ) = pegOut.pauseStatus();
+        (bool c1, , ) = collateral.pauseStatus();
 
         assertFalse(d1, "Discovery should not be paused initially");
         assertFalse(p1, "PegIn should not be paused initially");
@@ -77,10 +80,10 @@ contract PauseSystemTest is Test {
         string memory p2Reason;
         string memory cReason;
 
-        (d1, dReason,) = discovery.pauseStatus();
-        (p1, pReason,) = pegIn.pauseStatus();
-        (p2, p2Reason,) = pegOut.pauseStatus();
-        (c1, cReason,) = collateral.pauseStatus();
+        (d1, dReason, ) = discovery.pauseStatus();
+        (p1, pReason, ) = pegIn.pauseStatus();
+        (p2, p2Reason, ) = pegOut.pauseStatus();
+        (c1, cReason, ) = collateral.pauseStatus();
 
         assertTrue(d1, "Discovery should be paused");
         assertTrue(p1, "PegIn should be paused");
@@ -105,10 +108,10 @@ contract PauseSystemTest is Test {
         pauseScript.pauseAll(pauseReason);
 
         // Verify all are paused
-        (bool d1,,) = discovery.pauseStatus();
-        (bool p1,,) = pegIn.pauseStatus();
-        (bool p2,,) = pegOut.pauseStatus();
-        (bool c1,,) = collateral.pauseStatus();
+        (bool d1, , ) = discovery.pauseStatus();
+        (bool p1, , ) = pegIn.pauseStatus();
+        (bool p2, , ) = pegOut.pauseStatus();
+        (bool c1, , ) = collateral.pauseStatus();
 
         assertTrue(d1 && p1 && p2 && c1, "All should be paused");
         console.log("Setup complete: All contracts PAUSED");
@@ -123,10 +126,10 @@ contract PauseSystemTest is Test {
         string memory p2Reason;
         string memory cReason;
 
-        (d1, dReason,) = discovery.pauseStatus();
-        (p1, pReason,) = pegIn.pauseStatus();
-        (p2, p2Reason,) = pegOut.pauseStatus();
-        (c1, cReason,) = collateral.pauseStatus();
+        (d1, dReason, ) = discovery.pauseStatus();
+        (p1, pReason, ) = pegIn.pauseStatus();
+        (p2, p2Reason, ) = pegOut.pauseStatus();
+        (c1, cReason, ) = collateral.pauseStatus();
 
         assertFalse(d1, "Discovery should be unpaused");
         assertFalse(p1, "PegIn should be unpaused");
@@ -193,7 +196,11 @@ contract MockPausableContract {
         _pausedSince = 0;
     }
 
-    function pauseStatus() external view returns (bool isPaused, string memory reason, uint64 since) {
+    function pauseStatus()
+        external
+        view
+        returns (bool isPaused, string memory reason, uint64 since)
+    {
         return (_isPaused, _pauseReason, _pausedSince);
     }
 }

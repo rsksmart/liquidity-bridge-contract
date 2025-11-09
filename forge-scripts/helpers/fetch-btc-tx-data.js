@@ -8,23 +8,25 @@
  * Output: JSON with rawTx, pmt, and height
  */
 
-const mempoolJS = require('@mempool/mempool.js');
-const bitcoin = require('bitcoinjs-lib');
-const pmtBuilder = require('@rsksmart/pmt-builder');
+const mempoolJS = require("@mempool/mempool.js");
+const bitcoin = require("bitcoinjs-lib");
+const pmtBuilder = require("@rsksmart/pmt-builder");
 
 async function fetchTxData(txId, isMainnet) {
   try {
     const {
       bitcoin: { blocks, transactions },
     } = mempoolJS({
-      hostname: 'mempool.space',
-      network: isMainnet ? 'mainnet' : 'testnet',
+      hostname: "mempool.space",
+      network: isMainnet ? "mainnet" : "testnet",
     });
 
     // Fetch full raw transaction
-    const btcRawTxFull = await transactions.getTxHex({ txid: txId }).catch(() => {
-      throw new Error(`Transaction not found: ${txId}`);
-    });
+    const btcRawTxFull = await transactions
+      .getTxHex({ txid: txId })
+      .catch(() => {
+        throw new Error(`Transaction not found: ${txId}`);
+      });
 
     // Parse and remove witness data
     const tx = bitcoin.Transaction.fromHex(btcRawTxFull);
@@ -50,7 +52,7 @@ async function fetchTxData(txId, isMainnet) {
       pmt: pmt.hex,
       height: txStatus.block_height,
       blockHash: txStatus.block_hash,
-      confirmed: txStatus.confirmed
+      confirmed: txStatus.confirmed,
     };
 
     console.log(JSON.stringify(result));
@@ -65,12 +67,12 @@ if (require.main === module) {
   const args = process.argv.slice(2);
 
   if (args.length !== 2) {
-    console.error('Usage: node fetch-btc-tx-data.js <txid> <mainnet|testnet>');
+    console.error("Usage: node fetch-btc-tx-data.js <txid> <mainnet|testnet>");
     process.exit(1);
   }
 
   const [txId, network] = args;
-  const isMainnet = network.toLowerCase() === 'mainnet';
+  const isMainnet = network.toLowerCase() === "mainnet";
 
   fetchTxData(txId, isMainnet).catch((error) => {
     console.error(error.message);

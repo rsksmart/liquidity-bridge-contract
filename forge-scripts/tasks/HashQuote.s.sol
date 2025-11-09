@@ -7,8 +7,13 @@ import {QuotesV2} from "contracts/legacy/QuotesV2.sol";
 import {Quotes} from "contracts/libraries/Quotes.sol";
 
 interface ILiquidityBridgeContract {
-    function hashQuote(QuotesV2.PeginQuote memory quote) external view returns (bytes32);
-    function hashPegoutQuote(QuotesV2.PegOutQuote memory quote) external view returns (bytes32);
+    function hashQuote(
+        QuotesV2.PeginQuote memory quote
+    ) external view returns (bytes32);
+
+    function hashPegoutQuote(
+        QuotesV2.PegOutQuote memory quote
+    ) external view returns (bytes32);
 }
 
 /**
@@ -59,14 +64,17 @@ contract HashQuote is Script {
     // LBC contract address - should be loaded from deployment config
     address constant LBC_ADDRESS = address(0); // TODO: Load from addresses.json
 
-    string constant HELPER_SCRIPT = "forge-scripts/helpers/parse-btc-address.js";
+    string constant HELPER_SCRIPT =
+        "forge-scripts/helpers/parse-btc-address.js";
 
     /**
      * @notice Parse Bitcoin address using FFI helper script
      * @param btcAddress The Bitcoin address string to parse
      * @return The decoded address as bytes
      */
-    function parseBtcAddress(string memory btcAddress) internal returns (bytes memory) {
+    function parseBtcAddress(
+        string memory btcAddress
+    ) internal returns (bytes memory) {
         string[] memory inputs = new string[](3);
         inputs[0] = "node";
         inputs[1] = HELPER_SCRIPT;
@@ -81,7 +89,9 @@ contract HashQuote is Script {
      * @param btcAddress The Bitcoin address string to parse
      * @return The decoded address as bytes20 (without first byte)
      */
-    function parseFedBtcAddress(string memory btcAddress) internal returns (bytes20) {
+    function parseFedBtcAddress(
+        string memory btcAddress
+    ) internal returns (bytes20) {
         bytes memory decoded = parseBtcAddress(btcAddress);
         require(decoded.length >= 21, "Invalid fedBtcAddress length");
 
@@ -110,7 +120,11 @@ contract HashQuote is Script {
         try vm.readFile("addresses.json") returns (string memory json) {
             // Get network from environment or default to rskRegtest
             string memory network = vm.envOr("NETWORK", string("rskRegtest"));
-            string memory key = string.concat(".", network, ".LiquidityBridgeContract.address");
+            string memory key = string.concat(
+                ".",
+                network,
+                ".LiquidityBridgeContract.address"
+            );
 
             try vm.parseJsonAddress(json, key) returns (address addr) {
                 if (addr != address(0)) {
@@ -119,15 +133,23 @@ contract HashQuote is Script {
             } catch {}
 
             // Try proxy address as fallback
-            string memory proxyKey = string.concat(".", network, ".LiquidityBridgeContractProxy.address");
-            try vm.parseJsonAddress(json, proxyKey) returns (address proxyAddr) {
+            string memory proxyKey = string.concat(
+                ".",
+                network,
+                ".LiquidityBridgeContractProxy.address"
+            );
+            try vm.parseJsonAddress(json, proxyKey) returns (
+                address proxyAddr
+            ) {
                 if (proxyAddr != address(0)) {
                     return proxyAddr;
                 }
             } catch {}
         } catch {}
 
-        revert("Failed to find LBC address. Set LBC_ADDRESS env var or ensure addresses.json is configured.");
+        revert(
+            "Failed to find LBC address. Set LBC_ADDRESS env var or ensure addresses.json is configured."
+        );
     }
 
     /**
@@ -147,12 +169,20 @@ contract HashQuote is Script {
 
         // Parse RSK/EVM addresses (convert to lowercase and checksum)
         quote.lbcAddress = vm.parseJsonAddress(json, ".lbcAddr");
-        quote.liquidityProviderRskAddress = vm.parseJsonAddress(json, ".lpRSKAddr");
+        quote.liquidityProviderRskAddress = vm.parseJsonAddress(
+            json,
+            ".lpRSKAddr"
+        );
 
-        string memory btcRefundAddr = vm.parseJsonString(json, ".btcRefundAddr");
+        string memory btcRefundAddr = vm.parseJsonString(
+            json,
+            ".btcRefundAddr"
+        );
         quote.btcRefundAddress = parseBtcAddress(btcRefundAddr);
 
-        quote.rskRefundAddress = payable(vm.parseJsonAddress(json, ".rskRefundAddr"));
+        quote.rskRefundAddress = payable(
+            vm.parseJsonAddress(json, ".rskRefundAddr")
+        );
 
         string memory lpBTCAddr = vm.parseJsonString(json, ".lpBTCAddr");
         quote.liquidityProviderBtcAddress = parseBtcAddress(lpBTCAddr);
@@ -177,10 +207,16 @@ contract HashQuote is Script {
 
         quote.value = vm.parseJsonUint(json, ".value");
 
-        quote.agreementTimestamp = uint32(vm.parseJsonUint(json, ".agreementTimestamp"));
-        quote.timeForDeposit = uint32(vm.parseJsonUint(json, ".timeForDeposit"));
+        quote.agreementTimestamp = uint32(
+            vm.parseJsonUint(json, ".agreementTimestamp")
+        );
+        quote.timeForDeposit = uint32(
+            vm.parseJsonUint(json, ".timeForDeposit")
+        );
         quote.callTime = uint32(vm.parseJsonUint(json, ".lpCallTime"));
-        quote.depositConfirmations = uint16(vm.parseJsonUint(json, ".confirmations"));
+        quote.depositConfirmations = uint16(
+            vm.parseJsonUint(json, ".confirmations")
+        );
         quote.callOnRegister = vm.parseJsonBool(json, ".callOnRegister");
 
         quote.gasFee = vm.parseJsonUint(json, ".gasFee");
@@ -210,9 +246,15 @@ contract HashQuote is Script {
 
         // Parse addresses
         quote.lbcAddress = vm.parseJsonAddress(json, ".lbcAddress");
-        quote.lpRskAddress = vm.parseJsonAddress(json, ".liquidityProviderRskAddress");
+        quote.lpRskAddress = vm.parseJsonAddress(
+            json,
+            ".liquidityProviderRskAddress"
+        );
 
-        string memory btcRefundAddr = vm.parseJsonString(json, ".btcRefundAddress");
+        string memory btcRefundAddr = vm.parseJsonString(
+            json,
+            ".btcRefundAddress"
+        );
         quote.btcRefundAddress = parseBtcAddress(btcRefundAddr);
 
         quote.rskRefundAddress = vm.parseJsonAddress(json, ".rskRefundAddress");
@@ -236,11 +278,19 @@ contract HashQuote is Script {
         quote.deposityAddress = parseBtcAddress(depositAddr);
 
         quote.value = vm.parseJsonUint(json, ".value");
-        quote.agreementTimestamp = uint32(vm.parseJsonUint(json, ".agreementTimestamp"));
-        quote.depositDateLimit = uint32(vm.parseJsonUint(json, ".depositDateLimit"));
+        quote.agreementTimestamp = uint32(
+            vm.parseJsonUint(json, ".agreementTimestamp")
+        );
+        quote.depositDateLimit = uint32(
+            vm.parseJsonUint(json, ".depositDateLimit")
+        );
         quote.transferTime = uint32(vm.parseJsonUint(json, ".transferTime"));
-        quote.depositConfirmations = uint16(vm.parseJsonUint(json, ".depositConfirmations"));
-        quote.transferConfirmations = uint16(vm.parseJsonUint(json, ".transferConfirmations"));
+        quote.depositConfirmations = uint16(
+            vm.parseJsonUint(json, ".depositConfirmations")
+        );
+        quote.transferConfirmations = uint16(
+            vm.parseJsonUint(json, ".transferConfirmations")
+        );
         quote.productFeeAmount = vm.parseJsonUint(json, ".productFeeAmount");
         quote.gasFee = vm.parseJsonUint(json, ".gasFee");
         quote.expireBlock = uint32(vm.parseJsonUint(json, ".expireBlocks"));

@@ -8,7 +8,7 @@
  * Output: Hex string (without 0x prefix)
  */
 
-const bitcoin = require('bitcoinjs-lib');
+const bitcoin = require("bitcoinjs-lib");
 
 function parseBtcAddress(address) {
   try {
@@ -22,7 +22,7 @@ function parseBtcAddress(address) {
       // Return the full decoded buffer (includes version byte)
       const versionByte = Buffer.from([decoded.version]);
       const fullAddress = Buffer.concat([versionByte, decoded.hash]);
-      return fullAddress.toString('hex');
+      return fullAddress.toString("hex");
     } catch (e1) {
       // Not a base58 address, try bech32
       try {
@@ -30,9 +30,11 @@ function parseBtcAddress(address) {
         // For bech32, return version + data
         const versionByte = Buffer.from([decoded.version]);
         const fullAddress = Buffer.concat([versionByte, decoded.data]);
-        return fullAddress.toString('hex');
+        return fullAddress.toString("hex");
       } catch (e2) {
-        throw new Error(`Invalid Bitcoin address: ${address}. Not valid base58 or bech32 format.`);
+        throw new Error(
+          `Invalid Bitcoin address: ${address}. Not valid base58 or bech32 format.`
+        );
       }
     }
   } catch (error) {
@@ -46,7 +48,7 @@ if (require.main === module) {
   const args = process.argv.slice(2);
 
   if (args.length !== 1) {
-    console.error('Usage: node parse-btc-address.js <address>');
+    console.error("Usage: node parse-btc-address.js <address>");
     process.exit(1);
   }
 

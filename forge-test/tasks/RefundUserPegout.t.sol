@@ -32,7 +32,12 @@ contract RefundUserPegoutTest is Test {
 
         // Register LP for pegout
         vm.prank(liquidityProvider, liquidityProvider); // Set both msg.sender and tx.origin
-        lbc.register{value: 0.1 ether}("Test LP", "https://test.com", true, "pegout");
+        lbc.register{value: 0.1 ether}(
+            "Test LP",
+            "https://test.com",
+            true,
+            "pegout"
+        );
 
         // Instantiate the refund script
         refundScript = new RefundUserPegout();
@@ -67,7 +72,10 @@ contract RefundUserPegoutTest is Test {
 
         // Deposit the quote
         console.log("\n3. Depositing pegout...");
-        uint256 totalValue = quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+        uint256 totalValue = quote.value +
+            quote.callFee +
+            quote.productFeeAmount +
+            quote.gasFee;
         console.log("   Total value:", totalValue);
 
         vm.prank(user, user); // Set both msg.sender and tx.origin
@@ -105,7 +113,10 @@ contract RefundUserPegoutTest is Test {
 
         uint256 userBalanceAfter = user.balance;
         console.log("   User balance after:", userBalanceAfter);
-        console.log("   Refunded amount:", userBalanceAfter - userBalanceBefore);
+        console.log(
+            "   Refunded amount:",
+            userBalanceAfter - userBalanceBefore
+        );
         console.log("   [SUCCESS] Refund script executed successfully!");
 
         console.log("\n=== SIMULATION COMPLETED SUCCESSFULLY ===\n");
@@ -117,39 +128,51 @@ contract RefundUserPegoutTest is Test {
         console.log("  - Amount refunded:", totalValue, "wei");
 
         // Assertions
-        assertEq(userBalanceAfter, userBalanceBefore + totalValue, "User should receive full refund");
+        assertEq(
+            userBalanceAfter,
+            userBalanceBefore + totalValue,
+            "User should receive full refund"
+        );
         console.log("\n[PASS] All assertions passed!");
         console.log("[PASS] RefundUserPegout.s.sol script works correctly!");
     }
 
-    function createTestQuote() internal view returns (QuotesV2.PegOutQuote memory) {
-        bytes memory testBtcAddress = hex"76a914000000000000000000000000000000000000000088ac";
+    function createTestQuote()
+        internal
+        view
+        returns (QuotesV2.PegOutQuote memory)
+    {
+        bytes
+            memory testBtcAddress = hex"76a914000000000000000000000000000000000000000088ac";
 
-        return QuotesV2.PegOutQuote({
-            lbcAddress: address(lbc),
-            lpRskAddress: liquidityProvider,
-            btcRefundAddress: testBtcAddress,
-            rskRefundAddress: user,
-            lpBtcAddress: testBtcAddress,
-            callFee: 100000000000000,
-            penaltyFee: 10000000000000,
-            nonce: int64(uint64(block.timestamp)),
-            deposityAddress: testBtcAddress,
-            value: 0.5 ether,
-            agreementTimestamp: uint32(block.timestamp),
-            depositDateLimit: uint32(block.timestamp + 600),
-            transferTime: 3600,
-            depositConfirmations: 10,
-            transferConfirmations: 2,
-            productFeeAmount: 0,
-            gasFee: 100,
-            expireBlock: uint32(block.number + 10),
-            expireDate: uint32(block.timestamp + 1000)
-        });
+        return
+            QuotesV2.PegOutQuote({
+                lbcAddress: address(lbc),
+                lpRskAddress: liquidityProvider,
+                btcRefundAddress: testBtcAddress,
+                rskRefundAddress: user,
+                lpBtcAddress: testBtcAddress,
+                callFee: 100000000000000,
+                penaltyFee: 10000000000000,
+                nonce: int64(uint64(block.timestamp)),
+                deposityAddress: testBtcAddress,
+                value: 0.5 ether,
+                agreementTimestamp: uint32(block.timestamp),
+                depositDateLimit: uint32(block.timestamp + 600),
+                transferTime: 3600,
+                depositConfirmations: 10,
+                transferConfirmations: 2,
+                productFeeAmount: 0,
+                gasFee: 100,
+                expireBlock: uint32(block.number + 10),
+                expireDate: uint32(block.timestamp + 1000)
+            });
     }
 
     function signQuote(bytes32 quoteHash) internal view returns (bytes memory) {
-        bytes32 messageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", quoteHash));
+        bytes32 messageHash = keccak256(
+            abi.encodePacked("\x19Ethereum Signed Message:\n32", quoteHash)
+        );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(lpPrivateKey, messageHash);
         return abi.encodePacked(r, s, v);
     }

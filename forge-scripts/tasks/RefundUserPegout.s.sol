@@ -7,7 +7,10 @@ import {QuotesV2} from "contracts/legacy/QuotesV2.sol";
 
 interface ILiquidityBridgeContract {
     function refundUserPegOut(bytes32 quoteHash) external;
-    function hashPegoutQuote(QuotesV2.PegOutQuote memory quote) external view returns (bytes32);
+
+    function hashPegoutQuote(
+        QuotesV2.PegOutQuote memory quote
+    ) external view returns (bytes32);
 }
 
 /**
@@ -72,14 +75,17 @@ interface ILiquidityBridgeContract {
  *     --ledger
  */
 contract RefundUserPegout is Script {
-    string constant HELPER_SCRIPT = "forge-scripts/helpers/parse-btc-address.js";
+    string constant HELPER_SCRIPT =
+        "forge-scripts/helpers/parse-btc-address.js";
 
     /**
      * @notice Parse Bitcoin address using FFI helper script
      * @param btcAddress The Bitcoin address string to parse
      * @return The decoded address as bytes
      */
-    function parseBtcAddress(string memory btcAddress) internal returns (bytes memory) {
+    function parseBtcAddress(
+        string memory btcAddress
+    ) internal returns (bytes memory) {
         string[] memory inputs = new string[](3);
         inputs[0] = "node";
         inputs[1] = HELPER_SCRIPT;
@@ -105,7 +111,11 @@ contract RefundUserPegout is Script {
         try vm.readFile("addresses.json") returns (string memory json) {
             // Get network from environment or default to rskRegtest
             string memory network = vm.envOr("NETWORK", string("rskRegtest"));
-            string memory key = string.concat(".", network, ".LiquidityBridgeContract.address");
+            string memory key = string.concat(
+                ".",
+                network,
+                ".LiquidityBridgeContract.address"
+            );
 
             try vm.parseJsonAddress(json, key) returns (address addr) {
                 if (addr != address(0)) {
@@ -114,15 +124,23 @@ contract RefundUserPegout is Script {
             } catch {}
 
             // Try proxy address as fallback
-            string memory proxyKey = string.concat(".", network, ".LiquidityBridgeContractProxy.address");
-            try vm.parseJsonAddress(json, proxyKey) returns (address proxyAddr) {
+            string memory proxyKey = string.concat(
+                ".",
+                network,
+                ".LiquidityBridgeContractProxy.address"
+            );
+            try vm.parseJsonAddress(json, proxyKey) returns (
+                address proxyAddr
+            ) {
                 if (proxyAddr != address(0)) {
                     return proxyAddr;
                 }
             } catch {}
         } catch {}
 
-        revert("Failed to find LBC address. Set LBC_ADDRESS env var or ensure addresses.json is configured.");
+        revert(
+            "Failed to find LBC address. Set LBC_ADDRESS env var or ensure addresses.json is configured."
+        );
     }
 
     /**
@@ -130,18 +148,27 @@ contract RefundUserPegout is Script {
      * @param quoteHashStr The quote hash as a string
      * @return The quote hash as bytes32
      */
-    function parseQuoteHash(string memory quoteHashStr) internal pure returns (bytes32) {
+    function parseQuoteHash(
+        string memory quoteHashStr
+    ) internal pure returns (bytes32) {
         bytes memory hashBytes = bytes(quoteHashStr);
 
         // Check if string starts with "0x" and remove it
         uint startIndex = 0;
-        if (hashBytes.length >= 2 && hashBytes[0] == '0' && (hashBytes[1] == 'x' || hashBytes[1] == 'X')) {
+        if (
+            hashBytes.length >= 2 &&
+            hashBytes[0] == "0" &&
+            (hashBytes[1] == "x" || hashBytes[1] == "X")
+        ) {
             startIndex = 2;
         }
 
         // Calculate expected length (64 hex chars = 32 bytes)
         uint hexLength = hashBytes.length - startIndex;
-        require(hexLength == 64, "Invalid quote hash length. Expected 64 hex characters (32 bytes).");
+        require(
+            hexLength == 64,
+            "Invalid quote hash length. Expected 64 hex characters (32 bytes)."
+        );
 
         // Convert hex string to bytes32
         bytes32 result;
@@ -217,7 +244,9 @@ contract RefundUserPegout is Script {
             console.log("\nAborting transaction.");
             revert(reason);
         } catch (bytes memory lowLevelError) {
-            console.log("\n[ERROR] Transaction simulation failed with low-level error");
+            console.log(
+                "\n[ERROR] Transaction simulation failed with low-level error"
+            );
             console.logBytes(lowLevelError);
             revert("Transaction simulation failed");
         }
@@ -262,9 +291,15 @@ contract RefundUserPegout is Script {
 
         // Parse addresses
         quote.lbcAddress = vm.parseJsonAddress(json, ".lbcAddress");
-        quote.lpRskAddress = vm.parseJsonAddress(json, ".liquidityProviderRskAddress");
+        quote.lpRskAddress = vm.parseJsonAddress(
+            json,
+            ".liquidityProviderRskAddress"
+        );
 
-        string memory btcRefundAddr = vm.parseJsonString(json, ".btcRefundAddress");
+        string memory btcRefundAddr = vm.parseJsonString(
+            json,
+            ".btcRefundAddress"
+        );
         quote.btcRefundAddress = parseBtcAddress(btcRefundAddr);
 
         quote.rskRefundAddress = vm.parseJsonAddress(json, ".rskRefundAddress");
@@ -288,11 +323,19 @@ contract RefundUserPegout is Script {
         quote.deposityAddress = parseBtcAddress(depositAddr);
 
         quote.value = vm.parseJsonUint(json, ".value");
-        quote.agreementTimestamp = uint32(vm.parseJsonUint(json, ".agreementTimestamp"));
-        quote.depositDateLimit = uint32(vm.parseJsonUint(json, ".depositDateLimit"));
+        quote.agreementTimestamp = uint32(
+            vm.parseJsonUint(json, ".agreementTimestamp")
+        );
+        quote.depositDateLimit = uint32(
+            vm.parseJsonUint(json, ".depositDateLimit")
+        );
         quote.transferTime = uint32(vm.parseJsonUint(json, ".transferTime"));
-        quote.depositConfirmations = uint16(vm.parseJsonUint(json, ".depositConfirmations"));
-        quote.transferConfirmations = uint16(vm.parseJsonUint(json, ".transferConfirmations"));
+        quote.depositConfirmations = uint16(
+            vm.parseJsonUint(json, ".depositConfirmations")
+        );
+        quote.transferConfirmations = uint16(
+            vm.parseJsonUint(json, ".transferConfirmations")
+        );
         quote.productFeeAmount = vm.parseJsonUint(json, ".productFeeAmount");
         quote.gasFee = vm.parseJsonUint(json, ".gasFee");
         quote.expireBlock = uint32(vm.parseJsonUint(json, ".expireBlocks"));
@@ -339,7 +382,9 @@ contract RefundUserPegout is Script {
             console.log("\nAborting transaction.");
             revert(reason);
         } catch (bytes memory lowLevelError) {
-            console.log("\n[ERROR] Transaction simulation failed with low-level error");
+            console.log(
+                "\n[ERROR] Transaction simulation failed with low-level error"
+            );
             console.logBytes(lowLevelError);
             revert("Transaction simulation failed");
         }

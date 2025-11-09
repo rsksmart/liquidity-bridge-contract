@@ -40,12 +40,27 @@ contract DeployLBCTest is Test {
         console.log("  Mainnet:", cfg.mainnet);
 
         // Validations
-        assertTrue(cfg.bridge != address(0), "Bridge address should not be zero");
-        assertTrue(cfg.minimumCollateral > 0, "Min collateral should be greater than zero");
-        assertTrue(cfg.minimumPegIn > 0, "Min PegIn should be greater than zero");
+        assertTrue(
+            cfg.bridge != address(0),
+            "Bridge address should not be zero"
+        );
+        assertTrue(
+            cfg.minimumCollateral > 0,
+            "Min collateral should be greater than zero"
+        );
+        assertTrue(
+            cfg.minimumPegIn > 0,
+            "Min PegIn should be greater than zero"
+        );
         assertTrue(cfg.rewardPercentage <= 100, "Reward % should be <= 100");
-        assertTrue(cfg.dustThreshold > 0, "Dust threshold should be greater than zero");
-        assertTrue(cfg.btcBlockTime > 0, "BTC block time should be greater than zero");
+        assertTrue(
+            cfg.dustThreshold > 0,
+            "Dust threshold should be greater than zero"
+        );
+        assertTrue(
+            cfg.btcBlockTime > 0,
+            "BTC block time should be greater than zero"
+        );
 
         console.log("\n[PASS] HelperConfig returns valid configuration!");
     }
@@ -89,14 +104,22 @@ contract DeployLBCTest is Test {
         console.log("   Proxy deployed at:", address(proxy));
 
         console.log("\n5. Verifying deployment...");
-        LiquidityBridgeContract lbc = LiquidityBridgeContract(payable(address(proxy)));
+        LiquidityBridgeContract lbc = LiquidityBridgeContract(
+            payable(address(proxy))
+        );
 
         address bridgeAddress = lbc.getBridgeAddress();
         console.log("   Bridge address from contract:", bridgeAddress);
-        assertEq(bridgeAddress, cfg.bridge, "Bridge address should match config");
+        assertEq(
+            bridgeAddress,
+            cfg.bridge,
+            "Bridge address should match config"
+        );
 
         console.log("\n[PASS] Deployment flow executed successfully!");
-        console.log("[PASS] All components deployed and initialized correctly!");
+        console.log(
+            "[PASS] All components deployed and initialized correctly!"
+        );
     }
 
     function test_ConfigurationMatchesDeployment() public {
@@ -128,13 +151,17 @@ contract DeployLBCTest is Test {
             initData
         );
 
-        LiquidityBridgeContract lbc = LiquidityBridgeContract(payable(address(proxy)));
+        LiquidityBridgeContract lbc = LiquidityBridgeContract(
+            payable(address(proxy))
+        );
 
         // Verify all config values match
         console.log("Verifying configuration...");
         assertEq(lbc.getBridgeAddress(), cfg.bridge, "Bridge address mismatch");
 
-        console.log("\n[PASS] Deployed contract configuration matches HelperConfig!");
+        console.log(
+            "\n[PASS] Deployed contract configuration matches HelperConfig!"
+        );
         console.log("[PASS] DeployLBC pattern validated!");
     }
 }
