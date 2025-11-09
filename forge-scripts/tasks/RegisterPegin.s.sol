@@ -14,7 +14,9 @@ interface ILiquidityBridgeContract {
         uint256 height
     ) external returns (int256);
 
-    function hashQuote(QuotesV2.PeginQuote memory quote) external view returns (bytes32);
+    function hashQuote(
+        QuotesV2.PeginQuote memory quote
+    ) external view returns (bytes32);
 }
 
 /**
@@ -79,15 +81,19 @@ interface ILiquidityBridgeContract {
  *     --private-key $TESTNET_PRIVATE_KEY
  */
 contract RegisterPegin is Script {
-    string constant HELPER_SCRIPT_BTC_ADDRESS = "forge-scripts/helpers/parse-btc-address.js";
-    string constant HELPER_SCRIPT_FETCH_TX = "forge-scripts/helpers/fetch-btc-tx-data.js";
+    string constant HELPER_SCRIPT_BTC_ADDRESS =
+        "forge-scripts/helpers/parse-btc-address.js";
+    string constant HELPER_SCRIPT_FETCH_TX =
+        "forge-scripts/helpers/fetch-btc-tx-data.js";
 
     /**
      * @notice Parse Bitcoin address using FFI helper script
      * @param btcAddress The Bitcoin address string to parse
      * @return The decoded address as bytes
      */
-    function parseBtcAddress(string memory btcAddress) internal returns (bytes memory) {
+    function parseBtcAddress(
+        string memory btcAddress
+    ) internal returns (bytes memory) {
         string[] memory inputs = new string[](3);
         inputs[0] = "node";
         inputs[1] = HELPER_SCRIPT_BTC_ADDRESS;
@@ -102,7 +108,9 @@ contract RegisterPegin is Script {
      * @param btcAddress The Bitcoin address string to parse
      * @return The decoded address as bytes20 (without first byte)
      */
-    function parseFedBtcAddress(string memory btcAddress) internal returns (bytes20) {
+    function parseFedBtcAddress(
+        string memory btcAddress
+    ) internal returns (bytes20) {
         bytes memory decoded = parseBtcAddress(btcAddress);
         require(decoded.length >= 21, "Invalid fedBtcAddress length");
 
@@ -163,7 +171,11 @@ contract RegisterPegin is Script {
         try vm.readFile("addresses.json") returns (string memory json) {
             // Get network from environment or default to rskRegtest
             string memory network = vm.envOr("NETWORK", string("rskRegtest"));
-            string memory key = string.concat(".", network, ".LiquidityBridgeContract.address");
+            string memory key = string.concat(
+                ".",
+                network,
+                ".LiquidityBridgeContract.address"
+            );
 
             try vm.parseJsonAddress(json, key) returns (address addr) {
                 if (addr != address(0)) {
@@ -172,15 +184,23 @@ contract RegisterPegin is Script {
             } catch {}
 
             // Try proxy address as fallback
-            string memory proxyKey = string.concat(".", network, ".LiquidityBridgeContractProxy.address");
-            try vm.parseJsonAddress(json, proxyKey) returns (address proxyAddr) {
+            string memory proxyKey = string.concat(
+                ".",
+                network,
+                ".LiquidityBridgeContractProxy.address"
+            );
+            try vm.parseJsonAddress(json, proxyKey) returns (
+                address proxyAddr
+            ) {
                 if (proxyAddr != address(0)) {
                     return proxyAddr;
                 }
             } catch {}
         } catch {}
 
-        revert("Failed to find LBC address. Set LBC_ADDRESS env var or ensure addresses.json is configured.");
+        revert(
+            "Failed to find LBC address. Set LBC_ADDRESS env var or ensure addresses.json is configured."
+        );
     }
 
     /**
@@ -244,13 +264,18 @@ contract RegisterPegin is Script {
         string memory btcNetwork = getBtcNetwork();
         console.log("  BTC Network:", btcNetwork);
 
-        (bytes memory rawTx, bytes memory pmt, uint256 height) = fetchBtcTxData(txId, btcNetwork);
+        (bytes memory rawTx, bytes memory pmt, uint256 height) = fetchBtcTxData(
+            txId,
+            btcNetwork
+        );
 
         // Estimate gas
         console.log("\nEstimating gas...");
         uint256 gasStart = gasleft();
 
-        try lbc.registerPegIn(quote, signature, rawTx, pmt, height) returns (int256 result) {
+        try lbc.registerPegIn(quote, signature, rawTx, pmt, height) returns (
+            int256 result
+        ) {
             uint256 gasUsed = gasStart - gasleft();
             console.log("Gas estimation (approximate):", gasUsed);
             console.log("Expected result:", vm.toString(result));
@@ -260,7 +285,9 @@ contract RegisterPegin is Script {
             console.log("\nAborting transaction.");
             revert(reason);
         } catch (bytes memory lowLevelError) {
-            console.log("\n[ERROR] Transaction simulation failed with low-level error");
+            console.log(
+                "\n[ERROR] Transaction simulation failed with low-level error"
+            );
             console.logBytes(lowLevelError);
             revert("Transaction simulation failed");
         }
@@ -270,7 +297,9 @@ contract RegisterPegin is Script {
 
         vm.startBroadcast();
 
-        try lbc.registerPegIn(quote, signature, rawTx, pmt, height) returns (int256 result) {
+        try lbc.registerPegIn(quote, signature, rawTx, pmt, height) returns (
+            int256 result
+        ) {
             console.log("[SUCCESS] PegIn registered successfully!");
             console.log("\nResult code:", vm.toString(result));
             console.log("Quote hash:");
@@ -335,7 +364,9 @@ contract RegisterPegin is Script {
         // Execute registration (without broadcast for testing)
         console.log("\n--- Executing registration ---\n");
 
-        try lbc.registerPegIn(quote, signature, rawTx, pmt, height) returns (int256 result) {
+        try lbc.registerPegIn(quote, signature, rawTx, pmt, height) returns (
+            int256 result
+        ) {
             console.log("[SUCCESS] PegIn registered successfully!");
             console.log("Result code:", vm.toString(result));
             console.log("Quote hash:");
@@ -358,12 +389,18 @@ contract RegisterPegin is Script {
      * @param sigHex Signature hex string (with or without 0x prefix)
      * @return The signature as bytes
      */
-    function parseSignature(string memory sigHex) public pure returns (bytes memory) {
+    function parseSignature(
+        string memory sigHex
+    ) public pure returns (bytes memory) {
         bytes memory sigBytes = bytes(sigHex);
 
         // Remove 0x prefix if present
         uint startIndex = 0;
-        if (sigBytes.length >= 2 && sigBytes[0] == '0' && (sigBytes[1] == 'x' || sigBytes[1] == 'X')) {
+        if (
+            sigBytes.length >= 2 &&
+            sigBytes[0] == "0" &&
+            (sigBytes[1] == "x" || sigBytes[1] == "X")
+        ) {
             startIndex = 2;
         }
 
@@ -385,7 +422,9 @@ contract RegisterPegin is Script {
      * @param json The JSON string containing the quote
      * @return The parsed PegIn quote
      */
-    function parsePeginQuote(string memory json) public returns (QuotesV2.PeginQuote memory) {
+    function parsePeginQuote(
+        string memory json
+    ) public returns (QuotesV2.PeginQuote memory) {
         QuotesV2.PeginQuote memory quote;
 
         // Parse Bitcoin addresses using FFI
@@ -394,12 +433,20 @@ contract RegisterPegin is Script {
 
         // Parse RSK/EVM addresses
         quote.lbcAddress = vm.parseJsonAddress(json, ".lbcAddr");
-        quote.liquidityProviderRskAddress = vm.parseJsonAddress(json, ".lpRSKAddr");
+        quote.liquidityProviderRskAddress = vm.parseJsonAddress(
+            json,
+            ".lpRSKAddr"
+        );
 
-        string memory btcRefundAddr = vm.parseJsonString(json, ".btcRefundAddr");
+        string memory btcRefundAddr = vm.parseJsonString(
+            json,
+            ".btcRefundAddr"
+        );
         quote.btcRefundAddress = parseBtcAddress(btcRefundAddr);
 
-        quote.rskRefundAddress = payable(vm.parseJsonAddress(json, ".rskRefundAddr"));
+        quote.rskRefundAddress = payable(
+            vm.parseJsonAddress(json, ".rskRefundAddr")
+        );
 
         string memory lpBTCAddr = vm.parseJsonString(json, ".lpBTCAddr");
         quote.liquidityProviderBtcAddress = parseBtcAddress(lpBTCAddr);
@@ -423,10 +470,16 @@ contract RegisterPegin is Script {
 
         quote.value = vm.parseJsonUint(json, ".value");
 
-        quote.agreementTimestamp = uint32(vm.parseJsonUint(json, ".agreementTimestamp"));
-        quote.timeForDeposit = uint32(vm.parseJsonUint(json, ".timeForDeposit"));
+        quote.agreementTimestamp = uint32(
+            vm.parseJsonUint(json, ".agreementTimestamp")
+        );
+        quote.timeForDeposit = uint32(
+            vm.parseJsonUint(json, ".timeForDeposit")
+        );
         quote.callTime = uint32(vm.parseJsonUint(json, ".lpCallTime"));
-        quote.depositConfirmations = uint16(vm.parseJsonUint(json, ".confirmations"));
+        quote.depositConfirmations = uint16(
+            vm.parseJsonUint(json, ".confirmations")
+        );
         quote.callOnRegister = vm.parseJsonBool(json, ".callOnRegister");
 
         quote.gasFee = vm.parseJsonUint(json, ".gasFee");

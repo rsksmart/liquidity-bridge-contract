@@ -82,7 +82,9 @@ contract HashQuoteTest is Test {
         // The script uses the same contract method, so hashes should match
         // This test validates the script calls the contract correctly
 
-        console.log("\n[PASS] Script uses contract hashQuote method correctly!");
+        console.log(
+            "\n[PASS] Script uses contract hashQuote method correctly!"
+        );
     }
 
     function test_PegoutHashMatchesContract() public view {
@@ -99,69 +101,85 @@ contract HashQuoteTest is Test {
         // The script uses the same contract method, so hashes should match
         // This test validates the script calls the contract correctly
 
-        console.log("\n[PASS] Script uses contract hashPegoutQuote method correctly!");
+        console.log(
+            "\n[PASS] Script uses contract hashPegoutQuote method correctly!"
+        );
     }
 
-    function createTestPeginQuote() internal view returns (QuotesV2.PeginQuote memory) {
+    function createTestPeginQuote()
+        internal
+        view
+        returns (QuotesV2.PeginQuote memory)
+    {
         // Bitcoin address must be 21 or 33 bytes (version byte + 20/32 bytes)
-        bytes memory testBtcAddress = hex"6f0000000000000000000000000000000000000000";  // 21 bytes (p2pkh testnet)
-        bytes20 fedAddress = bytes20(hex"0000000000000000000000000000000000000000");
+        bytes
+            memory testBtcAddress = hex"6f0000000000000000000000000000000000000000"; // 21 bytes (p2pkh testnet)
+        bytes20 fedAddress = bytes20(
+            hex"0000000000000000000000000000000000000000"
+        );
 
         address lpAddr = address(0x1234567890123456789012345678901234567890);
         address userAddr = address(0x2234567890123456789012345678901234567891);
         address destAddr = address(0x3234567890123456789012345678901234567892);
 
-        return QuotesV2.PeginQuote({
-            fedBtcAddress: fedAddress,
-            lbcAddress: address(lbc),
-            liquidityProviderRskAddress: lpAddr,
-            btcRefundAddress: testBtcAddress,
-            rskRefundAddress: payable(userAddr),
-            liquidityProviderBtcAddress: testBtcAddress,
-            callFee: 100000000000000,
-            penaltyFee: 10000000000000,
-            contractAddress: destAddr,
-            data: hex"",
-            gasLimit: 21000,
-            nonce: 12345,
-            value: 0.5 ether,
-            agreementTimestamp: 1735243258,
-            timeForDeposit: 3600,
-            callTime: 7200,
-            depositConfirmations: 10,
-            callOnRegister: false,
-            productFeeAmount: 0,
-            gasFee: 100
-        });
+        return
+            QuotesV2.PeginQuote({
+                fedBtcAddress: fedAddress,
+                lbcAddress: address(lbc),
+                liquidityProviderRskAddress: lpAddr,
+                btcRefundAddress: testBtcAddress,
+                rskRefundAddress: payable(userAddr),
+                liquidityProviderBtcAddress: testBtcAddress,
+                callFee: 100000000000000,
+                penaltyFee: 10000000000000,
+                contractAddress: destAddr,
+                data: hex"",
+                gasLimit: 21000,
+                nonce: 12345,
+                value: 0.5 ether,
+                agreementTimestamp: 1735243258,
+                timeForDeposit: 3600,
+                callTime: 7200,
+                depositConfirmations: 10,
+                callOnRegister: false,
+                productFeeAmount: 0,
+                gasFee: 100
+            });
     }
 
-    function createTestPegoutQuote() internal view returns (QuotesV2.PegOutQuote memory) {
+    function createTestPegoutQuote()
+        internal
+        view
+        returns (QuotesV2.PegOutQuote memory)
+    {
         // Bitcoin address must be 21 or 33 bytes
-        bytes memory testBtcAddress = hex"0076a914000000000000000000000000000000000000000088ac";  // 21 bytes
+        bytes
+            memory testBtcAddress = hex"0076a914000000000000000000000000000000000000000088ac"; // 21 bytes
 
         address lpAddr = address(0x1234567890123456789012345678901234567890);
         address userAddr = address(0x2234567890123456789012345678901234567891);
 
-        return QuotesV2.PegOutQuote({
-            lbcAddress: address(lbc),
-            lpRskAddress: lpAddr,
-            btcRefundAddress: testBtcAddress,
-            rskRefundAddress: userAddr,
-            lpBtcAddress: testBtcAddress,
-            callFee: 100000000000000,
-            penaltyFee: 10000000000000,
-            nonce: 12345,
-            deposityAddress: testBtcAddress,
-            value: 0.5 ether,
-            agreementTimestamp: 1735243258,
-            depositDateLimit: 1735253058,
-            transferTime: 3600,
-            depositConfirmations: 10,
-            transferConfirmations: 2,
-            productFeeAmount: 0,
-            gasFee: 100,
-            expireBlock: 100,
-            expireDate: 1735339658
-        });
+        return
+            QuotesV2.PegOutQuote({
+                lbcAddress: address(lbc),
+                lpRskAddress: lpAddr,
+                btcRefundAddress: testBtcAddress,
+                rskRefundAddress: userAddr,
+                lpBtcAddress: testBtcAddress,
+                callFee: 100000000000000,
+                penaltyFee: 10000000000000,
+                nonce: 12345,
+                deposityAddress: testBtcAddress,
+                value: 0.5 ether,
+                agreementTimestamp: 1735243258,
+                depositDateLimit: 1735253058,
+                transferTime: 3600,
+                depositConfirmations: 10,
+                transferConfirmations: 2,
+                productFeeAmount: 0,
+                gasFee: 100,
+                expireBlock: 100,
+                expireDate: 1735339658
+            });
     }
 }

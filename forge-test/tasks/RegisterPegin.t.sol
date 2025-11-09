@@ -44,7 +44,12 @@ contract RegisterPeginTest is Test {
 
         // Register LP for pegin
         vm.prank(liquidityProvider, liquidityProvider);
-        lbc.register{value: 0.1 ether}("Test LP", "https://test.com", true, "pegin");
+        lbc.register{value: 0.1 ether}(
+            "Test LP",
+            "https://test.com",
+            true,
+            "pegin"
+        );
 
         // Instantiate the register script
         registerScript = new RegisterPegin();
@@ -73,7 +78,9 @@ contract RegisterPeginTest is Test {
         console.log("  4. Real Bitcoin transaction data");
         console.log("");
         console.log("  These are validated in:");
-        console.log("  - forge-test/pegin/RegisterPegIn.t.sol (full integration tests)");
+        console.log(
+            "  - forge-test/pegin/RegisterPegIn.t.sol (full integration tests)"
+        );
         console.log("  - test/pegin/register-pegin.test.ts (TypeScript tests)");
 
         console.log("\n[PASS] RegisterPegin.s.sol script structure validated!");
@@ -92,7 +99,9 @@ contract RegisterPeginTest is Test {
         console.log("Parsing quote from:", existingFile);
 
         // Parse using script
-        QuotesV2.PeginQuote memory parsedQuote = registerScript.parsePeginQuote(json);
+        QuotesV2.PeginQuote memory parsedQuote = registerScript.parsePeginQuote(
+            json
+        );
 
         // Verify key fields are parsed
         console.log("Parsed quote:");
@@ -103,45 +112,64 @@ contract RegisterPeginTest is Test {
         console.log("  Gas Limit:", parsedQuote.gasLimit);
 
         // Basic validations
-        assertTrue(parsedQuote.lbcAddress != address(0), "lbcAddress should not be zero");
-        assertTrue(parsedQuote.liquidityProviderRskAddress != address(0), "lpRskAddress should not be zero");
+        assertTrue(
+            parsedQuote.lbcAddress != address(0),
+            "lbcAddress should not be zero"
+        );
+        assertTrue(
+            parsedQuote.liquidityProviderRskAddress != address(0),
+            "lpRskAddress should not be zero"
+        );
         assertTrue(parsedQuote.value > 0, "value should be greater than zero");
-        assertTrue(parsedQuote.callFee > 0, "callFee should be greater than zero");
+        assertTrue(
+            parsedQuote.callFee > 0,
+            "callFee should be greater than zero"
+        );
 
         console.log("\n[PASS] Quote parsing works correctly!");
     }
 
-    function createTestQuote() internal view returns (QuotesV2.PeginQuote memory) {
+    function createTestQuote()
+        internal
+        view
+        returns (QuotesV2.PeginQuote memory)
+    {
         // Bitcoin address must be 21 or 33 bytes (version byte + 20/32 bytes)
-        bytes memory testBtcAddress = hex"6f0000000000000000000000000000000000000000";  // 21 bytes
-        bytes20 fedAddress = bytes20(hex"0000000000000000000000000000000000000000");
+        bytes
+            memory testBtcAddress = hex"6f0000000000000000000000000000000000000000"; // 21 bytes
+        bytes20 fedAddress = bytes20(
+            hex"0000000000000000000000000000000000000000"
+        );
 
-        return QuotesV2.PeginQuote({
-            fedBtcAddress: fedAddress,
-            lbcAddress: address(lbc),
-            liquidityProviderRskAddress: liquidityProvider,
-            btcRefundAddress: testBtcAddress,
-            rskRefundAddress: payable(user),
-            liquidityProviderBtcAddress: testBtcAddress,
-            callFee: 100000000000000,
-            penaltyFee: 10000000000000,
-            contractAddress: user,
-            data: hex"",
-            gasLimit: 21000,
-            nonce: int64(uint64(block.timestamp)),
-            value: 0.5 ether,
-            agreementTimestamp: uint32(block.timestamp),
-            timeForDeposit: 3600,
-            callTime: 7200,
-            depositConfirmations: 10,
-            callOnRegister: false,
-            productFeeAmount: 0,
-            gasFee: 100
-        });
+        return
+            QuotesV2.PeginQuote({
+                fedBtcAddress: fedAddress,
+                lbcAddress: address(lbc),
+                liquidityProviderRskAddress: liquidityProvider,
+                btcRefundAddress: testBtcAddress,
+                rskRefundAddress: payable(user),
+                liquidityProviderBtcAddress: testBtcAddress,
+                callFee: 100000000000000,
+                penaltyFee: 10000000000000,
+                contractAddress: user,
+                data: hex"",
+                gasLimit: 21000,
+                nonce: int64(uint64(block.timestamp)),
+                value: 0.5 ether,
+                agreementTimestamp: uint32(block.timestamp),
+                timeForDeposit: 3600,
+                callTime: 7200,
+                depositConfirmations: 10,
+                callOnRegister: false,
+                productFeeAmount: 0,
+                gasFee: 100
+            });
     }
 
     function signQuote(bytes32 quoteHash) internal view returns (bytes memory) {
-        bytes32 messageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", quoteHash));
+        bytes32 messageHash = keccak256(
+            abi.encodePacked("\x19Ethereum Signed Message:\n32", quoteHash)
+        );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(lpPrivateKey, messageHash);
         return abi.encodePacked(r, s, v);
     }
@@ -158,7 +186,9 @@ contract RegisterPeginTest is Test {
         return string(result);
     }
 
-    function toHexString(bytes memory data) internal pure returns (string memory) {
+    function toHexString(
+        bytes memory data
+    ) internal pure returns (string memory) {
         bytes memory hexChars = "0123456789abcdef";
         bytes memory result = new bytes(data.length * 2);
 
@@ -170,41 +200,82 @@ contract RegisterPeginTest is Test {
         return string(result);
     }
 
-    function createQuoteJson(QuotesV2.PeginQuote memory quote) internal pure returns (string memory) {
+    function createQuoteJson(
+        QuotesV2.PeginQuote memory quote
+    ) internal pure returns (string memory) {
         // Create JSON in parts to avoid stack too deep
-        string memory part1 = string(abi.encodePacked(
-            '{',
-            '"fedBTCAddr":"2N9uY615Mxk6KSSjv6F3FnvSPgZMer7FF39",',
-            '"lbcAddr":"', vm.toString(quote.lbcAddress), '",',
-            '"lpRSKAddr":"', vm.toString(quote.liquidityProviderRskAddress), '",',
-            '"btcRefundAddr":"mfWxJ45yp2SFn7UciZyNpvDKrzbhyfKrY8",',
-            '"rskRefundAddr":"', vm.toString(quote.rskRefundAddress), '",'
-        ));
+        string memory part1 = string(
+            abi.encodePacked(
+                "{",
+                '"fedBTCAddr":"2N9uY615Mxk6KSSjv6F3FnvSPgZMer7FF39",',
+                '"lbcAddr":"',
+                vm.toString(quote.lbcAddress),
+                '",',
+                '"lpRSKAddr":"',
+                vm.toString(quote.liquidityProviderRskAddress),
+                '",',
+                '"btcRefundAddr":"mfWxJ45yp2SFn7UciZyNpvDKrzbhyfKrY8",',
+                '"rskRefundAddr":"',
+                vm.toString(quote.rskRefundAddress),
+                '",'
+            )
+        );
 
-        string memory part2 = string(abi.encodePacked(
-            '"lpBTCAddr":"mwEceC31MwWmF6hc5SSQ8FmbgdsSoBSnbm",',
-            '"callFee":', vm.toString(quote.callFee), ',',
-            '"penaltyFee":', vm.toString(quote.penaltyFee), ',',
-            '"contractAddr":"', vm.toString(quote.contractAddress), '",',
-            '"data":"0x",'
-        ));
+        string memory part2 = string(
+            abi.encodePacked(
+                '"lpBTCAddr":"mwEceC31MwWmF6hc5SSQ8FmbgdsSoBSnbm",',
+                '"callFee":',
+                vm.toString(quote.callFee),
+                ",",
+                '"penaltyFee":',
+                vm.toString(quote.penaltyFee),
+                ",",
+                '"contractAddr":"',
+                vm.toString(quote.contractAddress),
+                '",',
+                '"data":"0x",'
+            )
+        );
 
-        string memory part3 = string(abi.encodePacked(
-            '"gasLimit":', vm.toString(quote.gasLimit), ',',
-            '"nonce":"', vm.toString(uint64(quote.nonce)), '",',
-            '"value":"', vm.toString(quote.value), '",',
-            '"agreementTimestamp":', vm.toString(quote.agreementTimestamp), ','
-        ));
+        string memory part3 = string(
+            abi.encodePacked(
+                '"gasLimit":',
+                vm.toString(quote.gasLimit),
+                ",",
+                '"nonce":"',
+                vm.toString(uint64(quote.nonce)),
+                '",',
+                '"value":"',
+                vm.toString(quote.value),
+                '",',
+                '"agreementTimestamp":',
+                vm.toString(quote.agreementTimestamp),
+                ","
+            )
+        );
 
-        string memory part4 = string(abi.encodePacked(
-            '"timeForDeposit":', vm.toString(quote.timeForDeposit), ',',
-            '"lpCallTime":', vm.toString(quote.callTime), ',',
-            '"confirmations":', vm.toString(quote.depositConfirmations), ',',
-            '"callOnRegister":', quote.callOnRegister ? 'true' : 'false', ',',
-            '"gasFee":', vm.toString(quote.gasFee), ',',
-            '"productFeeAmount":', vm.toString(quote.productFeeAmount),
-            '}'
-        ));
+        string memory part4 = string(
+            abi.encodePacked(
+                '"timeForDeposit":',
+                vm.toString(quote.timeForDeposit),
+                ",",
+                '"lpCallTime":',
+                vm.toString(quote.callTime),
+                ",",
+                '"confirmations":',
+                vm.toString(quote.depositConfirmations),
+                ",",
+                '"callOnRegister":',
+                quote.callOnRegister ? "true" : "false",
+                ",",
+                '"gasFee":',
+                vm.toString(quote.gasFee),
+                ",",
+                '"productFeeAmount":',
+                vm.toString(quote.productFeeAmount),
+                "}"
+            )
+        );
 
         return string(abi.encodePacked(part1, part2, part3, part4));
     }
@@ -241,7 +312,9 @@ contract RegisterPeginTest is Test {
         console.log("\n[INFO] To test registerPegin with real data:");
         console.log("  1. Get a confirmed Bitcoin testnet transaction");
         console.log("  2. Get the LP signature for the quote");
-        console.log("  3. Run: make register-pegin PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=...");
+        console.log(
+            "  3. Run: make register-pegin PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=..."
+        );
         console.log("\n[INFO] The script will automatically fetch:");
         console.log("  - Raw transaction (with witness data removed)");
         console.log("  - Partial Merkle Tree proof");

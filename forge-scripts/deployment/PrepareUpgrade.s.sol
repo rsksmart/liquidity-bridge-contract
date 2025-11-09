@@ -25,7 +25,9 @@ contract PrepareUpgrade is Script {
 
         vm.startBroadcast(deployerKey);
 
-        console.log("=== Deploying LiquidityBridgeContractV2 implementation ===");
+        console.log(
+            "=== Deploying LiquidityBridgeContractV2 implementation ==="
+        );
 
         // Deploy new V2 implementation (libraries are linked via command line)
         LiquidityBridgeContractV2 newImplementation = new LiquidityBridgeContractV2();
@@ -33,7 +35,9 @@ contract PrepareUpgrade is Script {
         console.log("IMPLEMENTATION ADDRESS:", address(newImplementation));
         console.log("");
         console.log("Next step:");
-        console.log("Run the upgrade script: make upgrade-lbc NETWORK=<network>");
+        console.log(
+            "Run the upgrade script: make upgrade-lbc NETWORK=<network>"
+        );
 
         vm.stopBroadcast();
     }

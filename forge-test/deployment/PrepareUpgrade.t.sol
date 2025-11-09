@@ -31,14 +31,24 @@ contract PrepareUpgradeTest is Test {
 
         // Verify deployment
         console.log("\n2. Verifying deployment...");
-        assertTrue(address(implementation) != address(0), "Implementation should be deployed");
-        assertTrue(address(implementation).code.length > 0, "Implementation should have code");
+        assertTrue(
+            address(implementation) != address(0),
+            "Implementation should be deployed"
+        );
+        assertTrue(
+            address(implementation).code.length > 0,
+            "Implementation should have code"
+        );
 
         // Verify V2-specific function exists
         console.log("\n3. Verifying V2 functionality...");
         string memory version = implementation.version();
         console.log("   Version:", version);
-        assertEq(bytes(version).length > 0, true, "Version should not be empty");
+        assertEq(
+            bytes(version).length > 0,
+            true,
+            "Version should not be empty"
+        );
 
         console.log("\n[PASS] V2 implementation deployed successfully!");
         console.log("[PASS] V2 implementation is valid!");
@@ -73,13 +83,30 @@ contract PrepareUpgradeTest is Test {
         console.log("  Implementation 3:", address(impl3));
 
         // Verify all are different addresses
-        assertTrue(address(impl1) != address(impl2), "Implementations should be different");
-        assertTrue(address(impl2) != address(impl3), "Implementations should be different");
-        assertTrue(address(impl1) != address(impl3), "Implementations should be different");
+        assertTrue(
+            address(impl1) != address(impl2),
+            "Implementations should be different"
+        );
+        assertTrue(
+            address(impl2) != address(impl3),
+            "Implementations should be different"
+        );
+        assertTrue(
+            address(impl1) != address(impl3),
+            "Implementations should be different"
+        );
 
         // Verify all have the same version
-        assertEq(impl1.version(), impl2.version(), "All should have same version");
-        assertEq(impl2.version(), impl3.version(), "All should have same version");
+        assertEq(
+            impl1.version(),
+            impl2.version(),
+            "All should have same version"
+        );
+        assertEq(
+            impl2.version(),
+            impl3.version(),
+            "All should have same version"
+        );
 
         console.log("\n[PASS] Multiple V2 implementations can be deployed!");
         console.log("[PASS] All have consistent version!");
