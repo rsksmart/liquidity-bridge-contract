@@ -314,20 +314,29 @@ hash-quote:
 	@echo "Hashing $(FINAL_TYPE) quote on $(FINAL_NETWORK)..."
 	@echo "File: $(FINAL_FILE)"
 	@echo "RPC URL: $(call get_network_config,$(FINAL_NETWORK))"
-	@bash forge-scripts/tasks/hash-quote.sh \
-		--type $(FINAL_TYPE) \
-		--file $(FINAL_FILE) \
-		--network $(FINAL_NETWORK) \
-		--rpc-url $(call get_network_config,$(FINAL_NETWORK))
+	@export NETWORK=$(call get_rsk_network_name,$(FINAL_NETWORK)); \
+	if [ "$(FINAL_TYPE)" = "pegin" ]; then \
+		forge script forge-scripts/tasks/HashQuote.s.sol:HashQuote \
+			--sig "hashPeginQuote(string)" "$(FINAL_FILE)" \
+			--rpc-url $(call get_network_config,$(FINAL_NETWORK)) \
+			--ffi -vv; \
+	else \
+		forge script forge-scripts/tasks/HashQuote.s.sol:HashQuote \
+			--sig "hashPegoutQuote(string)" "$(FINAL_FILE)" \
+			--rpc-url $(call get_network_config,$(FINAL_NETWORK)) \
+			--ffi -vv; \
+	fi
 
 # Check pause status of all system contracts
 .PHONY: pause-status
 pause-status:
 	@echo "Checking pause status on $(NETWORK)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
-	@bash forge-scripts/tasks/pause-system.sh \
-		--action status \
-		--network $(call get_rsk_network_name,$(NETWORK))
+	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	forge script forge-scripts/tasks/PauseSystem.s.sol:PauseSystem \
+		--sig "checkStatus()" \
+		--rpc-url $(call get_network_config,$(NETWORK)) \
+		-vv
 
 # Pause all system contracts (simulation)
 .PHONY: pause-system
@@ -335,10 +344,11 @@ pause-system:
 	@echo "Pausing system contracts on $(NETWORK) (SIMULATION)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Reason: $(PAUSE_REASON)"
-	@bash forge-scripts/tasks/pause-system.sh \
-		--action pause \
-		--reason "$(PAUSE_REASON)" \
-		--network $(call get_rsk_network_name,$(NETWORK))
+	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	forge script forge-scripts/tasks/PauseSystem.s.sol:PauseSystem \
+		--sig "pauseAll(string)" "$(PAUSE_REASON)" \
+		--rpc-url $(call get_network_config,$(NETWORK)) \
+		-vv
 
 # Pause all system contracts (actual broadcast)
 .PHONY: pause-system-broadcast
@@ -346,21 +356,18 @@ pause-system-broadcast:
 	@echo "Pausing system contracts on $(NETWORK) (ACTUAL BROADCAST)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Reason: $(PAUSE_REASON)"
-	@if [ "$(USE_LEDGER)" = "true" ]; then \
+	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	if [ "$(USE_LEDGER)" = "true" ]; then \
 		echo "Using Ledger hardware wallet..."; \
-		bash forge-scripts/tasks/pause-system.sh \
-			--action pause \
-			--reason "$(PAUSE_REASON)" \
-			--network $(call get_rsk_network_name,$(NETWORK)) \
-			--broadcast \
-			--ledger; \
+		forge script forge-scripts/tasks/PauseSystem.s.sol:PauseSystem \
+			--sig "pauseAll(string)" "$(PAUSE_REASON)" \
+			--rpc-url $(call get_network_config,$(NETWORK)) \
+			--broadcast --ledger -vv; \
 	else \
-		bash forge-scripts/tasks/pause-system.sh \
-			--action pause \
-			--reason "$(PAUSE_REASON)" \
-			--network $(call get_rsk_network_name,$(NETWORK)) \
-			--broadcast \
-			--private-key $(call get_network_key,$(NETWORK)); \
+		forge script forge-scripts/tasks/PauseSystem.s.sol:PauseSystem \
+			--sig "pauseAll(string)" "$(PAUSE_REASON)" \
+			--rpc-url $(call get_network_config,$(NETWORK)) \
+			--broadcast --private-key $(call get_network_key,$(NETWORK)) -vv; \
 	fi
 
 # Unpause all system contracts (simulation)
@@ -368,28 +375,29 @@ pause-system-broadcast:
 unpause-system:
 	@echo "Unpausing system contracts on $(NETWORK) (SIMULATION)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
-	@bash forge-scripts/tasks/pause-system.sh \
-		--action unpause \
-		--network $(call get_rsk_network_name,$(NETWORK))
+	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	forge script forge-scripts/tasks/PauseSystem.s.sol:PauseSystem \
+		--sig "unpauseAll()" \
+		--rpc-url $(call get_network_config,$(NETWORK)) \
+		-vv
 
 # Unpause all system contracts (actual broadcast)
 .PHONY: unpause-system-broadcast
 unpause-system-broadcast:
 	@echo "Unpausing system contracts on $(NETWORK) (ACTUAL BROADCAST)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
-	@if [ "$(USE_LEDGER)" = "true" ]; then \
+	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	if [ "$(USE_LEDGER)" = "true" ]; then \
 		echo "Using Ledger hardware wallet..."; \
-		bash forge-scripts/tasks/pause-system.sh \
-			--action unpause \
-			--network $(call get_rsk_network_name,$(NETWORK)) \
-			--broadcast \
-			--ledger; \
+		forge script forge-scripts/tasks/PauseSystem.s.sol:PauseSystem \
+			--sig "unpauseAll()" \
+			--rpc-url $(call get_network_config,$(NETWORK)) \
+			--broadcast --ledger -vv; \
 	else \
-		bash forge-scripts/tasks/pause-system.sh \
-			--action unpause \
-			--network $(call get_rsk_network_name,$(NETWORK)) \
-			--broadcast \
-			--private-key $(call get_network_key,$(NETWORK)); \
+		forge script forge-scripts/tasks/PauseSystem.s.sol:PauseSystem \
+			--sig "unpauseAll()" \
+			--rpc-url $(call get_network_config,$(NETWORK)) \
+			--broadcast --private-key $(call get_network_key,$(NETWORK)) -vv; \
 	fi
 
 # Refund user PegOut (simulation)
@@ -407,16 +415,19 @@ refund-user-pegout:
 	fi
 	@echo "Refunding user PegOut on $(NETWORK) (SIMULATION)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
-	@if [ -n "$(QUOTE_FILE)" ]; then \
+	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	if [ -n "$(QUOTE_FILE)" ]; then \
 		echo "Quote File: $(QUOTE_FILE)"; \
-		bash forge-scripts/tasks/refund-user-pegout.sh \
-			--file $(QUOTE_FILE) \
-			--network $(call get_rsk_network_name,$(NETWORK)); \
+		forge script forge-scripts/tasks/RefundUserPegout.s.sol:RefundUserPegout \
+			--sig "refundUserPegoutFromFile(string)" "$(QUOTE_FILE)" \
+			--rpc-url $(call get_network_config,$(NETWORK)) \
+			--ffi -vv; \
 	else \
 		echo "Quote Hash: $(QUOTE_HASH)"; \
-		bash forge-scripts/tasks/refund-user-pegout.sh \
-			--quote-hash $(QUOTE_HASH) \
-			--network $(call get_rsk_network_name,$(NETWORK)); \
+		forge script forge-scripts/tasks/RefundUserPegout.s.sol:RefundUserPegout \
+			--sig "refundUserPegout(string)" "$(QUOTE_HASH)" \
+			--rpc-url $(call get_network_config,$(NETWORK)) \
+			-vv; \
 	fi
 
 # Refund user PegOut (actual broadcast)
@@ -434,37 +445,34 @@ refund-user-pegout-broadcast:
 	fi
 	@echo "Refunding user PegOut on $(NETWORK) (ACTUAL BROADCAST)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
-	@if [ -n "$(QUOTE_FILE)" ]; then \
+	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	if [ -n "$(QUOTE_FILE)" ]; then \
 		echo "Quote File: $(QUOTE_FILE)"; \
 		if [ "$(USE_LEDGER)" = "true" ]; then \
 			echo "Using Ledger hardware wallet..."; \
-			bash forge-scripts/tasks/refund-user-pegout.sh \
-				--file $(QUOTE_FILE) \
-				--network $(call get_rsk_network_name,$(NETWORK)) \
-				--broadcast \
-				--ledger; \
+			forge script forge-scripts/tasks/RefundUserPegout.s.sol:RefundUserPegout \
+				--sig "refundUserPegoutFromFile(string)" "$(QUOTE_FILE)" \
+				--rpc-url $(call get_network_config,$(NETWORK)) \
+				--broadcast --ledger --ffi -vv; \
 		else \
-			bash forge-scripts/tasks/refund-user-pegout.sh \
-				--file $(QUOTE_FILE) \
-				--network $(call get_rsk_network_name,$(NETWORK)) \
-				--broadcast \
-				--private-key $(call get_network_key,$(NETWORK)); \
+			forge script forge-scripts/tasks/RefundUserPegout.s.sol:RefundUserPegout \
+				--sig "refundUserPegoutFromFile(string)" "$(QUOTE_FILE)" \
+				--rpc-url $(call get_network_config,$(NETWORK)) \
+				--broadcast --private-key $(call get_network_key,$(NETWORK)) --ffi -vv; \
 		fi; \
 	else \
 		echo "Quote Hash: $(QUOTE_HASH)"; \
 		if [ "$(USE_LEDGER)" = "true" ]; then \
 			echo "Using Ledger hardware wallet..."; \
-			bash forge-scripts/tasks/refund-user-pegout.sh \
-				--quote-hash $(QUOTE_HASH) \
-				--network $(call get_rsk_network_name,$(NETWORK)) \
-				--broadcast \
-				--ledger; \
+			forge script forge-scripts/tasks/RefundUserPegout.s.sol:RefundUserPegout \
+				--sig "refundUserPegout(string)" "$(QUOTE_HASH)" \
+				--rpc-url $(call get_network_config,$(NETWORK)) \
+				--broadcast --ledger -vv; \
 		else \
-			bash forge-scripts/tasks/refund-user-pegout.sh \
-				--quote-hash $(QUOTE_HASH) \
-				--network $(call get_rsk_network_name,$(NETWORK)) \
-				--broadcast \
-				--private-key $(call get_network_key,$(NETWORK)); \
+			forge script forge-scripts/tasks/RefundUserPegout.s.sol:RefundUserPegout \
+				--sig "refundUserPegout(string)" "$(QUOTE_HASH)" \
+				--rpc-url $(call get_network_config,$(NETWORK)) \
+				--broadcast --private-key $(call get_network_key,$(NETWORK)) -vv; \
 		fi; \
 	fi
 
@@ -490,11 +498,12 @@ register-pegin:
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Quote File: $(PEGIN_QUOTE_FILE)"
 	@echo "TX ID: $(PEGIN_TXID)"
-	@bash forge-scripts/tasks/register-pegin.sh \
-		--file $(PEGIN_QUOTE_FILE) \
-		--signature $(PEGIN_SIGNATURE) \
-		--txid $(PEGIN_TXID) \
-		--network $(call get_rsk_network_name,$(NETWORK))
+	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	export BTC_NETWORK=$(if $(filter mainnet,$(NETWORK)),mainnet,testnet); \
+	forge script forge-scripts/tasks/RegisterPegin.s.sol:RegisterPegin \
+		--sig "registerPegin(string,string,string)" "$(PEGIN_QUOTE_FILE)" "$(PEGIN_SIGNATURE)" "$(PEGIN_TXID)" \
+		--rpc-url $(call get_network_config,$(NETWORK)) \
+		--ffi -vv
 
 # Register PegIn (actual broadcast)
 .PHONY: register-pegin-broadcast
@@ -518,23 +527,19 @@ register-pegin-broadcast:
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Quote File: $(PEGIN_QUOTE_FILE)"
 	@echo "TX ID: $(PEGIN_TXID)"
-	@if [ "$(USE_LEDGER)" = "true" ]; then \
+	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	export BTC_NETWORK=$(if $(filter mainnet,$(NETWORK)),mainnet,testnet); \
+	if [ "$(USE_LEDGER)" = "true" ]; then \
 		echo "Using Ledger hardware wallet..."; \
-		bash forge-scripts/tasks/register-pegin.sh \
-			--file $(PEGIN_QUOTE_FILE) \
-			--signature $(PEGIN_SIGNATURE) \
-			--txid $(PEGIN_TXID) \
-			--network $(call get_rsk_network_name,$(NETWORK)) \
-			--broadcast \
-			--ledger; \
+		forge script forge-scripts/tasks/RegisterPegin.s.sol:RegisterPegin \
+			--sig "registerPegin(string,string,string)" "$(PEGIN_QUOTE_FILE)" "$(PEGIN_SIGNATURE)" "$(PEGIN_TXID)" \
+			--rpc-url $(call get_network_config,$(NETWORK)) \
+			--broadcast --ledger --ffi -vv; \
 	else \
-		bash forge-scripts/tasks/register-pegin.sh \
-			--file $(PEGIN_QUOTE_FILE) \
-			--signature $(PEGIN_SIGNATURE) \
-			--txid $(PEGIN_TXID) \
-			--network $(call get_rsk_network_name,$(NETWORK)) \
-			--broadcast \
-			--private-key $(call get_network_key,$(NETWORK)); \
+		forge script forge-scripts/tasks/RegisterPegin.s.sol:RegisterPegin \
+			--sig "registerPegin(string,string,string)" "$(PEGIN_QUOTE_FILE)" "$(PEGIN_SIGNATURE)" "$(PEGIN_TXID)" \
+			--rpc-url $(call get_network_config,$(NETWORK)) \
+			--broadcast --private-key $(call get_network_key,$(NETWORK)) --ffi -vv; \
 	fi
 
 # Build contracts
