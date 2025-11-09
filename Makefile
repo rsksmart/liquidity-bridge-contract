@@ -22,6 +22,11 @@ USE_LEDGER ?= false
 QUOTE_HASH ?=
 QUOTE_FILE ?=
 
+# Register-pegin defaults
+PEGIN_QUOTE_FILE ?=
+PEGIN_SIGNATURE ?=
+PEGIN_TXID ?=
+
 # Environment file
 ENV_FILE ?= .env
 
@@ -126,6 +131,8 @@ help:
 	@echo "  unpause-system-broadcast - Unpause all system contracts (actual)"
 	@echo "  refund-user-pegout - Refund user for expired PegOut (simulation)"
 	@echo "  refund-user-pegout-broadcast - Refund user for expired PegOut (actual)"
+	@echo "  register-pegin    - Register a PegIn Bitcoin transaction (simulation)"
+	@echo "  register-pegin-broadcast - Register a PegIn Bitcoin transaction (actual)"
 	@echo "  clean             - Clean build artifacts"
 	@echo "  build             - Build contracts"
 	@echo "  test              - Run tests"
@@ -147,6 +154,8 @@ help:
 	@echo "  make refund-user-pegout NETWORK=testnet QUOTE_HASH=abc123...  # Refund user (simulation)"
 	@echo "  make refund-user-pegout NETWORK=testnet QUOTE_FILE=tasks/quote.json # Refund from file (simulation)"
 	@echo "  make refund-user-pegout-broadcast NETWORK=testnet QUOTE_HASH=abc123... # Refund user (actual)"
+	@echo "  make register-pegin NETWORK=testnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc... # Register PegIn (simulation)"
+	@echo "  make register-pegin-broadcast NETWORK=testnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc... # Register PegIn (actual)"
 
 # Deploy LiquidityBridgeContract (simulation)
 .PHONY: deploy-lbc
@@ -457,6 +466,75 @@ refund-user-pegout-broadcast:
 				--broadcast \
 				--private-key $(call get_network_key,$(NETWORK)); \
 		fi; \
+	fi
+
+# Register PegIn (simulation)
+.PHONY: register-pegin
+register-pegin:
+	@if [ -z "$(PEGIN_QUOTE_FILE)" ]; then \
+		echo "Error: PEGIN_QUOTE_FILE is required"; \
+		echo "Usage: make register-pegin NETWORK=testnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc..."; \
+		exit 1; \
+	fi
+	@if [ -z "$(PEGIN_SIGNATURE)" ]; then \
+		echo "Error: PEGIN_SIGNATURE is required"; \
+		echo "Usage: make register-pegin NETWORK=testnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc..."; \
+		exit 1; \
+	fi
+	@if [ -z "$(PEGIN_TXID)" ]; then \
+		echo "Error: PEGIN_TXID is required"; \
+		echo "Usage: make register-pegin NETWORK=testnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc..."; \
+		exit 1; \
+	fi
+	@echo "Registering PegIn on $(NETWORK) (SIMULATION)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@echo "Quote File: $(PEGIN_QUOTE_FILE)"
+	@echo "TX ID: $(PEGIN_TXID)"
+	@bash forge-scripts/tasks/register-pegin.sh \
+		--file $(PEGIN_QUOTE_FILE) \
+		--signature $(PEGIN_SIGNATURE) \
+		--txid $(PEGIN_TXID) \
+		--network $(call get_rsk_network_name,$(NETWORK))
+
+# Register PegIn (actual broadcast)
+.PHONY: register-pegin-broadcast
+register-pegin-broadcast:
+	@if [ -z "$(PEGIN_QUOTE_FILE)" ]; then \
+		echo "Error: PEGIN_QUOTE_FILE is required"; \
+		echo "Usage: make register-pegin-broadcast NETWORK=testnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc..."; \
+		exit 1; \
+	fi
+	@if [ -z "$(PEGIN_SIGNATURE)" ]; then \
+		echo "Error: PEGIN_SIGNATURE is required"; \
+		echo "Usage: make register-pegin-broadcast NETWORK=testnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc..."; \
+		exit 1; \
+	fi
+	@if [ -z "$(PEGIN_TXID)" ]; then \
+		echo "Error: PEGIN_TXID is required"; \
+		echo "Usage: make register-pegin-broadcast NETWORK=testnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc..."; \
+		exit 1; \
+	fi
+	@echo "Registering PegIn on $(NETWORK) (ACTUAL BROADCAST)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@echo "Quote File: $(PEGIN_QUOTE_FILE)"
+	@echo "TX ID: $(PEGIN_TXID)"
+	@if [ "$(USE_LEDGER)" = "true" ]; then \
+		echo "Using Ledger hardware wallet..."; \
+		bash forge-scripts/tasks/register-pegin.sh \
+			--file $(PEGIN_QUOTE_FILE) \
+			--signature $(PEGIN_SIGNATURE) \
+			--txid $(PEGIN_TXID) \
+			--network $(call get_rsk_network_name,$(NETWORK)) \
+			--broadcast \
+			--ledger; \
+	else \
+		bash forge-scripts/tasks/register-pegin.sh \
+			--file $(PEGIN_QUOTE_FILE) \
+			--signature $(PEGIN_SIGNATURE) \
+			--txid $(PEGIN_TXID) \
+			--network $(call get_rsk_network_name,$(NETWORK)) \
+			--broadcast \
+			--private-key $(call get_network_key,$(NETWORK)); \
 	fi
 
 # Build contracts
