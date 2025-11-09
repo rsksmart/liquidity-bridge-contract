@@ -18,6 +18,10 @@ QUOTE_FILE ?= tasks/hash-quote.example.json
 PAUSE_REASON ?= Emergency maintenance
 USE_LEDGER ?= false
 
+# Refund-user-pegout defaults
+QUOTE_HASH ?=
+QUOTE_FILE ?=
+
 # Environment file
 ENV_FILE ?= .env
 
@@ -120,6 +124,8 @@ help:
 	@echo "  pause-system-broadcast - Pause all system contracts (actual)"
 	@echo "  unpause-system    - Unpause all system contracts (simulation)"
 	@echo "  unpause-system-broadcast - Unpause all system contracts (actual)"
+	@echo "  refund-user-pegout - Refund user for expired PegOut (simulation)"
+	@echo "  refund-user-pegout-broadcast - Refund user for expired PegOut (actual)"
 	@echo "  clean             - Clean build artifacts"
 	@echo "  build             - Build contracts"
 	@echo "  test              - Run tests"
@@ -138,6 +144,9 @@ help:
 	@echo "  make pause-system NETWORK=testnet PAUSE_REASON=\"Security incident\" # Pause (simulation)"
 	@echo "  make pause-system-broadcast NETWORK=mainnet USE_LEDGER=true PAUSE_REASON=\"Emergency\" # Pause mainnet with Ledger"
 	@echo "  make unpause-system-broadcast NETWORK=testnet      # Unpause testnet"
+	@echo "  make refund-user-pegout NETWORK=testnet QUOTE_HASH=abc123...  # Refund user (simulation)"
+	@echo "  make refund-user-pegout NETWORK=testnet QUOTE_FILE=tasks/quote.json # Refund from file (simulation)"
+	@echo "  make refund-user-pegout-broadcast NETWORK=testnet QUOTE_HASH=abc123... # Refund user (actual)"
 
 # Deploy LiquidityBridgeContract (simulation)
 .PHONY: deploy-lbc
@@ -372,6 +381,82 @@ unpause-system-broadcast:
 			--network $(call get_rsk_network_name,$(NETWORK)) \
 			--broadcast \
 			--private-key $(call get_network_key,$(NETWORK)); \
+	fi
+
+# Refund user PegOut (simulation)
+.PHONY: refund-user-pegout
+refund-user-pegout:
+	@if [ -z "$(QUOTE_HASH)" ] && [ -z "$(QUOTE_FILE)" ]; then \
+		echo "Error: Either QUOTE_HASH or QUOTE_FILE is required"; \
+		echo "Usage: make refund-user-pegout NETWORK=testnet QUOTE_HASH=abc123..."; \
+		echo "   or: make refund-user-pegout NETWORK=testnet QUOTE_FILE=tasks/quote.json"; \
+		exit 1; \
+	fi
+	@if [ -n "$(QUOTE_HASH)" ] && [ -n "$(QUOTE_FILE)" ]; then \
+		echo "Error: Cannot specify both QUOTE_HASH and QUOTE_FILE"; \
+		exit 1; \
+	fi
+	@echo "Refunding user PegOut on $(NETWORK) (SIMULATION)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@if [ -n "$(QUOTE_FILE)" ]; then \
+		echo "Quote File: $(QUOTE_FILE)"; \
+		bash forge-scripts/tasks/refund-user-pegout.sh \
+			--file $(QUOTE_FILE) \
+			--network $(call get_rsk_network_name,$(NETWORK)); \
+	else \
+		echo "Quote Hash: $(QUOTE_HASH)"; \
+		bash forge-scripts/tasks/refund-user-pegout.sh \
+			--quote-hash $(QUOTE_HASH) \
+			--network $(call get_rsk_network_name,$(NETWORK)); \
+	fi
+
+# Refund user PegOut (actual broadcast)
+.PHONY: refund-user-pegout-broadcast
+refund-user-pegout-broadcast:
+	@if [ -z "$(QUOTE_HASH)" ] && [ -z "$(QUOTE_FILE)" ]; then \
+		echo "Error: Either QUOTE_HASH or QUOTE_FILE is required"; \
+		echo "Usage: make refund-user-pegout-broadcast NETWORK=testnet QUOTE_HASH=abc123..."; \
+		echo "   or: make refund-user-pegout-broadcast NETWORK=testnet QUOTE_FILE=tasks/quote.json"; \
+		exit 1; \
+	fi
+	@if [ -n "$(QUOTE_HASH)" ] && [ -n "$(QUOTE_FILE)" ]; then \
+		echo "Error: Cannot specify both QUOTE_HASH and QUOTE_FILE"; \
+		exit 1; \
+	fi
+	@echo "Refunding user PegOut on $(NETWORK) (ACTUAL BROADCAST)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@if [ -n "$(QUOTE_FILE)" ]; then \
+		echo "Quote File: $(QUOTE_FILE)"; \
+		if [ "$(USE_LEDGER)" = "true" ]; then \
+			echo "Using Ledger hardware wallet..."; \
+			bash forge-scripts/tasks/refund-user-pegout.sh \
+				--file $(QUOTE_FILE) \
+				--network $(call get_rsk_network_name,$(NETWORK)) \
+				--broadcast \
+				--ledger; \
+		else \
+			bash forge-scripts/tasks/refund-user-pegout.sh \
+				--file $(QUOTE_FILE) \
+				--network $(call get_rsk_network_name,$(NETWORK)) \
+				--broadcast \
+				--private-key $(call get_network_key,$(NETWORK)); \
+		fi; \
+	else \
+		echo "Quote Hash: $(QUOTE_HASH)"; \
+		if [ "$(USE_LEDGER)" = "true" ]; then \
+			echo "Using Ledger hardware wallet..."; \
+			bash forge-scripts/tasks/refund-user-pegout.sh \
+				--quote-hash $(QUOTE_HASH) \
+				--network $(call get_rsk_network_name,$(NETWORK)) \
+				--broadcast \
+				--ledger; \
+		else \
+			bash forge-scripts/tasks/refund-user-pegout.sh \
+				--quote-hash $(QUOTE_HASH) \
+				--network $(call get_rsk_network_name,$(NETWORK)) \
+				--broadcast \
+				--private-key $(call get_network_key,$(NETWORK)); \
+		fi; \
 	fi
 
 # Build contracts
