@@ -76,7 +76,7 @@ interface ILiquidityBridgeContract {
  */
 contract RefundUserPegout is Script {
     string constant HELPER_SCRIPT =
-        "forge-scripts/helpers/parse-btc-address.js";
+        "forge-scripts/helpers/parse-btc-address.ts";
 
     /**
      * @notice Parse Bitcoin address using FFI helper script
@@ -86,10 +86,11 @@ contract RefundUserPegout is Script {
     function parseBtcAddress(
         string memory btcAddress
     ) internal returns (bytes memory) {
-        string[] memory inputs = new string[](3);
-        inputs[0] = "node";
-        inputs[1] = HELPER_SCRIPT;
-        inputs[2] = btcAddress;
+        string[] memory inputs = new string[](4);
+        inputs[0] = "npx";
+        inputs[1] = "ts-node";
+        inputs[2] = HELPER_SCRIPT;
+        inputs[3] = btcAddress;
 
         bytes memory result = vm.ffi(inputs);
         return result;
