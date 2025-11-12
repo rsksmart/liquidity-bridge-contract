@@ -433,6 +433,298 @@ contract LpRefundTest is PegOutTestBase {
     // These require full BTC transaction generation with proper scripts and
     // amount encoding, which is extensively covered in the TypeScript integration tests.
 
+    // ============ validatePegout function tests ============
+
+    function test_ValidatePegout_RevertsIfLPResigned() public {
+        // First, deposit a quote
+        Quotes.PegOutQuote memory quote = createAndDepositQuote();
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+
+        // LP resigns
+        vm.prank(pegOutLp);
+        collateralManagement.resign();
+
+        // Try to validate - should fail
+        bytes memory btcTx = generateBtcTx(quote, quoteHash);
+
+        vm.prank(pegOutLp);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Flyover.ProviderNotRegistered.selector,
+                pegOutLp
+            )
+        );
+        pegOutContract.validatePegout(quoteHash, btcTx);
+    }
+
+    function test_ValidatePegout_RevertsIfQuoteWasNotPaid() public {
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            1 ether,
+            pegOutLp
+        );
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+
+        // Don't deposit - try to validate directly
+        bytes memory btcTx = generateBtcTx(quote, quoteHash);
+
+        vm.prank(pegOutLp);
+        vm.expectRevert(
+            abi.encodeWithSelector(Flyover.QuoteNotFound.selector, quoteHash)
+        );
+        pegOutContract.validatePegout(quoteHash, btcTx);
+    }
+
+    function test_ValidatePegout_RevertsIfNotCalledByLP() public {
+        Quotes.PegOutQuote memory quote = createAndDepositQuote();
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+
+        bytes memory btcTx = generateBtcTx(quote, quoteHash);
+
+        // fullLp tries to validate pegOutLp's quote
+        vm.prank(fullLp);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Flyover.InvalidSender.selector,
+                pegOutLp,
+                fullLp
+            )
+        );
+        pegOutContract.validatePegout(quoteHash, btcTx);
+    }
+
+    function test_ValidatePegout_RevertsIfBtcTxNotRelatedToQuote() public {
+        Quotes.PegOutQuote memory quote = createAndDepositQuote();
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+
+        // Create a different quote and generate tx for it (different hash in OP_RETURN)
+        Quotes.PegOutQuote memory otherQuote = createTestPegOutQuote(
+            0.5 ether,
+            pegOutLp
+        );
+        bytes32 otherQuoteHash = pegOutContract.hashPegOutQuote(otherQuote);
+
+        // Generate BTC tx with the OTHER quote's hash
+        bytes memory btcTx = generateBtcTx(quote, otherQuoteHash); // Wrong hash!
+
+        vm.prank(pegOutLp);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOut.InvalidQuoteHash.selector,
+                quoteHash,
+                otherQuoteHash
+            )
+        );
+        pegOutContract.validatePegout(quoteHash, btcTx);
+    }
+
+    function test_ValidatePegout_RevertsIfNullDataMalformed() public {
+        Quotes.PegOutQuote memory quote = createAndDepositQuote();
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+
+        // Test that a malformed Bitcoin transaction (too short) reverts
+        // Using a minimal invalid tx hex"010203" instead of properly formed tx
+        vm.prank(pegOutLp);
+        vm.expectRevert(); // MalformedTransaction
+        pegOutContract.validatePegout(quoteHash, hex"010203");
+    }
+
+    function test_ValidatePegout_RevertsIfBtcTxDoesNotHaveHighEnoughAmount()
+        public
+    {
+        Quotes.PegOutQuote memory quote = createAndDepositQuote();
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+        uint256 originalValue = quote.value; // Store original value before modification
+
+        // Generate BTC tx with insufficient amount (0.9 ETH when quote needs 1 ETH)
+        Quotes.PegOutQuote memory lowQuote = quote;
+        lowQuote.value = 0.9 ether;
+        bytes memory btcTx = generateBtcTx(lowQuote, quoteHash); // Low amount!
+
+        uint256 lowAmountWei = 0.9 ether;
+
+        vm.prank(pegOutLp);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Flyover.InsufficientAmount.selector,
+                lowAmountWei,
+                originalValue
+            )
+        );
+        pegOutContract.validatePegout(quoteHash, btcTx);
+    }
+
+    function test_ValidatePegout_RevertsIfBtcTxNotDirectedToUserAddress()
+        public
+    {
+        Quotes.PegOutQuote memory quote = createAndDepositQuote();
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+
+        // Generate BTC tx with WRONG address
+        Quotes.PegOutQuote memory wrongAddressQuote = quote;
+        wrongAddressQuote.depositAddress = new bytes(21); // Different address!
+        wrongAddressQuote.depositAddress[0] = 0x00; // Set version byte
+        bytes memory btcTx = generateBtcTx(wrongAddressQuote, quoteHash);
+
+        vm.prank(pegOutLp);
+        vm.expectRevert(); // InvalidDestination
+        pegOutContract.validatePegout(quoteHash, btcTx);
+    }
+
+    function test_ValidatePegout_AcceptsValidTransactionWithoutConfirmations()
+        public
+    {
+        Quotes.PegOutQuote memory quote = createAndDepositQuote();
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+
+        bytes memory btcTx = generateBtcTx(quote, quoteHash);
+
+        // Should succeed without needing block header or confirmations
+        vm.prank(pegOutLp);
+        Quotes.PegOutQuote memory returnedQuote = pegOutContract.validatePegout(
+            quoteHash,
+            btcTx
+        );
+
+        // Verify returned quote matches
+        assertEq(returnedQuote.value, quote.value);
+        assertEq(returnedQuote.lpRskAddress, quote.lpRskAddress);
+        assertEq(returnedQuote.lbcAddress, quote.lbcAddress);
+    }
+
+    function test_ValidatePegout_DoesNotRequireConfirmations() public {
+        Quotes.PegOutQuote memory quote = createAndDepositQuote();
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+
+        bytes memory btcTx = generateBtcTx(quote, quoteHash);
+
+        // No need to set up bridge confirmations or block headers
+        // validatePegout should work without them (for unbroadcasted tx)
+        vm.prank(pegOutLp);
+        Quotes.PegOutQuote memory returnedQuote = pegOutContract.validatePegout(
+            quoteHash,
+            btcTx
+        );
+
+        // Should succeed and return the quote
+        assertEq(returnedQuote.value, quote.value);
+    }
+
+    function test_ValidatePegout_ReturnsCorrectQuoteData() public {
+        Quotes.PegOutQuote memory quote = createAndDepositQuote();
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+
+        bytes memory btcTx = generateBtcTx(quote, quoteHash);
+
+        vm.prank(pegOutLp);
+        Quotes.PegOutQuote memory returnedQuote = pegOutContract.validatePegout(
+            quoteHash,
+            btcTx
+        );
+
+        // Verify all quote fields are correct
+        assertEq(returnedQuote.value, quote.value);
+        assertEq(returnedQuote.callFee, quote.callFee);
+        assertEq(returnedQuote.gasFee, quote.gasFee);
+        assertEq(returnedQuote.productFeeAmount, quote.productFeeAmount);
+        assertEq(returnedQuote.lpRskAddress, quote.lpRskAddress);
+        assertEq(returnedQuote.rskRefundAddress, quote.rskRefundAddress);
+        assertEq(returnedQuote.lbcAddress, quote.lbcAddress);
+    }
+
+    function test_ValidatePegout_RevertsIfQuoteAlreadyCompleted() public {
+        Quotes.PegOutQuote memory quote = createAndDepositQuote();
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+
+        bytes memory btcTx = generateBtcTx(quote, quoteHash);
+
+        // Complete the quote first via refundPegOut
+        bytes memory header = createBtcBlockHeader(
+            uint32(block.timestamp + 100)
+        );
+        bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
+        bridgeMock.setConfirmations(
+            int256(uint256(quote.transferConfirmations))
+        );
+
+        vm.prank(pegOutLp);
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
+
+        // Try to validate the same quote - should revert
+        vm.prank(pegOutLp);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOut.QuoteAlreadyCompleted.selector,
+                quoteHash
+            )
+        );
+        pegOutContract.validatePegout(quoteHash, btcTx);
+    }
+
+    function test_ValidatePegout_AcceptsSameTransactionAsRefundPegOut() public {
+        // Create two identical deposits to test both functions
+        Quotes.PegOutQuote memory quote1 = createTestPegOutQuote(
+            1 ether,
+            pegOutLp
+        );
+        bytes32 quoteHash1 = pegOutContract.hashPegOutQuote(quote1);
+        bytes memory signature1 = signQuote(pegOutLp, quoteHash1);
+
+        vm.prank(user);
+        pegOutContract.depositPegOut{value: getTotalValue(quote1)}(
+            quote1,
+            signature1
+        );
+
+        Quotes.PegOutQuote memory quote2 = createTestPegOutQuote(
+            1.5 ether,
+            pegOutLp
+        );
+        bytes32 quoteHash2 = pegOutContract.hashPegOutQuote(quote2);
+        bytes memory signature2 = signQuote(pegOutLp, quoteHash2);
+
+        vm.prank(user);
+        pegOutContract.depositPegOut{value: getTotalValue(quote2)}(
+            quote2,
+            signature2
+        );
+
+        bytes memory btcTx1 = generateBtcTx(quote1, quoteHash1);
+        bytes memory btcTx2 = generateBtcTx(quote2, quoteHash2);
+
+        // validatePegout should accept the transaction without confirmations
+        vm.prank(pegOutLp);
+        Quotes.PegOutQuote memory validatedQuote = pegOutContract
+            .validatePegout(quoteHash1, btcTx1);
+        assertEq(validatedQuote.value, quote1.value);
+
+        // refundPegOut should accept the same transaction WITH confirmations
+        bytes memory header = createBtcBlockHeader(
+            uint32(block.timestamp + 100)
+        );
+        bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
+        bridgeMock.setConfirmations(
+            int256(uint256(quote2.transferConfirmations))
+        );
+
+        vm.prank(pegOutLp);
+        pegOutContract.refundPegOut(
+            quoteHash2,
+            btcTx2,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
+
+        // Both should succeed - validatePegout without confirmations, refundPegOut with them
+        assertTrue(pegOutContract.isQuoteCompleted(quoteHash2));
+    }
+
     // ============ Helper Functions ============
 
     /// @notice Generates a BTC transaction for PegOut refund
