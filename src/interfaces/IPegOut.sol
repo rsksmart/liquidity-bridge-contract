@@ -129,4 +129,15 @@ interface IPegOut is IPausable, IDaoContributor {
     /// doesn't matter if the refund was to the liquidity provider (success) or to the user (failure)
     /// @param quoteHash the hash of the quote to check
     function isQuoteCompleted(bytes32 quoteHash) external view returns (bool);
+
+    /// @notice This function validates a Bitcoin transaction for a peg out refund without confirmations.
+    /// It allows liquidity providers to verify a transaction will be accepted before broadcasting to Bitcoin.
+    /// This performs the same validations as refundPegOut except for confirmations.
+    /// @param quoteHash hash of the quote being validated
+    /// @param btcTx the bitcoin raw transaction without the witness (does not need to be broadcasted yet)
+    /// @return quote the PegOutQuote associated with the validated transaction
+    function validatePegout(bytes32 quoteHash, bytes calldata btcTx)
+        external
+        view
+        returns (Quotes.PegOutQuote memory quote);
 }
