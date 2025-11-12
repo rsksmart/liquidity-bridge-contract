@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 import {PegOutTestBase} from "./PegOutTestBase.sol";
 import {IPegOut} from "../../contracts/interfaces/IPegOut.sol";
+import {ICollateralManagement} from "../../contracts/interfaces/ICollateralManagement.sol";
 import {Quotes} from "../../contracts/libraries/Quotes.sol";
 import {Flyover} from "../../contracts/libraries/Flyover.sol";
 
@@ -318,10 +319,23 @@ contract LpRefundTest is PegOutTestBase {
 
         bytes memory btcTx = generateBtcTx(quote, quoteHash);
 
+        // Calculate expected penalty and reward
+        uint256 penalty = quote.penaltyFee;
+        uint256 reward = (penalty * TEST_REWARD_PERCENTAGE) / 10000;
+
         // Refund should succeed but emit penalization
         vm.prank(pegOutLp);
         vm.expectEmit(true, false, false, true);
         emit IPegOut.PegOutRefunded(quoteHash);
+        vm.expectEmit(true, true, true, true);
+        emit ICollateralManagement.Penalized(
+            pegOutLp,
+            pegOutLp,
+            quoteHash,
+            Flyover.ProviderType.PegOut,
+            penalty,
+            reward
+        );
         pegOutContract.refundPegOut(
             quoteHash,
             btcTx,
@@ -349,10 +363,23 @@ contract LpRefundTest is PegOutTestBase {
 
         bytes memory btcTx = generateBtcTx(quote, quoteHash);
 
+        // Calculate expected penalty and reward
+        uint256 penalty = quote.penaltyFee;
+        uint256 reward = (penalty * TEST_REWARD_PERCENTAGE) / 10000;
+
         // Refund should succeed but emit penalization
         vm.prank(pegOutLp);
         vm.expectEmit(true, false, false, true);
         emit IPegOut.PegOutRefunded(quoteHash);
+        vm.expectEmit(true, true, true, true);
+        emit ICollateralManagement.Penalized(
+            pegOutLp,
+            pegOutLp,
+            quoteHash,
+            Flyover.ProviderType.PegOut,
+            penalty,
+            reward
+        );
         pegOutContract.refundPegOut(
             quoteHash,
             btcTx,
@@ -383,10 +410,23 @@ contract LpRefundTest is PegOutTestBase {
 
         bytes memory btcTx = generateBtcTx(quote, quoteHash);
 
+        // Calculate expected penalty and reward
+        uint256 penalty = quote.penaltyFee;
+        uint256 reward = (penalty * TEST_REWARD_PERCENTAGE) / 10000;
+
         // Refund should succeed but emit penalization
         vm.prank(pegOutLp);
         vm.expectEmit(true, false, false, true);
         emit IPegOut.PegOutRefunded(quoteHash);
+        vm.expectEmit(true, true, true, true);
+        emit ICollateralManagement.Penalized(
+            pegOutLp,
+            pegOutLp,
+            quoteHash,
+            Flyover.ProviderType.PegOut,
+            penalty,
+            reward
+        );
         pegOutContract.refundPegOut(
             quoteHash,
             btcTx,
