@@ -11,20 +11,6 @@ import {WalletMock} from "../../contracts/test-contracts/WalletMock.sol";
 contract ResignTest is CollateralTestBase {
     address public notProvider;
 
-    // Events from ICollateralManagement
-    event Resigned(address indexed addr);
-    event WithdrawCollateral(address indexed addr, uint indexed amount);
-
-    // Errors from ICollateralManagement
-    error AlreadyResigned(address from);
-    error NotResigned(address from);
-    error ResignationDelayNotMet(
-        address from,
-        uint resignationBlockNum,
-        uint resignDelayInBlocks
-    );
-    error NothingToWithdraw(address from);
-
     function setUp() public {
         deployCollateralManagement();
         setupRoles();
@@ -50,7 +36,7 @@ contract ResignTest is CollateralTestBase {
             // Second resign should revert
             vm.prank(provider);
             vm.expectRevert(
-                abi.encodeWithSelector(AlreadyResigned.selector, provider)
+                abi.encodeWithSelector(ICollateralManagement.AlreadyResigned.selector, provider)
             );
             collateralManagement.resign();
         }
@@ -84,7 +70,7 @@ contract ResignTest is CollateralTestBase {
 
         vm.prank(pegInLp);
         vm.expectEmit(true, false, false, true);
-        emit Resigned(pegInLp);
+        emit ICollateralManagement.Resigned(pegInLp);
         collateralManagement.resign();
 
         uint256 resignBlock = collateralManagement.getResignationBlock(pegInLp);
@@ -123,7 +109,7 @@ contract ResignTest is CollateralTestBase {
 
         vm.prank(pegOutLp);
         vm.expectEmit(true, false, false, true);
-        emit Resigned(pegOutLp);
+        emit ICollateralManagement.Resigned(pegOutLp);
         collateralManagement.resign();
 
         resignBlock = collateralManagement.getResignationBlock(pegOutLp);
@@ -174,7 +160,7 @@ contract ResignTest is CollateralTestBase {
 
         vm.prank(fullLp);
         vm.expectEmit(true, false, false, true);
-        emit Resigned(fullLp);
+        emit ICollateralManagement.Resigned(fullLp);
         collateralManagement.resign();
 
         resignBlock = collateralManagement.getResignationBlock(fullLp);
@@ -215,7 +201,7 @@ contract ResignTest is CollateralTestBase {
     function test_WithdrawCollateral_RevertsIfProviderNotResigned() public {
         vm.prank(notProvider);
         vm.expectRevert(
-            abi.encodeWithSelector(NotResigned.selector, notProvider)
+            abi.encodeWithSelector(ICollateralManagement.NotResigned.selector, notProvider)
         );
         collateralManagement.withdrawCollateral();
     }
@@ -239,7 +225,7 @@ contract ResignTest is CollateralTestBase {
             vm.prank(provider);
             vm.expectRevert(
                 abi.encodeWithSelector(
-                    ResignationDelayNotMet.selector,
+                    ICollateralManagement.ResignationDelayNotMet.selector,
                     provider,
                     resignBlockNum,
                     TEST_RESIGN_DELAY_BLOCKS
@@ -270,7 +256,7 @@ contract ResignTest is CollateralTestBase {
 
         vm.prank(pegInLp);
         vm.expectRevert(
-            abi.encodeWithSelector(NothingToWithdraw.selector, pegInLp)
+            abi.encodeWithSelector(ICollateralManagement.NothingToWithdraw.selector, pegInLp)
         );
         collateralManagement.withdrawCollateral();
 
@@ -294,7 +280,7 @@ contract ResignTest is CollateralTestBase {
 
         vm.prank(pegOutLp);
         vm.expectRevert(
-            abi.encodeWithSelector(NothingToWithdraw.selector, pegOutLp)
+            abi.encodeWithSelector(ICollateralManagement.NothingToWithdraw.selector, pegOutLp)
         );
         collateralManagement.withdrawCollateral();
 
@@ -323,7 +309,7 @@ contract ResignTest is CollateralTestBase {
 
         vm.prank(fullLp);
         vm.expectRevert(
-            abi.encodeWithSelector(NothingToWithdraw.selector, fullLp)
+            abi.encodeWithSelector(ICollateralManagement.NothingToWithdraw.selector, fullLp)
         );
         collateralManagement.withdrawCollateral();
     }
@@ -359,7 +345,7 @@ contract ResignTest is CollateralTestBase {
 
         vm.prank(pegInLp);
         vm.expectEmit(true, true, false, true);
-        emit WithdrawCollateral(pegInLp, expectedWithdrawal);
+        emit ICollateralManagement.WithdrawCollateral(pegInLp, expectedWithdrawal);
         collateralManagement.withdrawCollateral();
 
         assertEq(
@@ -404,7 +390,7 @@ contract ResignTest is CollateralTestBase {
 
         vm.prank(pegOutLp);
         vm.expectEmit(true, true, false, true);
-        emit WithdrawCollateral(pegOutLp, expectedWithdrawal);
+        emit ICollateralManagement.WithdrawCollateral(pegOutLp, expectedWithdrawal);
         collateralManagement.withdrawCollateral();
 
         assertEq(
@@ -462,7 +448,7 @@ contract ResignTest is CollateralTestBase {
 
         vm.prank(fullLp);
         vm.expectEmit(true, true, false, true);
-        emit WithdrawCollateral(fullLp, expectedWithdrawal);
+        emit ICollateralManagement.WithdrawCollateral(fullLp, expectedWithdrawal);
         collateralManagement.withdrawCollateral();
 
         assertEq(
