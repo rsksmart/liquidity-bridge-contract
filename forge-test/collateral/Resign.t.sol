@@ -36,7 +36,10 @@ contract ResignTest is CollateralTestBase {
             // Second resign should revert
             vm.prank(provider);
             vm.expectRevert(
-                abi.encodeWithSelector(ICollateralManagement.AlreadyResigned.selector, provider)
+                abi.encodeWithSelector(
+                    ICollateralManagement.AlreadyResigned.selector,
+                    provider
+                )
             );
             collateralManagement.resign();
         }
@@ -201,7 +204,10 @@ contract ResignTest is CollateralTestBase {
     function test_WithdrawCollateral_RevertsIfProviderNotResigned() public {
         vm.prank(notProvider);
         vm.expectRevert(
-            abi.encodeWithSelector(ICollateralManagement.NotResigned.selector, notProvider)
+            abi.encodeWithSelector(
+                ICollateralManagement.NotResigned.selector,
+                notProvider
+            )
         );
         collateralManagement.withdrawCollateral();
     }
@@ -256,7 +262,10 @@ contract ResignTest is CollateralTestBase {
 
         vm.prank(pegInLp);
         vm.expectRevert(
-            abi.encodeWithSelector(ICollateralManagement.NothingToWithdraw.selector, pegInLp)
+            abi.encodeWithSelector(
+                ICollateralManagement.NothingToWithdraw.selector,
+                pegInLp
+            )
         );
         collateralManagement.withdrawCollateral();
 
@@ -280,7 +289,10 @@ contract ResignTest is CollateralTestBase {
 
         vm.prank(pegOutLp);
         vm.expectRevert(
-            abi.encodeWithSelector(ICollateralManagement.NothingToWithdraw.selector, pegOutLp)
+            abi.encodeWithSelector(
+                ICollateralManagement.NothingToWithdraw.selector,
+                pegOutLp
+            )
         );
         collateralManagement.withdrawCollateral();
 
@@ -309,7 +321,10 @@ contract ResignTest is CollateralTestBase {
 
         vm.prank(fullLp);
         vm.expectRevert(
-            abi.encodeWithSelector(ICollateralManagement.NothingToWithdraw.selector, fullLp)
+            abi.encodeWithSelector(
+                ICollateralManagement.NothingToWithdraw.selector,
+                fullLp
+            )
         );
         collateralManagement.withdrawCollateral();
     }
@@ -345,7 +360,10 @@ contract ResignTest is CollateralTestBase {
 
         vm.prank(pegInLp);
         vm.expectEmit(true, true, false, true);
-        emit ICollateralManagement.WithdrawCollateral(pegInLp, expectedWithdrawal);
+        emit ICollateralManagement.WithdrawCollateral(
+            pegInLp,
+            expectedWithdrawal
+        );
         collateralManagement.withdrawCollateral();
 
         assertEq(
@@ -390,7 +408,10 @@ contract ResignTest is CollateralTestBase {
 
         vm.prank(pegOutLp);
         vm.expectEmit(true, true, false, true);
-        emit ICollateralManagement.WithdrawCollateral(pegOutLp, expectedWithdrawal);
+        emit ICollateralManagement.WithdrawCollateral(
+            pegOutLp,
+            expectedWithdrawal
+        );
         collateralManagement.withdrawCollateral();
 
         assertEq(
@@ -448,7 +469,10 @@ contract ResignTest is CollateralTestBase {
 
         vm.prank(fullLp);
         vm.expectEmit(true, true, false, true);
-        emit ICollateralManagement.WithdrawCollateral(fullLp, expectedWithdrawal);
+        emit ICollateralManagement.WithdrawCollateral(
+            fullLp,
+            expectedWithdrawal
+        );
         collateralManagement.withdrawCollateral();
 
         assertEq(

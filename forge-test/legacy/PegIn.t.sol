@@ -380,7 +380,10 @@ contract PegInTest is Test {
 
         vm.prank(liquidityProviders[0].signer);
         vm.expectEmit(true, false, false, false);
-        emit LiquidityBridgeContractV2.PegInRegistered(quoteHash, int256(totalValue(quote)));
+        emit LiquidityBridgeContractV2.PegInRegistered(
+            quoteHash,
+            int256(totalValue(quote))
+        );
         int256 result = lbc.registerPegIn(quote, sig, hex"1010", hex"0202", 10);
 
         assertEq(result, int256(totalValue(quote)));
