@@ -361,6 +361,16 @@ contract PegInTest is Test {
         bridgeMock.setHeader(19, h2);
 
         vm.prank(liquidityProviders[0].signer);
+        vm.expectEmit(true, true, false, false);
+        emit LiquidityBridgeContractV2.CallForUser(
+            liquidityProviders[0].signer,
+            address(mockContract),
+            quote.gasLimit,
+            quote.value,
+            quote.data,
+            true,
+            quoteHash
+        );
         lbc.callForUser{value: quote.value}(quote);
 
         assertEq(
@@ -369,6 +379,8 @@ contract PegInTest is Test {
         );
 
         vm.prank(liquidityProviders[0].signer);
+        vm.expectEmit(true, false, false, false);
+        emit LiquidityBridgeContractV2.PegInRegistered(quoteHash, int256(totalValue(quote)));
         int256 result = lbc.registerPegIn(quote, sig, hex"1010", hex"0202", 10);
 
         assertEq(result, int256(totalValue(quote)));
