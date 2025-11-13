@@ -18,21 +18,13 @@ import {Flyover} from "../../contracts/libraries/Flyover.sol";
 contract LpRefundTest is PegOutTestBase {
     address public user;
 
-    // Mock BTC proof data
-    bytes32 constant BLOCK_HEADER_HASH = bytes32(uint256(1));
-    uint256 constant PARTIAL_MERKLE_TREE = 0;
-    bytes32[] merkleHashes;
-
     function setUp() public {
         deployPegOutContract();
         setupProviders();
+        initBtcMocks(); // Initialize shared BTC mock data
 
         user = makeAddr("user");
         vm.deal(user, 100 ether);
-
-        // Setup merkle hashes array
-        merkleHashes = new bytes32[](1);
-        merkleHashes[0] = bytes32(uint256(1));
     }
 
     // ============ refundPegOut function tests ============
@@ -750,23 +742,6 @@ contract LpRefundTest is PegOutTestBase {
 
         bytes memory result = vm.ffi(inputs);
         return result;
-    }
-
-    /// @notice Creates a BTC block header with a specific timestamp (little-endian encoded)
-    /// @param timestamp The Unix timestamp for the block
-    /// @return header The 80-byte BTC block header
-    function createBtcBlockHeader(
-        uint32 timestamp
-    ) internal pure returns (bytes memory) {
-        bytes memory header = new bytes(80);
-
-        // Convert timestamp to little-endian and place at offset 68
-        header[68] = bytes1(uint8(timestamp));
-        header[69] = bytes1(uint8(timestamp >> 8));
-        header[70] = bytes1(uint8(timestamp >> 16));
-        header[71] = bytes1(uint8(timestamp >> 24));
-
-        return header;
     }
 
     function createAndDepositQuote()
