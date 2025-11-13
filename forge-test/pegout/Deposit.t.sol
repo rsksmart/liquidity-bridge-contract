@@ -91,7 +91,7 @@ contract DepositTest is PegOutTestBase {
         pegOutContract.depositPegOut{value: sentAmount}(quote, signature);
     }
 
-    function test_DepositPegOut_RevertsIfQuoteIsExpiredByDate() public {
+    function test_DepositPegOut_RevertsIfDepositDateLimitExpired() public {
         Quotes.PegOutQuote memory quote = createTestPegOutQuote(
             1 ether,
             fullLp
@@ -100,9 +100,39 @@ contract DepositTest is PegOutTestBase {
         // Warp time forward
         vm.warp(2000000);
 
-        // Set expired dates (before current time)
-        quote.depositDateLimit = 1000000;
-        quote.expireDate = 1005000;
+        // Only depositDateLimit is expired, expireDate is still valid
+        quote.depositDateLimit = 1000000; // EXPIRED (< current time)
+        quote.expireDate = 3000000; // Still valid (> current time)
+
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+        bytes memory signature = signQuote(fullLp, quoteHash);
+
+        vm.prank(user);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOut.QuoteExpiredByTime.selector,
+                quote.depositDateLimit,
+                quote.expireDate
+            )
+        );
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(
+            quote,
+            signature
+        );
+    }
+
+    function test_DepositPegOut_RevertsIfExpireDateExpired() public {
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            1 ether,
+            fullLp
+        );
+
+        // Warp time forward
+        vm.warp(2000000);
+
+        // Only expireDate is expired, depositDateLimit is still valid
+        quote.depositDateLimit = 3000000; // Still valid (> current time)
+        quote.expireDate = 1000000; // EXPIRED (< current time)
 
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(fullLp, quoteHash);
