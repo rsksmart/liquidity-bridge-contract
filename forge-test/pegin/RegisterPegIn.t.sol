@@ -7,6 +7,7 @@ import {Quotes} from "../../contracts/libraries/Quotes.sol";
 import {Flyover} from "../../contracts/libraries/Flyover.sol";
 import {SignatureValidator} from "../../contracts/libraries/SignatureValidator.sol";
 import {WalletMock} from "../../contracts/test-contracts/WalletMock.sol";
+import {OwnableDaoContributorUpgradeable} from "../../contracts/DaoContributor.sol";
 
 /// @title RegisterPegIn Tests
 /// @notice Tests for the registerPegIn function - the core of the PegIn flow
@@ -820,12 +821,36 @@ contract RegisterPegInTest is PegInTestBase {
 
         // Call for user - will fail because wallet rejects
         vm.prank(fullLp);
+        vm.expectEmit(true, true, true, true);
+        emit IPegIn.CallForUser(
+            fullLp,
+            address(wallet),
+            quoteHash,
+            quote.gasLimit,
+            quote.value,
+            quote.data,
+            false // Call failed
+        );
         pegInContract.callForUser{value: quote.value}(quote);
 
         uint256 userBalanceBefore = user.balance;
 
-        // Register
+        // Register - should emit PegInRegistered, DaoContribution and Refund events
         vm.prank(fullLp);
+        vm.expectEmit(true, true, false, true);
+        emit IPegIn.PegInRegistered(quoteHash, peginAmount);
+        vm.expectEmit(true, true, false, true);
+        emit OwnableDaoContributorUpgradeable.DaoContribution(
+            fullLp,
+            quote.productFeeAmount
+        );
+        vm.expectEmit(true, true, true, true);
+        emit IPegIn.Refund(
+            user,
+            quoteHash,
+            quote.value, // Refund amount (only value, not fees)
+            true // Refund succeeded
+        );
         pegInContract.registerPegIn(
             quote,
             signature,
@@ -882,6 +907,20 @@ contract RegisterPegInTest is PegInTestBase {
 
         // Register - change payment to user will fail, so LP gets it
         vm.prank(fullLp);
+        vm.expectEmit(true, true, false, true);
+        emit IPegIn.PegInRegistered(quoteHash, peginAmount + extraPaid);
+        vm.expectEmit(true, true, false, true);
+        emit OwnableDaoContributorUpgradeable.DaoContribution(
+            fullLp,
+            quote.productFeeAmount
+        );
+        vm.expectEmit(true, true, true, true);
+        emit IPegIn.Refund(
+            payable(address(refundWallet)),
+            quoteHash,
+            extraPaid, // Change amount
+            false // Refund failed (wallet rejects)
+        );
         pegInContract.registerPegIn(
             quote,
             signature,
