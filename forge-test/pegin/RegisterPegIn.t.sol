@@ -445,7 +445,20 @@ contract RegisterPegInTest is PegInTestBase {
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
         bytes memory signature = signQuote(fullLp, quoteHash);
 
-        uint256 peginAmount = getTotalValue(quote) - 0.0001 ether;
+        // Calculate agreed amount with rounding (matches Quotes.checkAgreedAmount logic)
+        uint256 agreedAmount = quote.value +
+            quote.callFee +
+            quote.productFeeAmount +
+            quote.gasFee;
+        uint256 SAT_TO_WEI_CONVERSION = 10 ** 10;
+        if (
+            agreedAmount > SAT_TO_WEI_CONVERSION &&
+            (agreedAmount % SAT_TO_WEI_CONVERSION) != 0
+        ) {
+            agreedAmount -= (agreedAmount % SAT_TO_WEI_CONVERSION);
+        }
+
+        uint256 peginAmount = agreedAmount - 0.0001 ether;
 
         // Setup BTC block headers
         bytes memory firstHeader = createBtcBlockHeader(
@@ -468,7 +481,13 @@ contract RegisterPegInTest is PegInTestBase {
 
         // Register should revert due to insufficient amount
         vm.prank(fullLp);
-        vm.expectRevert(); // AmountTooLow from Quotes
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Quotes.AmountTooLow.selector,
+                peginAmount,
+                agreedAmount
+            )
+        );
         pegInContract.registerPegIn(
             quote,
             signature,
@@ -510,6 +529,13 @@ contract RegisterPegInTest is PegInTestBase {
         vm.prank(fullLp);
         vm.expectEmit(true, true, false, true);
         emit IPegIn.PegInRegistered(quoteHash, peginAmount);
+        vm.expectEmit(true, true, true, true);
+        emit IPegIn.Refund(
+            payable(user),
+            quoteHash,
+            peginAmount,
+            true // Refund successful
+        );
         pegInContract.registerPegIn(
             quote,
             signature,
@@ -557,6 +583,15 @@ contract RegisterPegInTest is PegInTestBase {
 
         // Register by someone else (not LP) - LP gets penalized
         vm.prank(registerCaller);
+        vm.expectEmit(true, true, false, true);
+        emit IPegIn.PegInRegistered(quoteHash, peginAmount);
+        vm.expectEmit(true, true, true, true);
+        emit IPegIn.Refund(
+            payable(user),
+            quoteHash,
+            peginAmount,
+            true // Refund successful
+        );
         pegInContract.registerPegIn(
             quote,
             signature,
