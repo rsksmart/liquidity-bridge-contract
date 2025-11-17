@@ -26,8 +26,8 @@ contract RegistrationTest is DiscoveryTestBase {
 
         // Register LP1
         vm.prank(lp1);
-        vm.expectEmit(false, false, false, false);
-        emit IFlyoverDiscovery.Register(0, address(0), 0);
+        vm.expectEmit(true, true, true, true);
+        emit IFlyoverDiscovery.Register(1, lp1, MIN_COLLATERAL * 2);
         discovery.register{value: MIN_COLLATERAL * 2}(
             "LP1",
             "http://localhost/api1",
@@ -37,8 +37,8 @@ contract RegistrationTest is DiscoveryTestBase {
 
         // Register LP2
         vm.prank(lp2);
-        vm.expectEmit(false, false, false, false);
-        emit IFlyoverDiscovery.Register(0, address(0), 0);
+        vm.expectEmit(true, true, true, true);
+        emit IFlyoverDiscovery.Register(2, lp2, MIN_COLLATERAL);
         discovery.register{value: MIN_COLLATERAL}(
             "LP2",
             "http://localhost/api2",
@@ -48,8 +48,8 @@ contract RegistrationTest is DiscoveryTestBase {
 
         // Register LP3
         vm.prank(lp3);
-        vm.expectEmit(false, false, false, false);
-        emit IFlyoverDiscovery.Register(0, address(0), 0);
+        vm.expectEmit(true, true, true, true);
+        emit IFlyoverDiscovery.Register(3, lp3, MIN_COLLATERAL);
         discovery.register{value: MIN_COLLATERAL}(
             "LP3",
             "http://localhost/api3",
