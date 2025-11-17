@@ -80,49 +80,11 @@ interface ILiquidityBridgeContract {
  *     --broadcast \
  *     --private-key $TESTNET_PRIVATE_KEY
  */
-contract RegisterPegin is Script {
-    string constant HELPER_SCRIPT_BTC_ADDRESS =
-        "forge-scripts/helpers/parse-btc-address.ts";
+import {BtcAddressParser} from "../helpers/BtcAddressParser.sol";
+
+contract RegisterPegin is Script, BtcAddressParser {
     string constant HELPER_SCRIPT_FETCH_TX =
         "forge-scripts/helpers/fetch-btc-tx-data.ts";
-
-    /**
-     * @notice Parse Bitcoin address using FFI helper script
-     * @param btcAddress The Bitcoin address string to parse
-     * @return The decoded address as bytes
-     */
-    function parseBtcAddress(
-        string memory btcAddress
-    ) internal returns (bytes memory) {
-        string[] memory inputs = new string[](4);
-        inputs[0] = "npx";
-        inputs[1] = "ts-node";
-        inputs[2] = HELPER_SCRIPT_BTC_ADDRESS;
-        inputs[3] = btcAddress;
-
-        bytes memory result = vm.ffi(inputs);
-        return result;
-    }
-
-    /**
-     * @notice Parse fedBtcAddress (removes first byte after base58check decode)
-     * @param btcAddress The Bitcoin address string to parse
-     * @return The decoded address as bytes20 (without first byte)
-     */
-    function parseFedBtcAddress(
-        string memory btcAddress
-    ) internal returns (bytes20) {
-        bytes memory decoded = parseBtcAddress(btcAddress);
-        require(decoded.length >= 21, "Invalid fedBtcAddress length");
-
-        // Skip first byte (network prefix)
-        bytes memory sliced = new bytes(20);
-        for (uint i = 0; i < 20; i++) {
-            sliced[i] = decoded[i + 1];
-        }
-
-        return bytes20(sliced);
-    }
 
     /**
      * @notice Fetch Bitcoin transaction data using FFI helper script
