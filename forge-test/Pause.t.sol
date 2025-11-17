@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import "forge-std/Test.sol";
 import {FlyoverDiscovery} from "contracts/FlyoverDiscovery.sol";
 import {CollateralManagementContract} from "contracts/CollateralManagement.sol";
+import {ICollateralManagement} from "contracts/interfaces/ICollateralManagement.sol";
 import {PegInContract} from "contracts/PegInContract.sol";
 import {PegOutContract} from "contracts/PegOutContract.sol";
 import {BridgeMock} from "contracts/test-contracts/BridgeMock.sol";
@@ -239,8 +240,76 @@ contract PauseTest is Test {
         assertTrue(pegOutContract.dustThreshold() > 0);
     }
 
-    function test_AllowsNonPausableFunctionsToContinueWorking() public pure {
-        assertTrue(true);
+    function test_AllowsNonPausableFunctionsToContinueWorking() public {
+        _grantPauserRole();
+
+        // First, register a provider before pausing
+        vm.prank(signers[1]);
+        flyoverDiscovery.register{value: 1 ether}(
+            "Test LP",
+            "http://localhost/api",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+
+        uint256 providerId = flyoverDiscovery.getProvidersId();
+        assertEq(providerId, 1, "Provider should be registered");
+
+        // Pause the contracts
+        vm.startPrank(pauser);
+        flyoverDiscovery.pause("Emergency");
+        collateralManagement.pause("Emergency");
+        vm.stopPrank();
+
+        // Verify contracts are paused
+        (bool isPausedD, , ) = flyoverDiscovery.pauseStatus();
+        (bool isPausedC, , ) = collateralManagement.pauseStatus();
+        assertTrue(isPausedD, "FlyoverDiscovery should be paused");
+        assertTrue(isPausedC, "CollateralManagement should be paused");
+
+        // Test 1: setProviderStatus should work even when paused (not marked with whenNotPaused)
+        vm.prank(signers[1]);
+        flyoverDiscovery.setProviderStatus(providerId, false);
+        Flyover.LiquidityProvider memory provider = flyoverDiscovery
+            .getProvider(signers[1]);
+        assertFalse(
+            provider.status,
+            "Provider status should be updated to false"
+        );
+
+        // Set it back to true
+        vm.prank(signers[1]);
+        flyoverDiscovery.setProviderStatus(providerId, true);
+        provider = flyoverDiscovery.getProvider(signers[1]);
+        assertTrue(
+            provider.status,
+            "Provider status should be updated to true"
+        );
+
+        // Test 2: withdrawRewards should work even when paused (not marked with whenNotPaused)
+        // Note: In a real scenario, rewards would come from slashing, but for testing
+        // we'll verify the function can be called (it will revert with NothingToWithdraw if no rewards)
+        // The important part is that it doesn't revert due to pause
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ICollateralManagement.NothingToWithdraw.selector,
+                signers[1]
+            )
+        );
+        vm.prank(signers[1]);
+        collateralManagement.withdrawRewards();
+
+        // Test 3: withdrawCollateral should work even when paused (not marked with whenNotPaused)
+        // This requires the provider to have resigned first, so we'll just verify it doesn't revert
+        // due to pause (it will revert for other reasons like not resigned)
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ICollateralManagement.NotResigned.selector,
+                signers[1]
+            )
+        );
+        vm.prank(signers[1]);
+        collateralManagement.withdrawCollateral();
     }
 
     function test_RestoresFullFunctionalityAfterSystemWideUnpause() public {
