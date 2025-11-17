@@ -315,7 +315,10 @@ contract CallForUserTest is PegInTestBase {
         Mock mockContract = new Mock();
 
         // Create quote with data to call Mock.set(5)
-        bytes memory data = abi.encodeWithSelector(Mock.set.selector, int256(5));
+        bytes memory data = abi.encodeWithSelector(
+            Mock.set.selector,
+            int256(5)
+        );
         Quotes.PegInQuote memory quote = createTestQuoteForLPWithData(
             0.7 ether,
             address(mockContract),
@@ -361,11 +364,7 @@ contract CallForUserTest is PegInTestBase {
             contractBalanceBefore,
             "Contract balance should not change"
         );
-        assertEq(
-            pegInContract.getBalance(fullLp),
-            0,
-            "LP balance should be 0"
-        );
+        assertEq(pegInContract.getBalance(fullLp), 0, "LP balance should be 0");
 
         // Verify contract state changed
         assertEq(
@@ -473,12 +472,10 @@ contract CallForUserTest is PegInTestBase {
 
         // Call with insufficient gas limit
         // Use low-level call to precisely control gas
-        (bool success, ) = address(pegInContract).call{gas: insufficientGasLimit, value: 0.6 ether}(
-            abi.encodeWithSelector(
-                IPegIn.callForUser.selector,
-                quote
-            )
-        );
+        (bool success, ) = address(pegInContract).call{
+            gas: insufficientGasLimit,
+            value: 0.6 ether
+        }(abi.encodeWithSelector(IPegIn.callForUser.selector, quote));
 
         // Should have reverted
         assertTrue(!success);
@@ -551,7 +548,11 @@ contract CallForUserTest is PegInTestBase {
 
         // Verify the reentrancy was prevented
         bytes memory revertReason = reentrancyCaller.getRevertReason();
-        assertGt(revertReason.length, 0, "Reentrancy should have been reverted");
+        assertGt(
+            revertReason.length,
+            0,
+            "Reentrancy should have been reverted"
+        );
         assertEq(
             revertReason,
             abi.encodePacked(reentrancySelector),
@@ -606,7 +607,14 @@ contract CallForUserTest is PegInTestBase {
         address refund,
         address lp
     ) internal view returns (Quotes.PegInQuote memory) {
-        return createTestQuoteForLPWithData(value, destination, refund, lp, new bytes(0));
+        return
+            createTestQuoteForLPWithData(
+                value,
+                destination,
+                refund,
+                lp,
+                new bytes(0)
+            );
     }
 
     function createTestQuoteForLPWithData(
