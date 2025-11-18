@@ -1,6 +1,7 @@
 build
 contracts
 node_modules
+lib/
 errorCodes.json
 coverage/
 coverage.json
