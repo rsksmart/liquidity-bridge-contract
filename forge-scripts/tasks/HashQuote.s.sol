@@ -52,11 +52,11 @@ interface ILiquidityBridgeContract {
  *
  * ## Examples
  *   # Using wrapper script with environment variables
- *   LBC_ADDRESS=0x1234... ./forge-scripts/tasks/hash-quote.sh --type pegin --file tasks/hash-quote.example.json
+ *   LBC_ADDRESS=0x1234... ./forge-scripts/tasks/hash-quote.sh --type pegin --file forge-scripts/tasks/hash-quote.example.json
  *
  *   # Using forge directly
  *   forge script forge-scripts/tasks/HashQuote.s.sol:HashQuote \
- *     --sig "hashPeginQuote(string)" "tasks/hash-quote.example.json" \
+ *     --sig "hashPeginQuote(string)" "forge-scripts/tasks/hash-quote.example.json" \
  *     --rpc-url http://localhost:4444 \
  *     --ffi
  */

@@ -35,14 +35,14 @@ interface ILiquidityBridgeContract {
  * ### Method 1: Using the wrapper script (recommended)
  *   # Simulate registration (dry-run with gas estimation)
  *   ./forge-scripts/tasks/register-pegin.sh \
- *     --file tasks/hash-quote.example.json \
+ *     --file forge-scripts/tasks/hash-quote.example.json \
  *     --signature <lp-signature> \
  *     --txid <bitcoin-txid> \
  *     --network rskTestnet
  *
  *   # Execute registration (broadcast transaction)
  *   ./forge-scripts/tasks/register-pegin.sh \
- *     --file tasks/hash-quote.example.json \
+ *     --file forge-scripts/tasks/hash-quote.example.json \
  *     --signature <lp-signature> \
  *     --txid <bitcoin-txid> \
  *     --network rskTestnet \
@@ -73,7 +73,7 @@ interface ILiquidityBridgeContract {
  *
  * ## Examples
  *   ./forge-scripts/tasks/register-pegin.sh \
- *     --file tasks/hash-quote.example.json \
+ *     --file forge-scripts/tasks/hash-quote.example.json \
  *     --signature 0xabcd1234... \
  *     --txid a1b2c3d4... \
  *     --network rskTestnet \
