@@ -197,21 +197,6 @@ contract PegOutTest is Test {
         return result;
     }
 
-    function toHexChar(uint8 value) internal pure returns (bytes1) {
-        if (value < 10) return bytes1(uint8(48 + value));
-        return bytes1(uint8(87 + value));
-    }
-
-    function toLeHex(uint256 n) internal pure returns (string memory) {
-        bytes memory result = new bytes(8);
-        for (uint i = 0; i < 4; i++) {
-            uint8 byte_val = uint8(n >> (i * 8));
-            result[i * 2] = toHexChar(byte_val & 0x0f);
-            result[i * 2 + 1] = toHexChar(byte_val >> 4);
-        }
-        return string(result);
-    }
-
     function generateRawTx(
         bytes32 quoteHash,
         QuotesV2.PegOutQuote memory quote,
