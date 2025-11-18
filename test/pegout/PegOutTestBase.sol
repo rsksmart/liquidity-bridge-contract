@@ -227,7 +227,7 @@ abstract contract PegOutTestBase is Test {
     }
 
     /// @notice Generates a simple mock BTC transaction for testing
-    /// @dev Creates a minimal valid BTC tx with P2PKH output (same as Hardhat tests)
+    /// @dev Creates a minimal valid BTC tx with P2PKH output
     /// @param quote The PegOut quote
     /// @param quoteHash The hash of the quote
     /// @return btcTx The raw BTC transaction bytes
@@ -251,12 +251,12 @@ abstract contract PegOutTestBase is Test {
             hex"88ac" // OP_EQUALVERIFY OP_CHECKSIG
         );
 
-        // Build mock transaction (same structure as Hardhat tests)
+        // Build mock transaction
         return
             abi.encodePacked(
                 hex"01000000", // Version
                 hex"01", // 1 input
-                // Hardcoded previous tx and signature (same as Hardhat)
+                // Hardcoded previous tx and signature
                 hex"013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40",
                 hex"00000000",
                 hex"6a",

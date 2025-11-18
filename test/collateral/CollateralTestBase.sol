@@ -10,7 +10,7 @@ import {Quotes} from "../../src/libraries/Quotes.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 /// @title Base contract for CollateralManagement tests
-/// @notice Provides shared deployment and setup logic (equivalent to Hardhat fixtures)
+/// @notice Provides shared deployment and setup logic
 abstract contract CollateralTestBase is Test {
     CollateralManagementContract public collateralManagement;
 
