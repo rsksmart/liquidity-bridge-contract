@@ -93,7 +93,8 @@ contract RegisterPeginTest is Test {
         console.log("\n=== TEST PEGIN QUOTE PARSING ===\n");
 
         // Use the existing example file for parsing test
-        string memory existingFile = "forge-scripts/tasks/hash-quote.example.json";
+        string
+            memory existingFile = "forge-scripts/tasks/hash-quote.example.json";
         string memory json = vm.readFile(existingFile);
 
         console.log("Parsing quote from:", existingFile);
