@@ -1,9 +1,9 @@
 build
-contracts
+src
 node_modules
 lib/
 errorCodes.json
 coverage/
 coverage.json
 out/
-forge-cache/
+cache/

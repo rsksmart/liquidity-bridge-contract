@@ -32,8 +32,8 @@ RUN npm ci --ignore-scripts
 COPY --chown=node:node lib ./lib
 
 # Copy contracts and deployment scripts
-COPY --chown=node:node contracts ./contracts
-COPY --chown=node:node forge-scripts ./forge-scripts
+COPY --chown=node:node src ./src
+COPY --chown=node:node script ./script
 
 RUN npm run compile
 

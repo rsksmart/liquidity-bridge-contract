@@ -8,13 +8,13 @@
     "test": "npm run compile && forge test",
     "coverage": "forge coverage",
     "lint:ts": "npx prettier --check . && npx eslint .",
-    "lint:sol": "solhint 'contracts/**/*.sol'",
+    "lint:sol": "solhint 'src/**/*.sol'",
     "upgrade-rskDev": "npm run lint:sol && npm run compile && make upgrade-lbc-broadcast NETWORK=dev VERIFY=true",
     "upgrade-rskTestnet": "npm run lint:sol && npm run compile && make upgrade-lbc-broadcast NETWORK=testnet VERIFY=true",
     "upgrade-rskMainnet": "npm run lint:sol && npm run compile && make upgrade-lbc-broadcast NETWORK=mainnet VERIFY=true",
     "contract-size": "forge build --sizes",
-    "test:integration": "forge test --match-path 'forge-test/integration/**/*.t.sol'",
-    "test:e2e": "forge test --match-path 'forge-test/deployment/ChangeOwnerToMultiSig.t.sol'",
+    "test:integration": "forge test --match-path 'test/integration/**/*.t.sol'",
+    "test:e2e": "forge test --match-path 'test/deployment/ChangeOwnerToMultiSig.t.sol'",
     "prepare": "pip3 install pre-commit && pre-commit install"
   },
   "repository": {
