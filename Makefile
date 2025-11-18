@@ -12,7 +12,7 @@ PRIORITY_GAS_PRICE ?= 0
 
 # Hash-quote defaults
 QUOTE_TYPE ?= pegin
-QUOTE_FILE ?= tasks/hash-quote.example.json
+QUOTE_FILE ?= forge-scripts/tasks/hash-quote.example.json
 
 # Pause-system defaults
 PAUSE_REASON ?= Emergency maintenance
@@ -153,7 +153,7 @@ help:
 	@echo "  make pause-system-broadcast NETWORK=mainnet PAUSE_REASON=\"Emergency\" # Pause mainnet"
 	@echo "  make unpause-system-broadcast NETWORK=testnet      # Unpause testnet"
 	@echo "  make refund-user-pegout NETWORK=testnet QUOTE_HASH=abc123...  # Refund user (simulation)"
-	@echo "  make refund-user-pegout NETWORK=testnet QUOTE_FILE=tasks/quote.json # Refund from file (simulation)"
+	@echo "  make refund-user-pegout NETWORK=testnet QUOTE_FILE=forge-scripts/tasks/quote.json # Refund from file (simulation)"
 	@echo "  make refund-user-pegout-broadcast NETWORK=testnet QUOTE_HASH=abc123... # Refund user (actual)"
 	@echo "  make register-pegin NETWORK=testnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc... # Register PegIn (simulation)"
 	@echo "  make register-pegin-broadcast NETWORK=testnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc... # Register PegIn (actual)"
@@ -387,7 +387,7 @@ refund-user-pegout:
 	@if [ -z "$(QUOTE_HASH)" ] && [ -z "$(QUOTE_FILE)" ]; then \
 		echo "Error: Either QUOTE_HASH or QUOTE_FILE is required"; \
 		echo "Usage: make refund-user-pegout NETWORK=testnet QUOTE_HASH=abc123..."; \
-		echo "   or: make refund-user-pegout NETWORK=testnet QUOTE_FILE=tasks/quote.json"; \
+		echo "   or: make refund-user-pegout NETWORK=testnet QUOTE_FILE=forge-scripts/tasks/quote.json"; \
 		exit 1; \
 	fi
 	@if [ -n "$(QUOTE_HASH)" ] && [ -n "$(QUOTE_FILE)" ]; then \
@@ -417,7 +417,7 @@ refund-user-pegout-broadcast:
 	@if [ -z "$(QUOTE_HASH)" ] && [ -z "$(QUOTE_FILE)" ]; then \
 		echo "Error: Either QUOTE_HASH or QUOTE_FILE is required"; \
 		echo "Usage: make refund-user-pegout-broadcast NETWORK=testnet QUOTE_HASH=abc123..."; \
-		echo "   or: make refund-user-pegout-broadcast NETWORK=testnet QUOTE_FILE=tasks/quote.json"; \
+		echo "   or: make refund-user-pegout-broadcast NETWORK=testnet QUOTE_FILE=forge-scripts/tasks/quote.json"; \
 		exit 1; \
 	fi
 	@if [ -n "$(QUOTE_HASH)" ] && [ -n "$(QUOTE_FILE)" ]; then \
