@@ -12,7 +12,7 @@ PRIORITY_GAS_PRICE ?= 0
 
 # Hash-quote defaults
 QUOTE_TYPE ?= pegin
-QUOTE_FILE ?= forge-scripts/tasks/hash-quote.example.json
+QUOTE_FILE ?= script/tasks/hash-quote.example.json
 
 # Pause-system defaults
 PAUSE_REASON ?= Emergency maintenance
@@ -85,7 +85,7 @@ define get_chain_id
 $(if $(filter mainnet,$(1)),$(MAINNET_CHAIN_ID),$(if $(filter testnet,$(1)),$(TESTNET_CHAIN_ID),$(LOCAL_CHAIN_ID)))
 endef
 
-# Map simplified network names to RSK network names for forge scripts
+# Map simplified network names to RSK network names for forge script
 define get_rsk_network_name
 $(if $(filter mainnet,$(1)),rskMainnet,$(if $(filter testnet,$(1)),rskTestnet,rskRegtest))
 endef
@@ -153,7 +153,7 @@ help:
 	@echo "  make pause-system-broadcast NETWORK=mainnet PAUSE_REASON=\"Emergency\" # Pause mainnet"
 	@echo "  make unpause-system-broadcast NETWORK=testnet      # Unpause testnet"
 	@echo "  make refund-user-pegout NETWORK=testnet QUOTE_HASH=abc123...  # Refund user (simulation)"
-	@echo "  make refund-user-pegout NETWORK=testnet QUOTE_FILE=forge-scripts/tasks/quote.json # Refund from file (simulation)"
+	@echo "  make refund-user-pegout NETWORK=testnet QUOTE_FILE=script/tasks/quote.json # Refund from file (simulation)"
 	@echo "  make refund-user-pegout-broadcast NETWORK=testnet QUOTE_HASH=abc123... # Refund user (actual)"
 	@echo "  make register-pegin NETWORK=testnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc... # Register PegIn (simulation)"
 	@echo "  make register-pegin-broadcast NETWORK=testnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc... # Register PegIn (actual)"
@@ -166,7 +166,7 @@ deploy-lbc-fork:
 	@echo "Chain ID: $(call get_chain_id,$(NETWORK))"
 	@echo "Fork Block: $(FORK_BLOCK)"
 	@echo "Gas Limit: $(GAS_LIMIT)"
-	$(FORGE) forge-scripts/deployment/DeployLBC.s.sol:DeployLBC \
+	$(FORGE) script/deployment/DeployLBC.s.sol:DeployLBC \
 		$(FORK_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
 		--gas-limit $(GAS_LIMIT) \
@@ -179,7 +179,7 @@ deploy-lbc-broadcast:
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Chain ID: $(call get_chain_id,$(NETWORK))"
 	@echo "Gas Limit: $(GAS_LIMIT)"
-	$(FORGE) forge-scripts/deployment/DeployLBC.s.sol:DeployLBC \
+	$(FORGE) script/deployment/DeployLBC.s.sol:DeployLBC \
 		$(RPC_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
 		--gas-limit $(GAS_LIMIT) \
@@ -194,7 +194,7 @@ deploy-lbc-high-gas-fork:
 	@echo "Chain ID: $(call get_chain_id,$(NETWORK))"
 	@echo "Fork Block: $(FORK_BLOCK)"
 	@echo "Gas Limit: 15000000"
-	$(FORGE) forge-scripts/deployment/DeployLBC.s.sol:DeployLBC \
+	$(FORGE) script/deployment/DeployLBC.s.sol:DeployLBC \
 		$(FORK_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
 		--gas-limit 15000000 \
@@ -207,7 +207,7 @@ deploy-lbc-high-gas-broadcast:
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Chain ID: $(call get_chain_id,$(NETWORK))"
 	@echo "Gas Limit: 15000000"
-	$(FORGE) forge-scripts/deployment/DeployLBC.s.sol:DeployLBC \
+	$(FORGE) script/deployment/DeployLBC.s.sol:DeployLBC \
 		$(RPC_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
 		--gas-limit 15000000 \
@@ -220,7 +220,7 @@ prepare-upgrade:
 	@echo "Deploying LiquidityBridgeContractV2 implementation on $(NETWORK)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Chain ID: $(call get_chain_id,$(NETWORK))"
-	$(FORGE) forge-scripts/deployment/PrepareUpgrade.s.sol:PrepareUpgrade \
+	$(FORGE) script/deployment/PrepareUpgrade.s.sol:PrepareUpgrade \
 		$(DEPLOY_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
 		--gas-limit $(GAS_LIMIT) \
@@ -235,7 +235,7 @@ upgrade-lbc-fork:
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Chain ID: $(call get_chain_id,$(NETWORK))"
 	@echo "Fork Block: $(FORK_BLOCK)"
-	$(FORGE) forge-scripts/deployment/UpgradeLBC.s.sol:UpgradeLBC \
+	$(FORGE) script/deployment/UpgradeLBC.s.sol:UpgradeLBC \
 		$(FORK_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
 		--gas-limit $(GAS_LIMIT) \
@@ -247,7 +247,7 @@ upgrade-lbc-broadcast:
 	@echo "Upgrading LiquidityBridgeContract to V2 on $(NETWORK) (ACTUAL DEPLOYMENT)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Chain ID: $(call get_chain_id,$(NETWORK))"
-	$(FORGE) forge-scripts/deployment/UpgradeLBC.s.sol:UpgradeLBC \
+	$(FORGE) script/deployment/UpgradeLBC.s.sol:UpgradeLBC \
 		$(RPC_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
 		--gas-limit $(GAS_LIMIT) \
@@ -261,7 +261,7 @@ change-owner-fork:
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Chain ID: $(call get_chain_id,$(NETWORK))"
 	@echo "Fork Block: $(FORK_BLOCK)"
-	$(FORGE) forge-scripts/deployment/ChangeOwnerToMultiSig.s.sol:ChangeOwnerToMultiSig \
+	$(FORGE) script/deployment/ChangeOwnerToMultiSig.s.sol:ChangeOwnerToMultiSig \
 		$(FORK_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
 		--gas-limit $(GAS_LIMIT) \
@@ -273,7 +273,7 @@ change-owner-broadcast:
 	@echo "Transferring ownership to multisig on $(NETWORK) (ACTUAL DEPLOYMENT)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Chain ID: $(call get_chain_id,$(NETWORK))"
-	$(FORGE) forge-scripts/deployment/ChangeOwnerToMultiSig.s.sol:ChangeOwnerToMultiSig \
+	$(FORGE) script/deployment/ChangeOwnerToMultiSig.s.sol:ChangeOwnerToMultiSig \
 		$(RPC_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
 		--gas-limit $(GAS_LIMIT) \
@@ -284,13 +284,13 @@ change-owner-broadcast:
 .PHONY: get-btc-height
 get-btc-height:
 	@echo "Getting BTC block height..."
-	@bash forge-scripts/tasks/GetBtcHeight.sh
+	@bash script/tasks/GetBtcHeight.sh
 
 # Get contract versions
 .PHONY: get-versions
 get-versions:
 	@echo "Getting contract versions..."
-	@bash forge-scripts/tasks/GetVersions.sh
+	@bash script/tasks/GetVersions.sh
 
 # Hash quote - supports both syntaxes:
 # make hash-quote pegin testnet
@@ -313,12 +313,12 @@ hash-quote:
 	@echo "RPC URL: $(call get_network_config,$(FINAL_NETWORK))"
 	@export NETWORK=$(call get_rsk_network_name,$(FINAL_NETWORK)); \
 	if [ "$(FINAL_TYPE)" = "pegin" ]; then \
-		forge script forge-scripts/tasks/HashQuote.s.sol:HashQuote \
+		forge script script/tasks/HashQuote.s.sol:HashQuote \
 			--sig "hashPeginQuote(string)" "$(FINAL_FILE)" \
 			--rpc-url $(call get_network_config,$(FINAL_NETWORK)) \
 			--ffi -vv; \
 	else \
-		forge script forge-scripts/tasks/HashQuote.s.sol:HashQuote \
+		forge script script/tasks/HashQuote.s.sol:HashQuote \
 			--sig "hashPegoutQuote(string)" "$(FINAL_FILE)" \
 			--rpc-url $(call get_network_config,$(FINAL_NETWORK)) \
 			--ffi -vv; \
@@ -330,7 +330,7 @@ pause-status:
 	@echo "Checking pause status on $(NETWORK)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
-	forge script forge-scripts/tasks/PauseSystem.s.sol:PauseSystem \
+	forge script script/tasks/PauseSystem.s.sol:PauseSystem \
 		--sig "checkStatus()" \
 		--rpc-url $(call get_network_config,$(NETWORK)) \
 		-vv
@@ -342,7 +342,7 @@ pause-system:
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Reason: $(PAUSE_REASON)"
 	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
-	forge script forge-scripts/tasks/PauseSystem.s.sol:PauseSystem \
+	forge script script/tasks/PauseSystem.s.sol:PauseSystem \
 		--sig "pauseAll(string)" "$(PAUSE_REASON)" \
 		--rpc-url $(call get_network_config,$(NETWORK)) \
 		-vv
@@ -354,7 +354,7 @@ pause-system-broadcast:
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Reason: $(PAUSE_REASON)"
 	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
-	forge script forge-scripts/tasks/PauseSystem.s.sol:PauseSystem \
+	forge script script/tasks/PauseSystem.s.sol:PauseSystem \
 		--sig "pauseAll(string)" "$(PAUSE_REASON)" \
 		--rpc-url $(call get_network_config,$(NETWORK)) \
 		--broadcast --private-key $(call get_network_key,$(NETWORK)) -vv
@@ -365,7 +365,7 @@ unpause-system:
 	@echo "Unpausing system contracts on $(NETWORK) (SIMULATION)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
-	forge script forge-scripts/tasks/PauseSystem.s.sol:PauseSystem \
+	forge script script/tasks/PauseSystem.s.sol:PauseSystem \
 		--sig "unpauseAll()" \
 		--rpc-url $(call get_network_config,$(NETWORK)) \
 		-vv
@@ -376,7 +376,7 @@ unpause-system-broadcast:
 	@echo "Unpausing system contracts on $(NETWORK) (ACTUAL BROADCAST)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
-	forge script forge-scripts/tasks/PauseSystem.s.sol:PauseSystem \
+	forge script script/tasks/PauseSystem.s.sol:PauseSystem \
 		--sig "unpauseAll()" \
 		--rpc-url $(call get_network_config,$(NETWORK)) \
 		--broadcast --private-key $(call get_network_key,$(NETWORK)) -vv
@@ -387,7 +387,7 @@ refund-user-pegout:
 	@if [ -z "$(QUOTE_HASH)" ] && [ -z "$(QUOTE_FILE)" ]; then \
 		echo "Error: Either QUOTE_HASH or QUOTE_FILE is required"; \
 		echo "Usage: make refund-user-pegout NETWORK=testnet QUOTE_HASH=abc123..."; \
-		echo "   or: make refund-user-pegout NETWORK=testnet QUOTE_FILE=forge-scripts/tasks/quote.json"; \
+		echo "   or: make refund-user-pegout NETWORK=testnet QUOTE_FILE=script/tasks/quote.json"; \
 		exit 1; \
 	fi
 	@if [ -n "$(QUOTE_HASH)" ] && [ -n "$(QUOTE_FILE)" ]; then \
@@ -399,13 +399,13 @@ refund-user-pegout:
 	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
 	if [ -n "$(QUOTE_FILE)" ]; then \
 		echo "Quote File: $(QUOTE_FILE)"; \
-		forge script forge-scripts/tasks/RefundUserPegout.s.sol:RefundUserPegout \
+		forge script script/tasks/RefundUserPegout.s.sol:RefundUserPegout \
 			--sig "refundUserPegoutFromFile(string)" "$(QUOTE_FILE)" \
 			--rpc-url $(call get_network_config,$(NETWORK)) \
 			--ffi -vv; \
 	else \
 		echo "Quote Hash: $(QUOTE_HASH)"; \
-		forge script forge-scripts/tasks/RefundUserPegout.s.sol:RefundUserPegout \
+		forge script script/tasks/RefundUserPegout.s.sol:RefundUserPegout \
 			--sig "refundUserPegout(string)" "$(QUOTE_HASH)" \
 			--rpc-url $(call get_network_config,$(NETWORK)) \
 			-vv; \
@@ -417,7 +417,7 @@ refund-user-pegout-broadcast:
 	@if [ -z "$(QUOTE_HASH)" ] && [ -z "$(QUOTE_FILE)" ]; then \
 		echo "Error: Either QUOTE_HASH or QUOTE_FILE is required"; \
 		echo "Usage: make refund-user-pegout-broadcast NETWORK=testnet QUOTE_HASH=abc123..."; \
-		echo "   or: make refund-user-pegout-broadcast NETWORK=testnet QUOTE_FILE=forge-scripts/tasks/quote.json"; \
+		echo "   or: make refund-user-pegout-broadcast NETWORK=testnet QUOTE_FILE=script/tasks/quote.json"; \
 		exit 1; \
 	fi
 	@if [ -n "$(QUOTE_HASH)" ] && [ -n "$(QUOTE_FILE)" ]; then \
@@ -429,13 +429,13 @@ refund-user-pegout-broadcast:
 	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
 	if [ -n "$(QUOTE_FILE)" ]; then \
 		echo "Quote File: $(QUOTE_FILE)"; \
-		forge script forge-scripts/tasks/RefundUserPegout.s.sol:RefundUserPegout \
+		forge script script/tasks/RefundUserPegout.s.sol:RefundUserPegout \
 			--sig "refundUserPegoutFromFile(string)" "$(QUOTE_FILE)" \
 			--rpc-url $(call get_network_config,$(NETWORK)) \
 			--broadcast --private-key $(call get_network_key,$(NETWORK)) --ffi -vv; \
 	else \
 		echo "Quote Hash: $(QUOTE_HASH)"; \
-		forge script forge-scripts/tasks/RefundUserPegout.s.sol:RefundUserPegout \
+		forge script script/tasks/RefundUserPegout.s.sol:RefundUserPegout \
 			--sig "refundUserPegout(string)" "$(QUOTE_HASH)" \
 			--rpc-url $(call get_network_config,$(NETWORK)) \
 			--broadcast --private-key $(call get_network_key,$(NETWORK)) -vv; \
@@ -465,7 +465,7 @@ register-pegin:
 	@echo "TX ID: $(PEGIN_TXID)"
 	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
 	export BTC_NETWORK=$(if $(filter mainnet,$(NETWORK)),mainnet,testnet); \
-	forge script forge-scripts/tasks/RegisterPegin.s.sol:RegisterPegin \
+	forge script script/tasks/RegisterPegin.s.sol:RegisterPegin \
 		--sig "registerPegin(string,string,string)" "$(PEGIN_QUOTE_FILE)" "$(PEGIN_SIGNATURE)" "$(PEGIN_TXID)" \
 		--rpc-url $(call get_network_config,$(NETWORK)) \
 		--ffi -vv
@@ -494,7 +494,7 @@ register-pegin-broadcast:
 	@echo "TX ID: $(PEGIN_TXID)"
 	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
 	export BTC_NETWORK=$(if $(filter mainnet,$(NETWORK)),mainnet,testnet); \
-	forge script forge-scripts/tasks/RegisterPegin.s.sol:RegisterPegin \
+	forge script script/tasks/RegisterPegin.s.sol:RegisterPegin \
 		--sig "registerPegin(string,string,string)" "$(PEGIN_QUOTE_FILE)" "$(PEGIN_SIGNATURE)" "$(PEGIN_TXID)" \
 		--rpc-url $(call get_network_config,$(NETWORK)) \
 		--broadcast --private-key $(call get_network_key,$(NETWORK)) --ffi -vv

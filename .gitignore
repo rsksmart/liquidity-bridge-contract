@@ -17,7 +17,7 @@ node_modules
 
 # Foundry files
 /out
-/forge-cache
+/cache
 /broadcast
 
 # TypeChain files
