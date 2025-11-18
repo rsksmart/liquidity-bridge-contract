@@ -14,7 +14,7 @@
  */
 
 import { hexlify } from "ethers";
-import { toLeHex } from "../../test/utils/encoding";
+import { toLeHex } from "./encoding";
 
 type BtcAddressType = "p2pkh" | "p2sh" | "p2wpkh" | "p2wsh" | "p2tr";
 
