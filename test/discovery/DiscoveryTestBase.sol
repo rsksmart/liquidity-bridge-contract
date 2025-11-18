@@ -9,7 +9,7 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {Flyover} from "../../src/libraries/Flyover.sol";
 
 /// @title Base contract for FlyoverDiscovery tests
-/// @notice Provides shared deployment and setup logic (equivalent to Hardhat fixtures)
+/// @notice Provides shared deployment and setup logic
 abstract contract DiscoveryTestBase is Test {
     FlyoverDiscovery public discovery;
     CollateralManagementContract public collateralManagement;

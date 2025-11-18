@@ -1,6 +1,6 @@
 {
-  "namespace": "HardhatGasReporter",
-  "toolchain": "hardhat",
+  "namespace": "FoundryGasReporter",
+  "toolchain": "foundry",
   "version": "2.3.0",
   "options": {
     "currency": "USD",

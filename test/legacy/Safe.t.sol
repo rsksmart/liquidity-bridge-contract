@@ -126,9 +126,5 @@ contract SafeTest is Test {
         vm.prank(signer1);
         vm.expectRevert("LBC005");
         lbc.setProviderStatus(1, true);
-
-        // Note: In the TypeScript test, they also transfer proxy admin ownership
-        // via upgrades.admin.transferProxyAdminOwnership, but that's Hardhat-specific
-        // For this test, we're verifying the contract ownership transfer works
     }
 }

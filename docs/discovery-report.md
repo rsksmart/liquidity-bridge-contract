@@ -64,7 +64,7 @@
 | Gas Price           | -          |
 | Token Price         | -          |
 | Network             | ETHEREUM   |
-| Toolchain           | hardhat    |
+| Toolchain           | foundry    |
 
 ## Two liquidity providers
 
@@ -130,7 +130,7 @@
 | Gas Price           | -          |
 | Token Price         | -          |
 | Network             | ETHEREUM   |
-| Toolchain           | hardhat    |
+| Toolchain           | foundry    |
 
 ## Three liquidity providers
 
@@ -196,7 +196,7 @@
 | Gas Price           | -          |
 | Token Price         | -          |
 | Network             | ETHEREUM   |
-| Toolchain           | hardhat    |
+| Toolchain           | foundry    |
 
 ## Four liquidity providers
 
@@ -262,7 +262,7 @@
 | Gas Price           | -          |
 | Token Price         | -          |
 | Network             | ETHEREUM   |
-| Toolchain           | hardhat    |
+| Toolchain           | foundry    |
 
 ## Five liquidity providers
 
@@ -328,4 +328,4 @@
 | Gas Price           | -          |
 | Token Price         | -          |
 | Network             | ETHEREUM   |
-| Toolchain           | hardhat    |
+| Toolchain           | foundry    |
