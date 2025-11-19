@@ -6,8 +6,7 @@ import {PegInContract} from "../../src/PegInContract.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 // Import the event
 import "../../src/interfaces/ICollateralManagement.sol";
 
@@ -134,14 +133,16 @@ contract ConfigurationTest is PegInTestBase {
     // ============ setDustThreshold function tests ============
 
     function test_SetDustThreshold_OnlyAllowsOwnerToModify() public {
-        vm.prank(notOwner);
+        vm.startPrank(notOwner);
         vm.expectRevert(
             abi.encodeWithSelector(
-                Ownable.OwnableUnauthorizedAccount.selector,
-                notOwner
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                notOwner,
+                pegInContract.DEFAULT_ADMIN_ROLE()
             )
         );
         pegInContract.setDustThreshold(1);
+        vm.stopPrank();
     }
 
     function test_SetDustThreshold_ModifiesProperly() public {
@@ -180,14 +181,16 @@ contract ConfigurationTest is PegInTestBase {
         ERC1967Proxy otherProxy = new ERC1967Proxy(address(otherCM), initData);
         address otherAddress = address(otherProxy);
 
-        vm.prank(notOwner);
+        vm.startPrank(notOwner);
         vm.expectRevert(
             abi.encodeWithSelector(
-                Ownable.OwnableUnauthorizedAccount.selector,
-                notOwner
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                notOwner,
+                pegInContract.DEFAULT_ADMIN_ROLE()
             )
         );
         pegInContract.setCollateralManagement(otherAddress);
+        vm.stopPrank();
     }
 
     function test_SetCollateralManagement_RevertsIfAddressDoesNotHaveCode()
@@ -236,14 +239,16 @@ contract ConfigurationTest is PegInTestBase {
     // ============ setMinPegIn function tests ============
 
     function test_SetMinPegIn_OnlyAllowsOwnerToModify() public {
-        vm.prank(notOwner);
+        vm.startPrank(notOwner);
         vm.expectRevert(
             abi.encodeWithSelector(
-                Ownable.OwnableUnauthorizedAccount.selector,
-                notOwner
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                notOwner,
+                pegInContract.DEFAULT_ADMIN_ROLE()
             )
         );
         pegInContract.setMinPegIn(1);
+        vm.stopPrank();
     }
 
     function test_SetMinPegIn_ModifiesProperly() public {
