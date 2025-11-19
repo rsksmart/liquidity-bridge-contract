@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import {OwnableDaoContributorUpgradeable} from "./DaoContributor.sol";
-import {EmergencyPauserPeg} from "./EmergencyPause/EmergencyPauserPeg.sol";
+import {EmergencyPauserDefaultAdmin} from "./EmergencyPause/EmergencyPauserDefaultAdmin.sol";
 import {IBridge} from "./interfaces/IBridge.sol";
 import {ICollateralManagement, CollateralManagementSet} from "./interfaces/ICollateralManagement.sol";
 import {IPegOut} from "./interfaces/IPegOut.sol";
@@ -15,8 +15,8 @@ import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 /// @notice This contract is used to handle the peg out of the RSK network to the Bitcoin network
 /// @author Rootstock Labs
 contract PegOutContract is
+    EmergencyPauserDefaultAdmin,
     OwnableDaoContributorUpgradeable,
-    EmergencyPauserPeg,
     IPegOut
 {
     /// @notice This struct is used to store the information of a peg out
@@ -147,7 +147,7 @@ contract PegOutContract is
     /// @param collateralManagement the address of the Collateral Management contract
     /// @dev This function is only callable by the owner of the contract
     // solhint-disable-next-line comprehensive-interface
-    function setCollateralManagement(address collateralManagement) external onlyOwner {
+    function setCollateralManagement(address collateralManagement) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
         emit CollateralManagementSet(address(_collateralManagement), collateralManagement);
         _collateralManagement = ICollateralManagement(collateralManagement);
@@ -157,7 +157,7 @@ contract PegOutContract is
     /// @param threshold the new dust threshold
     /// @dev This function is only callable by the owner of the contract
     // solhint-disable-next-line comprehensive-interface
-    function setDustThreshold(uint256 threshold) external onlyOwner {
+    function setDustThreshold(uint256 threshold) external onlyRole(DEFAULT_ADMIN_ROLE) {
         emit DustThresholdSet(dustThreshold, threshold);
         dustThreshold = threshold;
     }
@@ -166,7 +166,7 @@ contract PegOutContract is
     /// @param blockTime the new average Bitcoin block time in seconds
     /// @dev This function is only callable by the owner of the contract
     // solhint-disable-next-line comprehensive-interface
-    function setBtcBlockTime(uint256 blockTime) external onlyOwner {
+    function setBtcBlockTime(uint256 blockTime) external onlyRole(DEFAULT_ADMIN_ROLE) {
         emit BtcBlockTimeSet(btcBlockTime, blockTime);
         btcBlockTime = blockTime;
     }
