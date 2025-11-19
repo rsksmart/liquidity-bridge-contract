@@ -97,9 +97,12 @@ describe("PegInContract configurations", () => {
         deployPegInContractFixture
       );
       const notOwner = signers[0];
-      await expect(
-        contract.connect(notOwner).setDustThreshold(1n)
-      ).to.be.revertedWithCustomError(contract, "OwnableUnauthorizedAccount");
+      await expect(contract.connect(notOwner).setDustThreshold(1n))
+        .to.be.revertedWithCustomError(
+          contract,
+          "AccessControlUnauthorizedAccount"
+        )
+        .withArgs(notOwner.address, await contract.DEFAULT_ADMIN_ROLE());
     });
 
     it("modify the dust threshold properly", async function () {
@@ -123,7 +126,12 @@ describe("PegInContract configurations", () => {
       );
       await expect(
         contract.connect(notOwner).setCollateralManagement(otherContract)
-      ).to.be.revertedWithCustomError(contract, "OwnableUnauthorizedAccount");
+      )
+        .to.be.revertedWithCustomError(
+          contract,
+          "AccessControlUnauthorizedAccount"
+        )
+        .withArgs(notOwner.address, await contract.DEFAULT_ADMIN_ROLE());
     });
 
     it("revert if address does not have code", async function () {
@@ -159,9 +167,12 @@ describe("PegInContract configurations", () => {
         deployPegInContractFixture
       );
       const notOwner = signers[0];
-      await expect(
-        contract.connect(notOwner).setMinPegIn(1n)
-      ).to.be.revertedWithCustomError(contract, "OwnableUnauthorizedAccount");
+      await expect(contract.connect(notOwner).setMinPegIn(1n))
+        .to.be.revertedWithCustomError(
+          contract,
+          "AccessControlUnauthorizedAccount"
+        )
+        .withArgs(notOwner.address, await contract.DEFAULT_ADMIN_ROLE());
     });
 
     it("modify the minimum peg in amount properly", async function () {
