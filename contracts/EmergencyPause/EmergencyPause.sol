@@ -18,6 +18,19 @@ abstract contract EmergencyPause is AccessControlDefaultAdminRulesUpgradeable, P
     event EmergencyPaused(address indexed by, string reason);
     event EmergencyUnpaused(address indexed by);
 
+    /// @notice Initialize EmergencyPause with AccessControl and Pausable
+    /// @param initialDelay The initial delay for admin role changes (use 0 for immediate access)
+    /// @param defaultAdmin The default admin address
+    // solhint-disable-next-line func-name-mixedcase
+    function __EmergencyPause_init(
+        uint48 initialDelay,
+        address defaultAdmin
+    ) internal onlyInitializing {
+        __AccessControlDefaultAdminRules_init(initialDelay, defaultAdmin);
+        __Pausable_init();
+        _grantRole(_PAUSER_ROLE, defaultAdmin);
+    }
+
     function pauseStatus() external view returns (bool isPaused, string memory reason, uint64 since) {
         return (paused(), _pauseReason, _pauseTimestamp);
     }
