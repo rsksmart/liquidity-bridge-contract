@@ -9,7 +9,11 @@ import {
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {IPausable} from "../interfaces/IPausable.sol";
 
+<<<<<<<< HEAD:src/EmergencyPause/EmergencyPause.sol
 abstract contract EmergencyPause is AccessControlDefaultAdminRulesUpgradeable, PausableUpgradeable, IPausable {
+========
+abstract contract EmergencyPause is AccessControlDefaultAdminRulesUpgradeable, PausableUpgradeable {
+>>>>>>>> bc00883 (Renaming EmergencyPauserDefaultAdmin to EmergencyPause and OwnableDaoContributorUpgradeable to AccessControlDaoContributorUpgradeable):src/EmergencyPause/EmergencyPauserDefaultAdmin.sol
 
     bytes32 internal constant _PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
