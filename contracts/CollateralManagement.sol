@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {EmergencyPauserDefaultAdmin} from "./EmergencyPause/EmergencyPauserDefaultAdmin.sol";
+import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {ICollateralManagement} from "./interfaces/ICollateralManagement.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 import {Quotes} from "./libraries/Quotes.sol";
@@ -14,7 +14,7 @@ import {Quotes} from "./libraries/Quotes.sol";
 /// @author Rootstock Labs
 contract CollateralManagementContract is
     ReentrancyGuardUpgradeable,
-    EmergencyPauserDefaultAdmin,
+    EmergencyPause,
     ICollateralManagement
 {
     /// @notice The version of the contract

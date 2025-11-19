@@ -2,8 +2,8 @@
 pragma solidity 0.8.25;
 
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
-import {OwnableDaoContributorUpgradeable} from "./DaoContributor.sol";
-import {EmergencyPauserDefaultAdmin} from "./EmergencyPause/EmergencyPauserDefaultAdmin.sol";
+import {AccessControlDaoContributorUpgradeable} from "./DaoContributor.sol";
+import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {IBridge} from "./interfaces/IBridge.sol";
 import {ICollateralManagement, CollateralManagementSet} from "./interfaces/ICollateralManagement.sol";
 import {IPegIn} from "./interfaces/IPegIn.sol";
@@ -16,8 +16,8 @@ import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 /// @dev All non pure/view functions in this contract should be marked as nonReentrant
 /// @author Rootstock Labs
 contract PegInContract is
-    EmergencyPauserDefaultAdmin,
-    OwnableDaoContributorUpgradeable,
+    EmergencyPause,
+    AccessControlDaoContributorUpgradeable,
     IPegIn {
 
     /// @notice This struct is used to store the information of a call on behalf of the user
@@ -71,7 +71,7 @@ contract PegInContract is
     }
 
     /// @notice This function is used to initialize the contract
-    /// @param owner the owner of the contract
+    /// @param defaultAdmin the default admin of the contract
     /// @param bridge the address of the Rootstock bridge
     /// @param dustThreshold_ the dust threshold for the peg in
     /// @param minPegIn the minimum peg in amount supported by the bridge
@@ -82,7 +82,7 @@ contract PegInContract is
     /// @param daoFeeCollector the address of the DAO fee collector
     // solhint-disable-next-line comprehensive-interface
     function initialize(
-        address owner,
+        address defaultAdmin,
         address payable bridge,
         uint256 dustThreshold_,
         uint256 minPegIn,
@@ -92,7 +92,7 @@ contract PegInContract is
         address payable daoFeeCollector
     ) external initializer {
         if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
-        __OwnableDaoContributor_init(owner, daoFeePercentage, daoFeeCollector);
+        __AccessControlDaoContributor_init(defaultAdmin, daoFeePercentage, daoFeeCollector);
         __Pausable_init();
         __AccessControl_init();
         _bridge = IBridge(bridge);

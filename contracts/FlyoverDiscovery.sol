@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 /* solhint-disable comprehensive-interface */
 
-import {EmergencyPauserDefaultAdmin} from "./EmergencyPause/EmergencyPauserDefaultAdmin.sol";
+import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {ICollateralManagement} from "./interfaces/ICollateralManagement.sol";
 import {IFlyoverDiscovery} from "./interfaces/IFlyoverDiscovery.sol";
 import {Flyover} from "./libraries/Flyover.sol";
@@ -12,7 +12,7 @@ import {Flyover} from "./libraries/Flyover.sol";
 /// @notice Registry and discovery of Liquidity Providers (LPs) for Flyover
 /// @dev Keeps LP metadata and consults `ICollateralManagement` to decide listing and operational status
 contract FlyoverDiscovery is
-    EmergencyPauserDefaultAdmin,
+    EmergencyPause,
     IFlyoverDiscovery
 {
 
@@ -30,16 +30,16 @@ contract FlyoverDiscovery is
 
     /// @notice Initializes the contract with admin configuration
     /// @dev Uses OZ upgradeable admin rules. Must be called only once
-    /// @param owner The Default Admin and initial owner address
-    /// @param initialDelay The initial admin delay for `AccessControlDefaultAdminRulesUpgradeable`
+    /// @param defaultAdmin The Default Admin and initial owner address
+    /// @param initialDelay The initial admin delay for `EmergencyPause`
     /// @param collateralManagement The address of the `ICollateralManagement` contract
     function initialize(
-        address owner,
+        address defaultAdmin,
         uint48 initialDelay,
         address collateralManagement
     ) external initializer {
         if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
-        __AccessControlDefaultAdminRules_init(initialDelay, owner);
+        __AccessControlDefaultAdminRules_init(initialDelay, defaultAdmin);
         __Pausable_init();
         _collateralManagement = ICollateralManagement(collateralManagement);
     }
@@ -73,7 +73,7 @@ contract FlyoverDiscovery is
         uint providerId,
         bool status
     ) external {
-        if (msg.sender != owner() && msg.sender != _liquidityProviders[providerId].providerAddress) {
+        if (msg.sender != defaultAdmin() && msg.sender != _liquidityProviders[providerId].providerAddress) {
             revert NotAuthorized(msg.sender);
         }
         _liquidityProviders[providerId].status = status;
