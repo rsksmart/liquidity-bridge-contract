@@ -8,12 +8,12 @@ import {
 } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 
-/// @title OwnableDaoContributorUpgradeable
+/// @title AccessControlDaoContributorUpgradeable
 /// @notice This contract is used to handle the contributions to the DAO
 /// @author Rootstock Labs
 /// @dev Any contract that inherits from this contract will be able to collect DAO
 /// contributions according to the logic the child contract defines
-abstract contract OwnableDaoContributorUpgradeable is
+abstract contract AccessControlDaoContributorUpgradeable is
     ReentrancyGuardUpgradeable,
     AccessControlDefaultAdminRulesUpgradeable {
 
@@ -102,18 +102,18 @@ abstract contract OwnableDaoContributorUpgradeable is
     }
 
     /// @notice This function is used to initialize the contract
-    /// @param owner the owner of the contract
+    /// @param defaultAdmin the default admin of the contract
     /// @param feePercentage the percentage that the child contracts use to calculate the contributions
     /// @param feeCollector the address of the fee collector that will receive the contributions
     // solhint-disable-next-line func-name-mixedcase
-    function __OwnableDaoContributor_init(
-        address owner,
+    function __AccessControlDaoContributor_init(
+        address defaultAdmin,
         uint256 feePercentage,
         address payable feeCollector
     ) internal onlyInitializing {
         __ReentrancyGuard_init_unchained();
         __AccessControl_init_unchained();
-        _grantRole(DEFAULT_ADMIN_ROLE, owner);
+        _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
         DaoContributorStorage storage $ = _getContributorStorage();
         $.feePercentage = feePercentage;
         $.feeCollector = feeCollector;
