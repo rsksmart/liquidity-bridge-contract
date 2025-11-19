@@ -102,10 +102,10 @@ contract PegInContract is
         address payable daoFeeCollector
     ) external initializer {
         if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
-        // Initialize EmergencyPause (which includes AccessControl, Pausable, and grants PAUSER_ROLE)
-        __EmergencyPause_init(0, defaultAdmin);
         // Initialize DaoContributor (uses AccessControl from EmergencyPause)
         __AccessControlDaoContributor_init(daoFeePercentage, daoFeeCollector);
+        // Initialize EmergencyPause (includes AccessControl, Pausable, and grants PAUSER_ROLE)
+        __EmergencyPause_init(0, defaultAdmin);
         _bridge = IBridge(bridge);
         _collateralManagement = ICollateralManagement(collateralManagement);
         _mainnet = mainnet;
