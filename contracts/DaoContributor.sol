@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
-import {
-    AccessControlDefaultAdminRulesUpgradeable
-} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {
     ReentrancyGuardUpgradeable
 } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
@@ -15,7 +13,7 @@ import {Flyover} from "./libraries/Flyover.sol";
 /// contributions according to the logic the child contract defines
 abstract contract AccessControlDaoContributorUpgradeable is
     ReentrancyGuardUpgradeable,
-    AccessControlDefaultAdminRulesUpgradeable {
+    IAccessControl {
 
     // @custom:storage-location erc7201:rsk.dao.contributor
     struct DaoContributorStorage {
@@ -54,8 +52,9 @@ abstract contract AccessControlDaoContributorUpgradeable is
     /// @notice This function is used to claim the contributions to the DAO.
     /// It sends to the fee collector all the accumulated contributions so far
     /// and resets the accumulated contributions to zero
-    /// @dev The function is only callable by the owner of the contract
-    function claimContribution() external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
+    /// @dev The function is only callable by the default admin of the contract
+    function claimContribution() external nonReentrant {
+        _checkRole(0x00); // DEFAULT_ADMIN_ROLE
         DaoContributorStorage storage $ = _getContributorStorage();
         uint256 amount = $.currentContribution;
         $.currentContribution = 0;
@@ -71,11 +70,12 @@ abstract contract AccessControlDaoContributorUpgradeable is
     /// @notice This function is used to configure the contributions to the DAO
     /// @param feeCollector the address of the fee collector
     /// @param feePercentage the percentage of the contributions that goes to the DAO
-    /// @dev The function is only callable by the owner of the contract
+    /// @dev The function is only callable by the default admin of the contract
     function configureContributions(
         address payable feeCollector,
         uint256 feePercentage
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) external {
+        _checkRole(0x00); // DEFAULT_ADMIN_ROLE
         DaoContributorStorage storage $ = _getContributorStorage();
         $.feeCollector = feeCollector;
         $.feePercentage = feePercentage;
@@ -102,22 +102,23 @@ abstract contract AccessControlDaoContributorUpgradeable is
     }
 
     /// @notice This function is used to initialize the contract
-    /// @param defaultAdmin the default admin of the contract
+    /// @dev This function assumes AccessControl is already initialized by the inheriting contract
     /// @param feePercentage the percentage that the child contracts use to calculate the contributions
     /// @param feeCollector the address of the fee collector that will receive the contributions
     // solhint-disable-next-line func-name-mixedcase
     function __AccessControlDaoContributor_init(
-        address defaultAdmin,
         uint256 feePercentage,
         address payable feeCollector
-    ) internal onlyInitializing {
+    ) internal {
         __ReentrancyGuard_init_unchained();
-        __AccessControl_init_unchained();
-        _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
         DaoContributorStorage storage $ = _getContributorStorage();
         $.feePercentage = feePercentage;
         $.feeCollector = feeCollector;
     }
+
+    /// @dev Internal function to check if caller has a role
+    /// Must be implemented by inheriting contract that provides AccessControl
+    function _checkRole(bytes32 role) internal view virtual;
 
     /// @notice This function is used to add a contribution to the DAO
     /// @dev The function is only callable by the child contract, it can be
