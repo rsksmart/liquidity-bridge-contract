@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
-
 import {
-    OwnableUpgradeable
-} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+    AccessControlDefaultAdminRulesUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
 import {
     ReentrancyGuardUpgradeable
 } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
@@ -16,7 +15,7 @@ import {Flyover} from "./libraries/Flyover.sol";
 /// contributions according to the logic the child contract defines
 abstract contract OwnableDaoContributorUpgradeable is
     ReentrancyGuardUpgradeable,
-    OwnableUpgradeable {
+    AccessControlDefaultAdminRulesUpgradeable {
 
     // @custom:storage-location erc7201:rsk.dao.contributor
     struct DaoContributorStorage {
@@ -56,7 +55,7 @@ abstract contract OwnableDaoContributorUpgradeable is
     /// It sends to the fee collector all the accumulated contributions so far
     /// and resets the accumulated contributions to zero
     /// @dev The function is only callable by the owner of the contract
-    function claimContribution() external onlyOwner nonReentrant {
+    function claimContribution() external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         DaoContributorStorage storage $ = _getContributorStorage();
         uint256 amount = $.currentContribution;
         $.currentContribution = 0;
@@ -76,7 +75,7 @@ abstract contract OwnableDaoContributorUpgradeable is
     function configureContributions(
         address payable feeCollector,
         uint256 feePercentage
-    ) external onlyOwner {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         DaoContributorStorage storage $ = _getContributorStorage();
         $.feeCollector = feeCollector;
         $.feePercentage = feePercentage;
@@ -113,7 +112,8 @@ abstract contract OwnableDaoContributorUpgradeable is
         address payable feeCollector
     ) internal onlyInitializing {
         __ReentrancyGuard_init_unchained();
-        __Ownable_init_unchained(owner);
+        __AccessControl_init_unchained();
+        _grantRole(DEFAULT_ADMIN_ROLE, owner);
         DaoContributorStorage storage $ = _getContributorStorage();
         $.feePercentage = feePercentage;
         $.feeCollector = feeCollector;
