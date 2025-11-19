@@ -8,7 +8,7 @@ import {
 } from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 
-abstract contract EmergencyPauserDefaultAdmin is AccessControlDefaultAdminRulesUpgradeable, PausableUpgradeable {
+abstract contract EmergencyPause is AccessControlDefaultAdminRulesUpgradeable, PausableUpgradeable {
 
     bytes32 internal constant _PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
