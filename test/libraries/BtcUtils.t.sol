@@ -71,7 +71,11 @@ contract BtcUtilsTest is Test {
             "First destination address should match"
         );
 
-        assertEq(firstValue, 60000000, "First value should be 60000000 satoshis");
+        assertEq(
+            firstValue,
+            60000000,
+            "First value should be 60000000 satoshis"
+        );
         assertEq(
             firstHash,
             0x03c4522ef958f724a7d2ffef04bd534d9eca74ffc0b28308797d2853bc323ba6,
@@ -82,7 +86,8 @@ contract BtcUtilsTest is Test {
         bytes
             memory secondRawTx = hex"01000000010178a1cf4f2f0cb1607da57dcb02835d6aa8ef9f06be3f74cafea54759a029dc000000006a473044022070a22d8b67050bee57564279328a2f7b6e7f80b2eb4ecb684b879ea51d7d7a31022057fb6ece52c23ecf792e7597448c7d480f89b77a8371dca4700a18088f529f6a012103ef81e9c4c38df173e719863177e57c539bdcf97289638ec6831f07813307974cffffffff02801d2c04000000001976a9143c5f66fe733e0ad361805b3053f23212e5755c8d88ac0000000000000000426a406539346138393731323632396262633966636364316630633034613237386330653130353265623736323666393365396137663130363762343036663035373600000000";
 
-        BtcUtils.TxRawOutput[] memory secondTxOutputs = secondRawTx.getOutputs();
+        BtcUtils.TxRawOutput[] memory secondTxOutputs = secondRawTx
+            .getOutputs();
 
         bytes memory secondNullScript = secondTxOutputs[1]
             .pkScript
