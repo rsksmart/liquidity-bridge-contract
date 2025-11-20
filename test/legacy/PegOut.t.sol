@@ -28,6 +28,12 @@ contract PegOutTest is Test {
     LiquidityProviderInfo[] public liquidityProviders;
 
     uint256 constant LP_COLLATERAL = 1.5 ether;
+
+    // FFI Helper script paths
+    string constant HELPER_SCRIPT_GET_BTC_ADDRESS_BYTES =
+        "forge-scripts/helpers/get-btc-address-bytes.ts";
+    string constant HELPER_SCRIPT_GENERATE_BTC_TX =
+        "forge-scripts/helpers/generate-btc-tx.ts";
     address constant ZERO_ADDRESS = address(0);
     bytes constant ANY_HEX =
         hex"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
@@ -201,62 +207,35 @@ contract PegOutTest is Test {
         bytes32 quoteHash,
         QuotesV2.PegOutQuote memory quote,
         uint8 scriptType // 0=p2pkh, 1=p2sh, 2=p2wpkh, 3=p2wsh, 4=p2tr
-    ) internal pure returns (bytes memory) {
-        bytes memory outputScript;
-        bytes memory depositAddr = quote.deposityAddress;
+    ) internal returns (bytes memory) {
+        // Use FFI for all script types for consistency
+        return _generateRawTxViaFFI(quoteHash, quote, scriptType);
+    }
 
-        if (scriptType == 0) {
-            // p2pkh - needs 20 bytes after version
-            bytes memory hash160 = new bytes(20);
-            for (uint i = 0; i < 20 && i + 1 < depositAddr.length; i++) {
-                hash160[i] = depositAddr[i + 1];
-            }
-            outputScript = abi.encodePacked(hex"76a914", hash160, hex"88ac");
-        } else if (scriptType == 1) {
-            // p2sh - needs 20 bytes after version
-            bytes memory hash160 = new bytes(20);
-            for (uint i = 0; i < 20 && i + 1 < depositAddr.length; i++) {
-                hash160[i] = depositAddr[i + 1];
-            }
-            outputScript = abi.encodePacked(hex"a914", hash160, hex"87");
-        } else if (scriptType == 2) {
-            // p2wpkh - needs 20 bytes after version
-            bytes memory hash = new bytes(20);
-            for (uint i = 0; i < 20 && i + 1 < depositAddr.length; i++) {
-                hash[i] = depositAddr[i + 1];
-            }
-            outputScript = abi.encodePacked(hex"0014", hash);
-        } else if (scriptType == 3) {
-            // p2wsh - needs 32 bytes after version
-            bytes memory hash = new bytes(32);
-            for (uint i = 0; i < 32 && i + 1 < depositAddr.length; i++) {
-                hash[i] = depositAddr[i + 1];
-            }
-            outputScript = abi.encodePacked(hex"0020", hash);
-        } else {
-            // p2tr - needs 32 bytes after version
-            bytes memory hash = new bytes(32);
-            for (uint i = 0; i < 32 && i + 1 < depositAddr.length; i++) {
-                hash[i] = depositAddr[i + 1];
-            }
-            outputScript = abi.encodePacked(hex"5120", hash);
-        }
+    function _generateRawTxViaFFI(
+        bytes32 quoteHash,
+        QuotesV2.PegOutQuote memory quote,
+        uint8 scriptType
+    ) internal returns (bytes memory) {
+        string memory scriptTypeStr;
+        if (scriptType == 0) scriptTypeStr = "p2pkh";
+        else if (scriptType == 1) scriptTypeStr = "p2sh";
+        else if (scriptType == 2) scriptTypeStr = "p2wpkh";
+        else if (scriptType == 3) scriptTypeStr = "p2wsh";
+        else if (scriptType == 4) scriptTypeStr = "p2tr";
+        else revert("Invalid script type");
 
-        uint64 satAmount = weiToSat(quote.value);
-        bytes memory amountLE = toBytesLE(satAmount);
+        string[] memory inputs = new string[](7);
+        inputs[0] = "npx";
+        inputs[1] = "ts-node";
+        inputs[2] = HELPER_SCRIPT_GENERATE_BTC_TX;
+        inputs[3] = vm.toString(quoteHash);
+        inputs[4] = vm.toString(quote.deposityAddress);
+        inputs[5] = vm.toString(quote.value);
+        inputs[6] = scriptTypeStr;
 
-        return
-            abi.encodePacked(
-                hex"0100000001013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40",
-                hex"000000006a47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4",
-                hex"ffffffff02",
-                amountLE,
-                uint8(outputScript.length),
-                outputScript,
-                hex"0000000000000000226a20",
-                quoteHash,
-                hex"00000000"
-            );
+        bytes memory result = vm.ffi(inputs);
+        return result;
     }
 
     function sliceBytes(
@@ -359,21 +338,17 @@ contract PegOutTest is Test {
         _testRefundPegOutForScriptType(1, "p2sh");
     }
 
-    // Note: P2WPKH, P2WSH, and P2TR tests are commented out because the legacy LiquidityBridgeContractV2
-    // contract's BtcUtils.outputScriptToAddress() does not support these witness script types.
-    // These script types are only supported in the new PegOutContract (tested in tests/pegout/).
+    function test_RefundPegOutForP2WPKHTransaction() public {
+        _testRefundPegOutForScriptType(2, "p2wpkh");
+    }
 
-    // function test_RefundPegOutForP2WPKHTransaction() public {
-    //     _testRefundPegOutForScriptType(2, "p2wpkh");
-    // }
+    function test_RefundPegOutForP2WSHTransaction() public {
+        _testRefundPegOutForScriptType(3, "p2wsh");
+    }
 
-    // function test_RefundPegOutForP2WSHTransaction() public {
-    //     _testRefundPegOutForScriptType(3, "p2wsh");
-    // }
-
-    // function test_RefundPegOutForP2TRTransaction() public {
-    //     _testRefundPegOutForScriptType(4, "p2tr");
-    // }
+    function test_RefundPegOutForP2TRTransaction() public {
+        _testRefundPegOutForScriptType(4, "p2tr");
+    }
 
     function _testRefundPegOutForScriptType(
         uint8 scriptType,
@@ -420,12 +395,27 @@ contract PegOutTest is Test {
 
     function _getAddressForScriptType(
         uint8 scriptType
-    ) internal pure returns (bytes memory) {
+    ) internal returns (bytes memory) {
         if (scriptType == 0) return DECODED_P2PKH_ADDRESS;
         if (scriptType == 1) return DECODED_P2SH_ADDRESS;
-        if (scriptType == 2) return DECODED_P2WPKH_ADDRESS;
-        if (scriptType == 3) return DECODED_P2WSH_ADDRESS;
-        return DECODED_P2TR_ADDRESS;
+        // For SegWit addresses, use FFI to get proper bech32 format
+        if (scriptType == 2) return _getBtcAddressForType("p2wpkh");
+        if (scriptType == 3) return _getBtcAddressForType("p2wsh");
+        if (scriptType == 4) return _getBtcAddressForType("p2tr");
+        revert("Invalid script type");
+    }
+
+    function _getBtcAddressForType(
+        string memory addressType
+    ) internal returns (bytes memory) {
+        string[] memory inputs = new string[](4);
+        inputs[0] = "npx";
+        inputs[1] = "ts-node";
+        inputs[2] = HELPER_SCRIPT_GET_BTC_ADDRESS_BYTES;
+        inputs[3] = addressType;
+
+        bytes memory result = vm.ffi(inputs);
+        return result;
     }
 
     // ============ Other PegOut Tests ============
