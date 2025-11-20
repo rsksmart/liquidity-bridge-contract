@@ -45,6 +45,10 @@ abstract contract PegOutTestBase is Test {
     uint256 constant PARTIAL_MERKLE_TREE = 0;
     bytes32[] internal merkleHashes;
 
+    // FFI Helper script paths
+    string constant HELPER_SCRIPT_GENERATE_BTC_TX =
+        "script/helpers/generate-btc-tx.ts";
+
     /// @notice Deploy PegOutContract with all dependencies
     function deployPegOutContract() internal {
         owner = makeAddr("owner");
@@ -208,41 +212,38 @@ abstract contract PegOutTestBase is Test {
     }
 
     /// @notice Generates a simple mock BTC transaction for testing
+    /// @dev Uses FFI helper to generate BTC tx with P2PKH output (same as Hardhat tests)
+    /// @param quote The PegOut quote
+    /// @param quoteHash The hash of the quote
+    /// @return btcTx The raw BTC transaction bytes
     function generateMockBtcTx(
         Quotes.PegOutQuote memory quote,
         bytes32 quoteHash
-    ) internal pure returns (bytes memory) {
-        uint64 satAmount = uint64(quote.value / 1e10);
+    ) internal returns (bytes memory) {
+        // Use FFI helper for consistency with other tests
+        return _generateBtcTxViaFFI(quote, quoteHash, "p2pkh");
+    }
 
-        bytes memory hash160 = new bytes(20);
-        for (uint i = 0; i < 20; i++) {
-            hash160[i] = quote.depositAddress[i + 1];
-        }
+    /// @notice Internal helper to generate BTC transaction via FFI
+    /// @param quote The PegOut quote
+    /// @param quoteHash The hash of the quote
+    /// @param scriptType The script type (p2pkh, p2sh, p2wpkh, p2wsh, p2tr)
+    /// @return btcTx The raw BTC transaction bytes
+    function _generateBtcTxViaFFI(
+        Quotes.PegOutQuote memory quote,
+        bytes32 quoteHash,
+        string memory scriptType
+    ) internal returns (bytes memory) {
+        string[] memory inputs = new string[](7);
+        inputs[0] = "npx";
+        inputs[1] = "ts-node";
+        inputs[2] = HELPER_SCRIPT_GENERATE_BTC_TX;
+        inputs[3] = vm.toString(quoteHash);
+        inputs[4] = vm.toString(quote.depositAddress);
+        inputs[5] = vm.toString(quote.value);
+        inputs[6] = scriptType;
 
-        bytes memory outputScript = abi.encodePacked(
-            hex"76a914",
-            hash160,
-            hex"88ac"
-        );
-
-        return
-            abi.encodePacked(
-                hex"01000000",
-                hex"01",
-                hex"013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40",
-                hex"00000000",
-                hex"6a",
-                hex"47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4",
-                hex"ffffffff",
-                hex"02",
-                toLittleEndian64(satAmount),
-                uint8(outputScript.length),
-                outputScript,
-                hex"0000000000000000",
-                hex"22",
-                hex"6a20",
-                quoteHash,
-                hex"00000000"
-            );
+        bytes memory result = vm.ffi(inputs);
+        return result;
     }
 }
