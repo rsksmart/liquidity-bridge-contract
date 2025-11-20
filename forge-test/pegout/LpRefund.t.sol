@@ -3,41 +3,28 @@ pragma solidity 0.8.25;
 
 import {PegOutTestBase} from "./PegOutTestBase.sol";
 import {IPegOut} from "../../contracts/interfaces/IPegOut.sol";
+import {ICollateralManagement} from "../../contracts/interfaces/ICollateralManagement.sol";
 import {Quotes} from "../../contracts/libraries/Quotes.sol";
 import {Flyover} from "../../contracts/libraries/Flyover.sol";
 
 /// @title LpRefund Tests
 /// @notice Tests for the refundPegOut function - LP proves BTC payment
-/// @dev This is a simplified version (original: 691 lines with 100+ test combinations)
-///
-/// Full refundPegOut testing requires complex BTC infrastructure:
-/// - BTC transaction generation with proper scripts (P2PKH, P2SH, P2WPKH, P2WSH, P2TR)
-/// - Merkle proof creation and validation
-/// - Block header mocking with proper timestamps
-/// - Testing 5 address types × 10 amount precisions = 50+ combinations
-/// - SAT/WEI conversion and truncation logic
-/// - Penalization based on timing (transfer windows, block/time expiry)
-///
-/// These tests cover the main validation paths. Full BTC transaction testing
-/// with all address types and amounts is in the TypeScript integration tests.
+/// @dev Includes comprehensive testing of all 5 BTC address types using FFI
+
+/// FFI Integration:
+/// - Uses TypeScript utilities via FFI for BTC transaction generation
+/// - Ensures compatibility with existing TypeScript BTC address handling
+/// - Supports easy migration from TypeScript to Foundry tests
 contract LpRefundTest is PegOutTestBase {
     address public user;
-
-    // Mock BTC proof data
-    bytes32 constant BLOCK_HEADER_HASH = bytes32(uint256(1));
-    uint256 constant PARTIAL_MERKLE_TREE = 0;
-    bytes32[] merkleHashes;
 
     function setUp() public {
         deployPegOutContract();
         setupProviders();
+        initBtcMocks(); // Initialize shared BTC mock data
 
         user = makeAddr("user");
         vm.deal(user, 100 ether);
-
-        // Setup merkle hashes array
-        merkleHashes = new bytes32[](1);
-        merkleHashes[0] = bytes32(uint256(1));
     }
 
     // ============ refundPegOut function tests ============
@@ -148,17 +135,77 @@ contract LpRefundTest is PegOutTestBase {
         );
     }
 
-    function test_RefundPegOut_RevertsIfNullDataMalformed() public {
+    function test_RefundPegOut_RevertsIfBtcTxMalformed() public {
         Quotes.PegOutQuote memory quote = createAndDepositQuote();
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
 
         // Test that a malformed Bitcoin transaction (too short) reverts
-        // Using a minimal invalid tx hex"010203" instead of properly formed tx
+        // Using a minimal invalid tx that can't be parsed
         vm.prank(pegOutLp);
-        vm.expectRevert(); // MalformedTransaction
+        vm.expectRevert(); // Will revert during BtcUtils.getOutputs parsing
         pegOutContract.refundPegOut(
             quoteHash,
             hex"010203",
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
+    }
+
+    function test_RefundPegOut_RevertsIfNullDataScriptHasWrongSize() public {
+        Quotes.PegOutQuote memory quote = createAndDepositQuote();
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+
+        // Generate a valid BTC tx but manually create one with wrong OP_RETURN size
+        // The null data script should be: 0x6a20 (OP_RETURN PUSH32) + 32 bytes hash
+        // But we'll make it shorter: 0x6a10 (OP_RETURN PUSH16) + 16 bytes
+        bytes memory btcTx = abi.encodePacked(
+            hex"01000000", // Version
+            hex"01", // 1 input
+            hex"013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40",
+            hex"00000000",
+            hex"6a",
+            hex"47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4",
+            hex"ffffffff",
+            hex"02", // 2 outputs
+            // Output 1: Payment
+            hex"00e1f50500000000",
+            hex"19", // script length
+            hex"76a91489abcdefabbaabbaabbaabbaabbaabbaabbaabba88ac",
+            // Output 2: OP_RETURN with WRONG SIZE (16 bytes instead of 32)
+            hex"0000000000000000", // 0 amount
+            hex"12", // Wrong script length! (18 bytes instead of 34)
+            hex"6a10", // OP_RETURN PUSH16 (wrong! should be 0x20 for 32 bytes)
+            bytes16(quoteHash), // Only 16 bytes instead of 32!
+            hex"00000000" // Locktime
+        );
+
+        // Setup headers
+        bytes memory header = createBtcBlockHeader(
+            uint32(block.timestamp + 100)
+        );
+        bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
+        bridgeMock.setConfirmations(
+            int256(uint256(quote.transferConfirmations))
+        );
+
+        // Extract what the malformed script content will be
+        // Script content after parsing will be: 0x10 + 16 bytes (total 17 bytes, not 33)
+        bytes memory expectedScriptContent = abi.encodePacked(
+            hex"10", // Size byte (16, not 32)
+            bytes16(quoteHash) // Only 16 bytes
+        );
+
+        vm.prank(pegOutLp);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOut.MalformedTransaction.selector,
+                expectedScriptContent
+            )
+        );
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
             BLOCK_HEADER_HASH,
             PARTIAL_MERKLE_TREE,
             merkleHashes
@@ -318,10 +365,23 @@ contract LpRefundTest is PegOutTestBase {
 
         bytes memory btcTx = generateBtcTx(quote, quoteHash);
 
+        // Calculate expected penalty and reward
+        uint256 penalty = quote.penaltyFee;
+        uint256 reward = (penalty * TEST_REWARD_PERCENTAGE) / 10000;
+
         // Refund should succeed but emit penalization
         vm.prank(pegOutLp);
         vm.expectEmit(true, false, false, true);
         emit IPegOut.PegOutRefunded(quoteHash);
+        vm.expectEmit(true, true, true, true);
+        emit ICollateralManagement.Penalized(
+            pegOutLp,
+            pegOutLp,
+            quoteHash,
+            Flyover.ProviderType.PegOut,
+            penalty,
+            reward
+        );
         pegOutContract.refundPegOut(
             quoteHash,
             btcTx,
@@ -349,10 +409,23 @@ contract LpRefundTest is PegOutTestBase {
 
         bytes memory btcTx = generateBtcTx(quote, quoteHash);
 
+        // Calculate expected penalty and reward
+        uint256 penalty = quote.penaltyFee;
+        uint256 reward = (penalty * TEST_REWARD_PERCENTAGE) / 10000;
+
         // Refund should succeed but emit penalization
         vm.prank(pegOutLp);
         vm.expectEmit(true, false, false, true);
         emit IPegOut.PegOutRefunded(quoteHash);
+        vm.expectEmit(true, true, true, true);
+        emit ICollateralManagement.Penalized(
+            pegOutLp,
+            pegOutLp,
+            quoteHash,
+            Flyover.ProviderType.PegOut,
+            penalty,
+            reward
+        );
         pegOutContract.refundPegOut(
             quoteHash,
             btcTx,
@@ -383,10 +456,23 @@ contract LpRefundTest is PegOutTestBase {
 
         bytes memory btcTx = generateBtcTx(quote, quoteHash);
 
+        // Calculate expected penalty and reward
+        uint256 penalty = quote.penaltyFee;
+        uint256 reward = (penalty * TEST_REWARD_PERCENTAGE) / 10000;
+
         // Refund should succeed but emit penalization
         vm.prank(pegOutLp);
         vm.expectEmit(true, false, false, true);
         emit IPegOut.PegOutRefunded(quoteHash);
+        vm.expectEmit(true, true, true, true);
+        emit ICollateralManagement.Penalized(
+            pegOutLp,
+            pegOutLp,
+            quoteHash,
+            Flyover.ProviderType.PegOut,
+            penalty,
+            reward
+        );
         pegOutContract.refundPegOut(
             quoteHash,
             btcTx,
@@ -424,107 +510,238 @@ contract LpRefundTest is PegOutTestBase {
         );
     }
 
-    // Note: The TypeScript test suite includes 100+ additional parameterized tests:
-    // - forEach with 5 BTC address types (P2PKH, P2SH, P2WPKH, P2WSH, P2TR)
-    // - forEach with 10 amount precisions
-    // - 2 test scenarios per combination (normal + truncated)
-    // = 5 × 10 × 2 = 100 tests
-    //
-    // These require full BTC transaction generation with proper scripts and
-    // amount encoding, which is extensively covered in the TypeScript integration tests.
+    // ============ BTC Address Type Tests ============
+
+    /// @notice Test refund with P2PKH (Pay-to-PubKey-Hash) address - Legacy Bitcoin addresses
+    function test_RefundPegOut_WorksWithP2PKH() public {
+        Quotes.PegOutQuote memory quote = createTestPegOutQuoteWithAddressType(
+            1 ether,
+            pegOutLp,
+            "p2pkh"
+        );
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+        bytes memory signature = signQuote(pegOutLp, quoteHash);
+
+        vm.prank(user);
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(
+            quote,
+            signature
+        );
+
+        // Setup block header
+        bytes memory header = createBtcBlockHeader(
+            uint32(block.timestamp + 100)
+        );
+        bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
+        bridgeMock.setConfirmations(
+            int256(uint256(quote.transferConfirmations))
+        );
+
+        // Generate P2PKH transaction
+        bytes memory btcTx = generateBtcTx(quote, quoteHash);
+
+        vm.prank(pegOutLp);
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
+    }
+
+    /// @notice Test refund with P2SH (Pay-to-Script-Hash) address
+    function test_RefundPegOut_WorksWithP2SH() public {
+        Quotes.PegOutQuote memory quote = createTestPegOutQuoteWithAddressType(
+            1 ether,
+            pegOutLp,
+            "p2sh"
+        );
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+        bytes memory signature = signQuote(pegOutLp, quoteHash);
+
+        vm.prank(user);
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(
+            quote,
+            signature
+        );
+
+        // Setup block header
+        bytes memory header = createBtcBlockHeader(
+            uint32(block.timestamp + 100)
+        );
+        bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
+        bridgeMock.setConfirmations(
+            int256(uint256(quote.transferConfirmations))
+        );
+
+        // Generate P2SH transaction
+        bytes memory btcTx = generateBtcTxWithType(quote, quoteHash, "p2sh");
+
+        vm.prank(pegOutLp);
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
+    }
+
+    /// @notice Test refund with P2WPKH (SegWit v0 Pay-to-Witness-PubKey-Hash) address
+    function test_RefundPegOut_WorksWithP2WPKH() public {
+        Quotes.PegOutQuote memory quote = createTestPegOutQuoteWithAddressType(
+            1 ether,
+            pegOutLp,
+            "p2wpkh"
+        );
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+        bytes memory signature = signQuote(pegOutLp, quoteHash);
+
+        vm.prank(user);
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(
+            quote,
+            signature
+        );
+
+        // Setup block header
+        bytes memory header = createBtcBlockHeader(
+            uint32(block.timestamp + 100)
+        );
+        bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
+        bridgeMock.setConfirmations(
+            int256(uint256(quote.transferConfirmations))
+        );
+
+        // Generate P2WPKH transaction
+        bytes memory btcTx = generateBtcTxWithType(quote, quoteHash, "p2wpkh");
+
+        vm.prank(pegOutLp);
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
+    }
+
+    /// @notice Test refund with P2WSH (SegWit v0 Pay-to-Witness-Script-Hash) address
+    function test_RefundPegOut_WorksWithP2WSH() public {
+        Quotes.PegOutQuote memory quote = createTestPegOutQuoteWithAddressType(
+            1 ether,
+            pegOutLp,
+            "p2wsh"
+        );
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+        bytes memory signature = signQuote(pegOutLp, quoteHash);
+
+        vm.prank(user);
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(
+            quote,
+            signature
+        );
+
+        // Setup block header
+        bytes memory header = createBtcBlockHeader(
+            uint32(block.timestamp + 100)
+        );
+        bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
+        bridgeMock.setConfirmations(
+            int256(uint256(quote.transferConfirmations))
+        );
+
+        // Generate P2WSH transaction
+        bytes memory btcTx = generateBtcTxWithType(quote, quoteHash, "p2wsh");
+
+        vm.prank(pegOutLp);
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
+    }
+
+    /// @notice Test refund with P2TR (Taproot / SegWit v1) address
+    function test_RefundPegOut_WorksWithP2TR() public {
+        Quotes.PegOutQuote memory quote = createTestPegOutQuoteWithAddressType(
+            1 ether,
+            pegOutLp,
+            "p2tr"
+        );
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+        bytes memory signature = signQuote(pegOutLp, quoteHash);
+
+        vm.prank(user);
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(
+            quote,
+            signature
+        );
+
+        // Setup block header
+        bytes memory header = createBtcBlockHeader(
+            uint32(block.timestamp + 100)
+        );
+        bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
+        bridgeMock.setConfirmations(
+            int256(uint256(quote.transferConfirmations))
+        );
+
+        // Generate P2TR transaction
+        bytes memory btcTx = generateBtcTxWithType(quote, quoteHash, "p2tr");
+
+        vm.prank(pegOutLp);
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
+    }
 
     // ============ Helper Functions ============
 
-    /// @notice Generates a BTC transaction for PegOut refund
+    string constant HELPER_SCRIPT_GENERATE_BTC_TX =
+        "forge-scripts/helpers/generate-btc-tx.ts";
+    string constant HELPER_SCRIPT_GET_BTC_ADDRESS_BYTES =
+        "forge-scripts/helpers/get-btc-address-bytes.ts";
+
+    /// @notice Generates a BTC transaction for PegOut refund using FFI
     /// @param quote The PegOut quote
     /// @param quoteHash The hash of the quote
     /// @return btcTx The raw BTC transaction bytes
     function generateBtcTx(
         Quotes.PegOutQuote memory quote,
         bytes32 quoteHash
-    ) internal pure returns (bytes memory) {
-        // BTC transaction structure:
-        // - Version (4 bytes)
-        // - Input count (1 byte)
-        // - Input (previous tx + script + sequence)
-        // - Output count (1 byte)
-        // - Output 1: Payment to user (amount + script)
-        // - Output 2: OP_RETURN with quote hash
-        // - Locktime (4 bytes)
-
-        // Convert quote value from WEI to SAT (divide by 10^10)
-        uint64 satAmount = uint64(quote.value / 1e10);
-
-        // Extract the 20-byte hash160 from the 21-byte address (skip version byte at index 0)
-        bytes memory hash160 = new bytes(20);
-        for (uint i = 0; i < 20; i++) {
-            hash160[i] = quote.depositAddress[i + 1];
-        }
-
-        // Create P2PKH output script: OP_DUP OP_HASH160 <20 bytes> OP_EQUALVERIFY OP_CHECKSIG
-        bytes memory outputScript = abi.encodePacked(
-            hex"76a914", // OP_DUP OP_HASH160 PUSH20
-            hash160, // 20 bytes hash160 (without version byte)
-            hex"88ac" // OP_EQUALVERIFY OP_CHECKSIG
-        );
-
-        // Build the transaction
-        bytes memory btcTx = abi.encodePacked(
-            hex"01000000", // Version
-            hex"01", // 1 input
-            // Input: previous tx hash (32) + output index (4) + script length + script + sequence (4)
-            hex"013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40",
-            hex"00000000",
-            hex"6a",
-            hex"47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4",
-            hex"ffffffff",
-            hex"02", // 2 outputs
-            // Output 1: amount (8 bytes LE) + script
-            toLittleEndian64(satAmount),
-            uint8(outputScript.length),
-            outputScript,
-            // Output 2: OP_RETURN with quote hash
-            hex"0000000000000000", // 0 amount
-            hex"22", // script length (34 bytes)
-            hex"6a20", // OP_RETURN PUSH32
-            quoteHash,
-            hex"00000000" // Locktime
-        );
-
-        return btcTx;
+    ) internal returns (bytes memory) {
+        return generateBtcTxWithType(quote, quoteHash, "p2pkh");
     }
 
-    /// @notice Converts uint64 to 8-byte little-endian
-    function toLittleEndian64(
-        uint64 value
-    ) internal pure returns (bytes memory) {
-        bytes memory result = new bytes(8);
-        result[0] = bytes1(uint8(value));
-        result[1] = bytes1(uint8(value >> 8));
-        result[2] = bytes1(uint8(value >> 16));
-        result[3] = bytes1(uint8(value >> 24));
-        result[4] = bytes1(uint8(value >> 32));
-        result[5] = bytes1(uint8(value >> 40));
-        result[6] = bytes1(uint8(value >> 48));
-        result[7] = bytes1(uint8(value >> 56));
+    /// @notice Generates a BTC transaction for a specific script type
+    /// @param quote The PegOut quote
+    /// @param quoteHash The hash of the quote
+    /// @param scriptType The script type (p2pkh, p2sh, p2wpkh, p2wsh, p2tr)
+    /// @return btcTx The raw BTC transaction bytes
+    function generateBtcTxWithType(
+        Quotes.PegOutQuote memory quote,
+        bytes32 quoteHash,
+        string memory scriptType
+    ) internal returns (bytes memory) {
+        // Call FFI helper script to generate BTC transaction
+        string[] memory inputs = new string[](7);
+        inputs[0] = "npx";
+        inputs[1] = "ts-node";
+        inputs[2] = HELPER_SCRIPT_GENERATE_BTC_TX;
+        inputs[3] = vm.toString(quoteHash);
+        inputs[4] = vm.toString(quote.depositAddress);
+        inputs[5] = vm.toString(quote.value);
+        inputs[6] = scriptType;
+
+        bytes memory result = vm.ffi(inputs);
         return result;
-    }
-
-    /// @notice Creates a BTC block header with a specific timestamp (little-endian encoded)
-    /// @param timestamp The Unix timestamp for the block
-    /// @return header The 80-byte BTC block header
-    function createBtcBlockHeader(
-        uint32 timestamp
-    ) internal pure returns (bytes memory) {
-        bytes memory header = new bytes(80);
-
-        // Convert timestamp to little-endian and place at offset 68
-        header[68] = bytes1(uint8(timestamp));
-        header[69] = bytes1(uint8(timestamp >> 8));
-        header[70] = bytes1(uint8(timestamp >> 16));
-        header[71] = bytes1(uint8(timestamp >> 24));
-
-        return header;
     }
 
     function createAndDepositQuote()
@@ -550,13 +767,17 @@ contract LpRefundTest is PegOutTestBase {
     function createTestPegOutQuote(
         uint256 value,
         address lp
-    ) internal view returns (Quotes.PegOutQuote memory) {
-        // Create a valid Bitcoin testnet P2PKH address (version byte 0x6f + 20 bytes hash160)
-        // Using a non-zero hash to ensure it's a valid address for testing
-        bytes memory testBtcAddress = abi.encodePacked(
-            hex"6f", // Testnet version byte
-            hex"89abcdefabbaabbaabbaabbaabbaabbaabbaabba" // 20 bytes hash160
-        );
+    ) internal returns (Quotes.PegOutQuote memory) {
+        return createTestPegOutQuoteWithAddressType(value, lp, "p2pkh");
+    }
+
+    /// @notice Creates a test PegOut quote with a specific BTC address type
+    function createTestPegOutQuoteWithAddressType(
+        uint256 value,
+        address lp,
+        string memory addressType
+    ) internal returns (Quotes.PegOutQuote memory) {
+        bytes memory testBtcAddress = getBtcAddressForType(addressType);
         uint32 currentTime = uint32(block.timestamp);
 
         return
@@ -581,6 +802,22 @@ contract LpRefundTest is PegOutTestBase {
                 btcRefundAddress: testBtcAddress,
                 lpBtcAddress: testBtcAddress
             });
+    }
+
+    /// @notice Returns a test Bitcoin address for the given type using FFI
+    /// @dev For SegWit addresses, returns witness version + 5-bit words (bech32 format)
+    ///      For legacy addresses, returns version byte + raw hash
+    function getBtcAddressForType(
+        string memory addressType
+    ) internal returns (bytes memory) {
+        string[] memory inputs = new string[](4);
+        inputs[0] = "npx";
+        inputs[1] = "ts-node";
+        inputs[2] = HELPER_SCRIPT_GET_BTC_ADDRESS_BYTES;
+        inputs[3] = addressType;
+
+        bytes memory result = vm.ffi(inputs);
+        return result;
     }
 
     function getTotalValue(

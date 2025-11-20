@@ -216,25 +216,11 @@ contract RefundUserPegout is Script {
 
         // Estimate gas
         console.log("\nEstimating gas...");
-        uint256 gasEstimate = 0;
+        uint256 gasStart = gasleft();
 
-        // Get the sender address for gas estimation
-        address sender = msg.sender;
-        if (vm.envOr("BROADCAST", false)) {
-            try vm.envAddress("SENDER") returns (address envSender) {
-                sender = envSender;
-            } catch {
-                // Use default from private key if available
-                sender = vm.addr(vm.envUint("PRIVATE_KEY"));
-            }
-        }
-
-        // Estimate gas by simulating the call
-        vm.prank(sender);
         try lbc.refundUserPegOut(quoteHash) {
-            // If we get here in simulation, estimate around 100k gas as a safe estimate
-            gasEstimate = 100000;
-            console.log("Gas estimation (approximate):", gasEstimate);
+            uint256 gasUsed = gasStart - gasleft();
+            console.log("Gas estimation (approximate):", gasUsed);
         } catch Error(string memory reason) {
             console.log("\n[ERROR] Transaction simulation failed:");
             console.log(reason);

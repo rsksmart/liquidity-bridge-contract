@@ -60,50 +60,11 @@ interface ILiquidityBridgeContract {
  *     --rpc-url http://localhost:4444 \
  *     --ffi
  */
-contract HashQuote is Script {
+import {BtcAddressParser} from "../helpers/BtcAddressParser.sol";
+
+contract HashQuote is Script, BtcAddressParser {
     // LBC contract address - should be loaded from deployment config
     address constant LBC_ADDRESS = address(0); // TODO: Load from addresses.json
-
-    string constant HELPER_SCRIPT =
-        "forge-scripts/helpers/parse-btc-address.ts";
-
-    /**
-     * @notice Parse Bitcoin address using FFI helper script
-     * @param btcAddress The Bitcoin address string to parse
-     * @return The decoded address as bytes
-     */
-    function parseBtcAddress(
-        string memory btcAddress
-    ) internal returns (bytes memory) {
-        string[] memory inputs = new string[](4);
-        inputs[0] = "npx";
-        inputs[1] = "ts-node";
-        inputs[2] = HELPER_SCRIPT;
-        inputs[3] = btcAddress;
-
-        bytes memory result = vm.ffi(inputs);
-        return result;
-    }
-
-    /**
-     * @notice Parse fedBtcAddress (removes first byte after base58check decode)
-     * @param btcAddress The Bitcoin address string to parse
-     * @return The decoded address as bytes20 (without first byte)
-     */
-    function parseFedBtcAddress(
-        string memory btcAddress
-    ) internal returns (bytes20) {
-        bytes memory decoded = parseBtcAddress(btcAddress);
-        require(decoded.length >= 21, "Invalid fedBtcAddress length");
-
-        // Skip first byte (network prefix)
-        bytes memory sliced = new bytes(20);
-        for (uint i = 0; i < 20; i++) {
-            sliced[i] = decoded[i + 1];
-        }
-
-        return bytes20(sliced);
-    }
 
     /**
      * @notice Get LBC address from deployment config or environment variable
