@@ -1171,7 +1171,9 @@ contract RegisterPegInTest is PegInTestBase {
         Quotes.PegInQuote memory quote = createTestQuote(1.2 ether);
         quote.contractAddress = reentrantAddress;
         quote.callOnRegister = true;
-        quote.data = abi.encodeWithSelector(reentrancyCaller.reentrantCall.selector);
+        quote.data = abi.encodeWithSelector(
+            reentrancyCaller.reentrantCall.selector
+        );
         quote.gasLimit = 200000; // Need more gas for the reentrant attempt
 
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
@@ -1210,9 +1212,12 @@ contract RegisterPegInTest is PegInTestBase {
         // Verify the call was made but reentrancy was blocked
         // The ReentrancyCaller should have captured a revert with ReentrancyGuard selector
         bytes memory actualReason = reentrancyCaller.getRevertReason();
-        bytes4 expectedSelector = bytes4(keccak256("ReentrancyGuardReentrantCall()"));
+        bytes4 expectedSelector = bytes4(
+            keccak256("ReentrancyGuardReentrantCall()")
+        );
         assertTrue(
-            actualReason.length >= 4 && bytes4(actualReason) == expectedSelector,
+            actualReason.length >= 4 &&
+                bytes4(actualReason) == expectedSelector,
             "Should have captured reentrancy revert"
         );
 
@@ -1234,11 +1239,15 @@ contract RegisterPegInTest is PegInTestBase {
 
         // Decode BTC addresses from base58check format
         // "3LxPz39femVBL278mTiBvgzBNMVFqXssoH" (P2SH mainnet) -> slice(1) removes version byte
-        bytes20 fedBtcAddr = bytes20(hex"a157fd1a536371656f3c19c2005199308a49bc9c");
+        bytes20 fedBtcAddr = bytes20(
+            hex"a157fd1a536371656f3c19c2005199308a49bc9c"
+        );
         // "17kksixYkbHeLy9okV16kr4eAxVhFkRhP" (P2PKH mainnet) -> full decoded bytes
-        bytes memory lpBtcAddr = hex"00840098213fec4001cdc4a77cc3340f5bb83d9ed5";
+        bytes
+            memory lpBtcAddr = hex"00840098213fec4001cdc4a77cc3340f5bb83d9ed5";
         // "1K5X7aTGfZGksihgNdDschakaxp8ZhT1F3" (P2PKH mainnet) -> full decoded bytes
-        bytes memory userBtcAddr1 = hex"009b51cc55c4ddc75b5a8e0c1cfee76e063e4b81d3";
+        bytes
+            memory userBtcAddr1 = hex"009b51cc55c4ddc75b5a8e0c1cfee76e063e4b81d3";
 
         // Test Case 1: Transaction with slight underpayment
         // Real mainnet quote hash: b21ead431a1c3efd1759b62a56c253d740d1bf3c3673cd060aed64906a82c1c3
@@ -1251,7 +1260,9 @@ contract RegisterPegInTest is PegInTestBase {
             lbcAddress: address(pegInContract), // Updated to match deployed contract
             liquidityProviderRskAddress: fullLp,
             btcRefundAddress: userBtcAddr1,
-            rskRefundAddress: payable(0x1bf357F3CcCe62a5Dd1035c79070BdA219C53B10),
+            rskRefundAddress: payable(
+                0x1bf357F3CcCe62a5Dd1035c79070BdA219C53B10
+            ),
             liquidityProviderBtcAddress: lpBtcAddr,
             callFee: 100000000000000 * regtestMultiplier,
             penaltyFee: 10000000000000 * regtestMultiplier,
@@ -1273,19 +1284,26 @@ contract RegisterPegInTest is PegInTestBase {
         bytes32 quoteHash1 = pegInContract.hashPegInQuote(quote1);
 
         // Calculate total value of the quote
-        uint256 totalValue1 = quote1.value + quote1.callFee + quote1.productFeeAmount + quote1.gasFee;
+        uint256 totalValue1 = quote1.value +
+            quote1.callFee +
+            quote1.productFeeAmount +
+            quote1.gasFee;
 
         // Real refund amount from mainnet (slightly different from expected), scaled by 100x
         // But it must be at least equal to totalValue to pass validation
         uint256 baseRefundAmount1 = 5301350000000000 * regtestMultiplier;
-        uint256 refundAmount1 = baseRefundAmount1 >= totalValue1 ? baseRefundAmount1 : totalValue1;
+        uint256 refundAmount1 = baseRefundAmount1 >= totalValue1
+            ? baseRefundAmount1
+            : totalValue1;
 
         // Setup bridge to return this amount
         vm.deal(address(bridgeMock), refundAmount1);
         bridgeMock.setPegin{value: refundAmount1}(quoteHash1);
 
         // Setup headers (simplified - real test would use actual BTC headers)
-        bytes memory header = createBtcBlockHeader(uint32(block.timestamp) + 300);
+        bytes memory header = createBtcBlockHeader(
+            uint32(block.timestamp) + 300
+        );
         bridgeMock.setHeader(HEIGHT_MOCK, header);
         bridgeMock.setHeader(HEIGHT_MOCK + 1, header);
 
@@ -1330,41 +1348,49 @@ contract RegisterPegInTest is PegInTestBase {
 
         // Test Case 2: Another real transaction with different parameters
         // "171gGjg8NeLUonNSrFmgwkgT1jgqzXR6QX" (P2PKH mainnet) -> 0x00 + 20 bytes hash
-        bytes memory userBtcAddr2 = hex"0013c5b9da8f2f01c8ae8bcf0ff05c1d9c81d73d02";
+        bytes
+            memory userBtcAddr2 = hex"0013c5b9da8f2f01c8ae8bcf0ff05c1d9c81d73d02";
 
         Quotes.PegInQuote memory quote2 = Quotes.PegInQuote({
             fedBtcAddress: bytes20(fedBtcAddr),
             lbcAddress: address(pegInContract),
             liquidityProviderRskAddress: fullLp,
             btcRefundAddress: userBtcAddr2,
-                rskRefundAddress: payable(0xaD0DE1962ab903E06C725A1b343b7E8950a0Ff82),
-                liquidityProviderBtcAddress: lpBtcAddr,
-                callFee: 100000000000000 * regtestMultiplier,
-                penaltyFee: 10000000000000 * regtestMultiplier,
-                contractAddress: 0xaD0DE1962ab903E06C725A1b343b7E8950a0Ff82,
-                data: new bytes(0),
-                gasLimit: 21000,
-                nonce: int64(uint64(8373381263192041574)),
-                value: 8000000000000000 * regtestMultiplier,
-                agreementTimestamp: 1727298699,
-                timeForDeposit: 3600,
-                callTime: 7200,
-                depositConfirmations: 2,
-                callOnRegister: false,
-                productFeeAmount: 0,
-                gasFee: 1341211956000 * regtestMultiplier
+            rskRefundAddress: payable(
+                0xaD0DE1962ab903E06C725A1b343b7E8950a0Ff82
+            ),
+            liquidityProviderBtcAddress: lpBtcAddr,
+            callFee: 100000000000000 * regtestMultiplier,
+            penaltyFee: 10000000000000 * regtestMultiplier,
+            contractAddress: 0xaD0DE1962ab903E06C725A1b343b7E8950a0Ff82,
+            data: new bytes(0),
+            gasLimit: 21000,
+            nonce: int64(uint64(8373381263192041574)),
+            value: 8000000000000000 * regtestMultiplier,
+            agreementTimestamp: 1727298699,
+            timeForDeposit: 3600,
+            callTime: 7200,
+            depositConfirmations: 2,
+            callOnRegister: false,
+            productFeeAmount: 0,
+            gasFee: 1341211956000 * regtestMultiplier
         });
 
         // Calculate quote hash first
         bytes32 quoteHash2 = pegInContract.hashPegInQuote(quote2);
 
         // Calculate total value of the quote
-        uint256 totalValue2 = quote2.value + quote2.callFee + quote2.productFeeAmount + quote2.gasFee;
+        uint256 totalValue2 = quote2.value +
+            quote2.callFee +
+            quote2.productFeeAmount +
+            quote2.gasFee;
 
         // Real refund amount from mainnet, scaled by 100x
         // But it must be at least equal to totalValue to pass validation
         uint256 baseRefundAmount2 = 8101340000000000 * regtestMultiplier;
-        uint256 refundAmount2 = baseRefundAmount2 >= totalValue2 ? baseRefundAmount2 : totalValue2;
+        uint256 refundAmount2 = baseRefundAmount2 >= totalValue2
+            ? baseRefundAmount2
+            : totalValue2;
 
         // Setup bridge
         vm.deal(address(bridgeMock), refundAmount2);

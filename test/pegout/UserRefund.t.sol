@@ -47,8 +47,12 @@ contract UserRefundTest is PegOutTestBase {
         );
 
         // Set expiration in the future
-        quote.expireDate = uint32(uint256(block.timestamp) + SECONDS_UNTIL_EXPIRATION);
-        quote.expireBlock = uint32(uint256(block.number) + BLOCKS_UNTIL_EXPIRATION);
+        quote.expireDate = uint32(
+            uint256(block.timestamp) + SECONDS_UNTIL_EXPIRATION
+        );
+        quote.expireBlock = uint32(
+            uint256(block.number) + BLOCKS_UNTIL_EXPIRATION
+        );
 
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(fullLp, quoteHash);
@@ -78,8 +82,12 @@ contract UserRefundTest is PegOutTestBase {
         );
 
         // Set expiration in the future
-        quote.expireBlock = uint32(uint256(block.number) + BLOCKS_UNTIL_EXPIRATION);
-        quote.expireDate = uint32(uint256(block.timestamp) + SECONDS_UNTIL_EXPIRATION);
+        quote.expireBlock = uint32(
+            uint256(block.number) + BLOCKS_UNTIL_EXPIRATION
+        );
+        quote.expireDate = uint32(
+            uint256(block.timestamp) + SECONDS_UNTIL_EXPIRATION
+        );
 
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(fullLp, quoteHash);
@@ -113,8 +121,12 @@ contract UserRefundTest is PegOutTestBase {
         quote.rskRefundAddress = address(changeReceiver);
 
         // Set expiration in the future
-        quote.expireDate = uint32(uint256(block.timestamp) + SECONDS_UNTIL_EXPIRATION);
-        quote.expireBlock = uint32(uint256(block.number) + BLOCKS_UNTIL_EXPIRATION);
+        quote.expireDate = uint32(
+            uint256(block.timestamp) + SECONDS_UNTIL_EXPIRATION
+        );
+        quote.expireBlock = uint32(
+            uint256(block.number) + BLOCKS_UNTIL_EXPIRATION
+        );
 
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(fullLp, quoteHash);
@@ -201,18 +213,19 @@ contract UserRefundTest is PegOutTestBase {
         uint256 totalQuoteValue = getTotalValue(quote);
 
         // Set expiration in the future
-        quote.expireDate = uint32(uint256(block.timestamp) + SECONDS_UNTIL_EXPIRATION);
-        quote.expireBlock = uint32(uint256(block.number) + BLOCKS_UNTIL_EXPIRATION);
+        quote.expireDate = uint32(
+            uint256(block.timestamp) + SECONDS_UNTIL_EXPIRATION
+        );
+        quote.expireBlock = uint32(
+            uint256(block.number) + BLOCKS_UNTIL_EXPIRATION
+        );
 
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(fullLp, quoteHash);
 
         // Deposit the quote
         vm.prank(user);
-        pegOutContract.depositPegOut{value: totalQuoteValue}(
-            quote,
-            signature
-        );
+        pegOutContract.depositPegOut{value: totalQuoteValue}(quote, signature);
 
         // Get initial balances
         uint256 contractBalanceBefore = address(pegOutContract).balance;
