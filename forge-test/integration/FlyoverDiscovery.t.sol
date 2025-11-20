@@ -575,4 +575,186 @@ contract FlyoverDiscoveryIntegrationTest is Test {
         assertTrue(discovery.isOperational(Flyover.ProviderType.PegOut, lp2));
         assertFalse(discovery.isOperational(Flyover.ProviderType.PegIn, lp2));
     }
+
+    // ============ Complex Multi-Provider Scenario ============
+
+    function test_ShouldListOnlyEnabledAndNonResignedProvidersInComplexScenario()
+        public
+    {
+        // Create 8 providers with various states
+        address lp1 = signers[signers.length - 8];
+        address lp2 = signers[signers.length - 7];
+        address lp3 = signers[signers.length - 6];
+        address lp4 = signers[signers.length - 5];
+        address lp5 = signers[signers.length - 4];
+        address lp6 = signers[signers.length - 3];
+        address lp7 = signers[signers.length - 2];
+        address lp8 = signers[signers.length - 1];
+
+        /**
+         * Target provider statuses:
+         * LP1 - active (enabled + not resigned)
+         * LP2 - disabled but not resigned
+         * LP3 - active (enabled + not resigned)
+         * LP4 - resigned and disabled
+         * LP5 - resigned but still enabled
+         * LP6 - disabled but not resigned
+         * LP7 - active (enabled + not resigned)
+         * LP8 - resigned but enabled
+         */
+
+        // Register all 8 providers as enabled
+        vm.prank(lp1);
+        discovery.register{value: MIN_COLLATERAL}(
+            "LP1",
+            "url1",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+
+        vm.prank(lp2);
+        discovery.register{value: MIN_COLLATERAL}(
+            "LP2",
+            "url2",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+
+        vm.prank(lp3);
+        discovery.register{value: MIN_COLLATERAL}(
+            "LP3",
+            "url3",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+
+        vm.prank(lp4);
+        discovery.register{value: MIN_COLLATERAL}(
+            "LP4",
+            "url4",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+
+        vm.prank(lp5);
+        discovery.register{value: MIN_COLLATERAL}(
+            "LP5",
+            "url5",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+
+        vm.prank(lp6);
+        discovery.register{value: MIN_COLLATERAL}(
+            "LP6",
+            "url6",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+
+        vm.prank(lp7);
+        discovery.register{value: MIN_COLLATERAL}(
+            "LP7",
+            "url7",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+
+        vm.prank(lp8);
+        discovery.register{value: MIN_COLLATERAL}(
+            "LP8",
+            "url8",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+
+        // All 8 should be listed initially
+        Flyover.LiquidityProvider[] memory providers = discovery.getProviders();
+        assertEq(providers.length, 8, "All 8 providers should be listed initially");
+
+        // LP2 - disable (not resigned)
+        vm.prank(lp2);
+        discovery.setProviderStatus(2, false);
+
+        // LP3 - keep active (no changes)
+
+        // LP4 - resign and disable
+        vm.prank(lp4);
+        discovery.setProviderStatus(4, false);
+        vm.prank(lp4);
+        collateralManagement.resign();
+
+        // LP5 - resign but keep enabled
+        vm.prank(lp5);
+        collateralManagement.resign();
+
+        // LP6 - disable (not resigned)
+        vm.prank(lp6);
+        discovery.setProviderStatus(6, false);
+
+        // LP7 - keep active (no changes)
+
+        // LP8 - resign but keep enabled
+        vm.prank(lp8);
+        collateralManagement.resign();
+
+        // Get final provider list
+        providers = discovery.getProviders();
+
+        // Should only list: LP1, LP3, LP7 (enabled + not resigned)
+        assertEq(providers.length, 3, "Should only list 3 active providers");
+        assertEq(providers[0].id, 1, "First provider should be LP1");
+        assertEq(providers[1].id, 3, "Second provider should be LP3");
+        assertEq(providers[2].id, 7, "Third provider should be LP7");
+
+        // Verify expected providers are in the list
+        assertEq(providers[0].providerAddress, lp1, "LP1 address should match");
+        assertEq(providers[0].name, "LP1", "LP1 name should match");
+        assertTrue(providers[0].status, "LP1 should be enabled");
+
+        assertEq(providers[1].providerAddress, lp3, "LP3 address should match");
+        assertEq(providers[1].name, "LP3", "LP3 name should match");
+        assertTrue(providers[1].status, "LP3 should be enabled");
+
+        assertEq(providers[2].providerAddress, lp7, "LP7 address should match");
+        assertEq(providers[2].name, "LP7", "LP7 name should match");
+        assertTrue(providers[2].status, "LP7 should be enabled");
+
+        // Verify LP2, LP4, LP5, LP6, LP8 are NOT in the list
+        bool foundLp2 = false;
+        bool foundLp4 = false;
+        bool foundLp5 = false;
+        bool foundLp6 = false;
+        bool foundLp8 = false;
+
+        for (uint i = 0; i < providers.length; i++) {
+            if (providers[i].id == 2) foundLp2 = true;
+            if (providers[i].id == 4) foundLp4 = true;
+            if (providers[i].id == 5) foundLp5 = true;
+            if (providers[i].id == 6) foundLp6 = true;
+            if (providers[i].id == 8) foundLp8 = true;
+        }
+
+        assertFalse(foundLp2, "LP2 should not be in listing (disabled)");
+        assertFalse(foundLp4, "LP4 should not be in listing (resigned and disabled)");
+        assertFalse(foundLp5, "LP5 should not be in listing (resigned)");
+        assertFalse(foundLp6, "LP6 should not be in listing (disabled)");
+        assertFalse(foundLp8, "LP8 should not be in listing (resigned)");
+
+        // But all providers still exist and can be queried
+        Flyover.LiquidityProvider memory provider2 = discovery.getProvider(lp2);
+        assertEq(provider2.id, 2, "LP2 should still exist");
+
+        Flyover.LiquidityProvider memory provider4 = discovery.getProvider(lp4);
+        assertEq(provider4.id, 4, "LP4 should still exist");
+
+        Flyover.LiquidityProvider memory provider5 = discovery.getProvider(lp5);
+        assertEq(provider5.id, 5, "LP5 should still exist");
+
+        Flyover.LiquidityProvider memory provider6 = discovery.getProvider(lp6);
+        assertEq(provider6.id, 6, "LP6 should still exist");
+
+        Flyover.LiquidityProvider memory provider8 = discovery.getProvider(lp8);
+        assertEq(provider8.id, 8, "LP8 should still exist");
+    }
 }
