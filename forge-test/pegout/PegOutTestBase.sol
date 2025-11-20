@@ -40,6 +40,11 @@ abstract contract PegOutTestBase is Test {
 
     address constant ZERO_ADDRESS = address(0);
 
+    // BTC Mock Constants (shared across all PegOut tests)
+    bytes32 constant BLOCK_HEADER_HASH = bytes32(uint256(1));
+    uint256 constant PARTIAL_MERKLE_TREE = 0;
+    bytes32[] internal merkleHashes;
+
     /// @notice Deploy PegOutContract with all dependencies
     function deployPegOutContract() internal {
         // Create owner
@@ -180,5 +185,94 @@ abstract contract PegOutTestBase is Test {
             true,
             Flyover.ProviderType.Both
         );
+    }
+
+    /// @notice Initialize BTC mock data (call in setUp of test contracts)
+    function initBtcMocks() internal {
+        merkleHashes = new bytes32[](1);
+        merkleHashes[0] = bytes32(uint256(1));
+    }
+
+    /// @notice Creates a BTC block header with a specific timestamp
+    /// @param timestamp The Unix timestamp for the block
+    /// @return header The 80-byte BTC block header
+    function createBtcBlockHeader(
+        uint32 timestamp
+    ) internal pure returns (bytes memory) {
+        bytes memory header = new bytes(80);
+
+        // Place timestamp at offset 68 (little-endian)
+        header[68] = bytes1(uint8(timestamp));
+        header[69] = bytes1(uint8(timestamp >> 8));
+        header[70] = bytes1(uint8(timestamp >> 16));
+        header[71] = bytes1(uint8(timestamp >> 24));
+
+        return header;
+    }
+
+    /// @notice Converts uint64 to 8-byte little-endian
+    function toLittleEndian64(
+        uint64 value
+    ) internal pure returns (bytes memory) {
+        bytes memory result = new bytes(8);
+        result[0] = bytes1(uint8(value));
+        result[1] = bytes1(uint8(value >> 8));
+        result[2] = bytes1(uint8(value >> 16));
+        result[3] = bytes1(uint8(value >> 24));
+        result[4] = bytes1(uint8(value >> 32));
+        result[5] = bytes1(uint8(value >> 40));
+        result[6] = bytes1(uint8(value >> 48));
+        result[7] = bytes1(uint8(value >> 56));
+        return result;
+    }
+
+    /// @notice Generates a simple mock BTC transaction for testing
+    /// @dev Creates a minimal valid BTC tx with P2PKH output (same as Hardhat tests)
+    /// @param quote The PegOut quote
+    /// @param quoteHash The hash of the quote
+    /// @return btcTx The raw BTC transaction bytes
+    function generateMockBtcTx(
+        Quotes.PegOutQuote memory quote,
+        bytes32 quoteHash
+    ) internal pure returns (bytes memory) {
+        // Convert quote value from WEI to SAT (divide by 10^10)
+        uint64 satAmount = uint64(quote.value / 1e10);
+
+        // Extract P2PKH hash160 from 21-byte address (skip version byte)
+        bytes memory hash160 = new bytes(20);
+        for (uint i = 0; i < 20; i++) {
+            hash160[i] = quote.depositAddress[i + 1];
+        }
+
+        // Create P2PKH output script
+        bytes memory outputScript = abi.encodePacked(
+            hex"76a914", // OP_DUP OP_HASH160 PUSH20
+            hash160,
+            hex"88ac" // OP_EQUALVERIFY OP_CHECKSIG
+        );
+
+        // Build mock transaction (same structure as Hardhat tests)
+        return
+            abi.encodePacked(
+                hex"01000000", // Version
+                hex"01", // 1 input
+                // Hardcoded previous tx and signature (same as Hardhat)
+                hex"013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40",
+                hex"00000000",
+                hex"6a",
+                hex"47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4",
+                hex"ffffffff",
+                hex"02", // 2 outputs
+                // Output 1: Payment to user
+                toLittleEndian64(satAmount),
+                uint8(outputScript.length),
+                outputScript,
+                // Output 2: OP_RETURN with quote hash
+                hex"0000000000000000", // 0 amount
+                hex"22", // script length (34 bytes)
+                hex"6a20", // OP_RETURN PUSH32
+                quoteHash,
+                hex"00000000" // Locktime
+            );
     }
 }

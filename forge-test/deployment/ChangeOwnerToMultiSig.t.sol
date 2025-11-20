@@ -120,8 +120,35 @@ contract ChangeOwnerToMultiSigTest is Test {
             "Admin ownership should be transferred"
         );
 
-        console.log("\n[PASS] Ownership transfer pattern works correctly!");
-        console.log("[PASS] Both contract and admin ownership transferred!");
+        // Verify new owner can perform owner operations
+        address testAddress = makeAddr("testAddress");
+        vm.prank(newOwner);
+        lbcProxy.transferOwnership(testAddress);
+        address verifiedOwner = lbcProxy.owner();
+        assertEq(
+            verifiedOwner,
+            testAddress,
+            "New owner should be able to transfer ownership"
+        );
+
+        // Transfer back to newOwner for further testing
+        vm.prank(testAddress);
+        lbcProxy.transferOwnership(newOwner);
+        assertEq(
+            lbcProxy.owner(),
+            newOwner,
+            "Ownership should be transferred back to newOwner"
+        );
+
+        // Verify old owner cannot perform owner operations
+        vm.prank(currentOwner);
+        vm.expectRevert(); // Should revert with "Ownable: caller is not the owner"
+        lbcProxy.transferOwnership(makeAddr("anotherAddress"));
+
+        // Verify old admin owner cannot perform admin operations
+        vm.prank(currentOwner);
+        vm.expectRevert(); // Should revert with "Ownable: caller is not the owner"
+        admin.transferOwnership(makeAddr("anotherAddress"));
     }
 
     function test_CannotTransferToZeroAddress() public {

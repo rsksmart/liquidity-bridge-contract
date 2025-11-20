@@ -142,6 +142,180 @@ contract HashingTest is PegInTestBase {
         assertTrue(hash1a != hash3, "Changing quote value should change hash");
     }
 
+    function test_HashPegInQuote_IncludesAllFieldsInHash() public view {
+        // This test ensures every field in PegInQuote affects the hash
+        // If a new field is added but not included in the hash function, this test will fail
+        Quotes.PegInQuote memory baseQuote = createSpecificPegInQuote1();
+        baseQuote.lbcAddress = address(pegInContract);
+        bytes32 baseHash = pegInContract.hashPegInQuote(baseQuote);
+
+        Quotes.PegInQuote memory modifiedQuote;
+
+        // Test callFee
+        modifiedQuote = baseQuote;
+        modifiedQuote.callFee = baseQuote.callFee + 1;
+        assertTrue(
+            pegInContract.hashPegInQuote(modifiedQuote) != baseHash,
+            "callFee should affect hash"
+        );
+
+        // Test penaltyFee
+        modifiedQuote = baseQuote;
+        modifiedQuote.penaltyFee = baseQuote.penaltyFee + 1;
+        assertTrue(
+            pegInContract.hashPegInQuote(modifiedQuote) != baseHash,
+            "penaltyFee should affect hash"
+        );
+
+        // Test fedBtcAddress
+        modifiedQuote = baseQuote;
+        modifiedQuote.fedBtcAddress = bytes20(
+            0x1234567890123456789012345678901234567890
+        );
+        assertTrue(
+            pegInContract.hashPegInQuote(modifiedQuote) != baseHash,
+            "fedBtcAddress should affect hash"
+        );
+
+        // Test contractAddress
+        modifiedQuote = baseQuote;
+        modifiedQuote.contractAddress = address(
+            0x1234567890123456789012345678901234567890
+        );
+        assertTrue(
+            pegInContract.hashPegInQuote(modifiedQuote) != baseHash,
+            "contractAddress should affect hash"
+        );
+
+        // Test data
+        modifiedQuote = baseQuote;
+        modifiedQuote.data = hex"1234"; // Different data
+        assertTrue(
+            pegInContract.hashPegInQuote(modifiedQuote) != baseHash,
+            "data should affect hash"
+        );
+
+        // Test gasLimit
+        modifiedQuote = baseQuote;
+        modifiedQuote.gasLimit = baseQuote.gasLimit + 1;
+        assertTrue(
+            pegInContract.hashPegInQuote(modifiedQuote) != baseHash,
+            "gasLimit should affect hash"
+        );
+
+        // Test nonce
+        modifiedQuote = baseQuote;
+        modifiedQuote.nonce = baseQuote.nonce + 1;
+        assertTrue(
+            pegInContract.hashPegInQuote(modifiedQuote) != baseHash,
+            "nonce should affect hash"
+        );
+
+        // Test value
+        modifiedQuote = baseQuote;
+        modifiedQuote.value = baseQuote.value + 1;
+        assertTrue(
+            pegInContract.hashPegInQuote(modifiedQuote) != baseHash,
+            "value should affect hash"
+        );
+
+        // Test agreementTimestamp
+        modifiedQuote = baseQuote;
+        modifiedQuote.agreementTimestamp = baseQuote.agreementTimestamp + 1;
+        assertTrue(
+            pegInContract.hashPegInQuote(modifiedQuote) != baseHash,
+            "agreementTimestamp should affect hash"
+        );
+
+        // Test timeForDeposit
+        modifiedQuote = baseQuote;
+        modifiedQuote.timeForDeposit = baseQuote.timeForDeposit + 1;
+        assertTrue(
+            pegInContract.hashPegInQuote(modifiedQuote) != baseHash,
+            "timeForDeposit should affect hash"
+        );
+
+        // Test callTime
+        modifiedQuote = baseQuote;
+        modifiedQuote.callTime = baseQuote.callTime + 1;
+        assertTrue(
+            pegInContract.hashPegInQuote(modifiedQuote) != baseHash,
+            "callTime should affect hash"
+        );
+
+        // Test depositConfirmations
+        modifiedQuote = baseQuote;
+        modifiedQuote.depositConfirmations = baseQuote.depositConfirmations + 1;
+        assertTrue(
+            pegInContract.hashPegInQuote(modifiedQuote) != baseHash,
+            "depositConfirmations should affect hash"
+        );
+
+        // Test callOnRegister
+        modifiedQuote = baseQuote;
+        modifiedQuote.callOnRegister = !baseQuote.callOnRegister;
+        assertTrue(
+            pegInContract.hashPegInQuote(modifiedQuote) != baseHash,
+            "callOnRegister should affect hash"
+        );
+
+        // Test productFeeAmount
+        modifiedQuote = baseQuote;
+        modifiedQuote.productFeeAmount = baseQuote.productFeeAmount + 1;
+        assertTrue(
+            pegInContract.hashPegInQuote(modifiedQuote) != baseHash,
+            "productFeeAmount should affect hash"
+        );
+
+        // Test gasFee
+        modifiedQuote = baseQuote;
+        modifiedQuote.gasFee = baseQuote.gasFee + 1;
+        assertTrue(
+            pegInContract.hashPegInQuote(modifiedQuote) != baseHash,
+            "gasFee should affect hash"
+        );
+
+        // Test liquidityProviderRskAddress
+        modifiedQuote = baseQuote;
+        modifiedQuote.liquidityProviderRskAddress = address(
+            0x1234567890123456789012345678901234567890
+        );
+        assertTrue(
+            pegInContract.hashPegInQuote(modifiedQuote) != baseHash,
+            "liquidityProviderRskAddress should affect hash"
+        );
+
+        // Test rskRefundAddress
+        modifiedQuote = baseQuote;
+        modifiedQuote.rskRefundAddress = payable(
+            address(0x1234567890123456789012345678901234567890)
+        );
+        assertTrue(
+            pegInContract.hashPegInQuote(modifiedQuote) != baseHash,
+            "rskRefundAddress should affect hash"
+        );
+
+        // Test btcRefundAddress
+        modifiedQuote = baseQuote;
+        modifiedQuote.btcRefundAddress = new bytes(21);
+        modifiedQuote.btcRefundAddress[0] = 0x6f;
+        modifiedQuote.btcRefundAddress[1] = 0xff; // Different
+        assertTrue(
+            pegInContract.hashPegInQuote(modifiedQuote) != baseHash,
+            "btcRefundAddress should affect hash"
+        );
+
+        // Test liquidityProviderBtcAddress
+        modifiedQuote = baseQuote;
+        modifiedQuote.liquidityProviderBtcAddress = new bytes(21);
+        modifiedQuote.liquidityProviderBtcAddress[0] = 0x6f;
+        modifiedQuote.liquidityProviderBtcAddress[1] = 0xff; // Different
+        assertTrue(
+            pegInContract.hashPegInQuote(modifiedQuote) != baseHash,
+            "liquidityProviderBtcAddress should affect hash"
+        );
+    }
+
     // ============ Helper Functions ============
 
     function createBasicPegInQuote()

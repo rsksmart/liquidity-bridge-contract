@@ -5,7 +5,9 @@ import {PegInTestBase} from "./PegInTestBase.sol";
 import {IPegIn} from "../../contracts/interfaces/IPegIn.sol";
 import {Flyover} from "../../contracts/libraries/Flyover.sol";
 import {WalletMock} from "../../contracts/test-contracts/WalletMock.sol";
+import {WithdrawReceiver} from "../../contracts/test-contracts/WithdrawReceiver.sol";
 import {CollateralManagementContract} from "../../contracts/CollateralManagement.sol";
+import {CollateralManagementMock} from "../../contracts/test-contracts/CollateralManagementMock.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract WithdrawTest is PegInTestBase {
@@ -79,56 +81,80 @@ contract WithdrawTest is PegInTestBase {
         );
     }
 
-    function test_Withdraw_RevertsIfWithdrawalFails() public {
-        // Deploy a WalletMock that will reject payments
-        WalletMock walletMock = new WalletMock();
-
-        // Deploy a mock CollateralManagement (no registration check)
-        CollateralManagementContract mockCM = new CollateralManagementContract();
-        bytes memory initData = abi.encodeCall(
-            CollateralManagementContract.initialize,
-            (
-                owner,
-                TEST_DEFAULT_ADMIN_DELAY,
-                TEST_MIN_COLLATERAL,
-                TEST_RESIGN_DELAY_BLOCKS,
-                TEST_REWARD_PERCENTAGE
-            )
-        );
-        ERC1967Proxy mockCMProxy = new ERC1967Proxy(address(mockCM), initData);
+    function test_Withdraw_RevertsIfWithdrawalPaymentFails() public {
+        // Deploy a mock CollateralManagement (allows any address to deposit without registration)
+        CollateralManagementMock mockCM = new CollateralManagementMock();
 
         // Set the mock CollateralManagement
         vm.warp(block.timestamp + TEST_DEFAULT_ADMIN_DELAY + 1);
         vm.prank(owner);
-        pegInContract.setCollateralManagement(address(mockCMProxy));
+        pegInContract.setCollateralManagement(address(mockCM));
 
-        // Wallet deposits via execute
-        uint256 depositAmount = 0.1 ether;
-        vm.deal(address(walletMock), 10 ether);
-        bytes memory depositData = abi.encodeWithSelector(
-            pegInContract.deposit.selector
+        // Deploy WithdrawReceiver that will reject payments
+        WithdrawReceiver receiver = new WithdrawReceiver(
+            address(pegInContract)
         );
-        walletMock.execute{value: depositAmount}(
-            address(pegInContract),
-            depositAmount,
-            depositData
-        );
+        address receiverAddress = address(receiver);
 
-        // Set wallet to reject funds
-        walletMock.setRejectFunds(true);
+        // Deposit via receiver
+        uint256 withdrawAmount = 0.1 ether;
+        vm.deal(receiverAddress, 10 ether);
+        vm.prank(receiverAddress);
+        receiver.deposit{value: withdrawAmount}();
 
-        // Try to withdraw - should fail
-        bytes memory withdrawData = abi.encodeWithSelector(
-            pegInContract.withdraw.selector,
-            depositAmount
-        );
+        // Set receiver to reject funds
+        vm.prank(receiverAddress);
+        receiver.setFail(true);
 
-        vm.expectEmit(true, true, false, false);
-        emit WalletMock.TransactionRejected(
-            address(pegInContract),
-            0,
-            bytes("")
+        // Try to withdraw - should fail with PaymentFailed
+        vm.prank(receiverAddress);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Flyover.PaymentFailed.selector,
+                receiverAddress,
+                withdrawAmount,
+                abi.encodeWithSelector(WithdrawReceiver.SomeError.selector)
+            )
         );
-        walletMock.execute(address(pegInContract), 0, withdrawData);
+        receiver.withdraw(withdrawAmount);
+    }
+
+    function test_Withdraw_RevertsOnReentrancy() public {
+        // Deploy a mock CollateralManagement (allows any address to deposit without registration)
+        CollateralManagementMock mockCM = new CollateralManagementMock();
+
+        // Set the mock CollateralManagement
+        vm.warp(block.timestamp + TEST_DEFAULT_ADMIN_DELAY + 1);
+        vm.prank(owner);
+        pegInContract.setCollateralManagement(address(mockCM));
+
+        // Deploy WithdrawReceiver that will attempt reentrancy
+        WithdrawReceiver receiver = new WithdrawReceiver(
+            address(pegInContract)
+        );
+        address receiverAddress = address(receiver);
+
+        // Deposit via receiver
+        uint256 withdrawAmount = 0.1 ether;
+        vm.deal(receiverAddress, 10 ether);
+        vm.prank(receiverAddress);
+        receiver.deposit{value: withdrawAmount}();
+
+        // Set receiver to NOT fail (will attempt reentrancy instead)
+        vm.prank(receiverAddress);
+        receiver.setFail(false);
+
+        // Try to withdraw - receiver will attempt reentrancy in its receive()
+        // This should revert with ReentrancyGuardReentrantCall
+        vm.prank(receiverAddress);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Flyover.PaymentFailed.selector,
+                receiverAddress,
+                withdrawAmount,
+                abi.encodeWithSignature("ReentrancyGuardReentrantCall()")
+            )
+        );
+        receiver.withdraw(withdrawAmount);
     }
 }

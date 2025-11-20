@@ -7,6 +7,8 @@ import {Quotes} from "../../contracts/libraries/Quotes.sol";
 import {Flyover} from "../../contracts/libraries/Flyover.sol";
 import {SignatureValidator} from "../../contracts/libraries/SignatureValidator.sol";
 import {WalletMock} from "../../contracts/test-contracts/WalletMock.sol";
+import {ReentrancyCaller} from "../../contracts/test-contracts/ReentrancyCaller.sol";
+import {OwnableDaoContributorUpgradeable} from "../../contracts/DaoContributor.sol";
 
 /// @title RegisterPegIn Tests
 /// @notice Tests for the registerPegIn function - the core of the PegIn flow
@@ -443,7 +445,20 @@ contract RegisterPegInTest is PegInTestBase {
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
         bytes memory signature = signQuote(fullLp, quoteHash);
 
-        uint256 peginAmount = getTotalValue(quote) - 0.0001 ether;
+        // Calculate agreed amount with rounding (matches Quotes.checkAgreedAmount logic)
+        uint256 agreedAmount = quote.value +
+            quote.callFee +
+            quote.productFeeAmount +
+            quote.gasFee;
+        uint256 SAT_TO_WEI_CONVERSION = 10 ** 10;
+        if (
+            agreedAmount > SAT_TO_WEI_CONVERSION &&
+            (agreedAmount % SAT_TO_WEI_CONVERSION) != 0
+        ) {
+            agreedAmount -= (agreedAmount % SAT_TO_WEI_CONVERSION);
+        }
+
+        uint256 peginAmount = agreedAmount - 0.0001 ether;
 
         // Setup BTC block headers
         bytes memory firstHeader = createBtcBlockHeader(
@@ -466,7 +481,13 @@ contract RegisterPegInTest is PegInTestBase {
 
         // Register should revert due to insufficient amount
         vm.prank(fullLp);
-        vm.expectRevert(); // AmountTooLow from Quotes
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Quotes.AmountTooLow.selector,
+                peginAmount,
+                agreedAmount
+            )
+        );
         pegInContract.registerPegIn(
             quote,
             signature,
@@ -508,6 +529,13 @@ contract RegisterPegInTest is PegInTestBase {
         vm.prank(fullLp);
         vm.expectEmit(true, true, false, true);
         emit IPegIn.PegInRegistered(quoteHash, peginAmount);
+        vm.expectEmit(true, true, true, true);
+        emit IPegIn.Refund(
+            payable(user),
+            quoteHash,
+            peginAmount,
+            true // Refund successful
+        );
         pegInContract.registerPegIn(
             quote,
             signature,
@@ -555,6 +583,15 @@ contract RegisterPegInTest is PegInTestBase {
 
         // Register by someone else (not LP) - LP gets penalized
         vm.prank(registerCaller);
+        vm.expectEmit(true, true, false, true);
+        emit IPegIn.PegInRegistered(quoteHash, peginAmount);
+        vm.expectEmit(true, true, true, true);
+        emit IPegIn.Refund(
+            payable(user),
+            quoteHash,
+            peginAmount,
+            true // Refund successful
+        );
         pegInContract.registerPegIn(
             quote,
             signature,
@@ -820,12 +857,36 @@ contract RegisterPegInTest is PegInTestBase {
 
         // Call for user - will fail because wallet rejects
         vm.prank(fullLp);
+        vm.expectEmit(true, true, true, true);
+        emit IPegIn.CallForUser(
+            fullLp,
+            address(wallet),
+            quoteHash,
+            quote.gasLimit,
+            quote.value,
+            quote.data,
+            false // Call failed
+        );
         pegInContract.callForUser{value: quote.value}(quote);
 
         uint256 userBalanceBefore = user.balance;
 
-        // Register
+        // Register - should emit PegInRegistered, DaoContribution and Refund events
         vm.prank(fullLp);
+        vm.expectEmit(true, true, false, true);
+        emit IPegIn.PegInRegistered(quoteHash, peginAmount);
+        vm.expectEmit(true, true, false, true);
+        emit OwnableDaoContributorUpgradeable.DaoContribution(
+            fullLp,
+            quote.productFeeAmount
+        );
+        vm.expectEmit(true, true, true, true);
+        emit IPegIn.Refund(
+            user,
+            quoteHash,
+            quote.value, // Refund amount (only value, not fees)
+            true // Refund succeeded
+        );
         pegInContract.registerPegIn(
             quote,
             signature,
@@ -882,6 +943,20 @@ contract RegisterPegInTest is PegInTestBase {
 
         // Register - change payment to user will fail, so LP gets it
         vm.prank(fullLp);
+        vm.expectEmit(true, true, false, true);
+        emit IPegIn.PegInRegistered(quoteHash, peginAmount + extraPaid);
+        vm.expectEmit(true, true, false, true);
+        emit OwnableDaoContributorUpgradeable.DaoContribution(
+            fullLp,
+            quote.productFeeAmount
+        );
+        vm.expectEmit(true, true, true, true);
+        emit IPegIn.Refund(
+            payable(address(refundWallet)),
+            quoteHash,
+            extraPaid, // Change amount
+            false // Refund failed (wallet rejects)
+        );
         pegInContract.registerPegIn(
             quote,
             signature,
@@ -898,10 +973,89 @@ contract RegisterPegInTest is PegInTestBase {
         );
     }
 
-    // Note: Reentrancy tests would require deploying malicious contracts that attempt
-    // to re-enter during refund payments. The contract uses ReentrancyGuard which
-    // protects against this. These are complex integration tests better suited for
-    // the TypeScript test suite with specialized reentrancy attack contracts.
+    function test_RegisterPegIn_HandlesRefundFailureToReentrancyCaller()
+        public
+    {
+        // Replicates Hardhat's "reentrancy" test which actually tests refund failure
+        // ReentrancyCaller has no receive/fallback, so refund payment fails
+
+        // Deploy ReentrancyCaller
+        ReentrancyCaller reentrancyCaller = new ReentrancyCaller();
+        address reentrantAddress = address(reentrancyCaller);
+
+        // Create and set up reentrant call data (not used since no receive())
+        Quotes.PegInQuote memory reentrantQuote = createTestQuote(1 ether);
+        bytes32 reentrantHash = pegInContract.hashPegInQuote(reentrantQuote);
+        bytes memory reentrantSignature = signQuote(fullLp, reentrantHash);
+        bytes memory reentrantData = abi.encodeWithSelector(
+            pegInContract.registerPegIn.selector,
+            reentrantQuote,
+            reentrantSignature,
+            RAW_TX_MOCK,
+            PMT_MOCK,
+            HEIGHT_MOCK
+        );
+        reentrancyCaller.setData(reentrantData);
+
+        // Create main quote with ReentrancyCaller as refund address
+        Quotes.PegInQuote memory quote = createTestQuote(1.2 ether);
+        quote.rskRefundAddress = payable(reentrantAddress);
+        bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
+        bytes memory signature = signQuote(fullLp, quoteHash);
+
+        uint256 peginAmount = getTotalValue(quote);
+
+        // Setup BTC headers
+        bytes memory firstHeader = createBtcBlockHeader(
+            uint32(block.timestamp) + 300
+        );
+        bytes memory nConfHeader = createBtcBlockHeader(
+            uint32(block.timestamp) + 600
+        );
+
+        // Setup bridge
+        vm.deal(address(bridgeMock), peginAmount);
+        bridgeMock.setPegin{value: peginAmount}(quoteHash);
+        bridgeMock.setHeader(HEIGHT_MOCK, firstHeader);
+        bridgeMock.setHeader(
+            HEIGHT_MOCK + uint256(quote.depositConfirmations) - 1,
+            nConfHeader
+        );
+
+        // Register - refund to ReentrancyCaller will fail (no receive/fallback)
+        vm.prank(registerCaller);
+        vm.expectEmit(true, true, false, true);
+        emit IPegIn.PegInRegistered(quoteHash, peginAmount);
+        vm.expectEmit(true, true, true, true);
+        emit IPegIn.Refund(
+            payable(reentrantAddress),
+            quoteHash,
+            peginAmount,
+            false // Refund failed (no receive function)
+        );
+        pegInContract.registerPegIn(
+            quote,
+            signature,
+            RAW_TX_MOCK,
+            PMT_MOCK,
+            HEIGHT_MOCK
+        );
+
+        // Verify refund address got internal balance credited (since payment failed)
+        assertEq(
+            pegInContract.getBalance(payable(reentrantAddress)),
+            peginAmount,
+            "Refund address should get internal balance when payment fails"
+        );
+        // LP balance should remain 0
+        assertEq(pegInContract.getBalance(fullLp), 0, "LP balance should be 0");
+        // Contract should hold the funds
+        assertEq(
+            address(pegInContract).balance,
+            peginAmount,
+            "Contract should hold the funds"
+        );
+    }
 
     // ============ Helper Functions ============
 

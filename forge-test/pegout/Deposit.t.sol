@@ -21,6 +21,8 @@ contract DepositTest is PegOutTestBase {
 
         vm.deal(user, 100 ether);
         vm.deal(notLp, 100 ether);
+
+        initBtcMocks(); // Initialize shared BTC mock data
     }
 
     // ============ depositPegOut function tests ============
@@ -89,7 +91,7 @@ contract DepositTest is PegOutTestBase {
         pegOutContract.depositPegOut{value: sentAmount}(quote, signature);
     }
 
-    function test_DepositPegOut_RevertsIfQuoteIsExpiredByDate() public {
+    function test_DepositPegOut_RevertsIfDepositDateLimitExpired() public {
         Quotes.PegOutQuote memory quote = createTestPegOutQuote(
             1 ether,
             fullLp
@@ -98,9 +100,39 @@ contract DepositTest is PegOutTestBase {
         // Warp time forward
         vm.warp(2000000);
 
-        // Set expired dates (before current time)
-        quote.depositDateLimit = 1000000;
-        quote.expireDate = 1005000;
+        // Only depositDateLimit is expired, expireDate is still valid
+        quote.depositDateLimit = 1000000; // EXPIRED (< current time)
+        quote.expireDate = 3000000; // Still valid (> current time)
+
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+        bytes memory signature = signQuote(fullLp, quoteHash);
+
+        vm.prank(user);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOut.QuoteExpiredByTime.selector,
+                quote.depositDateLimit,
+                quote.expireDate
+            )
+        );
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(
+            quote,
+            signature
+        );
+    }
+
+    function test_DepositPegOut_RevertsIfExpireDateExpired() public {
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            1 ether,
+            fullLp
+        );
+
+        // Warp time forward
+        vm.warp(2000000);
+
+        // Only expireDate is expired, depositDateLimit is still valid
+        quote.depositDateLimit = 3000000; // Still valid (> current time)
+        quote.expireDate = 1000000; // EXPIRED (< current time)
 
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(fullLp, quoteHash);
@@ -174,11 +206,7 @@ contract DepositTest is PegOutTestBase {
     }
 
     function test_DepositPegOut_RevertsIfQuoteAlreadyCompleted() public {
-        // Note: Testing quote completion requires full refundPegOut flow with BTC transactions
-        // This would need BTC tx generation, merkle proofs, and block header setup
-        // For now, we verify the check exists by testing the "already paid" scenario
-        // Full completion testing is in the TypeScript integration tests
-
+        // Deposit → LP Refund (completes quote) → Try to deposit again
         Quotes.PegOutQuote memory quote = createTestPegOutQuote(
             1.03 ether,
             pegOutLp
@@ -187,15 +215,37 @@ contract DepositTest is PegOutTestBase {
         bytes memory signature = signQuote(pegOutLp, quoteHash);
         uint256 totalVal = getTotalValue(quote);
 
-        // Deposit once
+        // Step 1: Deposit the quote
         vm.prank(user);
         pegOutContract.depositPegOut{value: totalVal}(quote, signature);
 
-        // Try to deposit again - should fail as quote already registered
+        // Step 2: LP completes the quote by refunding with BTC proof (mocked)
+        // Generate mock BTC transaction
+        bytes memory btcTx = generateMockBtcTx(quote, quoteHash);
+
+        // Setup mock bridge responses
+        bytes memory header = createBtcBlockHeader(
+            uint32(block.timestamp + 100)
+        );
+        bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
+        bridgeMock.setConfirmations(
+            int256(uint256(quote.transferConfirmations))
+        );
+
+        vm.prank(pegOutLp);
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
+
+        // Step 3: Try to deposit the same quote again - should fail as already completed
         vm.prank(user);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IPegOut.QuoteAlreadyRegistered.selector,
+                IPegOut.QuoteAlreadyCompleted.selector,
                 quoteHash
             )
         );
@@ -363,7 +413,11 @@ contract DepositTest is PegOutTestBase {
         uint256 value,
         address lp
     ) internal view returns (Quotes.PegOutQuote memory) {
-        bytes memory testBtcAddress = new bytes(21);
+        // Create a valid Bitcoin testnet P2PKH address (version byte 0x6f + 20 bytes hash160)
+        bytes memory testBtcAddress = abi.encodePacked(
+            hex"6f", // Testnet version byte
+            hex"89abcdefabbaabbaabbaabbaabbaabbaabbaabba" // 20 bytes hash160
+        );
         uint32 currentTime = uint32(block.timestamp);
 
         return

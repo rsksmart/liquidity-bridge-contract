@@ -84,7 +84,7 @@ contract ConfigurationTest is CollateralTestBase {
     }
 
     function test_Initialize_AllowsInitializeOnlyOnce() public {
-        vm.expectRevert(); // InvalidInitialization error
+        vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
         collateralManagement.initialize(
             owner,
             TEST_DEFAULT_ADMIN_DELAY,
@@ -111,10 +111,16 @@ contract ConfigurationTest is CollateralTestBase {
     }
 
     function test_SetRewardPercentage_ModifiesProperly() public {
+        uint256 oldRewardPercentage = collateralManagement
+            .getRewardPercentage();
         uint256 newRewardPercentage = 55;
 
         vm.prank(owner);
-        // Note: Event is emitted but we just check the state change
+        vm.expectEmit(true, true, false, false);
+        emit CollateralManagementContract.RewardPercentageSet(
+            oldRewardPercentage,
+            newRewardPercentage
+        );
         collateralManagement.setRewardPercentage(newRewardPercentage);
 
         assertEq(
@@ -141,10 +147,15 @@ contract ConfigurationTest is CollateralTestBase {
     }
 
     function test_SetResignDelayInBlocks_ModifiesProperly() public {
+        uint256 oldResignDelay = collateralManagement.getResignDelayInBlocks();
         uint256 newResignDelay = 321;
 
         vm.prank(owner);
-        // Note: Event is emitted but we just check the state change
+        vm.expectEmit(true, true, false, false);
+        emit CollateralManagementContract.ResignDelayInBlocksSet(
+            oldResignDelay,
+            newResignDelay
+        );
         collateralManagement.setResignDelayInBlocks(newResignDelay);
 
         assertEq(
@@ -171,10 +182,15 @@ contract ConfigurationTest is CollateralTestBase {
     }
 
     function test_SetMinCollateral_ModifiesProperly() public {
+        uint256 oldMinCollateral = collateralManagement.getMinCollateral();
         uint256 newMinCollateral = 11;
 
         vm.prank(owner);
-        // Note: Event is emitted but we just check the state change
+        vm.expectEmit(true, true, false, false);
+        emit CollateralManagementContract.MinCollateralSet(
+            oldMinCollateral,
+            newMinCollateral
+        );
         collateralManagement.setMinCollateral(newMinCollateral);
 
         assertEq(
