@@ -704,8 +704,6 @@ contract LpRefundTest is PegOutTestBase {
 
     // ============ Helper Functions ============
 
-    string constant HELPER_SCRIPT_GENERATE_BTC_TX =
-        "forge-scripts/helpers/generate-btc-tx.ts";
     string constant HELPER_SCRIPT_GET_BTC_ADDRESS_BYTES =
         "forge-scripts/helpers/get-btc-address-bytes.ts";
 
