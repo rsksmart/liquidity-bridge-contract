@@ -29,10 +29,10 @@ pragma solidity 0.8.25;
  * @author Generated for Liquidity Bridge Contract
  */
 
-import {Script, console} from "forge-std/Script.sol";
-import {HelperConfig} from "./HelperConfig.s.sol";
-import {LiquidityBridgeContractV2} from "../contracts/legacy/LiquidityBridgeContractV2.sol";
-import {LiquidityBridgeContractAdmin} from "../contracts/legacy/LiquidityBridgeContractAdmin.sol";
+import {Script, console} from "lib/forge-std/src/Script.sol";
+import {HelperConfig} from "../../forge-scripts/HelperConfig.s.sol";
+import {LiquidityBridgeContractV2} from "../../contracts/legacy/LiquidityBridgeContractV2.sol";
+import {LiquidityBridgeContractAdmin} from "../../contracts/legacy/LiquidityBridgeContractAdmin.sol";
 import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 interface IGnosisSafe {

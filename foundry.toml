@@ -8,6 +8,12 @@ solc_version = "0.8.25"
 optimizer = true
 optimizer_runs = 1
 via_ir = false
+ffi = true
+fs_permissions = [
+    { access = "read", path = "./tasks" },
+    { access = "read", path = "./addresses.json" },
+    { access = "read", path = "./forge-scripts/helpers" }
+]
 
 # Allow Foundry to resolve Solidity deps from node_modules
 libs = ["node_modules", "lib"]
@@ -17,7 +23,8 @@ remappings = [
   "@openzeppelin/=node_modules/@openzeppelin/",
   "@rsksmart/=node_modules/@rsksmart/",
   "@rsksmart/btc-transaction-solidity-helper/=node_modules/@rsksmart/btc-transaction-solidity-helper/",
-  "forge-std/=lib/forge-std/src/"
+  "forge-std/=lib/forge-std/src/",
+  "contracts/=contracts/"
 ]
 
 [rpc_endpoints]
