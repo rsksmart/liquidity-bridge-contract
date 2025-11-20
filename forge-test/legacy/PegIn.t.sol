@@ -41,6 +41,16 @@ contract PegInTest is Test {
         hex"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
     uint256 constant ANY_NUMBER = 10;
 
+    // FFI Helper script paths
+    string constant HELPER_SCRIPT_GET_BTC_ADDRESS_BYTES =
+        "forge-scripts/helpers/get-btc-address-bytes.ts";
+    string constant HELPER_SCRIPT_PARSE_BTC_ADDRESS =
+        "forge-scripts/helpers/parse-btc-address.ts";
+    string constant HELPER_SCRIPT_DECODE_BTC_ADDRESS_BS58 =
+        "forge-scripts/helpers/decode-btc-address-bs58.ts";
+    string constant HELPER_SCRIPT_GET_P2SH_ADDRESS_FROM_SCRIPT =
+        "forge-scripts/helpers/get-p2sh-address-from-script.ts";
+
     // BTC address constants
     bytes constant DECODED_TEST_FED_ADDRESS =
         hex"c39bc4b53918d6058134363d6e57e11a22f9e8fb";
@@ -1475,5 +1485,437 @@ contract PegInTest is Test {
         }
 
         assertEq(lbc.getBalance(accounts[2]), 0);
+    }
+
+    // ============ Missing Tests ============
+
+    /// @notice Test verify depositAddress for given quote
+    /// @dev  Calculates the expected deposit address dynamically for our quote structure
+    function test_VerifyDepositAddressForGivenQuote() public {
+        // Test Case 1
+        // Note: fedBtcAddress is the decoded address without the version byte (slice(1))
+        // "2N5muMepJizJE1gR7FbHJU6CD18V3BpNF9p" decoded -> c4896ed9f3446d51b5510f7f0b6ef81b2bde55140e
+        // slice(1) removes version byte c4 -> 896ed9f3446d51b5510f7f0b6ef81b2bde55140e
+        QuotesV2.PeginQuote memory quote1 = QuotesV2.PeginQuote({
+            fedBtcAddress: bytes20(
+                hex"896ed9f3446d51b5510f7f0b6ef81b2bde55140e"
+            ), // 2N5muMepJizJE1gR7FbHJU6CD18V3BpNF9p.slice(1)
+            lbcAddress: address(lbc),
+            liquidityProviderRskAddress: liquidityProviders[0].signer,
+            btcRefundAddress: _decodeBtcAddress(
+                "mxqk28jvEtvjxRN8k7W9hFEJfWz5VcUgHW"
+            ),
+            rskRefundAddress: payable(accounts[0]),
+            liquidityProviderBtcAddress: _decodeBtcAddress(
+                "mnYcQxCZBbmLzNfE9BhV7E8E2u7amdz5y6"
+            ),
+            callFee: 1000000000000000,
+            penaltyFee: 1000000,
+            contractAddress: accounts[0],
+            data: new bytes(0),
+            gasLimit: 46000,
+            nonce: 3426962016206607167,
+            value: 600000000000000000,
+            agreementTimestamp: 1691772110,
+            timeForDeposit: 3600,
+            callTime: 7200,
+            depositConfirmations: 10,
+            callOnRegister: false,
+            productFeeAmount: 6000000000000000,
+            gasFee: 3000000000000000
+        });
+
+        // Calculate the expected deposit address for this quote
+        bytes32 quoteHash1 = lbc.hashQuote(quote1);
+        bytes32 derivationValue1 = keccak256(
+            bytes.concat(
+                quoteHash1,
+                quote1.btcRefundAddress,
+                bytes20(quote1.lbcAddress),
+                quote1.liquidityProviderBtcAddress
+            )
+        );
+        bytes memory flyoverRedeemScript1 = bytes.concat(
+            hex"20",
+            derivationValue1,
+            hex"75",
+            bridgeMock.getActivePowpegRedeemScript()
+        );
+
+        // Calculate P2SH address from redeem script using FFI
+        bytes memory expectedDepositAddr1 = _getP2SHAddressFromScript(
+            flyoverRedeemScript1,
+            false
+        );
+        assertTrue(
+            lbc.validatePeginDepositAddress(quote1, expectedDepositAddr1),
+            "Deposit address 1 should match"
+        );
+
+        // Test Case 2
+        QuotesV2.PeginQuote memory quote2 = QuotesV2.PeginQuote({
+            fedBtcAddress: bytes20(
+                hex"896ed9f3446d51b5510f7f0b6ef81b2bde55140e"
+            ),
+            lbcAddress: address(lbc),
+            liquidityProviderRskAddress: liquidityProviders[0].signer,
+            btcRefundAddress: _decodeBtcAddress(
+                "mi5vEG69RGhi3RKsn7bWco5xnafZvsXvrF"
+            ),
+            rskRefundAddress: payable(accounts[1]),
+            liquidityProviderBtcAddress: _decodeBtcAddress(
+                "mnYcQxCZBbmLzNfE9BhV7E8E2u7amdz5y6"
+            ),
+            callFee: 1000000000000000,
+            penaltyFee: 1000000,
+            contractAddress: accounts[1],
+            data: new bytes(0),
+            gasLimit: 46000,
+            nonce: 7363369648470809209,
+            value: 700000000000000000,
+            agreementTimestamp: 1691873604,
+            timeForDeposit: 3600,
+            callTime: 7200,
+            depositConfirmations: 10,
+            callOnRegister: false,
+            productFeeAmount: 7000000000000000,
+            gasFee: 4000000000000000
+        });
+
+        bytes32 quoteHash2 = lbc.hashQuote(quote2);
+        bytes32 derivationValue2 = keccak256(
+            bytes.concat(
+                quoteHash2,
+                quote2.btcRefundAddress,
+                bytes20(quote2.lbcAddress),
+                quote2.liquidityProviderBtcAddress
+            )
+        );
+        bytes memory flyoverRedeemScript2 = bytes.concat(
+            hex"20",
+            derivationValue2,
+            hex"75",
+            bridgeMock.getActivePowpegRedeemScript()
+        );
+        bytes memory expectedDepositAddr2 = _getP2SHAddressFromScript(
+            flyoverRedeemScript2,
+            false
+        );
+        assertTrue(
+            lbc.validatePeginDepositAddress(quote2, expectedDepositAddr2),
+            "Deposit address 2 should match"
+        );
+
+        // Test Case 3
+        QuotesV2.PeginQuote memory quote3 = QuotesV2.PeginQuote({
+            fedBtcAddress: bytes20(
+                hex"896ed9f3446d51b5510f7f0b6ef81b2bde55140e"
+            ),
+            lbcAddress: address(lbc),
+            liquidityProviderRskAddress: liquidityProviders[0].signer,
+            btcRefundAddress: _decodeBtcAddress(
+                "mjSE41mAMwqdYsXiibUgyWe4oESoCygf96"
+            ),
+            rskRefundAddress: payable(accounts[2]),
+            liquidityProviderBtcAddress: _decodeBtcAddress(
+                "mnYcQxCZBbmLzNfE9BhV7E8E2u7amdz5y6"
+            ),
+            callFee: 1000000000000000,
+            penaltyFee: 1000000,
+            contractAddress: accounts[2],
+            data: new bytes(0),
+            gasLimit: 46000,
+            nonce: 8681289575209299775,
+            value: 800000000000000000,
+            agreementTimestamp: 1691874253,
+            timeForDeposit: 3600,
+            callTime: 7200,
+            depositConfirmations: 10,
+            callOnRegister: false,
+            productFeeAmount: 8000000000000000,
+            gasFee: 5000000000000000
+        });
+
+        bytes32 quoteHash3 = lbc.hashQuote(quote3);
+        bytes32 derivationValue3 = keccak256(
+            bytes.concat(
+                quoteHash3,
+                quote3.btcRefundAddress,
+                bytes20(quote3.lbcAddress),
+                quote3.liquidityProviderBtcAddress
+            )
+        );
+        bytes memory flyoverRedeemScript3 = bytes.concat(
+            hex"20",
+            derivationValue3,
+            hex"75",
+            bridgeMock.getActivePowpegRedeemScript()
+        );
+        bytes memory expectedDepositAddr3 = _getP2SHAddressFromScript(
+            flyoverRedeemScript3,
+            false
+        );
+        assertTrue(
+            lbc.validatePeginDepositAddress(quote3, expectedDepositAddr3),
+            "Deposit address 3 should match"
+        );
+    }
+
+    /// @notice Test refund pegin with wrong amount without penalizing the LP (real cases)
+    /// @dev Uses real mainnet transaction data to ensure compatibility with actual edge cases
+    function test_RefundPegInWithWrongAmountWithoutPenalizingLP() public {
+        // Decode BTC addresses from base58check format
+        // "3LxPz39femVBL278mTiBvgzBNMVFqXssoH" (P2SH mainnet) -> slice(1) removes version byte
+        bytes20 fedBtcAddr = bytes20(
+            hex"a157fd1a536371656f3c19c2005199308a49bc9c"
+        );
+        // "17kksixYkbHeLy9okV16kr4eAxVhFkRhP" (P2PKH mainnet) -> full decoded bytes
+        bytes
+            memory lpBtcAddr = hex"00840098213fec4001cdc4a77cc3340f5bb83d9ed5";
+        // "1K5X7aTGfZGksihgNdDschakaxp8ZhT1F3" (P2PKH mainnet) -> full decoded bytes
+        bytes
+            memory userBtcAddr1 = hex"009b51cc55c4ddc75b5a8e0c1cfee76e063e4b81d3";
+
+        // Test Case 1: Transaction with slight underpayment
+        uint256 regtestMultiplier = 100;
+
+        QuotesV2.PeginQuote memory quote1 = QuotesV2.PeginQuote({
+            fedBtcAddress: fedBtcAddr,
+            lbcAddress: address(lbc),
+            liquidityProviderRskAddress: liquidityProviders[0].signer,
+            btcRefundAddress: userBtcAddr1,
+            rskRefundAddress: payable(
+                0x1bf357F3CcCe62a5Dd1035c79070BdA219C53B10
+            ),
+            liquidityProviderBtcAddress: lpBtcAddr,
+            callFee: 100000000000000 * regtestMultiplier,
+            penaltyFee: 10000000000000 * regtestMultiplier,
+            contractAddress: 0x1bf357F3CcCe62a5Dd1035c79070BdA219C53B10,
+            data: new bytes(0),
+            gasLimit: 21000,
+            nonce: int64(uint64(block.timestamp)), // Use unique nonce
+            value: 5200000000000000 * regtestMultiplier,
+            agreementTimestamp: uint32(block.timestamp),
+            timeForDeposit: 3600,
+            callTime: 7200,
+            depositConfirmations: 2,
+            callOnRegister: false,
+            productFeeAmount: 0,
+            gasFee: 1354759560000 * regtestMultiplier
+        });
+
+        // Real refund amount from mainnet (slightly different from expected), scaled by 100x
+        uint256 refundAmount1 = 5301350000000000 * regtestMultiplier;
+
+        // Calculate quote hash
+        bytes32 quoteHash1 = lbc.hashQuote(quote1);
+
+        // Setup bridge to return this amount
+        vm.deal(address(bridgeMock), refundAmount1);
+        bridgeMock.setPegin{value: refundAmount1}(quoteHash1);
+
+        // Setup headers (simplified - real test would use actual BTC headers)
+        bytes memory header = _createBtcBlockHeader(
+            uint32(block.timestamp) + 300
+        );
+        bridgeMock.setHeader(862825, header);
+        bridgeMock.setHeader(862826, header);
+
+        // Register - should refund without penalizing
+        bytes memory signature1 = signQuote(
+            quoteHash1,
+            liquidityProviders[0].privateKey
+        );
+
+        uint256 refundBalanceBefore = quote1.rskRefundAddress.balance;
+
+        vm.prank(liquidityProviders[0].signer);
+        lbc.registerPegIn(
+            quote1,
+            signature1,
+            hex"020000000212bebc8ba671aa9af2e3984af89366b5594ed115dbbaef64a41e8650cd4a53ea0000000017160014fe7b123124c87300e8ba30f0e2eafdd8e1f2b337ffffffff046d8f4e5fa8d6cc5fa23c50640249461b646e8a4722c9cfbfbff00c049d559f0000000017160014fe7b123124c87300e8ba30f0e2eafdd8e1f2b337ffffffff02d71608000000000017a9149fa51efd2954990e4974e7b13468fb8be54512d8872d2507000000000017a914b979999438ade0fdd2cf303fca55ea29aec2392b8700000000",
+            hex"800c00000d3eb13be27a4110f06ca8e4b4b00103e10ac6ba5f9123934764ac9555e2ec3c7b88a5464adca8b40a548741a8262dc2ab228f89cbd51bbf57f3f5d67130820ae3f9b7625821c2d9718d6611de40edfa1eb42181f180aab3891730584921a125dddba628c1d3f5fca59e0b68494aae191ab14db30b79e07962da298a52bcf077905661f80bd5731e0c80524ba2f7dcad0bd05a0d470bccdb5c5889c9c71ac7c5bca7f6cebd492154af69f2b98bcf7995444c765a18445a5ef212eb5f8ead5a441a45536e4075022614df043d03b2449113a00f32cff333024d3a1d66d84d4a31c012bebc8ba671aa9af2e3984af89366b5594ed115dbbaef64a41e8650cd4a53ea34b89cb98fac941bdd048d4a8f371d7b9f132ad19f1542556c89b4e8701022de51f6d49aa8f7e7d01591de9bdef65351e8590f111ea9be5550f66a3d4a734758e26b8edf2bfe9c4375929fea7b7197a24589648f8e7b934a6caa2d9c7583e64a28db12de953b0abddbdc3edb28b845eaca02f56dd52aa04e3131dc539c0f646f35751d1ec529231acd5cb079b4a2b678ecd3fc07636be878e6336d546518562e04af6a1500",
+            862825
+        );
+
+        // Verify refund address received the funds
+        assertEq(
+            quote1.rskRefundAddress.balance,
+            refundBalanceBefore + refundAmount1,
+            "Refund address should receive the amount"
+        );
+
+        // Verify LP was not penalized (balance stays 0 since no callForUser)
+        assertEq(
+            lbc.getBalance(liquidityProviders[0].signer),
+            0,
+            "LP should not be penalized for wrong amount"
+        );
+
+        // Test Case 2: Another real transaction with different parameters
+        // "171gGjg8NeLUonNSrFmgwkgT1jgqzXR6QX" (P2PKH mainnet) -> 0x00 + 20 bytes hash
+        bytes
+            memory userBtcAddr2 = hex"0013c5b9da8f2f01c8ae8bcf0ff05c1d9c81d73d02";
+
+        QuotesV2.PeginQuote memory quote2 = QuotesV2.PeginQuote({
+            fedBtcAddress: fedBtcAddr,
+            lbcAddress: address(lbc),
+            liquidityProviderRskAddress: liquidityProviders[0].signer,
+            btcRefundAddress: userBtcAddr2,
+            rskRefundAddress: payable(
+                0xaD0DE1962ab903E06C725A1b343b7E8950a0Ff82
+            ),
+            liquidityProviderBtcAddress: lpBtcAddr,
+            callFee: 100000000000000 * regtestMultiplier,
+            penaltyFee: 10000000000000 * regtestMultiplier,
+            contractAddress: 0xaD0DE1962ab903E06C725A1b343b7E8950a0Ff82,
+            data: new bytes(0),
+            gasLimit: 21000,
+            nonce: int64(uint64(block.timestamp + 1)), // Use unique nonce
+            value: 8000000000000000 * regtestMultiplier,
+            agreementTimestamp: uint32(block.timestamp + 1),
+            timeForDeposit: 3600,
+            callTime: 7200,
+            depositConfirmations: 2,
+            callOnRegister: false,
+            productFeeAmount: 0,
+            gasFee: 1341211956000 * regtestMultiplier
+        });
+
+        bytes32 quoteHash2 = lbc.hashQuote(quote2);
+        uint256 refundAmount2 = 8101340000000000 * regtestMultiplier;
+
+        // Setup bridge
+        vm.deal(address(bridgeMock), refundAmount2);
+        bridgeMock.setPegin{value: refundAmount2}(quoteHash2);
+        bridgeMock.setHeader(862859, header);
+        bridgeMock.setHeader(862860, header);
+
+        // Register
+        bytes memory signature2 = signQuote(
+            quoteHash2,
+            liquidityProviders[0].privateKey
+        );
+
+        uint256 refundBalance2Before = quote2.rskRefundAddress.balance;
+
+        vm.prank(liquidityProviders[0].signer);
+        lbc.registerPegIn(
+            quote2,
+            signature2,
+            hex"010000000148e9e71dafee5a901be4eceb5aca361c083481b70496f4e3da71e5d969add1820000000017160014b88ef07cd7bcc022b6d73c4764ce5db0887d5b05ffffffff02965c0c000000000017a9141b67149e474f0d7757181f4db89257f27a64738387125b01000000000017a914785c3e807e54dc41251d6377da0673123fa87bc88700000000",
+            hex"a71100000e7fe369f81a807a962c8e528debd0b46cbfa4f8dfbc02a62674dd41a73f4c4bde0508a9e309e5836703375a58ab116b95434552ca2e460c3273cd2caa13350aefc3c8152a8150f738cd18ff33e69f19b727bff9c2b92aa06e6d0971e9b49893075f2d926bbb9f0884640363b79b6a668a178f140c13f25b48ec975357822ce38c733f6de9b32f6910ff3cd838efd274cd784ab204b74f281ef68146c334f509613d022554f281465dfcd597305c988c4b06e297e5d777afdb66c3391c3c471ebf9a1e051ba38201f08ca758d2dc83a71c34088e6785c1a775e2bde492361462cac9e7042653341cd1e190d0265a33f46ba564dc6116689cf19a8af6816c006df69803008246d44bc849babfbcc3de601fba3d10d696bf4b4d9cb8e291584e7d24bb2c81282972e71cb4493fb4966fcb483d6b62b24a0e25f912ee857d8843e4fa6181b8351f0a300e14503d51f46f367ec872712004535a56f14c65430f044f9685137a1afb2dc0aa402fde8d83b072ef0c4357529466e017dfb2935444103bbeec61bf8944924371921eefd02f35fd5283f3b7bce58a6f4ca15fb32cee8869be8d7720501ec18cc097c236b19212514582212719aede2400b1dd1ff43208ac7504bfb60a00",
+            862859
+        );
+
+        // Verify refund
+        assertEq(
+            quote2.rskRefundAddress.balance,
+            refundBalance2Before + refundAmount2,
+            "Refund address 2 should receive the amount"
+        );
+
+        // Verify no penalization
+        assertEq(
+            lbc.getBalance(liquidityProviders[0].signer),
+            0,
+            "LP should not be penalized for second transaction"
+        );
+    }
+
+    // ============ Helper Functions ============
+
+    /// @notice Decodes a BTC address from base58check format using FFI (for quote addresses)
+    /// @param addressStr The base58check encoded BTC address
+    /// @return The decoded address bytes (version byte + hash160)
+    function _decodeBtcAddress(
+        string memory addressStr
+    ) internal returns (bytes memory) {
+        string[] memory inputs = new string[](4);
+        inputs[0] = "npx";
+        inputs[1] = "ts-node";
+        inputs[2] = HELPER_SCRIPT_PARSE_BTC_ADDRESS;
+        inputs[3] = addressStr;
+
+        bytes memory result = vm.ffi(inputs);
+        return result;
+    }
+
+    /// @notice Decodes a BTC address using bs58 (no checksum, for deposit addresses)
+    /// @param addressStr The base58 encoded BTC address
+    /// @return The decoded address bytes (version byte + hash160)
+    function _decodeBtcAddressBs58(
+        string memory addressStr
+    ) internal returns (bytes memory) {
+        string[] memory inputs = new string[](4);
+        inputs[0] = "npx";
+        inputs[1] = "ts-node";
+        inputs[2] = HELPER_SCRIPT_DECODE_BTC_ADDRESS_BS58;
+        inputs[3] = addressStr;
+
+        bytes memory result = vm.ffi(inputs);
+        return result;
+    }
+
+    /// @notice Creates a simple BTC block header for testing
+    /// @param timestamp The timestamp for the header
+    /// @return The block header bytes
+    function _createBtcBlockHeader(
+        uint32 timestamp
+    ) internal pure returns (bytes memory) {
+        bytes memory header = new bytes(80);
+        // Version (4 bytes) - set to 0x20000000
+        header[0] = 0x20;
+        header[1] = 0x00;
+        header[2] = 0x00;
+        header[3] = 0x00;
+        // Previous block hash (32 bytes) - zeros
+        // Merkle root (32 bytes) - zeros
+        // Timestamp (4 bytes)
+        header[68] = bytes1(uint8(timestamp));
+        header[69] = bytes1(uint8(timestamp >> 8));
+        header[70] = bytes1(uint8(timestamp >> 16));
+        header[71] = bytes1(uint8(timestamp >> 24));
+        // Bits (4 bytes) - set to 0x1d00ffff
+        header[72] = 0x1d;
+        header[73] = 0x00;
+        header[74] = 0xff;
+        header[75] = 0xff;
+        // Nonce (4 bytes) - zeros
+        return header;
+    }
+
+    /// @notice Calculates P2SH address from a redeem script using FFI
+    /// @param redeemScript The redeem script bytes
+    /// @param isMainnet Whether this is for mainnet (false for testnet)
+    /// @return The P2SH address bytes (version byte + hash160)
+    function _getP2SHAddressFromScript(
+        bytes memory redeemScript,
+        bool isMainnet
+    ) internal returns (bytes memory) {
+        string[] memory inputs = new string[](5);
+        inputs[0] = "npx";
+        inputs[1] = "ts-node";
+        inputs[2] = HELPER_SCRIPT_GET_P2SH_ADDRESS_FROM_SCRIPT;
+        inputs[3] = _bytesToHexString(redeemScript);
+        inputs[4] = isMainnet ? "true" : "false";
+
+        bytes memory result = vm.ffi(inputs);
+        return result;
+    }
+
+    /// @notice Converts bytes to hex string without 0x prefix
+    /// @param data The bytes to convert
+    /// @return The hex string
+    function _bytesToHexString(
+        bytes memory data
+    ) internal pure returns (string memory) {
+        bytes memory hexChars = "0123456789abcdef";
+        bytes memory result = new bytes(data.length * 2);
+        for (uint i = 0; i < data.length; i++) {
+            result[i * 2] = hexChars[uint8(data[i] >> 4)];
+            result[i * 2 + 1] = hexChars[uint8(data[i] & 0x0f)];
+        }
+        return string(result);
     }
 }
