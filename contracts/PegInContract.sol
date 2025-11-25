@@ -103,7 +103,7 @@ contract PegInContract is
     ) external initializer {
         if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
         // Initialize DaoContributor (uses AccessControl from EmergencyPause)
-        __AccessControlDaoContributor_init(daoFeePercentage, daoFeeCollector);
+        __AccessControlDaoContributor_init(daoFeePercentage, daoFeeCollector, DEFAULT_ADMIN_ROLE);
         // Initialize EmergencyPause (includes AccessControl, Pausable, and grants PAUSER_ROLE)
         __EmergencyPause_init(0, defaultAdmin);
         _bridge = IBridge(bridge);
