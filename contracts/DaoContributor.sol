@@ -19,6 +19,7 @@ abstract contract AccessControlDaoContributorUpgradeable is
         uint256 feePercentage;
         uint256 currentContribution;
         address payable feeCollector;
+        bytes32 defaultAdminRole;
     }
 
     // keccak256(abi.encode(uint256(keccak256(bytes("rsk.dao.contributor"))) - 1)) & ~bytes32(uint256(0xff));
@@ -53,7 +54,7 @@ abstract contract AccessControlDaoContributorUpgradeable is
     /// and resets the accumulated contributions to zero
     /// @dev The function is only callable by the default admin of the contract
     function claimContribution() external nonReentrant {
-        _checkRole(0x00); // DEFAULT_ADMIN_ROLE
+        _checkRole(_getContributorStorage().defaultAdminRole);
         DaoContributorStorage storage $ = _getContributorStorage();
         uint256 amount = $.currentContribution;
         $.currentContribution = 0;
@@ -74,7 +75,7 @@ abstract contract AccessControlDaoContributorUpgradeable is
         address payable feeCollector,
         uint256 feePercentage
     ) external {
-        _checkRole(0x00); // DEFAULT_ADMIN_ROLE
+        _checkRole(_getContributorStorage().defaultAdminRole);
         DaoContributorStorage storage $ = _getContributorStorage();
         $.feeCollector = feeCollector;
         $.feePercentage = feePercentage;
@@ -107,12 +108,14 @@ abstract contract AccessControlDaoContributorUpgradeable is
     // solhint-disable-next-line func-name-mixedcase
     function __AccessControlDaoContributor_init(
         uint256 feePercentage,
-        address payable feeCollector
+        address payable feeCollector,
+        bytes32 defaultAdminRole
     ) internal {
         __ReentrancyGuard_init_unchained();
         DaoContributorStorage storage $ = _getContributorStorage();
         $.feePercentage = feePercentage;
         $.feeCollector = feeCollector;
+        $.defaultAdminRole = defaultAdminRole;
     }
 
     /// @dev Internal function to check if caller has a role
