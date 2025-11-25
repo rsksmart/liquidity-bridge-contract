@@ -8,7 +8,7 @@ import {Flyover} from "../../contracts/libraries/Flyover.sol";
 import {SignatureValidator} from "../../contracts/libraries/SignatureValidator.sol";
 import {WalletMock} from "../../contracts/test-contracts/WalletMock.sol";
 import {ReentrancyCaller} from "../../contracts/test-contracts/ReentrancyCaller.sol";
-import {OwnableDaoContributorUpgradeable} from "../../contracts/DaoContributor.sol";
+import {AccessControlDaoContributorUpgradeable} from "../../contracts/DaoContributor.sol";
 
 /// @title RegisterPegIn Tests
 /// @notice Tests for the registerPegIn function - the core of the PegIn flow
@@ -876,7 +876,7 @@ contract RegisterPegInTest is PegInTestBase {
         vm.expectEmit(true, true, false, true);
         emit IPegIn.PegInRegistered(quoteHash, peginAmount);
         vm.expectEmit(true, true, false, true);
-        emit OwnableDaoContributorUpgradeable.DaoContribution(
+        emit AccessControlDaoContributorUpgradeable.DaoContribution(
             fullLp,
             quote.productFeeAmount
         );
@@ -946,7 +946,7 @@ contract RegisterPegInTest is PegInTestBase {
         vm.expectEmit(true, true, false, true);
         emit IPegIn.PegInRegistered(quoteHash, peginAmount + extraPaid);
         vm.expectEmit(true, true, false, true);
-        emit OwnableDaoContributorUpgradeable.DaoContribution(
+        emit AccessControlDaoContributorUpgradeable.DaoContribution(
             fullLp,
             quote.productFeeAmount
         );
