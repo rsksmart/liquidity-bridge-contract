@@ -12,8 +12,7 @@ import {Flyover} from "./libraries/Flyover.sol";
 /// @dev Any contract that inherits from this contract will be able to collect DAO
 /// contributions according to the logic the child contract defines
 abstract contract AccessControlDaoContributorUpgradeable is
-    ReentrancyGuardUpgradeable,
-    IAccessControl {
+    ReentrancyGuardUpgradeable {
 
     // @custom:storage-location erc7201:rsk.dao.contributor
     struct DaoContributorStorage {
