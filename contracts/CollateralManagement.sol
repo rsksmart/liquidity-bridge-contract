@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {EmergencyPauserDefaultAdmin} from "./EmergencyPause/EmergencyPauserDefaultAdmin.sol";
+import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {ICollateralManagement} from "./interfaces/ICollateralManagement.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 import {Quotes} from "./libraries/Quotes.sol";
@@ -14,7 +14,7 @@ import {Quotes} from "./libraries/Quotes.sol";
 /// @author Rootstock Labs
 contract CollateralManagementContract is
     ReentrancyGuardUpgradeable,
-    EmergencyPauserDefaultAdmin,
+    EmergencyPause,
     ICollateralManagement
 {
     /// @notice The version of the contract
@@ -88,22 +88,22 @@ contract CollateralManagementContract is
     }
 
     /// @notice Initializes the contract
-    /// @param owner The owner of the contract
+    /// @param defaultAdmin The default admin of the contract
     /// @param initialDelay The initial delay for changes in the default admin role
     /// @param minCollateral The minimum collateral required for a liquidity provider **per operation**
     /// @param resignDelayInBlocks The delay in blocks before a liquidity provider can withdraw their collateral
     /// @param rewardPercentage The reward percentage from the penalty fee of the quotes that the punisher will receive
     // solhint-disable-next-line comprehensive-interface
     function initialize(
-        address owner,
+        address defaultAdmin,
         uint48 initialDelay,
         uint256 minCollateral,
         uint256 resignDelayInBlocks,
         uint256 rewardPercentage
     ) external initializer {
         __ReentrancyGuard_init();
-        __AccessControlDefaultAdminRules_init(initialDelay, owner);
-        __Pausable_init();
+        // Initialize EmergencyPause (includes AccessControl, Pausable, and grants PAUSER_ROLE)
+        __EmergencyPause_init(initialDelay, defaultAdmin);
         _minCollateral = minCollateral;
         _resignDelayInBlocks = resignDelayInBlocks;
         _rewardPercentage = rewardPercentage;

@@ -2,8 +2,9 @@
 pragma solidity 0.8.25;
 
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
-import {OwnableDaoContributorUpgradeable} from "./DaoContributor.sol";
-import {EmergencyPauserPeg} from "./EmergencyPause/EmergencyPauserPeg.sol";
+import {AccessControlDaoContributorUpgradeable} from "./DaoContributor.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {IBridge} from "./interfaces/IBridge.sol";
 import {ICollateralManagement, CollateralManagementSet} from "./interfaces/ICollateralManagement.sol";
 import {IPegOut} from "./interfaces/IPegOut.sol";
@@ -15,10 +16,19 @@ import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 /// @notice This contract is used to handle the peg out of the RSK network to the Bitcoin network
 /// @author Rootstock Labs
 contract PegOutContract is
-    OwnableDaoContributorUpgradeable,
-    EmergencyPauserPeg,
+    EmergencyPause,
+    AccessControlDaoContributorUpgradeable,
     IPegOut
 {
+
+    /// @dev Override _checkRole to use AccessControl from EmergencyPause
+    function _checkRole(bytes32 role)
+        internal
+        view
+        override(AccessControlDaoContributorUpgradeable, AccessControlUpgradeable)
+    {
+        super._checkRole(role);
+    }
     /// @notice This struct is used to store the information of a peg out
     /// @param completed whether the peg out has been completed or not,
     /// completed means the peg out was paid and refunded (to any party)
@@ -114,7 +124,7 @@ contract PegOutContract is
     }
 
     /// @notice This function is used to initialize the contract
-    /// @param owner the owner of the contract
+    /// @param defaultAdmin the default admin of the contract
     /// @param bridge the address of the Rootstock bridge
     /// @param dustThreshold_ the dust threshold for the peg out
     /// @param collateralManagement the address of the Collateral Management contract
@@ -125,7 +135,7 @@ contract PegOutContract is
     /// @param daoFeeCollector the address of the DAO fee collector
     // solhint-disable-next-line comprehensive-interface
     function initialize(
-        address owner,
+        address defaultAdmin,
         address payable bridge,
         uint256 dustThreshold_,
         address collateralManagement,
@@ -135,7 +145,10 @@ contract PegOutContract is
         address payable daoFeeCollector
     ) external initializer {
         if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
-        __OwnableDaoContributor_init(owner, daoFeePercentage, daoFeeCollector);
+        // Initialize DaoContributor (uses AccessControl from EmergencyPause)
+        __AccessControlDaoContributor_init(daoFeePercentage, daoFeeCollector, DEFAULT_ADMIN_ROLE);
+        // Initialize EmergencyPause (includes AccessControl, Pausable, and grants PAUSER_ROLE)
+        __EmergencyPause_init(0, defaultAdmin);
         _bridge = IBridge(bridge);
         _collateralManagement = ICollateralManagement(collateralManagement);
         _mainnet = mainnet;
@@ -145,9 +158,9 @@ contract PegOutContract is
 
     /// @notice This function is used to set the collateral management contract
     /// @param collateralManagement the address of the Collateral Management contract
-    /// @dev This function is only callable by the owner of the contract
+    /// @dev This function is only callable by the default admin of the contract
     // solhint-disable-next-line comprehensive-interface
-    function setCollateralManagement(address collateralManagement) external onlyOwner {
+    function setCollateralManagement(address collateralManagement) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
         emit CollateralManagementSet(address(_collateralManagement), collateralManagement);
         _collateralManagement = ICollateralManagement(collateralManagement);
@@ -155,18 +168,18 @@ contract PegOutContract is
 
     /// @notice This function is used to set the dust threshold
     /// @param threshold the new dust threshold
-    /// @dev This function is only callable by the owner of the contract
+    /// @dev This function is only callable by the default admin of the contract
     // solhint-disable-next-line comprehensive-interface
-    function setDustThreshold(uint256 threshold) external onlyOwner {
+    function setDustThreshold(uint256 threshold) external onlyRole(DEFAULT_ADMIN_ROLE) {
         emit DustThresholdSet(dustThreshold, threshold);
         dustThreshold = threshold;
     }
 
     /// @notice This function is used to set the average Bitcoin block time
     /// @param blockTime the new average Bitcoin block time in seconds
-    /// @dev This function is only callable by the owner of the contract
+    /// @dev This function is only callable by the default admin of the contract
     // solhint-disable-next-line comprehensive-interface
-    function setBtcBlockTime(uint256 blockTime) external onlyOwner {
+    function setBtcBlockTime(uint256 blockTime) external onlyRole(DEFAULT_ADMIN_ROLE) {
         emit BtcBlockTimeSet(btcBlockTime, blockTime);
         btcBlockTime = blockTime;
     }

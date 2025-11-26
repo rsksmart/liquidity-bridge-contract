@@ -6,8 +6,7 @@ import {PegOutContract} from "../../contracts/PegOutContract.sol";
 import {CollateralManagementContract} from "../../contracts/CollateralManagement.sol";
 import {Flyover} from "../../contracts/libraries/Flyover.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 // Import the event
 import "../../contracts/interfaces/ICollateralManagement.sol";
 
@@ -110,14 +109,16 @@ contract ConfigurationTest is PegOutTestBase {
     // ============ setDustThreshold function tests ============
 
     function test_SetDustThreshold_OnlyAllowsOwnerToModify() public {
-        vm.prank(notOwner);
+        vm.startPrank(notOwner);
         vm.expectRevert(
             abi.encodeWithSelector(
-                Ownable.OwnableUnauthorizedAccount.selector,
-                notOwner
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                notOwner,
+                pegOutContract.DEFAULT_ADMIN_ROLE()
             )
         );
         pegOutContract.setDustThreshold(1);
+        vm.stopPrank();
     }
 
     function test_SetDustThreshold_ModifiesProperly() public {
@@ -141,14 +142,16 @@ contract ConfigurationTest is PegOutTestBase {
     // ============ setBtcBlockTime function tests ============
 
     function test_SetBtcBlockTime_OnlyAllowsOwnerToModify() public {
-        vm.prank(notOwner);
+        vm.startPrank(notOwner);
         vm.expectRevert(
             abi.encodeWithSelector(
-                Ownable.OwnableUnauthorizedAccount.selector,
-                notOwner
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                notOwner,
+                pegOutContract.DEFAULT_ADMIN_ROLE()
             )
         );
         pegOutContract.setBtcBlockTime(5);
+        vm.stopPrank();
     }
 
     function test_SetBtcBlockTime_ModifiesProperly() public {
@@ -187,14 +190,16 @@ contract ConfigurationTest is PegOutTestBase {
         ERC1967Proxy otherProxy = new ERC1967Proxy(address(otherCM), initData);
         address otherAddress = address(otherProxy);
 
-        vm.prank(notOwner);
+        vm.startPrank(notOwner);
         vm.expectRevert(
             abi.encodeWithSelector(
-                Ownable.OwnableUnauthorizedAccount.selector,
-                notOwner
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                notOwner,
+                pegOutContract.DEFAULT_ADMIN_ROLE()
             )
         );
         pegOutContract.setCollateralManagement(otherAddress);
+        vm.stopPrank();
     }
 
     function test_SetCollateralManagement_RevertsIfAddressDoesNotHaveCode()

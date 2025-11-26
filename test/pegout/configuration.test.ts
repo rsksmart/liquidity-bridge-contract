@@ -84,9 +84,12 @@ describe("PegOutContract configurations", () => {
         deployPegOutContractFixture
       );
       const notOwner = signers[0];
-      await expect(
-        contract.connect(notOwner).setDustThreshold(1n)
-      ).to.be.revertedWithCustomError(contract, "OwnableUnauthorizedAccount");
+      await expect(contract.connect(notOwner).setDustThreshold(1n))
+        .to.be.revertedWithCustomError(
+          contract,
+          "AccessControlUnauthorizedAccount"
+        )
+        .withArgs(notOwner.address, await contract.DEFAULT_ADMIN_ROLE());
     });
 
     it("modify the dust threshold properly", async function () {
@@ -107,9 +110,12 @@ describe("PegOutContract configurations", () => {
         deployPegOutContractFixture
       );
       const notOwner = signers[0];
-      await expect(
-        contract.connect(notOwner).setBtcBlockTime(5n)
-      ).to.be.revertedWithCustomError(contract, "OwnableUnauthorizedAccount");
+      await expect(contract.connect(notOwner).setBtcBlockTime(5n))
+        .to.be.revertedWithCustomError(
+          contract,
+          "AccessControlUnauthorizedAccount"
+        )
+        .withArgs(notOwner.address, await contract.DEFAULT_ADMIN_ROLE());
     });
 
     it("modify the BTC block time properly", async function () {
@@ -135,7 +141,12 @@ describe("PegOutContract configurations", () => {
       );
       await expect(
         contract.connect(notOwner).setCollateralManagement(otherContract)
-      ).to.be.revertedWithCustomError(contract, "OwnableUnauthorizedAccount");
+      )
+        .to.be.revertedWithCustomError(
+          contract,
+          "AccessControlUnauthorizedAccount"
+        )
+        .withArgs(notOwner.address, await contract.DEFAULT_ADMIN_ROLE());
     });
 
     it("revert if address does not have code", async function () {
