@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import {AccessControlDaoContributorUpgradeable} from "./DaoContributor.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {IBridge} from "./interfaces/IBridge.sol";
 import {ICollateralManagement, CollateralManagementSet} from "./interfaces/ICollateralManagement.sol";
@@ -19,16 +19,8 @@ import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 contract PegInContract is
     EmergencyPause,
     AccessControlDaoContributorUpgradeable,
-    IPegIn {
-
-    /// @dev Override _checkRole to use AccessControl from EmergencyPause
-    function _checkRole(bytes32 role)
-        internal
-        view
-        override(AccessControlDaoContributorUpgradeable, AccessControlUpgradeable)
-    {
-        super._checkRole(role);
-    }
+    IPegIn
+{
 
     /// @notice This struct is used to store the information of a call on behalf of the user
     /// @param timestamp The timestamp of the call
@@ -302,6 +294,15 @@ contract PegInContract is
     function getQuoteStatus(bytes32 quoteHash) external view override returns (PegInStates) {
         if (_reentrancyGuardEntered()) revert ReentrancyGuardReentrantCall();
         return _processedQuotes[quoteHash];
+    }
+
+    /// @dev Override _checkRole to use AccessControl from EmergencyPause
+    function _checkRole(bytes32 role)
+        internal
+        view
+        override(AccessControlDaoContributorUpgradeable, AccessControlUpgradeable)
+    {
+        super._checkRole(role);
     }
 
     /// @notice This function is used to increase the balance of an account

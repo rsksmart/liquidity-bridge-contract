@@ -13,6 +13,7 @@ COPY --chown=node:node package.json \
     deploy.sh \
     .solhint.json \
     hardhat.config.ts \
+    .solhintignore \
     tsconfig.json \
     addresses.json ./
 
