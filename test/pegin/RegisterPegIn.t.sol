@@ -2,13 +2,13 @@
 pragma solidity 0.8.25;
 
 import {PegInTestBase} from "./PegInTestBase.sol";
-import {IPegIn} from "../../contracts/interfaces/IPegIn.sol";
-import {Quotes} from "../../contracts/libraries/Quotes.sol";
-import {Flyover} from "../../contracts/libraries/Flyover.sol";
-import {SignatureValidator} from "../../contracts/libraries/SignatureValidator.sol";
-import {WalletMock} from "../../contracts/test-contracts/WalletMock.sol";
-import {ReentrancyCaller} from "../../contracts/test-contracts/ReentrancyCaller.sol";
-import {AccessControlDaoContributorUpgradeable} from "../../contracts/DaoContributor.sol";
+import {IPegIn} from "../../src/interfaces/IPegIn.sol";
+import {Quotes} from "../../src/libraries/Quotes.sol";
+import {Flyover} from "../../src/libraries/Flyover.sol";
+import {SignatureValidator} from "../../src/libraries/SignatureValidator.sol";
+import {WalletMock} from "../../src/test-contracts/WalletMock.sol";
+import {ReentrancyCaller} from "../../src/test-contracts/ReentrancyCaller.sol";
+import {AccessControlDaoContributorUpgradeable} from "../../src/DaoContributor.sol";
 
 /// @title RegisterPegIn Tests
 /// @notice Tests for the registerPegIn function - the core of the PegIn flow
