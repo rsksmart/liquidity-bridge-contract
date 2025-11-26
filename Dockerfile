@@ -14,6 +14,7 @@ COPY --chown=node:node package.json \
     .solhintignore \
     .solhint.json \
     hardhat.config.ts \
+    .solhintignore \
     tsconfig.json \
     addresses.json ./
 

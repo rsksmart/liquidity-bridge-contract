@@ -7,8 +7,9 @@ import {
     AccessControlDefaultAdminRulesUpgradeable
 } from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import {IPausable} from "../interfaces/IPausable.sol";
 
-abstract contract EmergencyPause is AccessControlDefaultAdminRulesUpgradeable, PausableUpgradeable {
+abstract contract EmergencyPause is AccessControlDefaultAdminRulesUpgradeable, PausableUpgradeable, IPausable {
 
     bytes32 internal constant _PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
@@ -17,6 +18,26 @@ abstract contract EmergencyPause is AccessControlDefaultAdminRulesUpgradeable, P
 
     event EmergencyPaused(address indexed by, string reason);
     event EmergencyUnpaused(address indexed by);
+
+    /// @inheritdoc IPausable
+    function pause(string calldata reason) public virtual override(IPausable) onlyRole(_PAUSER_ROLE) {
+        _emergencyPause(reason);
+    }
+
+    //// @inheritdoc IPausable
+    function unpause() public virtual override(IPausable) onlyRole(_PAUSER_ROLE) {
+        _emergencyUnpause();
+    }
+
+    /// @inheritdoc IPausable
+    function pauseStatus()
+        public virtual
+        override(IPausable)
+        view
+        returns (bool isPaused, string memory reason, uint64 since)
+    {
+        return (paused(), _pauseReason, _pauseTimestamp);
+    }
 
     /// @notice Initialize EmergencyPause with AccessControl and Pausable
     /// @param initialDelay The initial delay for admin role changes (use 0 for immediate access)
@@ -31,10 +52,6 @@ abstract contract EmergencyPause is AccessControlDefaultAdminRulesUpgradeable, P
         _grantRole(_PAUSER_ROLE, defaultAdmin);
     }
 
-    function pauseStatus() external view returns (bool isPaused, string memory reason, uint64 since) {
-        return (paused(), _pauseReason, _pauseTimestamp);
-    }
-
     function _emergencyPause(string calldata reason) internal {
         _pause();
         _pauseReason = reason; // storage string or reason hash/URI
@@ -47,16 +64,5 @@ abstract contract EmergencyPause is AccessControlDefaultAdminRulesUpgradeable, P
         _pauseTimestamp = 0;
         _unpause();
         emit EmergencyUnpaused(msg.sender);
-    }
-
-    /// @notice Pauses the contract
-    /// @param reason The reason for pausing
-    function pause(string calldata reason) external onlyRole(_PAUSER_ROLE) {
-        _emergencyPause(reason);
-    }
-
-    /// @notice Unpauses the contract
-    function unpause() external onlyRole(_PAUSER_ROLE) {
-        _emergencyUnpause();
     }
 }

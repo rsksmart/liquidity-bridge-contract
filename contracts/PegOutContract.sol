@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import {AccessControlDaoContributorUpgradeable} from "./DaoContributor.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {IBridge} from "./interfaces/IBridge.sol";
 import {ICollateralManagement, CollateralManagementSet} from "./interfaces/ICollateralManagement.sol";
@@ -21,14 +21,6 @@ contract PegOutContract is
     IPegOut
 {
 
-    /// @dev Override _checkRole to use AccessControl from EmergencyPause
-    function _checkRole(bytes32 role)
-        internal
-        view
-        override(AccessControlDaoContributorUpgradeable, AccessControlUpgradeable)
-    {
-        super._checkRole(role);
-    }
     /// @notice This struct is used to store the information of a peg out
     /// @param completed whether the peg out has been completed or not,
     /// completed means the peg out was paid and refunded (to any party)
@@ -257,6 +249,15 @@ contract PegOutContract is
     /// @inheritdoc IPegOut
     function isQuoteCompleted(bytes32 quoteHash) external view override returns (bool) {
         return _isQuoteCompleted(quoteHash);
+    }
+
+    /// @dev Override _checkRole to use AccessControl from EmergencyPause
+    function _checkRole(bytes32 role)
+        internal
+        view
+        override(AccessControlDaoContributorUpgradeable, AccessControlUpgradeable)
+    {
+        super._checkRole(role);
     }
 
     /// @notice This function is used to hash a peg out quote

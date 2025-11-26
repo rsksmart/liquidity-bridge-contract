@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 import {Flyover} from "../libraries/Flyover.sol";
 import {Quotes} from "../libraries/Quotes.sol";
+import {IPausable} from "./IPausable.sol";
 
 event CollateralManagementSet(address indexed oldAddress, address indexed newAddress);
 
@@ -10,7 +11,7 @@ event CollateralManagementSet(address indexed oldAddress, address indexed newAdd
 /// @notice This interface is used to expose the required functions to
 /// provide the Flyover collateral management service.
 /// This involves, slashing, resigning and registering processes.
-interface ICollateralManagement {
+interface ICollateralManagement is IPausable {
 
     /// @notice Emitted when the collateral is withdrawn
     /// @param addr The address of the liquidity provider

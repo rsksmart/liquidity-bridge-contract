@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
-import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
+
 import {
     ReentrancyGuardUpgradeable
 } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {IDaoContributor} from "./interfaces/IDaoContributor.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 
 /// @title AccessControlDaoContributorUpgradeable
@@ -12,7 +13,9 @@ import {Flyover} from "./libraries/Flyover.sol";
 /// @dev Any contract that inherits from this contract will be able to collect DAO
 /// contributions according to the logic the child contract defines
 abstract contract AccessControlDaoContributorUpgradeable is
-    ReentrancyGuardUpgradeable {
+    ReentrancyGuardUpgradeable,
+    IDaoContributor
+{
 
     // @custom:storage-location erc7201:rsk.dao.contributor
     struct DaoContributorStorage {
@@ -82,21 +85,17 @@ abstract contract AccessControlDaoContributorUpgradeable is
         emit ContributionsConfigured(feeCollector, feePercentage);
     }
 
-    /// @notice This function is used to get the fee percentage
-    /// that the child contracts use to calculate the contributions
-    /// @return feePercentage the fee percentage
+    /// @inheritdoc IDaoContributor
     function getFeePercentage() external view returns (uint256) {
         return _getContributorStorage().feePercentage;
     }
 
-    /// @notice This function is used to get the current contribution
-    /// @return currentContribution the current contribution
+    /// @inheritdoc IDaoContributor
     function getCurrentContribution() external view returns (uint256) {
         return _getContributorStorage().currentContribution;
     }
 
-    /// @notice This function is used to get the fee collector
-    /// @return feeCollector the fee collector address
+    /// @inheritdoc IDaoContributor
     function getFeeCollector() external view returns (address) {
         return _getContributorStorage().feeCollector;
     }
@@ -118,10 +117,6 @@ abstract contract AccessControlDaoContributorUpgradeable is
         $.defaultAdminRole = defaultAdminRole;
     }
 
-    /// @dev Internal function to check if caller has a role
-    /// Must be implemented by inheriting contract that provides AccessControl
-    function _checkRole(bytes32 role) internal view virtual;
-
     /// @notice This function is used to add a contribution to the DAO
     /// @dev The function is only callable by the child contract, it can be
     /// included wherever they consider the protocol should collect fees for the DAO
@@ -133,6 +128,10 @@ abstract contract AccessControlDaoContributorUpgradeable is
         $.currentContribution += amount;
         emit DaoContribution(contributor, amount);
     }
+
+    /// @dev Internal function to check if caller has a role
+    /// Must be implemented by inheriting contract that provides AccessControl
+    function _checkRole(bytes32 role) internal view virtual;
 
     /// @dev The function is used to get the storage of the contract, avoid using the regular
     /// storage to prevent conflicts with state variables of the child contract
