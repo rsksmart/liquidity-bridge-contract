@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
-import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {
     ReentrancyGuardUpgradeable
 } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
@@ -118,10 +117,6 @@ abstract contract AccessControlDaoContributorUpgradeable is
         $.defaultAdminRole = defaultAdminRole;
     }
 
-    /// @dev Internal function to check if caller has a role
-    /// Must be implemented by inheriting contract that provides AccessControl
-    function _checkRole(bytes32 role) internal view virtual;
-
     /// @notice This function is used to add a contribution to the DAO
     /// @dev The function is only callable by the child contract, it can be
     /// included wherever they consider the protocol should collect fees for the DAO
@@ -133,6 +128,10 @@ abstract contract AccessControlDaoContributorUpgradeable is
         $.currentContribution += amount;
         emit DaoContribution(contributor, amount);
     }
+
+    /// @dev Internal function to check if caller has a role
+    /// Must be implemented by inheriting contract that provides AccessControl
+    function _checkRole(bytes32 role) internal view virtual;
 
     /// @dev The function is used to get the storage of the contract, avoid using the regular
     /// storage to prevent conflicts with state variables of the child contract
