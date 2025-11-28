@@ -1,8 +1,8 @@
 [profile.default]
-src = "contracts"
-test = "forge-test"
+src = "src"
+test = "test"
 out = "out"
-cache_path = "forge-cache"
+cache_path = "cache"
 
 solc_version = "0.8.25"
 optimizer = true
@@ -10,9 +10,9 @@ optimizer_runs = 1
 via_ir = false
 ffi = true
 fs_permissions = [
-    { access = "read", path = "./tasks" },
     { access = "read", path = "./addresses.json" },
-    { access = "read", path = "./forge-scripts/helpers" }
+    { access = "read", path = "./script/helpers" },
+    { access = "read", path = "./script/tasks" }
 ]
 
 # Allow Foundry to resolve Solidity deps from node_modules
@@ -24,7 +24,7 @@ remappings = [
   "@rsksmart/=node_modules/@rsksmart/",
   "@rsksmart/btc-transaction-solidity-helper/=node_modules/@rsksmart/btc-transaction-solidity-helper/",
   "forge-std/=lib/forge-std/src/",
-  "contracts/=contracts/"
+  "src/=src/"
 ]
 
 [rpc_endpoints]

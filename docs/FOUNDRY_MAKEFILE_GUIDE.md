@@ -133,10 +133,10 @@ The project uses a custom `foundry.toml` configuration:
 
 ```toml
 [profile.default]
-src = "contracts"
-test = "forge-test"
+src = "src"
+test = "test"
 out = "out"
-cache_path = "forge-cache"
+cache_path = "cache"
 solc_version = "0.8.25"
 optimizer = true
 optimizer_runs = 1
