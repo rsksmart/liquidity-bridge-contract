@@ -7,8 +7,9 @@ import {
     AccessControlDefaultAdminRulesUpgradeable
 } from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import {IPausable} from "../interfaces/IPausable.sol";
 
-abstract contract EmergencyPause is AccessControlDefaultAdminRulesUpgradeable, PausableUpgradeable {
+abstract contract EmergencyPause is AccessControlDefaultAdminRulesUpgradeable, PausableUpgradeable, IPausable {
 
     bytes32 internal constant _PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
@@ -18,18 +19,22 @@ abstract contract EmergencyPause is AccessControlDefaultAdminRulesUpgradeable, P
     event EmergencyPaused(address indexed by, string reason);
     event EmergencyUnpaused(address indexed by);
 
-    /// @notice Pauses the contract
-    /// @param reason The reason for pausing
-    function pause(string calldata reason) external onlyRole(_PAUSER_ROLE) {
+    /// @inheritdoc IPausable
+    function pause(string calldata reason) public virtual override(IPausable) onlyRole(_PAUSER_ROLE) {
         _emergencyPause(reason);
     }
 
-    /// @notice Unpauses the contract
-    function unpause() external onlyRole(_PAUSER_ROLE) {
+    //// @inheritdoc IPausable
+    function unpause() public virtual override(IPausable) onlyRole(_PAUSER_ROLE) {
         _emergencyUnpause();
     }
 
-    function pauseStatus() external view returns (bool isPaused, string memory reason, uint64 since) {
+    function pauseStatus()
+        public virtual
+        override(IPausable)
+        view
+        returns (bool isPaused, string memory reason, uint64 since)
+    {
         return (paused(), _pauseReason, _pauseTimestamp);
     }
 

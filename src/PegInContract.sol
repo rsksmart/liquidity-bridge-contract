@@ -19,7 +19,8 @@ import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 contract PegInContract is
     EmergencyPause,
     AccessControlDaoContributorUpgradeable,
-    IPegIn {
+    IPegIn
+{
 
     /// @notice This struct is used to store the information of a call on behalf of the user
     /// @param timestamp The timestamp of the call

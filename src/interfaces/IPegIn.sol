@@ -2,10 +2,12 @@
 pragma solidity 0.8.25;
 
 import {Quotes} from "../libraries/Quotes.sol";
+import {IDaoContributor} from "./IDaoContributor.sol";
+import {IPausable} from "./IPausable.sol";
 
 /// @title PegIn interface
 /// @notice This interface is used to expose the required functions to provide the Flyover peg in service
-interface IPegIn {
+interface IPegIn is IPausable, IDaoContributor {
 
     /// @notice The states of a peg in quote
     /// @dev The quote set to CALL_DONE when the callForUser function is called

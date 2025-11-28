@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
+
 import {
     ReentrancyGuardUpgradeable
 } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {IDaoContributor} from "./interfaces/IDaoContributor.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 
 /// @title AccessControlDaoContributorUpgradeable
@@ -11,7 +13,9 @@ import {Flyover} from "./libraries/Flyover.sol";
 /// @dev Any contract that inherits from this contract will be able to collect DAO
 /// contributions according to the logic the child contract defines
 abstract contract AccessControlDaoContributorUpgradeable is
-    ReentrancyGuardUpgradeable {
+    ReentrancyGuardUpgradeable,
+    IDaoContributor
+{
 
     // @custom:storage-location erc7201:rsk.dao.contributor
     struct DaoContributorStorage {
@@ -81,21 +85,17 @@ abstract contract AccessControlDaoContributorUpgradeable is
         emit ContributionsConfigured(feeCollector, feePercentage);
     }
 
-    /// @notice This function is used to get the fee percentage
-    /// that the child contracts use to calculate the contributions
-    /// @return feePercentage the fee percentage
+    /// @inheritdoc IDaoContributor
     function getFeePercentage() external view returns (uint256) {
         return _getContributorStorage().feePercentage;
     }
 
-    /// @notice This function is used to get the current contribution
-    /// @return currentContribution the current contribution
+    /// @inheritdoc IDaoContributor
     function getCurrentContribution() external view returns (uint256) {
         return _getContributorStorage().currentContribution;
     }
 
-    /// @notice This function is used to get the fee collector
-    /// @return feeCollector the fee collector address
+    /// @inheritdoc IDaoContributor
     function getFeeCollector() external view returns (address) {
         return _getContributorStorage().feeCollector;
     }

@@ -20,6 +20,7 @@ COPY --chown=node:node package.json \
     package-lock.json \
     deploy.sh \
     .solhint.json \
+    .solhintignore \
     tsconfig.json \
     addresses.json \
     foundry.toml \

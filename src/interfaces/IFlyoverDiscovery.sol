@@ -2,8 +2,9 @@
 pragma solidity 0.8.25;
 
 import {Flyover} from "../libraries/Flyover.sol";
+import {IPausable} from "./IPausable.sol";
 
-interface IFlyoverDiscovery {
+interface IFlyoverDiscovery is IPausable {
     event Register(uint indexed id, address indexed from, uint256 indexed amount);
     event ProviderUpdate(address indexed from, string name, string apiBaseUrl);
     event ProviderStatusSet(uint indexed id, bool indexed status);
