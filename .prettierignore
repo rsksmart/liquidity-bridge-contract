@@ -1,11 +1,9 @@
 build
-contracts
-typechain-types
-artifacts
-cache
+src
 node_modules
+lib/
 errorCodes.json
 coverage/
 coverage.json
 out/
-forge-cache/
+cache/

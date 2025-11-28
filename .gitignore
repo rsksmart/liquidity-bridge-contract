@@ -15,13 +15,9 @@ integration-test/test.config.json
 node_modules
 .env
 
-# Hardhat files
-/cache
-/artifacts
-
 # Foundry files
 /out
-/forge-cache
+/cache
 /broadcast
 
 # TypeChain files
@@ -31,6 +27,3 @@ node_modules
 # solidity-coverage files
 /coverage
 /coverage.json
-
-# Hardhat Ignition default folder for deployments against a local node
-ignition/deployments/chain-31337

@@ -1,0 +1,106 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.25;
+
+import {EmergencyPause} from "../EmergencyPause/EmergencyPause.sol";
+import {ICollateralManagement} from "../interfaces/ICollateralManagement.sol";
+import {Flyover} from "../libraries/Flyover.sol";
+import {Quotes} from "../libraries/Quotes.sol";
+
+/* solhint-disable comprehensive-interface */
+contract CollateralManagementMock is ICollateralManagement {
+
+    uint256 private _balance;
+
+    function addPegInCollateralTo(address) external payable {
+        _balance += msg.value;
+    }
+
+    function addPegInCollateral() external payable {
+        _balance += msg.value;
+    }
+
+    function addPegOutCollateralTo(address) external payable {
+        _balance += msg.value;
+    }
+
+    function addPegOutCollateral() external payable {
+        _balance += msg.value;
+    }
+
+    function slashPegInCollateral(address, Quotes.PegInQuote calldata, bytes32) external {
+        emit Penalized(address(0), address(0), bytes32(0), Flyover.ProviderType.PegOut, 0, 0);
+    }
+
+    function slashPegOutCollateral(address, Quotes.PegOutQuote calldata, bytes32) external {
+        emit Penalized(address(0), address(0), bytes32(0), Flyover.ProviderType.PegOut, 0, 0);
+    }
+
+    function withdrawRewards() external {
+        emit RewardsWithdrawn(address(0), 0);
+    }
+
+    function withdrawCollateral() external {
+        emit WithdrawCollateral(address(0), 0);
+    }
+
+    function resign() external {
+        emit Resigned(address(0));
+    }
+
+    function getRewards(address) external pure returns (uint256) {
+        return 0;
+    }
+
+    function getPenalties() external pure returns (uint256) {
+        return 0;
+    }
+
+    function getPegInCollateral(address) external pure returns (uint256) {
+        return 10 ether;
+    }
+
+    function getPegOutCollateral(address) external pure returns (uint256) {
+        return 10 ether;
+    }
+
+    function getResignationBlock(address) external pure returns (uint256) {
+        return 0;
+    }
+
+    function getRewardPercentage() external pure returns (uint256) {
+        return 0;
+    }
+
+    function getResignDelayInBlocks() external pure returns (uint256) {
+        return 0;
+    }
+
+    function getMinCollateral() external pure returns (uint256) {
+        return 0.006 ether;
+    }
+
+    function isRegistered(Flyover.ProviderType, address) external pure returns (bool) {
+        return true;
+    }
+
+    function isCollateralSufficient(Flyover.ProviderType, address) external pure returns (bool) {
+        return true;
+    }
+
+    function pause(string calldata reason) public {
+        emit EmergencyPause.EmergencyPaused(msg.sender, reason);
+    }
+
+    function unpause() public {
+        emit EmergencyPause.EmergencyUnpaused(msg.sender);
+    }
+
+    function pauseStatus()
+        public
+        pure
+        returns (bool isPaused, string memory reason, uint64 since)
+    {
+        return (false, "", 0);
+    }
+}
+/* solhint-enable comprehensive-interface */
