@@ -3,13 +3,13 @@ pragma solidity 0.8.25;
 
 /* solhint-disable comprehensive-interface */
 
-import {
-    AccessControlDefaultAdminRulesUpgradeable
-} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
+import {AccessControlDefaultAdminRulesUpgradeable} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 
-abstract contract EmergencyPause is AccessControlDefaultAdminRulesUpgradeable, PausableUpgradeable {
-
+abstract contract EmergencyPause is
+    AccessControlDefaultAdminRulesUpgradeable,
+    PausableUpgradeable
+{
     bytes32 internal constant _PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
     string private _pauseReason;
@@ -31,7 +31,11 @@ abstract contract EmergencyPause is AccessControlDefaultAdminRulesUpgradeable, P
         _grantRole(_PAUSER_ROLE, defaultAdmin);
     }
 
-    function pauseStatus() external view returns (bool isPaused, string memory reason, uint64 since) {
+    function pauseStatus()
+        external
+        view
+        returns (bool isPaused, string memory reason, uint64 since)
+    {
         return (paused(), _pauseReason, _pauseTimestamp);
     }
 
