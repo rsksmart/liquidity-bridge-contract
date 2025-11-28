@@ -16,7 +16,6 @@ export default [
       "coverage/*",
       "broadcast/*",
       "out/*",
-      "forge-cache/*",
     ],
   },
   pluginJs.configs.recommended,
