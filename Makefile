@@ -12,7 +12,7 @@ PRIORITY_GAS_PRICE ?= 0
 
 # Hash-quote defaults
 QUOTE_TYPE ?= pegin
-QUOTE_FILE ?= tasks/hash-quote.example.json
+QUOTE_FILE ?= script/tasks/hash-quote.example.json
 
 # Pause-system defaults
 PAUSE_REASON ?= Emergency maintenance
@@ -85,16 +85,19 @@ define get_chain_id
 $(if $(filter mainnet,$(1)),$(MAINNET_CHAIN_ID),$(if $(filter testnet,$(1)),$(TESTNET_CHAIN_ID),$(LOCAL_CHAIN_ID)))
 endef
 
-# Map simplified network names to RSK network names for forge scripts
+# Map simplified network names to RSK network names for forge script
 define get_rsk_network_name
 $(if $(filter mainnet,$(1)),rskMainnet,$(if $(filter testnet,$(1)),rskTestnet,rskRegtest))
 endef
 
-# Fork options
+# Fork options (for simulation/testing)
 FORK_OPTS := --fork-url $(call get_network_config,$(NETWORK))
 ifneq ($(FORK_BLOCK),latest)
     FORK_OPTS += --fork-block-number $(FORK_BLOCK)
 endif
+
+# RPC options (for actual deployments)
+RPC_OPTS := --rpc-url $(call get_network_config,$(NETWORK))
 
 # Private key option
 PRIVATE_KEY_OPTS := --private-key $(call get_network_key,$(NETWORK))
@@ -112,14 +115,14 @@ help:
 	@echo "  dev      - Local development (Chain ID: 1337)"
 	@echo ""
 	@echo "Targets:"
-	@echo "  deploy-lbc        - Deploy LiquidityBridgeContract (simulation)"
-	@echo "  deploy-lbc-broadcast - Deploy LiquidityBridgeContract (actual)"
-	@echo "  upgrade-lbc       - Upgrade LiquidityBridgeContract to V2 (simulation)"
-	@echo "  upgrade-lbc-broadcast - Upgrade LiquidityBridgeContract to V2 (actual)"
-	@echo "  change-owner      - Transfer ownership to multisig (simulation)"
-	@echo "  change-owner-broadcast - Transfer ownership to multisig (actual)"
-	@echo "  deploy-lbc-high-gas - Deploy with high gas limit (15M) (simulation)"
-	@echo "  deploy-lbc-high-gas-broadcast - Deploy with high gas limit (15M) (actual)"
+	@echo "  deploy-lbc-fork        - Deploy LiquidityBridgeContract (fork simulation)"
+	@echo "  deploy-lbc-broadcast  - Deploy LiquidityBridgeContract (actual deployment)"
+	@echo "  upgrade-lbc-fork      - Upgrade LiquidityBridgeContract to V2 (fork simulation)"
+	@echo "  upgrade-lbc-broadcast - Upgrade LiquidityBridgeContract to V2 (actual deployment)"
+	@echo "  change-owner-fork     - Transfer ownership to multisig (fork simulation)"
+	@echo "  change-owner-broadcast - Transfer ownership to multisig (actual deployment)"
+	@echo "  deploy-lbc-high-gas-fork - Deploy with high gas limit (15M) (fork simulation)"
+	@echo "  deploy-lbc-high-gas-broadcast - Deploy with high gas limit (15M) (actual deployment)"
 	@echo "  hash-quote        - Hash a PegIn or PegOut quote"
 	@echo "  get-btc-height    - Get current BTC block height"
 	@echo "  get-versions      - Get contract versions"
@@ -138,12 +141,11 @@ help:
 	@echo "  coverage          - Run tests with coverage"
 	@echo ""
 	@echo "Examples:"
-	@echo "  make deploy-lbc NETWORK=testnet                    # Simulation"
-	@echo "  make deploy-lbc-broadcast NETWORK=testnet          # Actual deployment"
-	@echo "  make testnet-fork-deploy                           # Testnet fork simulation"
-	@echo "  make testnet-fork-deploy-broadcast                 # Testnet fork actual deployment"
-	@echo "  make upgrade-lbc NETWORK=mainnet FORK_BLOCK=6020639 # Simulation"
-	@echo "  make upgrade-lbc-broadcast NETWORK=mainnet         # Actual upgrade"
+	@echo "  make deploy-lbc-fork NETWORK=testnet                    # Fork simulation"
+	@echo "  make deploy-lbc-broadcast NETWORK=testnet               # Actual deployment"
+	@echo "  make testnet-fork-deploy                                # Testnet fork simulation"
+	@echo "  make upgrade-lbc-fork NETWORK=mainnet FORK_BLOCK=6020639 # Fork simulation"
+	@echo "  make upgrade-lbc-broadcast NETWORK=mainnet               # Actual upgrade"
 	@echo "  make hash-quote pegin testnet                      # Hash PegIn quote"
 	@echo "  make hash-quote pegout mainnet my-quote.json       # Hash PegOut with custom file"
 	@echo "  make pause-status NETWORK=testnet                  # Check pause status"
@@ -151,20 +153,20 @@ help:
 	@echo "  make pause-system-broadcast NETWORK=mainnet PAUSE_REASON=\"Emergency\" # Pause mainnet"
 	@echo "  make unpause-system-broadcast NETWORK=testnet      # Unpause testnet"
 	@echo "  make refund-user-pegout NETWORK=testnet QUOTE_HASH=abc123...  # Refund user (simulation)"
-	@echo "  make refund-user-pegout NETWORK=testnet QUOTE_FILE=tasks/quote.json # Refund from file (simulation)"
+	@echo "  make refund-user-pegout NETWORK=testnet QUOTE_FILE=script/tasks/quote.json # Refund from file (simulation)"
 	@echo "  make refund-user-pegout-broadcast NETWORK=testnet QUOTE_HASH=abc123... # Refund user (actual)"
 	@echo "  make register-pegin NETWORK=testnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc... # Register PegIn (simulation)"
 	@echo "  make register-pegin-broadcast NETWORK=testnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc... # Register PegIn (actual)"
 
-# Deploy LiquidityBridgeContract (simulation)
-.PHONY: deploy-lbc
-deploy-lbc:
-	@echo "Deploying LiquidityBridgeContract on $(NETWORK) (SIMULATION)..."
+# Deploy LiquidityBridgeContract (fork simulation)
+.PHONY: deploy-lbc-fork
+deploy-lbc-fork:
+	@echo "Deploying LiquidityBridgeContract on $(NETWORK) (FORK SIMULATION)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Chain ID: $(call get_chain_id,$(NETWORK))"
 	@echo "Fork Block: $(FORK_BLOCK)"
 	@echo "Gas Limit: $(GAS_LIMIT)"
-	$(FORGE) forge-scripts/deployment/DeployLBC.s.sol:DeployLBC \
+	$(FORGE) script/deployment/DeployLBC.s.sol:DeployLBC \
 		$(FORK_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
 		--gas-limit $(GAS_LIMIT) \
@@ -176,24 +178,23 @@ deploy-lbc-broadcast:
 	@echo "Deploying LiquidityBridgeContract on $(NETWORK) (ACTUAL DEPLOYMENT)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Chain ID: $(call get_chain_id,$(NETWORK))"
-	@echo "Fork Block: $(FORK_BLOCK)"
 	@echo "Gas Limit: $(GAS_LIMIT)"
-	$(FORGE) forge-scripts/deployment/DeployLBC.s.sol:DeployLBC \
-		$(FORK_OPTS) \
+	$(FORGE) script/deployment/DeployLBC.s.sol:DeployLBC \
+		$(RPC_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
 		--gas-limit $(GAS_LIMIT) \
 		--legacy \
 		--broadcast
 
-# Deploy LiquidityBridgeContract with high gas limit (simulation)
-.PHONY: deploy-lbc-high-gas
-deploy-lbc-high-gas:
-	@echo "Deploying LiquidityBridgeContract on $(NETWORK) with high gas limit (SIMULATION)..."
+# Deploy LiquidityBridgeContract with high gas limit (fork simulation)
+.PHONY: deploy-lbc-high-gas-fork
+deploy-lbc-high-gas-fork:
+	@echo "Deploying LiquidityBridgeContract on $(NETWORK) with high gas limit (FORK SIMULATION)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Chain ID: $(call get_chain_id,$(NETWORK))"
 	@echo "Fork Block: $(FORK_BLOCK)"
 	@echo "Gas Limit: 15000000"
-	$(FORGE) forge-scripts/deployment/DeployLBC.s.sol:DeployLBC \
+	$(FORGE) script/deployment/DeployLBC.s.sol:DeployLBC \
 		$(FORK_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
 		--gas-limit 15000000 \
@@ -205,10 +206,9 @@ deploy-lbc-high-gas-broadcast:
 	@echo "Deploying LiquidityBridgeContract on $(NETWORK) with high gas limit (ACTUAL DEPLOYMENT)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Chain ID: $(call get_chain_id,$(NETWORK))"
-	@echo "Fork Block: $(FORK_BLOCK)"
 	@echo "Gas Limit: 15000000"
-	$(FORGE) forge-scripts/DeployLBC.s.sol:DeployLBC \
-		$(FORK_OPTS) \
+	$(FORGE) script/deployment/DeployLBC.s.sol:DeployLBC \
+		$(RPC_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
 		--gas-limit 15000000 \
 		--legacy \
@@ -220,7 +220,7 @@ prepare-upgrade:
 	@echo "Deploying LiquidityBridgeContractV2 implementation on $(NETWORK)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Chain ID: $(call get_chain_id,$(NETWORK))"
-	$(FORGE) forge-scripts/deployment/PrepareUpgrade.s.sol:PrepareUpgrade \
+	$(FORGE) script/deployment/PrepareUpgrade.s.sol:PrepareUpgrade \
 		$(DEPLOY_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
 		--gas-limit $(GAS_LIMIT) \
@@ -228,14 +228,14 @@ prepare-upgrade:
 		--broadcast \
 		--verify
 
-# Upgrade LiquidityBridgeContract to V2 (simulation)
-.PHONY: upgrade-lbc
-upgrade-lbc:
-	@echo "Upgrading LiquidityBridgeContract to V2 on $(NETWORK) (SIMULATION)..."
+# Upgrade LiquidityBridgeContract to V2 (fork simulation)
+.PHONY: upgrade-lbc-fork
+upgrade-lbc-fork:
+	@echo "Upgrading LiquidityBridgeContract to V2 on $(NETWORK) (FORK SIMULATION)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Chain ID: $(call get_chain_id,$(NETWORK))"
 	@echo "Fork Block: $(FORK_BLOCK)"
-	$(FORGE) forge-scripts/deployment/UpgradeLBC.s.sol:UpgradeLBC \
+	$(FORGE) script/deployment/UpgradeLBC.s.sol:UpgradeLBC \
 		$(FORK_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
 		--gas-limit $(GAS_LIMIT) \
@@ -247,22 +247,21 @@ upgrade-lbc-broadcast:
 	@echo "Upgrading LiquidityBridgeContract to V2 on $(NETWORK) (ACTUAL DEPLOYMENT)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Chain ID: $(call get_chain_id,$(NETWORK))"
-	@echo "Fork Block: $(FORK_BLOCK)"
-	$(FORGE) forge-scripts/deployment/UpgradeLBC.s.sol:UpgradeLBC \
-		$(FORK_OPTS) \
+	$(FORGE) script/deployment/UpgradeLBC.s.sol:UpgradeLBC \
+		$(RPC_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
 		--gas-limit $(GAS_LIMIT) \
 		--legacy \
 		--broadcast
 
-# Change ownership to multisig (simulation)
-.PHONY: change-owner
-change-owner:
-	@echo "Transferring ownership to multisig on $(NETWORK) (SIMULATION)..."
+# Change ownership to multisig (fork simulation)
+.PHONY: change-owner-fork
+change-owner-fork:
+	@echo "Transferring ownership to multisig on $(NETWORK) (FORK SIMULATION)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Chain ID: $(call get_chain_id,$(NETWORK))"
 	@echo "Fork Block: $(FORK_BLOCK)"
-	$(FORGE) forge-scripts/deployment/ChangeOwnerToMultiSig.s.sol:ChangeOwnerToMultiSig \
+	$(FORGE) script/deployment/ChangeOwnerToMultiSig.s.sol:ChangeOwnerToMultiSig \
 		$(FORK_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
 		--gas-limit $(GAS_LIMIT) \
@@ -274,9 +273,8 @@ change-owner-broadcast:
 	@echo "Transferring ownership to multisig on $(NETWORK) (ACTUAL DEPLOYMENT)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Chain ID: $(call get_chain_id,$(NETWORK))"
-	@echo "Fork Block: $(FORK_BLOCK)"
-	$(FORGE) forge-scripts/deployment/ChangeOwnerToMultiSig.s.sol:ChangeOwnerToMultiSig \
-		$(FORK_OPTS) \
+	$(FORGE) script/deployment/ChangeOwnerToMultiSig.s.sol:ChangeOwnerToMultiSig \
+		$(RPC_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
 		--gas-limit $(GAS_LIMIT) \
 		--legacy \
@@ -286,13 +284,13 @@ change-owner-broadcast:
 .PHONY: get-btc-height
 get-btc-height:
 	@echo "Getting BTC block height..."
-	@bash forge-scripts/tasks/GetBtcHeight.sh
+	@bash script/tasks/GetBtcHeight.sh
 
 # Get contract versions
 .PHONY: get-versions
 get-versions:
 	@echo "Getting contract versions..."
-	@bash forge-scripts/tasks/GetVersions.sh
+	@bash script/tasks/GetVersions.sh
 
 # Hash quote - supports both syntaxes:
 # make hash-quote pegin testnet
@@ -315,12 +313,12 @@ hash-quote:
 	@echo "RPC URL: $(call get_network_config,$(FINAL_NETWORK))"
 	@export NETWORK=$(call get_rsk_network_name,$(FINAL_NETWORK)); \
 	if [ "$(FINAL_TYPE)" = "pegin" ]; then \
-		forge script forge-scripts/tasks/HashQuote.s.sol:HashQuote \
+		forge script script/tasks/HashQuote.s.sol:HashQuote \
 			--sig "hashPeginQuote(string)" "$(FINAL_FILE)" \
 			--rpc-url $(call get_network_config,$(FINAL_NETWORK)) \
 			--ffi -vv; \
 	else \
-		forge script forge-scripts/tasks/HashQuote.s.sol:HashQuote \
+		forge script script/tasks/HashQuote.s.sol:HashQuote \
 			--sig "hashPegoutQuote(string)" "$(FINAL_FILE)" \
 			--rpc-url $(call get_network_config,$(FINAL_NETWORK)) \
 			--ffi -vv; \
@@ -332,7 +330,7 @@ pause-status:
 	@echo "Checking pause status on $(NETWORK)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
-	forge script forge-scripts/tasks/PauseSystem.s.sol:PauseSystem \
+	forge script script/tasks/PauseSystem.s.sol:PauseSystem \
 		--sig "checkStatus()" \
 		--rpc-url $(call get_network_config,$(NETWORK)) \
 		-vv
@@ -344,7 +342,7 @@ pause-system:
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Reason: $(PAUSE_REASON)"
 	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
-	forge script forge-scripts/tasks/PauseSystem.s.sol:PauseSystem \
+	forge script script/tasks/PauseSystem.s.sol:PauseSystem \
 		--sig "pauseAll(string)" "$(PAUSE_REASON)" \
 		--rpc-url $(call get_network_config,$(NETWORK)) \
 		-vv
@@ -356,7 +354,7 @@ pause-system-broadcast:
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Reason: $(PAUSE_REASON)"
 	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
-	forge script forge-scripts/tasks/PauseSystem.s.sol:PauseSystem \
+	forge script script/tasks/PauseSystem.s.sol:PauseSystem \
 		--sig "pauseAll(string)" "$(PAUSE_REASON)" \
 		--rpc-url $(call get_network_config,$(NETWORK)) \
 		--broadcast --private-key $(call get_network_key,$(NETWORK)) -vv
@@ -367,7 +365,7 @@ unpause-system:
 	@echo "Unpausing system contracts on $(NETWORK) (SIMULATION)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
-	forge script forge-scripts/tasks/PauseSystem.s.sol:PauseSystem \
+	forge script script/tasks/PauseSystem.s.sol:PauseSystem \
 		--sig "unpauseAll()" \
 		--rpc-url $(call get_network_config,$(NETWORK)) \
 		-vv
@@ -378,7 +376,7 @@ unpause-system-broadcast:
 	@echo "Unpausing system contracts on $(NETWORK) (ACTUAL BROADCAST)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
-	forge script forge-scripts/tasks/PauseSystem.s.sol:PauseSystem \
+	forge script script/tasks/PauseSystem.s.sol:PauseSystem \
 		--sig "unpauseAll()" \
 		--rpc-url $(call get_network_config,$(NETWORK)) \
 		--broadcast --private-key $(call get_network_key,$(NETWORK)) -vv
@@ -389,7 +387,7 @@ refund-user-pegout:
 	@if [ -z "$(QUOTE_HASH)" ] && [ -z "$(QUOTE_FILE)" ]; then \
 		echo "Error: Either QUOTE_HASH or QUOTE_FILE is required"; \
 		echo "Usage: make refund-user-pegout NETWORK=testnet QUOTE_HASH=abc123..."; \
-		echo "   or: make refund-user-pegout NETWORK=testnet QUOTE_FILE=tasks/quote.json"; \
+		echo "   or: make refund-user-pegout NETWORK=testnet QUOTE_FILE=script/tasks/quote.json"; \
 		exit 1; \
 	fi
 	@if [ -n "$(QUOTE_HASH)" ] && [ -n "$(QUOTE_FILE)" ]; then \
@@ -401,13 +399,13 @@ refund-user-pegout:
 	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
 	if [ -n "$(QUOTE_FILE)" ]; then \
 		echo "Quote File: $(QUOTE_FILE)"; \
-		forge script forge-scripts/tasks/RefundUserPegout.s.sol:RefundUserPegout \
+		forge script script/tasks/RefundUserPegout.s.sol:RefundUserPegout \
 			--sig "refundUserPegoutFromFile(string)" "$(QUOTE_FILE)" \
 			--rpc-url $(call get_network_config,$(NETWORK)) \
 			--ffi -vv; \
 	else \
 		echo "Quote Hash: $(QUOTE_HASH)"; \
-		forge script forge-scripts/tasks/RefundUserPegout.s.sol:RefundUserPegout \
+		forge script script/tasks/RefundUserPegout.s.sol:RefundUserPegout \
 			--sig "refundUserPegout(string)" "$(QUOTE_HASH)" \
 			--rpc-url $(call get_network_config,$(NETWORK)) \
 			-vv; \
@@ -419,7 +417,7 @@ refund-user-pegout-broadcast:
 	@if [ -z "$(QUOTE_HASH)" ] && [ -z "$(QUOTE_FILE)" ]; then \
 		echo "Error: Either QUOTE_HASH or QUOTE_FILE is required"; \
 		echo "Usage: make refund-user-pegout-broadcast NETWORK=testnet QUOTE_HASH=abc123..."; \
-		echo "   or: make refund-user-pegout-broadcast NETWORK=testnet QUOTE_FILE=tasks/quote.json"; \
+		echo "   or: make refund-user-pegout-broadcast NETWORK=testnet QUOTE_FILE=script/tasks/quote.json"; \
 		exit 1; \
 	fi
 	@if [ -n "$(QUOTE_HASH)" ] && [ -n "$(QUOTE_FILE)" ]; then \
@@ -431,13 +429,13 @@ refund-user-pegout-broadcast:
 	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
 	if [ -n "$(QUOTE_FILE)" ]; then \
 		echo "Quote File: $(QUOTE_FILE)"; \
-		forge script forge-scripts/tasks/RefundUserPegout.s.sol:RefundUserPegout \
+		forge script script/tasks/RefundUserPegout.s.sol:RefundUserPegout \
 			--sig "refundUserPegoutFromFile(string)" "$(QUOTE_FILE)" \
 			--rpc-url $(call get_network_config,$(NETWORK)) \
 			--broadcast --private-key $(call get_network_key,$(NETWORK)) --ffi -vv; \
 	else \
 		echo "Quote Hash: $(QUOTE_HASH)"; \
-		forge script forge-scripts/tasks/RefundUserPegout.s.sol:RefundUserPegout \
+		forge script script/tasks/RefundUserPegout.s.sol:RefundUserPegout \
 			--sig "refundUserPegout(string)" "$(QUOTE_HASH)" \
 			--rpc-url $(call get_network_config,$(NETWORK)) \
 			--broadcast --private-key $(call get_network_key,$(NETWORK)) -vv; \
@@ -467,7 +465,7 @@ register-pegin:
 	@echo "TX ID: $(PEGIN_TXID)"
 	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
 	export BTC_NETWORK=$(if $(filter mainnet,$(NETWORK)),mainnet,testnet); \
-	forge script forge-scripts/tasks/RegisterPegin.s.sol:RegisterPegin \
+	forge script script/tasks/RegisterPegin.s.sol:RegisterPegin \
 		--sig "registerPegin(string,string,string)" "$(PEGIN_QUOTE_FILE)" "$(PEGIN_SIGNATURE)" "$(PEGIN_TXID)" \
 		--rpc-url $(call get_network_config,$(NETWORK)) \
 		--ffi -vv
@@ -496,7 +494,7 @@ register-pegin-broadcast:
 	@echo "TX ID: $(PEGIN_TXID)"
 	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
 	export BTC_NETWORK=$(if $(filter mainnet,$(NETWORK)),mainnet,testnet); \
-	forge script forge-scripts/tasks/RegisterPegin.s.sol:RegisterPegin \
+	forge script script/tasks/RegisterPegin.s.sol:RegisterPegin \
 		--sig "registerPegin(string,string,string)" "$(PEGIN_QUOTE_FILE)" "$(PEGIN_SIGNATURE)" "$(PEGIN_TXID)" \
 		--rpc-url $(call get_network_config,$(NETWORK)) \
 		--broadcast --private-key $(call get_network_key,$(NETWORK)) --ffi -vv
@@ -571,13 +569,13 @@ verify:
 
 # Deploy all (deploy + upgrade + change owner) - for testing purposes
 .PHONY: deploy-all
-deploy-all: deploy-lbc upgrade-lbc change-owner
+deploy-all: deploy-lbc-fork upgrade-lbc-fork change-owner-fork
 
 # Quick test deployment on dev network (simulation)
 .PHONY: dev-deploy
 dev-deploy:
 	@echo "Quick deployment on dev network (SIMULATION)..."
-	$(MAKE) deploy-lbc NETWORK=dev BROADCAST=false VERIFY=false
+	$(MAKE) deploy-lbc-fork NETWORK=dev VERIFY=false
 
 # Quick test deployment on dev network (actual)
 .PHONY: dev-deploy-broadcast
@@ -589,7 +587,7 @@ dev-deploy-broadcast:
 .PHONY: testnet-fork-deploy
 testnet-fork-deploy:
 	@echo "Test deployment on testnet fork (SIMULATION)..."
-	$(MAKE) deploy-lbc NETWORK=testnet FORK_BLOCK=6020639 BROADCAST=false VERIFY=false
+	$(MAKE) deploy-lbc-fork NETWORK=testnet FORK_BLOCK=6020639 VERIFY=false
 
 # Test deployment on testnet fork (actual)
 .PHONY: testnet-fork-deploy-broadcast
@@ -601,7 +599,7 @@ testnet-fork-deploy-broadcast:
 .PHONY: mainnet-fork-deploy
 mainnet-fork-deploy:
 	@echo "Mainnet fork deployment (SIMULATION)..."
-	$(MAKE) deploy-lbc NETWORK=mainnet FORK_BLOCK=latest BROADCAST=false VERIFY=false
+	$(MAKE) deploy-lbc-fork NETWORK=mainnet FORK_BLOCK=latest VERIFY=false
 
 # Mainnet fork deployment (actual)
 .PHONY: mainnet-fork-deploy-broadcast
@@ -641,13 +639,13 @@ validate-deploy: check-env
 
 # Safe deployment with validation
 .PHONY: safe-deploy-lbc
-safe-deploy-lbc: validate-deploy deploy-lbc
+safe-deploy-lbc: validate-deploy deploy-lbc-fork
 
 .PHONY: safe-upgrade-lbc
-safe-upgrade-lbc: validate-deploy upgrade-lbc
+safe-upgrade-lbc: validate-deploy upgrade-lbc-fork
 
 .PHONY: safe-change-owner
-safe-change-owner: validate-deploy change-owner
+safe-change-owner: validate-deploy change-owner-fork
 
 # Documentation
 .PHONY: docs
