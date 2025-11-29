@@ -970,62 +970,50 @@ contract LpRefundTest is PegOutTestBase {
     }
 
     function test_ValidatePegout_AcceptsSameTransactionAsRefundPegOut() public {
-        // Create two identical deposits to test both functions
-        Quotes.PegOutQuote memory quote1 = createTestPegOutQuote(
+        // Create a single quote and deposit
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
             1 ether,
             pegOutLp
         );
-        bytes32 quoteHash1 = pegOutContract.hashPegOutQuote(quote1);
-        bytes memory signature1 = signQuote(pegOutLp, quoteHash1);
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+        bytes memory signature = signQuote(pegOutLp, quoteHash);
 
         vm.prank(user);
-        pegOutContract.depositPegOut{value: getTotalValue(quote1)}(
-            quote1,
-            signature1
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(
+            quote,
+            signature
         );
 
-        Quotes.PegOutQuote memory quote2 = createTestPegOutQuote(
-            1.5 ether,
-            pegOutLp
-        );
-        bytes32 quoteHash2 = pegOutContract.hashPegOutQuote(quote2);
-        bytes memory signature2 = signQuote(pegOutLp, quoteHash2);
-
-        vm.prank(user);
-        pegOutContract.depositPegOut{value: getTotalValue(quote2)}(
-            quote2,
-            signature2
-        );
-
-        bytes memory btcTx1 = generateBtcTx(quote1, quoteHash1);
-        bytes memory btcTx2 = generateBtcTx(quote2, quoteHash2);
+        // Generate a single transaction
+        bytes memory btcTx = generateBtcTx(quote, quoteHash);
 
         // validatePegout should accept the transaction without confirmations
         vm.prank(pegOutLp);
         Quotes.PegOutQuote memory validatedQuote = pegOutContract
-            .validatePegout(quoteHash1, btcTx1);
-        assertEq(validatedQuote.value, quote1.value);
+            .validatePegout(quoteHash, btcTx);
+        assertEq(validatedQuote.value, quote.value);
 
-        // refundPegOut should accept the same transaction WITH confirmations
+        // Setup confirmations for refundPegOut
         bytes memory header = createBtcBlockHeader(
             uint32(block.timestamp + 100)
         );
         bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
         bridgeMock.setConfirmations(
-            int256(uint256(quote2.transferConfirmations))
+            int256(uint256(quote.transferConfirmations))
         );
 
+        // refundPegOut should accept the SAME transaction WITH confirmations
         vm.prank(pegOutLp);
         pegOutContract.refundPegOut(
-            quoteHash2,
-            btcTx2,
+            quoteHash,
+            btcTx,
             BLOCK_HEADER_HASH,
             PARTIAL_MERKLE_TREE,
             merkleHashes
         );
 
         // Both should succeed - validatePegout without confirmations, refundPegOut with them
-        assertTrue(pegOutContract.isQuoteCompleted(quoteHash2));
+        assertTrue(pegOutContract.isQuoteCompleted(quoteHash));
     }
 
     // ============ Helper Functions ============
