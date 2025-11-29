@@ -1233,7 +1233,7 @@ contract RegisterPegInTest is PegInTestBase {
     }
 
     string constant HELPER_SCRIPT_GET_BTC_ADDRESS_BYTES =
-        "forge-scripts/helpers/get-btc-address-bytes.ts";
+        "script/helpers/get-btc-address-bytes.ts";
 
     function test_RegisterPegIn_RefundPegInWithWrongAmountWithoutPenalizingLP()
         public

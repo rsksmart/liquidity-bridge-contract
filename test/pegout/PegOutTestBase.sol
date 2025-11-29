@@ -47,7 +47,7 @@ abstract contract PegOutTestBase is Test {
 
     // FFI Helper script paths
     string constant HELPER_SCRIPT_GENERATE_BTC_TX =
-        "forge-scripts/helpers/generate-btc-tx.ts";
+        "script/helpers/generate-btc-tx.ts";
 
     /// @notice Deploy PegOutContract with all dependencies
     function deployPegOutContract() internal {
