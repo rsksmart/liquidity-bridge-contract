@@ -47,7 +47,7 @@ abstract contract PegOutTestBase is Test {
 
     // FFI Helper script paths
     string constant HELPER_SCRIPT_GENERATE_BTC_TX =
-        "forge-scripts/helpers/generate-btc-tx.ts";
+        "script/helpers/generate-btc-tx.ts";
 
     /// @notice Deploy PegOutContract with all dependencies
     function deployPegOutContract() internal {
@@ -231,7 +231,7 @@ abstract contract PegOutTestBase is Test {
     }
 
     /// @notice Generates a simple mock BTC transaction for testing
-    /// @dev Creates a minimal valid BTC tx with P2PKH output
+    /// @dev Uses FFI helper to generate BTC tx with P2PKH output (same as Hardhat tests)
     /// @param quote The PegOut quote
     /// @param quoteHash The hash of the quote
     /// @return btcTx The raw BTC transaction bytes
@@ -262,35 +262,7 @@ abstract contract PegOutTestBase is Test {
         inputs[5] = vm.toString(quote.value);
         inputs[6] = scriptType;
 
-        // Create P2PKH output script
-        bytes memory outputScript = abi.encodePacked(
-            hex"76a914", // OP_DUP OP_HASH160 PUSH20
-            hash160,
-            hex"88ac" // OP_EQUALVERIFY OP_CHECKSIG
-        );
-
-        // Build mock transaction
-        return
-            abi.encodePacked(
-                hex"01000000", // Version
-                hex"01", // 1 input
-                // Hardcoded previous tx and signature
-                hex"013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40",
-                hex"00000000",
-                hex"6a",
-                hex"47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4",
-                hex"ffffffff",
-                hex"02", // 2 outputs
-                // Output 1: Payment to user
-                toLittleEndian64(satAmount),
-                uint8(outputScript.length),
-                outputScript,
-                // Output 2: OP_RETURN with quote hash
-                hex"0000000000000000", // 0 amount
-                hex"22", // script length (34 bytes)
-                hex"6a20", // OP_RETURN PUSH32
-                quoteHash,
-                hex"00000000" // Locktime
-            );
+        bytes memory result = vm.ffi(inputs);
+        return result;
     }
 }

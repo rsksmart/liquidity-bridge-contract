@@ -43,13 +43,13 @@ contract PegInTest is Test {
 
     // FFI Helper script paths
     string constant HELPER_SCRIPT_GET_BTC_ADDRESS_BYTES =
-        "forge-scripts/helpers/get-btc-address-bytes.ts";
+        "script/helpers/get-btc-address-bytes.ts";
     string constant HELPER_SCRIPT_PARSE_BTC_ADDRESS =
-        "forge-scripts/helpers/parse-btc-address.ts";
+        "script/helpers/parse-btc-address.ts";
     string constant HELPER_SCRIPT_DECODE_BTC_ADDRESS_BS58 =
-        "forge-scripts/helpers/decode-btc-address-bs58.ts";
+        "script/helpers/decode-btc-address-bs58.ts";
     string constant HELPER_SCRIPT_GET_P2SH_ADDRESS_FROM_SCRIPT =
-        "forge-scripts/helpers/get-p2sh-address-from-script.ts";
+        "script/helpers/get-p2sh-address-from-script.ts";
 
     // BTC address constants
     bytes constant DECODED_TEST_FED_ADDRESS =
