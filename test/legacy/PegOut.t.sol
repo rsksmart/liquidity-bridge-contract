@@ -31,9 +31,9 @@ contract PegOutTest is Test {
 
     // FFI Helper script paths
     string constant HELPER_SCRIPT_GET_BTC_ADDRESS_BYTES =
-        "forge-scripts/helpers/get-btc-address-bytes.ts";
+        "script/helpers/get-btc-address-bytes.ts";
     string constant HELPER_SCRIPT_GENERATE_BTC_TX =
-        "forge-scripts/helpers/generate-btc-tx.ts";
+        "script/helpers/generate-btc-tx.ts";
     address constant ZERO_ADDRESS = address(0);
     bytes constant ANY_HEX =
         hex"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";

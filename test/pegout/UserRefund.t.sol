@@ -288,7 +288,7 @@ contract UserRefundTest is PegOutTestBase {
     // ============ Helper Functions ============
 
     string constant HELPER_SCRIPT_GET_BTC_ADDRESS_BYTES =
-        "forge-scripts/helpers/get-btc-address-bytes.ts";
+        "script/helpers/get-btc-address-bytes.ts";
 
     function createTestPegOutQuote(
         uint256 value,
