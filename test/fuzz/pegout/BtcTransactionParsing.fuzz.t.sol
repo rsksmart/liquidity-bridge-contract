@@ -130,24 +130,59 @@ contract BtcTransactionParsingFuzzTest is PegOutTestBase {
         assertTrue(pegOutContract.isQuoteCompleted(quoteHash));
     }
 
-    /// @notice Fuzz test: Malformed transaction bytes
+    /// @notice Fuzz test: Malformed transaction with invalid output scripts
+    /// @dev Tests that transactions with malformed output scripts are properly rejected
+    ///      with MalformedTransaction error instead of relying on panics
     function testFuzz_RefundPegOut_RejectsMalformedTransactions(
-        uint8 txLength
+        uint8 invalidScriptLength
     ) public {
-        // Test very short transactions (< 10 bytes is definitely invalid)
-        txLength = uint8(bound(txLength, 1, 9));
+        // Generate invalid output script lengths that would fail validation
+        // Valid P2PKH is 25 bytes, so anything < 5 or > 100 is clearly invalid
+        invalidScriptLength = uint8(bound(invalidScriptLength, 1, 4));
 
         Quotes.PegOutQuote memory quote = createAndDepositQuote(1 ether);
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
 
-        bytes memory malformedTx = new bytes(txLength);
+        // Create a transaction with valid structure but malformed output script
+        uint64 satAmount = uint64(quote.value / 1e10);
+
+        // Create an invalid output script (too short to be valid P2PKH/P2SH/etc.)
+        bytes memory invalidOutputScript = new bytes(invalidScriptLength);
+        for (uint8 i = 0; i < invalidScriptLength; i++) {
+            invalidOutputScript[i] = bytes1(i);  // Fill with some data
+        }
+
+        // Build transaction with malformed output script
+        bytes memory malformedTx = abi.encodePacked(
+            hex"01000000",  // Version
+            hex"01",       // 1 input
+            hex"013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40",
+            hex"00000000",
+            hex"6a",
+            hex"47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4",
+            hex"ffffffff",
+            hex"02",       // 2 outputs
+            toLittleEndian64(satAmount),
+            invalidScriptLength,
+            invalidOutputScript,
+            hex"0000000000000000",  // 0 amount for OP_RETURN
+            hex"22",               // script length (34 bytes)
+            hex"6a20",             // OP_RETURN PUSH32
+            quoteHash,
+            hex"00000000"          // Locktime
+        );
 
         // Setup bridge
         setupBridgeMock(quote);
 
+        // Should revert with MalformedTransaction for the invalid output script
         vm.prank(pegOutLp);
-        // Will revert during parsing with panic (array out of bounds)
-        vm.expectRevert(abi.encodeWithSignature("Panic(uint256)", 0x32));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOut.MalformedTransaction.selector,
+                invalidOutputScript
+            )
+        );
         pegOutContract.refundPegOut(
             quoteHash,
             malformedTx,
