@@ -1,23 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {PegOutTestBase} from "../../pegout/PegOutTestBase.sol";
+import {PegOutFuzzTestBase} from "./PegOutFuzzTestBase.sol";
 import {Quotes} from "../../../src/libraries/Quotes.sol";
 import {Flyover} from "../../../src/libraries/Flyover.sol";
 import {IPegOut} from "../../../src/interfaces/IPegOut.sol";
-import {SignatureValidator} from "../../../src/libraries/SignatureValidator.sol";
 
 /// @title PegOutDepositAmounts Fuzz Tests
 /// @notice Fuzz tests for PegOut deposit amount calculations and validations
-contract PegOutDepositAmountsFuzzTest is PegOutTestBase {
-    address public user;
-
+contract PegOutDepositAmountsFuzzTest is PegOutFuzzTestBase {
     function setUp() public {
         deployPegOutContract();
         setupProviders();
 
-        user = makeAddr("user");
-        vm.deal(user, 1000 ether);
+        fuzzUser = makeAddr("user");
+        vm.deal(fuzzUser, 1000 ether);
     }
 
     /// @notice Fuzz test: Exact payment should succeed and emit PegOutDeposit event
@@ -33,23 +30,23 @@ contract PegOutDepositAmountsFuzzTest is PegOutTestBase {
         productFeeAmount = uint128(bound(productFeeAmount, 0, 1 ether));
         gasFee = uint64(bound(gasFee, 0, 0.01 ether));
 
-        Quotes.PegOutQuote memory quote = createTestQuote(value);
+        Quotes.PegOutQuote memory quote = createFuzzTestQuote(value);
         quote.callFee = callFee;
         quote.productFeeAmount = productFeeAmount;
         quote.gasFee = gasFee;
 
-        uint256 totalValue = getTotalValue(quote);
+        uint256 totalValue = getTotalQuoteValue(quote);
         vm.assume(totalValue <= 500 ether); // Ensure we have enough funds
 
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(pegOutLp, quoteHash);
+        bytes memory signature = signFuzzQuote(pegOutLp, quoteHash);
 
         // Expect PegOutDeposit event with correct parameters
         vm.expectEmit(true, true, true, true);
-        emit IPegOut.PegOutDeposit(quoteHash, user, block.timestamp, totalValue);
+        emit IPegOut.PegOutDeposit(quoteHash, fuzzUser, block.timestamp, totalValue);
 
         // Should succeed with exact payment
-        vm.prank(user);
+        vm.prank(fuzzUser);
         pegOutContract.depositPegOut{value: totalValue}(quote, signature);
 
         assertFalse(pegOutContract.isQuoteCompleted(quoteHash), "Quote should not be completed yet");
@@ -64,17 +61,17 @@ contract PegOutDepositAmountsFuzzTest is PegOutTestBase {
         value = uint128(bound(value, 0.001 ether, 100 ether));
         callFee = uint128(bound(callFee, 0, 1 ether));
 
-        Quotes.PegOutQuote memory quote = createTestQuote(value);
+        Quotes.PegOutQuote memory quote = createFuzzTestQuote(value);
         quote.callFee = callFee;
 
-        uint256 totalValue = getTotalValue(quote);
+        uint256 totalValue = getTotalQuoteValue(quote);
         underpayAmount = uint128(bound(underpayAmount, 1, totalValue));
         uint256 sentAmount = totalValue - underpayAmount;
 
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(pegOutLp, quoteHash);
+        bytes memory signature = signFuzzQuote(pegOutLp, quoteHash);
 
-        vm.prank(user);
+        vm.prank(fuzzUser);
         vm.expectRevert(
             abi.encodeWithSelector(
                 Flyover.InsufficientAmount.selector,
@@ -94,22 +91,22 @@ contract PegOutDepositAmountsFuzzTest is PegOutTestBase {
         value = uint128(bound(value, 0.001 ether, 100 ether));
         extraAmount = uint64(bound(extraAmount, 1, TEST_DUST_THRESHOLD - 1));
 
-        Quotes.PegOutQuote memory quote = createTestQuote(value);
-        uint256 totalValue = getTotalValue(quote);
+        Quotes.PegOutQuote memory quote = createFuzzTestQuote(value);
+        uint256 totalValue = getTotalQuoteValue(quote);
         uint256 paidAmount = totalValue + extraAmount;
 
         vm.assume(paidAmount <= 500 ether);
 
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(pegOutLp, quoteHash);
+        bytes memory signature = signFuzzQuote(pegOutLp, quoteHash);
 
         uint256 contractBalanceBefore = address(pegOutContract).balance;
 
         // Expect PegOutDeposit event with the PAID amount (including dust overpayment)
         vm.expectEmit(true, true, true, true);
-        emit IPegOut.PegOutDeposit(quoteHash, user, block.timestamp, paidAmount);
+        emit IPegOut.PegOutDeposit(quoteHash, fuzzUser, block.timestamp, paidAmount);
 
-        vm.prank(user);
+        vm.prank(fuzzUser);
         pegOutContract.depositPegOut{value: paidAmount}(quote, signature);
 
         // Contract should keep the extra (no change paid)
@@ -130,31 +127,31 @@ contract PegOutDepositAmountsFuzzTest is PegOutTestBase {
         value = uint128(bound(value, 0.001 ether, 100 ether));
         extraAmount = uint128(bound(extraAmount, TEST_DUST_THRESHOLD, 10 ether));
 
-        Quotes.PegOutQuote memory quote = createTestQuote(value);
-        uint256 totalValue = getTotalValue(quote);
+        Quotes.PegOutQuote memory quote = createFuzzTestQuote(value);
+        uint256 totalValue = getTotalQuoteValue(quote);
         uint256 paidAmount = totalValue + extraAmount;
 
         vm.assume(paidAmount <= 500 ether);
 
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(pegOutLp, quoteHash);
+        bytes memory signature = signFuzzQuote(pegOutLp, quoteHash);
 
-        uint256 userBalanceBefore = user.balance;
+        uint256 userBalanceBefore = fuzzUser.balance;
 
         // Contract emits PegOutDeposit with msg.value (paidAmount), then PegOutChangePaid
         vm.expectEmit(true, true, true, true);
-        emit IPegOut.PegOutDeposit(quoteHash, user, block.timestamp, paidAmount);
+        emit IPegOut.PegOutDeposit(quoteHash, fuzzUser, block.timestamp, paidAmount);
 
-        // PegOutChangePaid goes to quote.rskRefundAddress (which is 'user' in our test quote)
+        // PegOutChangePaid goes to quote.rskRefundAddress (which is 'fuzzUser' in our test quote)
         vm.expectEmit(true, true, true, true);
         emit IPegOut.PegOutChangePaid(quoteHash, quote.rskRefundAddress, extraAmount);
 
-        vm.prank(user);
+        vm.prank(fuzzUser);
         pegOutContract.depositPegOut{value: paidAmount}(quote, signature);
 
         // User should receive change back
         assertEq(
-            user.balance,
+            fuzzUser.balance,
             userBalanceBefore - totalValue,
             "User should only pay totalValue (change returned)"
         );
@@ -177,17 +174,17 @@ contract PegOutDepositAmountsFuzzTest is PegOutTestBase {
         vm.assume(total <= 500 ether);
         vm.assume(total < type(uint256).max);
 
-        Quotes.PegOutQuote memory quote = createTestQuote(value);
+        Quotes.PegOutQuote memory quote = createFuzzTestQuote(value);
         quote.callFee = callFee;
         quote.productFeeAmount = productFeeAmount;
         quote.gasFee = gasFee;
 
-        uint256 totalValue = getTotalValue(quote);
+        uint256 totalValue = getTotalQuoteValue(quote);
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(pegOutLp, quoteHash);
+        bytes memory signature = signFuzzQuote(pegOutLp, quoteHash);
 
         // Should not revert due to overflow
-        vm.prank(user);
+        vm.prank(fuzzUser);
         pegOutContract.depositPegOut{value: totalValue}(quote, signature);
     }
 
@@ -200,16 +197,16 @@ contract PegOutDepositAmountsFuzzTest is PegOutTestBase {
     ) public {
         value = uint128(bound(value, 0.001 ether, 100 ether));
 
-        Quotes.PegOutQuote memory quote = createTestQuote(value);
+        Quotes.PegOutQuote memory quote = createFuzzTestQuote(value);
         if (zeroCallFee) quote.callFee = 0;
         if (zeroProductFee) quote.productFeeAmount = 0;
         if (zeroGasFee) quote.gasFee = 0;
 
-        uint256 totalValue = getTotalValue(quote);
+        uint256 totalValue = getTotalQuoteValue(quote);
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(pegOutLp, quoteHash);
+        bytes memory signature = signFuzzQuote(pegOutLp, quoteHash);
 
-        vm.prank(user);
+        vm.prank(fuzzUser);
         pegOutContract.depositPegOut{value: totalValue}(quote, signature);
 
         assertFalse(pegOutContract.isQuoteCompleted(quoteHash));
@@ -226,20 +223,20 @@ contract PegOutDepositAmountsFuzzTest is PegOutTestBase {
         value2 = uint128(bound(value2, 0.001 ether, 50 ether));
         vm.assume(nonce1 != nonce2);
 
-        Quotes.PegOutQuote memory quote1 = createTestQuote(value1);
+        Quotes.PegOutQuote memory quote1 = createFuzzTestQuote(value1);
         quote1.nonce = nonce1;
-        uint256 totalValue1 = getTotalValue(quote1);
+        uint256 totalValue1 = getTotalQuoteValue(quote1);
         bytes32 quoteHash1 = pegOutContract.hashPegOutQuote(quote1);
-        bytes memory signature1 = signQuote(pegOutLp, quoteHash1);
+        bytes memory signature1 = signFuzzQuote(pegOutLp, quoteHash1);
 
-        Quotes.PegOutQuote memory quote2 = createTestQuote(value2);
+        Quotes.PegOutQuote memory quote2 = createFuzzTestQuote(value2);
         quote2.nonce = nonce2;
-        uint256 totalValue2 = getTotalValue(quote2);
+        uint256 totalValue2 = getTotalQuoteValue(quote2);
         bytes32 quoteHash2 = pegOutContract.hashPegOutQuote(quote2);
-        bytes memory signature2 = signQuote(pegOutLp, quoteHash2);
+        bytes memory signature2 = signFuzzQuote(pegOutLp, quoteHash2);
 
         // Deposit both
-        vm.startPrank(user);
+        vm.startPrank(fuzzUser);
         pegOutContract.depositPegOut{value: totalValue1}(quote1, signature1);
         pegOutContract.depositPegOut{value: totalValue2}(quote2, signature2);
         vm.stopPrank();
@@ -248,60 +245,5 @@ contract PegOutDepositAmountsFuzzTest is PegOutTestBase {
         assertFalse(pegOutContract.isQuoteCompleted(quoteHash1));
         assertFalse(pegOutContract.isQuoteCompleted(quoteHash2));
         assertTrue(quoteHash1 != quoteHash2, "Different nonces should produce different hashes");
-    }
-
-    // ============ Helper Functions ============
-
-    function createTestQuote(uint256 value) internal view returns (Quotes.PegOutQuote memory) {
-        bytes memory testBtcAddress = abi.encodePacked(
-            hex"6f", // Testnet version byte
-            hex"89abcdefabbaabbaabbaabbaabbaabbaabbaabba" // 20 bytes hash160
-        );
-        uint32 currentTime = uint32(block.timestamp);
-
-        return Quotes.PegOutQuote({
-            callFee: 100000000000000,
-            penaltyFee: 10000000000000,
-            value: value,
-            productFeeAmount: 0,
-            gasFee: 100,
-            lbcAddress: address(pegOutContract),
-            lpRskAddress: pegOutLp,
-            rskRefundAddress: user,
-            nonce: int64(uint64(block.timestamp)),
-            agreementTimestamp: currentTime,
-            depositDateLimit: currentTime + 7200,
-            transferTime: 3600,
-            depositConfirmations: 10,
-            transferConfirmations: 2,
-            expireBlock: uint32(block.number + 1000),
-            expireDate: currentTime + 20000,
-            depositAddress: testBtcAddress,
-            btcRefundAddress: testBtcAddress,
-            lpBtcAddress: testBtcAddress
-        });
-    }
-
-    function getTotalValue(Quotes.PegOutQuote memory quote) internal pure returns (uint256) {
-        return quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
-    }
-
-    function signQuote(address signer, bytes32 quoteHash) internal view returns (bytes memory) {
-        uint256 privateKey;
-        if (signer == fullLp) {
-            privateKey = fullLpKey;
-        } else if (signer == pegInLp) {
-            privateKey = pegInLpKey;
-        } else if (signer == pegOutLp) {
-            privateKey = pegOutLpKey;
-        } else {
-            revert("Unknown signer");
-        }
-
-        bytes32 ethSignedMessageHash = keccak256(
-            abi.encodePacked("\x19Ethereum Signed Message:\n32", quoteHash)
-        );
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, ethSignedMessageHash);
-        return abi.encodePacked(r, s, v);
     }
 }
