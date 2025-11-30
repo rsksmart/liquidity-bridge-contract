@@ -279,62 +279,6 @@ contract BtcTransactionParsingFuzzTest is PegOutFuzzTestBase {
         assertTrue(pegOutContract.isQuoteCompleted(quoteHash));
     }
 
-    /// @notice Generates a BTC transaction for the specified address type
-    function generateBtcTxForAddressType(
-        Quotes.PegOutQuote memory quote,
-        bytes32 quoteHash,
-        string memory addressType
-    ) internal pure returns (bytes memory) {
-        uint64 satAmount = uint64(quote.value / 1e10);
-        bytes memory outputScript = getOutputScriptForAddressType(quote.depositAddress, addressType);
-
-        return abi.encodePacked(
-            hex"01000000",  // Version
-            hex"01",       // 1 input
-            hex"013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40",
-            hex"00000000",
-            hex"6a",
-            hex"47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4",
-            hex"ffffffff",
-            hex"02",       // 2 outputs
-            toLittleEndian64(satAmount),
-            uint8(outputScript.length),
-            outputScript,
-            hex"0000000000000000",  // 0 amount for OP_RETURN
-            hex"22",               // script length (34 bytes)
-            hex"6a20",             // OP_RETURN PUSH32
-            quoteHash,
-            hex"00000000"          // Locktime
-        );
-    }
-
-    /// @notice Generates the appropriate output script for the given address type
-    function getOutputScriptForAddressType(
-        bytes memory btcAddress,
-        string memory addressType
-    ) internal pure returns (bytes memory) {
-        bytes memory hash160 = new bytes(20);
-        for (uint i = 0; i < 20; i++) {
-            hash160[i] = btcAddress[i + 1];
-        }
-
-        bytes32 addressTypeHash = keccak256(bytes(addressType));
-
-        if (addressTypeHash == keccak256(bytes("p2pkh"))) {
-            // P2PKH: OP_DUP OP_HASH160 <20 bytes> OP_EQUALVERIFY OP_CHECKSIG
-            return abi.encodePacked(hex"76a914", hash160, hex"88ac");
-        } else if (addressTypeHash == keccak256(bytes("p2sh"))) {
-            // P2SH: OP_HASH160 <20 bytes> OP_EQUAL
-            return abi.encodePacked(hex"a914", hash160, hex"87");
-        } else if (addressTypeHash == keccak256(bytes("p2wpkh"))) {
-            // P2WPKH: OP_0 <20 bytes>
-            return abi.encodePacked(hex"0014", hash160);
-        } else {
-            // P2TR: OP_1 <32 bytes> (use hash160 padded to 32 bytes for simplicity)
-            return abi.encodePacked(hex"5120", hash160, hex"000000000000000000000000");
-        }
-    }
-
     /// @notice Fuzz test: Transaction with wrong destination address
     /// @dev Tests that BTC transactions paying to wrong address are rejected
     ///      Contract validates destination via BtcUtils.outputScriptToAddress which converts
