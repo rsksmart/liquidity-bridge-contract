@@ -297,16 +297,13 @@ contract PegOutRefundTimingFuzzTest is PegOutTestBase {
     }
 
     /// @notice Fuzz test: Different penalty amounts
+    /// @dev Verifies exact penalty and reward amounts in emitted events
     function testFuzz_RefundPegOut_DifferentPenaltyAmounts(
-        uint128 penaltyFee,
-        uint16 rewardPercentage
+        uint128 penaltyFee
     ) public {
-        // Note: The contract enforces MIN_COLLATERAL (0.6 ether) so we test above that
-        penaltyFee = uint128(bound(penaltyFee, 0.6 ether, 2 ether));
-        rewardPercentage = uint16(bound(rewardPercentage, 0, 10000)); // 0-100%
-
-        // Note: We can't easily change reward percentage in runtime without redeploying
-        // So we'll test with the default but vary penalty amounts
+        // Bound penalty fee to reasonable range (above dust, below max reasonable value)
+        // The penalty is taken from the LP's collateral, which must be >= MIN_COLLATERAL
+        penaltyFee = uint128(bound(penaltyFee, 0.001 ether, 0.5 ether));
 
         uint32 currentTime = uint32(block.timestamp);
 
@@ -331,18 +328,27 @@ contract PegOutRefundTimingFuzzTest is PegOutTestBase {
         bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
         bridgeMock.setConfirmations(int256(uint256(quote.transferConfirmations)));
 
-        // Just check that penalty event is emitted, don't check exact amounts since
-        // the contract may enforce minimum collateral requirements
+        // Calculate expected penalty and reward amounts
+        uint256 expectedPenalty = quote.penaltyFee;
+        uint256 expectedReward = (expectedPenalty * TEST_REWARD_PERCENTAGE) / 10000;
+
         vm.prank(pegOutLp);
-        vm.expectEmit(true, true, true, false); // Don't check data (amounts)
+
+        // Expect PegOutRefunded event first
+        vm.expectEmit(true, false, false, true);
+        emit IPegOut.PegOutRefunded(quoteHash);
+
+        // Expect Penalized event with exact amounts (checkData: true)
+        vm.expectEmit(true, true, true, true);
         emit ICollateralManagement.Penalized(
             pegOutLp,
             pegOutLp,
             quoteHash,
             Flyover.ProviderType.PegOut,
-            0, // placeholder
-            0  // placeholder
+            expectedPenalty,
+            expectedReward
         );
+
         pegOutContract.refundPegOut(
             quoteHash,
             btcTx,
