@@ -20,7 +20,7 @@ contract PegOutDepositAmountsFuzzTest is PegOutTestBase {
         vm.deal(user, 1000 ether);
     }
 
-    /// @notice Fuzz test: Exact payment should succeed
+    /// @notice Fuzz test: Exact payment should succeed and emit PegOutDeposit event
     function testFuzz_DepositPegOut_AcceptsExactPayment(
         uint128 value,
         uint128 callFee,
@@ -43,6 +43,10 @@ contract PegOutDepositAmountsFuzzTest is PegOutTestBase {
 
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quoteHash);
+
+        // Expect PegOutDeposit event with correct parameters
+        vm.expectEmit(true, true, true, true);
+        emit IPegOut.PegOutDeposit(quoteHash, user, block.timestamp, totalValue);
 
         // Should succeed with exact payment
         vm.prank(user);
@@ -82,6 +86,7 @@ contract PegOutDepositAmountsFuzzTest is PegOutTestBase {
     }
 
     /// @notice Fuzz test: Overpayment below dust threshold should keep extra funds
+    /// @dev Verifies PegOutDeposit is emitted but PegOutChangePaid is NOT emitted
     function testFuzz_DepositPegOut_KeepsOverpaymentBelowDust(
         uint128 value,
         uint64 extraAmount
@@ -100,6 +105,10 @@ contract PegOutDepositAmountsFuzzTest is PegOutTestBase {
 
         uint256 contractBalanceBefore = address(pegOutContract).balance;
 
+        // Expect PegOutDeposit event with the PAID amount (including dust overpayment)
+        vm.expectEmit(true, true, true, true);
+        emit IPegOut.PegOutDeposit(quoteHash, user, block.timestamp, paidAmount);
+
         vm.prank(user);
         pegOutContract.depositPegOut{value: paidAmount}(quote, signature);
 
@@ -112,6 +121,8 @@ contract PegOutDepositAmountsFuzzTest is PegOutTestBase {
     }
 
     /// @notice Fuzz test: Overpayment above dust threshold should return change
+    /// @dev Verifies both PegOutDeposit and PegOutChangePaid events are emitted
+    ///      PegOutDeposit emits msg.value (paidAmount), PegOutChangePaid goes to rskRefundAddress
     function testFuzz_DepositPegOut_ReturnsOverpaymentAboveDust(
         uint128 value,
         uint128 extraAmount
@@ -129,6 +140,14 @@ contract PegOutDepositAmountsFuzzTest is PegOutTestBase {
         bytes memory signature = signQuote(pegOutLp, quoteHash);
 
         uint256 userBalanceBefore = user.balance;
+
+        // Contract emits PegOutDeposit with msg.value (paidAmount), then PegOutChangePaid
+        vm.expectEmit(true, true, true, true);
+        emit IPegOut.PegOutDeposit(quoteHash, user, block.timestamp, paidAmount);
+
+        // PegOutChangePaid goes to quote.rskRefundAddress (which is 'user' in our test quote)
+        vm.expectEmit(true, true, true, true);
+        emit IPegOut.PegOutChangePaid(quoteHash, quote.rskRefundAddress, extraAmount);
 
         vm.prank(user);
         pegOutContract.depositPegOut{value: paidAmount}(quote, signature);
