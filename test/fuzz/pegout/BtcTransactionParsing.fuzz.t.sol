@@ -54,6 +54,7 @@ contract BtcTransactionParsingFuzzTest is PegOutTestBase {
     }
 
     /// @notice Fuzz test: BTC transaction with varying amounts
+    /// @dev Tests that refunds fail when BTC tx amount is less than quote value
     function testFuzz_RefundPegOut_ValidatesTransactionAmount(
         uint128 quoteValue,
         uint128 btcTxAmount
@@ -73,9 +74,21 @@ contract BtcTransactionParsingFuzzTest is PegOutTestBase {
         // Setup bridge
         setupBridgeMock(quote);
 
+        // Should revert with MalformedTransaction when amount validation fails
+        // The output script parsing extracts amount, and validation fails on amount mismatch
+        bytes memory expectedOutputScript = abi.encodePacked(
+            hex"76a914",
+            extractHash160FromAddress(quote.depositAddress),
+            hex"88ac"
+        );
+
         vm.prank(pegOutLp);
-        // Should revert - either InsufficientAmount or MalformedTransaction depending on amount
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOut.MalformedTransaction.selector,
+                expectedOutputScript
+            )
+        );
         pegOutContract.refundPegOut(
             quoteHash,
             btcTx,
@@ -145,6 +158,7 @@ contract BtcTransactionParsingFuzzTest is PegOutTestBase {
     }
 
     /// @notice Fuzz test: OP_RETURN with incorrect size prefix
+    /// @dev Tests that malformed OP_RETURN scripts are rejected
     function testFuzz_RefundPegOut_RejectsWrongOpReturnSize(
         uint8 sizePrefix
     ) public {
@@ -163,9 +177,21 @@ contract BtcTransactionParsingFuzzTest is PegOutTestBase {
         // Setup bridge
         setupBridgeMock(quote);
 
+        // Will revert with MalformedTransaction due to incorrect OP_RETURN script
+        // Build the expected malformed OP_RETURN script
+        bytes memory malformedOpReturn = abi.encodePacked(
+            hex"6a",        // OP_RETURN
+            sizePrefix,    // Wrong size prefix
+            quoteHash      // Quote hash (but size prefix doesn't match)
+        );
+
         vm.prank(pegOutLp);
-        // Will revert with MalformedTransaction or panic - checking for error selector
-        vm.expectRevert();  // Can't predict exact bytes params in dynamic fuzz test
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOut.MalformedTransaction.selector,
+                malformedOpReturn
+            )
+        );
         pegOutContract.refundPegOut(
             quoteHash,
             btcTx,
@@ -217,6 +243,7 @@ contract BtcTransactionParsingFuzzTest is PegOutTestBase {
     }
 
     /// @notice Fuzz test: Transaction with wrong destination address
+    /// @dev Tests that BTC transactions paying to wrong address are rejected
     function testFuzz_RefundPegOut_RejectsWrongDestination(
         bytes20 correctHash,
         bytes20 wrongHash
@@ -240,6 +267,7 @@ contract BtcTransactionParsingFuzzTest is PegOutTestBase {
         // Generate BTC tx with wrong destination (use explicit wrong output script)
         uint64 satAmount = uint64(quote.value / 1e10);
         bytes memory wrongOutputScript = abi.encodePacked(hex"76a914", wrongHash, hex"88ac");
+        bytes memory expectedOutputScript = abi.encodePacked(hex"76a914", correctHash, hex"88ac");
 
         bytes memory btcTx = abi.encodePacked(
             hex"01000000",
@@ -263,9 +291,15 @@ contract BtcTransactionParsingFuzzTest is PegOutTestBase {
         // Setup bridge
         setupBridgeMock(quote);
 
+        // Should revert with InvalidDestination error
         vm.prank(pegOutLp);
-        // Will revert - could be InvalidDestination or MalformedTransaction depending on parsing
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOut.InvalidDestination.selector,
+                expectedOutputScript,
+                wrongOutputScript
+            )
+        );
         pegOutContract.refundPegOut(
             quoteHash,
             btcTx,
@@ -276,6 +310,15 @@ contract BtcTransactionParsingFuzzTest is PegOutTestBase {
     }
 
     // ============ Helper Functions ============
+
+    /// @notice Extracts the 20-byte hash160 from a BTC address (skips version byte)
+    function extractHash160FromAddress(bytes memory btcAddress) internal pure returns (bytes memory) {
+        bytes memory hash160 = new bytes(20);
+        for (uint i = 0; i < 20; i++) {
+            hash160[i] = btcAddress[i + 1];
+        }
+        return hash160;
+    }
 
     function createAndDepositQuote(uint256 value) internal returns (Quotes.PegOutQuote memory) {
         Quotes.PegOutQuote memory quote = createTestQuote(value);
