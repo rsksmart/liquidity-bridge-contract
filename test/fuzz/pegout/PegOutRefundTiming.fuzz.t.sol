@@ -193,6 +193,7 @@ contract PegOutRefundTimingFuzzTest is PegOutTestBase {
     }
 
     /// @notice Fuzz test: Refund after expireBlock should penalize
+    /// @dev Verifies both PegOutRefunded and Penalized events are emitted in correct order
     function testFuzz_RefundPegOut_PenalizesAfterExpireBlock(
         uint32 currentBlock,
         uint32 expireBlock,
@@ -227,6 +228,12 @@ contract PegOutRefundTimingFuzzTest is PegOutTestBase {
         uint256 reward = (penalty * TEST_REWARD_PERCENTAGE) / 10000;
 
         vm.prank(pegOutLp);
+
+        // Expect PegOutRefunded event first
+        vm.expectEmit(true, false, false, true);
+        emit IPegOut.PegOutRefunded(quoteHash);
+
+        // Then expect Penalized event
         vm.expectEmit(true, true, true, true);
         emit ICollateralManagement.Penalized(
             pegOutLp,
@@ -236,6 +243,7 @@ contract PegOutRefundTimingFuzzTest is PegOutTestBase {
             penalty,
             reward
         );
+
         pegOutContract.refundPegOut(
             quoteHash,
             btcTx,
