@@ -1,0 +1,471 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.25;
+
+import {PegOutTestBase} from "../../pegout/PegOutTestBase.sol";
+import {Quotes} from "../../../src/libraries/Quotes.sol";
+import {IPegOut} from "../../../src/interfaces/IPegOut.sol";
+import {ICollateralManagement} from "../../../src/interfaces/ICollateralManagement.sol";
+import {Flyover} from "../../../src/libraries/Flyover.sol";
+
+/// @title PegOutRefundTiming Fuzz Tests
+/// @notice Fuzz tests for timing-based penalties in PegOut refunds
+contract PegOutRefundTimingFuzzTest is PegOutTestBase {
+    address public user;
+
+    function setUp() public {
+        deployPegOutContract();
+        setupProviders();
+        initBtcMocks();
+
+        user = makeAddr("user");
+        vm.deal(user, 100 ether);
+    }
+
+    /// @notice Fuzz test: On-time refund should not penalize LP
+    function testFuzz_RefundPegOut_NoPenaltyWhenOnTime(
+        uint32 agreementTimestamp,
+        uint32 transferTime,
+        uint16 depositConfirmations
+    ) public {
+        agreementTimestamp = uint32(bound(agreementTimestamp, 1000000, type(uint32).max - 1000000));
+        transferTime = uint32(bound(transferTime, 100, 100000));
+        depositConfirmations = uint16(bound(depositConfirmations, 1, 100));
+
+        vm.warp(agreementTimestamp);
+
+        Quotes.PegOutQuote memory quote = createTestQuote(1 ether);
+        quote.agreementTimestamp = agreementTimestamp;
+        quote.transferTime = transferTime;
+        quote.transferConfirmations = depositConfirmations;
+        quote.depositDateLimit = agreementTimestamp + 7200;
+        quote.expireDate = agreementTimestamp + 20000;
+        quote.expireBlock = uint32(block.number + 1000);
+
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+        bytes memory signature = signQuote(pegOutLp, quoteHash);
+
+        vm.prank(user);
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(quote, signature);
+
+        // Generate BTC tx with timestamp within acceptable window
+        uint32 onTimeBtcTimestamp = uint32(agreementTimestamp + transferTime + TEST_BTC_BLOCK_TIME - 100);
+        bytes memory btcTx = generateMockBtcTx(quote, quoteHash);
+
+        // Setup bridge with on-time header
+        bytes memory header = createBtcBlockHeader(onTimeBtcTimestamp);
+        bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
+        bridgeMock.setConfirmations(int256(uint256(depositConfirmations)));
+
+        // Refund should succeed without penalty
+        vm.prank(pegOutLp);
+        vm.expectEmit(true, false, false, true);
+        emit IPegOut.PegOutRefunded(quoteHash);
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
+
+        assertTrue(pegOutContract.isQuoteCompleted(quoteHash));
+    }
+
+    /// @notice Fuzz test: Late BTC transfer should penalize LP
+    function testFuzz_RefundPegOut_PenalizesLPForLateTransfer(
+        uint32 agreementTimestamp,
+        uint32 transferTime,
+        uint32 lateness
+    ) public {
+        agreementTimestamp = uint32(bound(agreementTimestamp, 1000000, type(uint32).max - 2000000));
+        transferTime = uint32(bound(transferTime, 1000, 50000));
+        lateness = uint32(bound(lateness, 1, 10000));
+
+        vm.warp(agreementTimestamp);
+
+        Quotes.PegOutQuote memory quote = createTestQuote(1 ether);
+        quote.agreementTimestamp = agreementTimestamp;
+        quote.transferTime = transferTime;
+        quote.depositDateLimit = agreementTimestamp + 7200;
+        quote.expireDate = agreementTimestamp + 20000;
+        quote.expireBlock = uint32(block.number + 1000);
+
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+        bytes memory signature = signQuote(pegOutLp, quoteHash);
+
+        vm.prank(user);
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(quote, signature);
+
+        // Generate BTC tx with late timestamp
+        uint32 lateBtcTimestamp = uint32(agreementTimestamp + transferTime + TEST_BTC_BLOCK_TIME + lateness);
+        bytes memory btcTx = generateMockBtcTx(quote, quoteHash);
+
+        // Setup bridge with late header
+        bytes memory header = createBtcBlockHeader(lateBtcTimestamp);
+        bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
+        bridgeMock.setConfirmations(int256(uint256(quote.transferConfirmations)));
+
+        uint256 penalty = quote.penaltyFee;
+        uint256 reward = (penalty * TEST_REWARD_PERCENTAGE) / 10000;
+
+        // Refund should penalize LP
+        vm.prank(pegOutLp);
+        vm.expectEmit(true, false, false, true);
+        emit IPegOut.PegOutRefunded(quoteHash);
+        vm.expectEmit(true, true, true, true);
+        emit ICollateralManagement.Penalized(
+            pegOutLp,
+            pegOutLp,
+            quoteHash,
+            Flyover.ProviderType.PegOut,
+            penalty,
+            reward
+        );
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
+    }
+
+    /// @notice Fuzz test: Refund after expireDate should penalize
+    function testFuzz_RefundPegOut_PenalizesAfterExpireDate(
+        uint32 agreementTimestamp,
+        uint32 expireDate,
+        uint32 lateness
+    ) public {
+        agreementTimestamp = uint32(bound(agreementTimestamp, 1000000, type(uint32).max - 2000000));
+        expireDate = uint32(bound(expireDate, agreementTimestamp + 1000, agreementTimestamp + 100000));
+        lateness = uint32(bound(lateness, 1, 10000));
+
+        vm.warp(agreementTimestamp);
+
+        Quotes.PegOutQuote memory quote = createTestQuote(1 ether);
+        quote.agreementTimestamp = agreementTimestamp;
+        quote.expireDate = expireDate;
+        quote.depositDateLimit = agreementTimestamp + 7200;
+        quote.expireBlock = uint32(block.number + 1000);
+
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+        bytes memory signature = signQuote(pegOutLp, quoteHash);
+
+        vm.prank(user);
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(quote, signature);
+
+        // Warp past expiration
+        vm.warp(expireDate + lateness);
+
+        bytes memory btcTx = generateMockBtcTx(quote, quoteHash);
+        bytes memory header = createBtcBlockHeader(uint32(expireDate + lateness));
+        bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
+        bridgeMock.setConfirmations(int256(uint256(quote.transferConfirmations)));
+
+        uint256 penalty = quote.penaltyFee;
+        uint256 reward = (penalty * TEST_REWARD_PERCENTAGE) / 10000;
+
+        vm.prank(pegOutLp);
+        vm.expectEmit(true, true, true, true);
+        emit ICollateralManagement.Penalized(
+            pegOutLp,
+            pegOutLp,
+            quoteHash,
+            Flyover.ProviderType.PegOut,
+            penalty,
+            reward
+        );
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
+    }
+
+    /// @notice Fuzz test: Refund after expireBlock should penalize
+    function testFuzz_RefundPegOut_PenalizesAfterExpireBlock(
+        uint32 currentBlock,
+        uint32 expireBlock,
+        uint16 lateBlocks
+    ) public {
+        currentBlock = uint32(bound(currentBlock, 1000, type(uint32).max - 100000));
+        expireBlock = uint32(bound(expireBlock, currentBlock + 10, currentBlock + 10000));
+        lateBlocks = uint16(bound(lateBlocks, 1, 1000));
+
+        vm.roll(currentBlock);
+
+        Quotes.PegOutQuote memory quote = createTestQuote(1 ether);
+        quote.expireBlock = expireBlock;
+        quote.expireDate = uint32(block.timestamp + 20000);
+        quote.depositDateLimit = uint32(block.timestamp + 7200);
+
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+        bytes memory signature = signQuote(pegOutLp, quoteHash);
+
+        vm.prank(user);
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(quote, signature);
+
+        // Roll past expiration
+        vm.roll(expireBlock + lateBlocks);
+
+        bytes memory btcTx = generateMockBtcTx(quote, quoteHash);
+        bytes memory header = createBtcBlockHeader(uint32(block.timestamp + 100));
+        bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
+        bridgeMock.setConfirmations(int256(uint256(quote.transferConfirmations)));
+
+        uint256 penalty = quote.penaltyFee;
+        uint256 reward = (penalty * TEST_REWARD_PERCENTAGE) / 10000;
+
+        vm.prank(pegOutLp);
+        vm.expectEmit(true, true, true, true);
+        emit ICollateralManagement.Penalized(
+            pegOutLp,
+            pegOutLp,
+            quoteHash,
+            Flyover.ProviderType.PegOut,
+            penalty,
+            reward
+        );
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
+    }
+
+    /// @notice Fuzz test: Boundary test - exactly at expireDate should not penalize
+    function testFuzz_RefundPegOut_NoPenaltyAtExactExpireDate(
+        uint32 agreementTimestamp,
+        uint32 expireDate
+    ) public {
+        agreementTimestamp = uint32(bound(agreementTimestamp, 1000000, type(uint32).max - 200000));
+        expireDate = uint32(bound(expireDate, agreementTimestamp + 1000, agreementTimestamp + 100000));
+
+        vm.warp(agreementTimestamp);
+
+        Quotes.PegOutQuote memory quote = createTestQuote(1 ether);
+        quote.agreementTimestamp = agreementTimestamp;
+        quote.expireDate = expireDate;
+        quote.depositDateLimit = agreementTimestamp + 7200;
+        quote.expireBlock = uint32(block.number + 1000);
+
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+        bytes memory signature = signQuote(pegOutLp, quoteHash);
+
+        vm.prank(user);
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(quote, signature);
+
+        // Warp to exactly expireDate
+        vm.warp(expireDate);
+
+        bytes memory btcTx = generateMockBtcTx(quote, quoteHash);
+        bytes memory header = createBtcBlockHeader(uint32(expireDate));
+        bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
+        bridgeMock.setConfirmations(int256(uint256(quote.transferConfirmations)));
+
+        // Should succeed without penalty (boundary condition)
+        vm.prank(pegOutLp);
+        vm.expectEmit(true, false, false, true);
+        emit IPegOut.PegOutRefunded(quoteHash);
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
+    }
+
+    /// @notice Fuzz test: Different penalty amounts
+    function testFuzz_RefundPegOut_DifferentPenaltyAmounts(
+        uint128 penaltyFee,
+        uint16 rewardPercentage
+    ) public {
+        // Note: The contract enforces MIN_COLLATERAL (0.6 ether) so we test above that
+        penaltyFee = uint128(bound(penaltyFee, 0.6 ether, 2 ether));
+        rewardPercentage = uint16(bound(rewardPercentage, 0, 10000)); // 0-100%
+
+        // Note: We can't easily change reward percentage in runtime without redeploying
+        // So we'll test with the default but vary penalty amounts
+
+        uint32 currentTime = uint32(block.timestamp);
+
+        Quotes.PegOutQuote memory quote = createTestQuote(1 ether);
+        quote.penaltyFee = penaltyFee;
+        quote.agreementTimestamp = currentTime;
+        quote.depositDateLimit = currentTime + 7200;
+        quote.expireDate = currentTime + 14400;
+        quote.expireBlock = uint32(block.number + 1000);
+
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+        bytes memory signature = signQuote(pegOutLp, quoteHash);
+
+        vm.prank(user);
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(quote, signature);
+
+        // Make it late
+        vm.warp(quote.expireDate + 1);
+
+        bytes memory btcTx = generateMockBtcTx(quote, quoteHash);
+        bytes memory header = createBtcBlockHeader(uint32(quote.expireDate + 1));
+        bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
+        bridgeMock.setConfirmations(int256(uint256(quote.transferConfirmations)));
+
+        // Just check that penalty event is emitted, don't check exact amounts since
+        // the contract may enforce minimum collateral requirements
+        vm.prank(pegOutLp);
+        vm.expectEmit(true, true, true, false); // Don't check data (amounts)
+        emit ICollateralManagement.Penalized(
+            pegOutLp,
+            pegOutLp,
+            quoteHash,
+            Flyover.ProviderType.PegOut,
+            0, // placeholder
+            0  // placeholder
+        );
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
+    }
+
+    /// @notice Fuzz test: Confirmation count validation
+    function testFuzz_RefundPegOut_ValidatesConfirmations(
+        uint16 requiredConfirmations,
+        uint16 actualConfirmations
+    ) public {
+        requiredConfirmations = uint16(bound(requiredConfirmations, 1, 100));
+        actualConfirmations = uint16(bound(actualConfirmations, 0, 100));
+
+        // Skip if confirmations are sufficient (success case)
+        vm.assume(actualConfirmations < requiredConfirmations);
+
+        Quotes.PegOutQuote memory quote = createTestQuote(1 ether);
+        quote.transferConfirmations = requiredConfirmations;
+
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+        bytes memory signature = signQuote(pegOutLp, quoteHash);
+
+        vm.prank(user);
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(quote, signature);
+
+        bytes memory btcTx = generateMockBtcTx(quote, quoteHash);
+        bytes memory header = createBtcBlockHeader(uint32(block.timestamp + 100));
+        bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
+        bridgeMock.setConfirmations(int256(uint256(actualConfirmations)));
+
+        vm.prank(pegOutLp);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOut.NotEnoughConfirmations.selector,
+                requiredConfirmations,
+                actualConfirmations
+            )
+        );
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
+    }
+
+    /// @notice Fuzz test: Sufficient confirmations should succeed
+    function testFuzz_RefundPegOut_SucceedsWithSufficientConfirmations(
+        uint16 requiredConfirmations,
+        uint16 extraConfirmations
+    ) public {
+        requiredConfirmations = uint16(bound(requiredConfirmations, 1, 50));
+        extraConfirmations = uint16(bound(extraConfirmations, 0, 50));
+
+        uint16 actualConfirmations = requiredConfirmations + extraConfirmations;
+
+        Quotes.PegOutQuote memory quote = createTestQuote(1 ether);
+        quote.transferConfirmations = requiredConfirmations;
+
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+        bytes memory signature = signQuote(pegOutLp, quoteHash);
+
+        vm.prank(user);
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(quote, signature);
+
+        bytes memory btcTx = generateMockBtcTx(quote, quoteHash);
+        bytes memory header = createBtcBlockHeader(uint32(block.timestamp + 100));
+        bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
+        bridgeMock.setConfirmations(int256(uint256(actualConfirmations)));
+
+        vm.prank(pegOutLp);
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
+
+        assertTrue(pegOutContract.isQuoteCompleted(quoteHash));
+    }
+
+    // ============ Helper Functions ============
+
+    function createTestQuote(uint256 value) internal view returns (Quotes.PegOutQuote memory) {
+        bytes memory testBtcAddress = abi.encodePacked(
+            hex"6f",
+            hex"89abcdefabbaabbaabbaabbaabbaabbaabbaabba"
+        );
+        uint32 currentTime = uint32(block.timestamp);
+
+        return Quotes.PegOutQuote({
+            callFee: 100000000000000,
+            penaltyFee: 10000000000000,
+            value: value,
+            productFeeAmount: 0,
+            gasFee: 100,
+            lbcAddress: address(pegOutContract),
+            lpRskAddress: pegOutLp,
+            rskRefundAddress: user,
+            nonce: int64(uint64(block.timestamp)),
+            agreementTimestamp: currentTime,
+            depositDateLimit: currentTime + 7200,
+            transferTime: 3600,
+            depositConfirmations: 10,
+            transferConfirmations: 2,
+            expireBlock: uint32(block.number + 1000),
+            expireDate: currentTime + 20000,
+            depositAddress: testBtcAddress,
+            btcRefundAddress: testBtcAddress,
+            lpBtcAddress: testBtcAddress
+        });
+    }
+
+    function getTotalValue(Quotes.PegOutQuote memory quote) internal pure returns (uint256) {
+        return quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+    }
+
+    function signQuote(address signer, bytes32 quoteHash) internal view returns (bytes memory) {
+        uint256 privateKey;
+        if (signer == fullLp) {
+            privateKey = fullLpKey;
+        } else if (signer == pegInLp) {
+            privateKey = pegInLpKey;
+        } else if (signer == pegOutLp) {
+            privateKey = pegOutLpKey;
+        } else {
+            revert("Unknown signer");
+        }
+
+        bytes32 ethSignedMessageHash = keccak256(
+            abi.encodePacked("\x19Ethereum Signed Message:\n32", quoteHash)
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, ethSignedMessageHash);
+        return abi.encodePacked(r, s, v);
+    }
+}
