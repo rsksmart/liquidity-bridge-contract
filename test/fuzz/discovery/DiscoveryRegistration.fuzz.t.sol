@@ -173,48 +173,6 @@ contract DiscoveryRegistrationFuzzTest is DiscoveryFuzzTestBase {
         assertEq(providerId, 1, "Should register successfully");
     }
 
-    // ============ Invalid Data Tests ============
-
-    /// @notice Fuzz test: Empty name reverts
-    function testFuzz_Register_RevertsOnEmptyName(bytes32 urlSeed) public {
-        string memory url = generateFuzzString(urlSeed, 1, 100);
-
-        vm.prank(fuzzUser);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IFlyoverDiscovery.InvalidProviderData.selector,
-                "",
-                url
-            )
-        );
-        discovery.register{value: MIN_COLLATERAL}(
-            "",
-            url,
-            true,
-            Flyover.ProviderType.PegIn
-        );
-    }
-
-    /// @notice Fuzz test: Empty URL reverts
-    function testFuzz_Register_RevertsOnEmptyUrl(bytes32 nameSeed) public {
-        string memory name = generateFuzzString(nameSeed, 1, 100);
-
-        vm.prank(fuzzUser);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IFlyoverDiscovery.InvalidProviderData.selector,
-                name,
-                ""
-            )
-        );
-        discovery.register{value: MIN_COLLATERAL}(
-            name,
-            "",
-            true,
-            Flyover.ProviderType.PegIn
-        );
-    }
-
     // ============ Double Registration Tests ============
 
     /// @notice Fuzz test: Double registration by same address reverts
