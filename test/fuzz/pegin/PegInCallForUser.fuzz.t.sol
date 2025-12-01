@@ -31,7 +31,11 @@ contract PegInCallForUserFuzzTest is PegInFuzzTestBase {
         vm.prank(pegInLp);
         pegInContract.deposit{value: depositAmount}();
 
-        Quotes.PegInQuote memory quote = createFuzzTestQuoteWithDestination(callValue, fuzzUser, fuzzUser);
+        Quotes.PegInQuote memory quote = createFuzzTestQuoteWithDestination(
+            callValue,
+            fuzzUser,
+            fuzzUser
+        );
 
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
         uint256 userBalanceBefore = fuzzUser.balance;
@@ -77,10 +81,16 @@ contract PegInCallForUserFuzzTest is PegInFuzzTestBase {
     }
 
     /// @notice Fuzz test: CallForUser with transaction value should succeed
-    function testFuzz_CallForUser_ExecutesWithTransactionValue(uint128 callValue) public {
+    function testFuzz_CallForUser_ExecutesWithTransactionValue(
+        uint128 callValue
+    ) public {
         callValue = uint128(bound(callValue, TEST_MIN_PEGIN, 50 ether));
 
-        Quotes.PegInQuote memory quote = createFuzzTestQuoteWithDestination(callValue, fuzzUser, fuzzUser);
+        Quotes.PegInQuote memory quote = createFuzzTestQuoteWithDestination(
+            callValue,
+            fuzzUser,
+            fuzzUser
+        );
 
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
         uint256 userBalanceBefore = fuzzUser.balance;
@@ -136,7 +146,11 @@ contract PegInCallForUserFuzzTest is PegInFuzzTestBase {
         vm.prank(pegInLp);
         pegInContract.deposit{value: depositAmount}();
 
-        Quotes.PegInQuote memory quote = createFuzzTestQuoteWithDestination(callValue, fuzzUser, fuzzUser);
+        Quotes.PegInQuote memory quote = createFuzzTestQuoteWithDestination(
+            callValue,
+            fuzzUser,
+            fuzzUser
+        );
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
 
         uint256 userBalanceBefore = fuzzUser.balance;
@@ -169,7 +183,9 @@ contract PegInCallForUserFuzzTest is PegInFuzzTestBase {
     // ============ CallForUser Failure Tests ============
 
     /// @notice Fuzz test: CallForUser should revert if LP not registered
-    function testFuzz_CallForUser_RevertsIfLPNotRegistered(uint128 callValue) public {
+    function testFuzz_CallForUser_RevertsIfLPNotRegistered(
+        uint128 callValue
+    ) public {
         callValue = uint128(bound(callValue, TEST_MIN_PEGIN, 10 ether));
 
         Quotes.PegInQuote memory quote = createFuzzTestQuoteForLP(
@@ -190,7 +206,9 @@ contract PegInCallForUserFuzzTest is PegInFuzzTestBase {
     }
 
     /// @notice Fuzz test: CallForUser should revert if sender doesn't match quote LP
-    function testFuzz_CallForUser_RevertsIfSenderNotQuoteLP(uint128 callValue) public {
+    function testFuzz_CallForUser_RevertsIfSenderNotQuoteLP(
+        uint128 callValue
+    ) public {
         callValue = uint128(bound(callValue, TEST_MIN_PEGIN, 10 ether));
 
         // Quote specifies fullLp
@@ -229,7 +247,11 @@ contract PegInCallForUserFuzzTest is PegInFuzzTestBase {
         vm.prank(pegInLp);
         pegInContract.deposit{value: depositAmount}();
 
-        Quotes.PegInQuote memory quote = createFuzzTestQuoteWithDestination(callValue, fuzzUser, fuzzUser);
+        Quotes.PegInQuote memory quote = createFuzzTestQuoteWithDestination(
+            callValue,
+            fuzzUser,
+            fuzzUser
+        );
 
         // Try to call with no additional value (only using deposited balance)
         vm.prank(pegInLp);
@@ -244,10 +266,16 @@ contract PegInCallForUserFuzzTest is PegInFuzzTestBase {
     }
 
     /// @notice Fuzz test: CallForUser should revert if quote already processed
-    function testFuzz_CallForUser_RevertsIfQuoteAlreadyProcessed(uint128 callValue) public {
+    function testFuzz_CallForUser_RevertsIfQuoteAlreadyProcessed(
+        uint128 callValue
+    ) public {
         callValue = uint128(bound(callValue, TEST_MIN_PEGIN, 10 ether));
 
-        Quotes.PegInQuote memory quote = createFuzzTestQuoteWithDestination(callValue, fuzzUser, fuzzUser);
+        Quotes.PegInQuote memory quote = createFuzzTestQuoteWithDestination(
+            callValue,
+            fuzzUser,
+            fuzzUser
+        );
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
 
         // First call succeeds
@@ -274,16 +302,27 @@ contract PegInCallForUserFuzzTest is PegInFuzzTestBase {
         callValue = uint128(bound(callValue, TEST_MIN_PEGIN, 10 ether));
         vm.assume(nonce1 != nonce2);
 
-        Quotes.PegInQuote memory quote1 = createFuzzTestQuoteWithDestination(callValue, fuzzUser, fuzzUser);
+        Quotes.PegInQuote memory quote1 = createFuzzTestQuoteWithDestination(
+            callValue,
+            fuzzUser,
+            fuzzUser
+        );
         quote1.nonce = nonce1;
 
-        Quotes.PegInQuote memory quote2 = createFuzzTestQuoteWithDestination(callValue, fuzzUser, fuzzUser);
+        Quotes.PegInQuote memory quote2 = createFuzzTestQuoteWithDestination(
+            callValue,
+            fuzzUser,
+            fuzzUser
+        );
         quote2.nonce = nonce2;
 
         bytes32 hash1 = pegInContract.hashPegInQuote(quote1);
         bytes32 hash2 = pegInContract.hashPegInQuote(quote2);
 
-        assertTrue(hash1 != hash2, "Different nonces should produce different hashes");
+        assertTrue(
+            hash1 != hash2,
+            "Different nonces should produce different hashes"
+        );
 
         // Both calls should succeed
         vm.startPrank(pegInLp);

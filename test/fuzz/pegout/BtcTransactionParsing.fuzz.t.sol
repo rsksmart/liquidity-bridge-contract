@@ -9,7 +9,6 @@ import {Flyover} from "../../../src/libraries/Flyover.sol";
 /// @title BtcTransactionParsing Fuzz Tests
 /// @notice Fuzz tests for BTC transaction parsing and validation in PegOut refunds
 contract BtcTransactionParsingFuzzTest is PegOutFuzzTestBase {
-
     function setUp() public {
         deployPegOutContract();
         setupProviders();
@@ -30,7 +29,10 @@ contract BtcTransactionParsingFuzzTest is PegOutFuzzTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
 
         // Generate BTC tx with wrong hash in OP_RETURN
-        bytes memory btcTxWrongHash = generateBtcTxWithCustomHash(quote, wrongHash);
+        bytes memory btcTxWrongHash = generateBtcTxWithCustomHash(
+            quote,
+            wrongHash
+        );
 
         // Setup bridge
         setupFuzzBridgeMock(quote);
@@ -69,7 +71,11 @@ contract BtcTransactionParsingFuzzTest is PegOutFuzzTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
 
         // Generate BTC tx with different amount
-        bytes memory btcTx = generateBtcTxWithCustomAmount(quote, quoteHash, btcTxAmount);
+        bytes memory btcTx = generateBtcTxWithCustomAmount(
+            quote,
+            quoteHash,
+            btcTxAmount
+        );
 
         // Setup bridge
         setupFuzzBridgeMock(quote);
@@ -117,7 +123,11 @@ contract BtcTransactionParsingFuzzTest is PegOutFuzzTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
 
         // Generate BTC tx with exact or higher amount
-        bytes memory btcTx = generateBtcTxWithCustomAmount(quote, quoteHash, btcTxAmount);
+        bytes memory btcTx = generateBtcTxWithCustomAmount(
+            quote,
+            quoteHash,
+            btcTxAmount
+        );
 
         // Setup bridge
         setupFuzzBridgeMock(quote);
@@ -153,27 +163,27 @@ contract BtcTransactionParsingFuzzTest is PegOutFuzzTestBase {
         // Create an invalid output script (too short to be valid P2PKH/P2SH/etc.)
         bytes memory invalidOutputScript = new bytes(invalidScriptLength);
         for (uint8 i = 0; i < invalidScriptLength; i++) {
-            invalidOutputScript[i] = bytes1(i);  // Fill with some data
+            invalidOutputScript[i] = bytes1(i); // Fill with some data
         }
 
         // Build transaction with malformed output script
         bytes memory malformedTx = abi.encodePacked(
-            hex"01000000",  // Version
-            hex"01",       // 1 input
+            hex"01000000", // Version
+            hex"01", // 1 input
             hex"013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40",
             hex"00000000",
             hex"6a",
             hex"47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4",
             hex"ffffffff",
-            hex"02",       // 2 outputs
+            hex"02", // 2 outputs
             toLittleEndian64(satAmount),
             invalidScriptLength,
             invalidOutputScript,
-            hex"0000000000000000",  // 0 amount for OP_RETURN
-            hex"22",               // script length (34 bytes)
-            hex"6a20",             // OP_RETURN PUSH32
+            hex"0000000000000000", // 0 amount for OP_RETURN
+            hex"22", // script length (34 bytes)
+            hex"6a20", // OP_RETURN PUSH32
             quoteHash,
-            hex"00000000"          // Locktime
+            hex"00000000" // Locktime
         );
 
         // Setup bridge
@@ -207,7 +217,11 @@ contract BtcTransactionParsingFuzzTest is PegOutFuzzTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
 
         // Generate BTC tx with wrong OP_RETURN size (smaller than expected)
-        bytes memory btcTx = generateBtcTxWithWrongOpReturnSize(quote, quoteHash, sizePrefix);
+        bytes memory btcTx = generateBtcTxWithWrongOpReturnSize(
+            quote,
+            quoteHash,
+            sizePrefix
+        );
 
         // Setup bridge
         setupFuzzBridgeMock(quote);
@@ -258,7 +272,10 @@ contract BtcTransactionParsingFuzzTest is PegOutFuzzTestBase {
 
         // Deposit
         vm.prank(fuzzUser);
-        pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(quote, signature);
+        pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(
+            quote,
+            signature
+        );
 
         // Generate P2PKH BTC tx
         bytes memory btcTx = generateMockBtcTx(quote, quoteHash);
@@ -301,11 +318,18 @@ contract BtcTransactionParsingFuzzTest is PegOutFuzzTestBase {
 
         // Deposit
         vm.prank(fuzzUser);
-        pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(quote, signature);
+        pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(
+            quote,
+            signature
+        );
 
         // Generate BTC tx with wrong destination (P2PKH output script with wrong hash)
         uint64 satAmount = uint64(quote.value / 1e10);
-        bytes memory wrongOutputScript = abi.encodePacked(hex"76a914", wrongHash, hex"88ac");
+        bytes memory wrongOutputScript = abi.encodePacked(
+            hex"76a914",
+            wrongHash,
+            hex"88ac"
+        );
 
         bytes memory btcTx = abi.encodePacked(
             hex"01000000",
@@ -365,26 +389,31 @@ contract BtcTransactionParsingFuzzTest is PegOutFuzzTestBase {
             hash160[i] = quote.depositAddress[i + 1];
         }
 
-        bytes memory outputScript = abi.encodePacked(hex"76a914", hash160, hex"88ac");
-
-        return abi.encodePacked(
-            hex"01000000",
-            hex"01",
-            hex"013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40",
-            hex"00000000",
-            hex"6a",
-            hex"47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4",
-            hex"ffffffff",
-            hex"02",
-            toLittleEndian64(satAmount),
-            uint8(outputScript.length),
-            outputScript,
-            hex"0000000000000000",
-            hex"22",
-            hex"6a20",
-            customHash,
-            hex"00000000"
+        bytes memory outputScript = abi.encodePacked(
+            hex"76a914",
+            hash160,
+            hex"88ac"
         );
+
+        return
+            abi.encodePacked(
+                hex"01000000",
+                hex"01",
+                hex"013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40",
+                hex"00000000",
+                hex"6a",
+                hex"47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4",
+                hex"ffffffff",
+                hex"02",
+                toLittleEndian64(satAmount),
+                uint8(outputScript.length),
+                outputScript,
+                hex"0000000000000000",
+                hex"22",
+                hex"6a20",
+                customHash,
+                hex"00000000"
+            );
     }
 
     function generateBtcTxWithCustomAmount(
@@ -398,26 +427,31 @@ contract BtcTransactionParsingFuzzTest is PegOutFuzzTestBase {
             hash160[i] = quote.depositAddress[i + 1];
         }
 
-        bytes memory outputScript = abi.encodePacked(hex"76a914", hash160, hex"88ac");
-
-        return abi.encodePacked(
-            hex"01000000",
-            hex"01",
-            hex"013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40",
-            hex"00000000",
-            hex"6a",
-            hex"47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4",
-            hex"ffffffff",
-            hex"02",
-            toLittleEndian64(satAmount),
-            uint8(outputScript.length),
-            outputScript,
-            hex"0000000000000000",
-            hex"22",
-            hex"6a20",
-            quoteHash,
-            hex"00000000"
+        bytes memory outputScript = abi.encodePacked(
+            hex"76a914",
+            hash160,
+            hex"88ac"
         );
+
+        return
+            abi.encodePacked(
+                hex"01000000",
+                hex"01",
+                hex"013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40",
+                hex"00000000",
+                hex"6a",
+                hex"47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4",
+                hex"ffffffff",
+                hex"02",
+                toLittleEndian64(satAmount),
+                uint8(outputScript.length),
+                outputScript,
+                hex"0000000000000000",
+                hex"22",
+                hex"6a20",
+                quoteHash,
+                hex"00000000"
+            );
     }
 
     function generateBtcTxWithWrongOpReturnSize(
@@ -431,27 +465,31 @@ contract BtcTransactionParsingFuzzTest is PegOutFuzzTestBase {
             hash160[i] = quote.depositAddress[i + 1];
         }
 
-        bytes memory outputScript = abi.encodePacked(hex"76a914", hash160, hex"88ac");
-
-        return abi.encodePacked(
-            hex"01000000",
-            hex"01",
-            hex"013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40",
-            hex"00000000",
-            hex"6a",
-            hex"47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4",
-            hex"ffffffff",
-            hex"02",
-            toLittleEndian64(satAmount),
-            uint8(outputScript.length),
-            outputScript,
-            hex"0000000000000000",
-            uint8(wrongSize + 2), // Script length
-            hex"6a",
-            wrongSize, // Wrong size prefix
-            quoteHash,
-            hex"00000000"
+        bytes memory outputScript = abi.encodePacked(
+            hex"76a914",
+            hash160,
+            hex"88ac"
         );
-    }
 
+        return
+            abi.encodePacked(
+                hex"01000000",
+                hex"01",
+                hex"013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40",
+                hex"00000000",
+                hex"6a",
+                hex"47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4",
+                hex"ffffffff",
+                hex"02",
+                toLittleEndian64(satAmount),
+                uint8(outputScript.length),
+                outputScript,
+                hex"0000000000000000",
+                uint8(wrongSize + 2), // Script length
+                hex"6a",
+                wrongSize, // Wrong size prefix
+                quoteHash,
+                hex"00000000"
+            );
+    }
 }

@@ -105,10 +105,18 @@ abstract contract CollateralFuzzTestBase is Test {
         vm.deal(fullLp, 100 ether);
 
         vm.startPrank(adder);
-        collateralManagement.addPegInCollateralTo{value: BASE_COLLATERAL}(pegInLp);
-        collateralManagement.addPegOutCollateralTo{value: BASE_COLLATERAL}(pegOutLp);
-        collateralManagement.addPegInCollateralTo{value: BASE_COLLATERAL}(fullLp);
-        collateralManagement.addPegOutCollateralTo{value: BASE_COLLATERAL}(fullLp);
+        collateralManagement.addPegInCollateralTo{value: BASE_COLLATERAL}(
+            pegInLp
+        );
+        collateralManagement.addPegOutCollateralTo{value: BASE_COLLATERAL}(
+            pegOutLp
+        );
+        collateralManagement.addPegInCollateralTo{value: BASE_COLLATERAL}(
+            fullLp
+        );
+        collateralManagement.addPegOutCollateralTo{value: BASE_COLLATERAL}(
+            fullLp
+        );
         vm.stopPrank();
     }
 
@@ -154,7 +162,9 @@ abstract contract CollateralFuzzTestBase is Test {
     }
 
     /// @notice Get a valid provider type from a uint8
-    function getValidProviderType(uint8 typeIndex) internal pure returns (Flyover.ProviderType) {
+    function getValidProviderType(
+        uint8 typeIndex
+    ) internal pure returns (Flyover.ProviderType) {
         uint8 bounded = typeIndex % 3;
         if (bounded == 0) return Flyover.ProviderType.PegIn;
         if (bounded == 1) return Flyover.ProviderType.PegOut;
@@ -162,7 +172,9 @@ abstract contract CollateralFuzzTestBase is Test {
     }
 
     /// @notice Create a new funded EOA
-    function createFundedEOA(string memory name) internal returns (address addr) {
+    function createFundedEOA(
+        string memory name
+    ) internal returns (address addr) {
         addr = makeAddr(name);
         vm.deal(addr, 100 ether);
         return addr;

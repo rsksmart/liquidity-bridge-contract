@@ -23,9 +23,14 @@ contract SignatureValidatorFuzzTest is Test {
     }
 
     /// @notice Fuzz test: Valid signatures should always verify correctly
-    function testFuzz_Verify_AcceptsValidSignatures(bytes32 messageHash) public view {
+    function testFuzz_Verify_AcceptsValidSignatures(
+        bytes32 messageHash
+    ) public view {
         bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKey, ethSignedMessageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+            signerKey,
+            ethSignedMessageHash
+        );
         bytes memory signature = abi.encodePacked(r, s, v);
 
         bool result = signatureValidator.verify(signer, messageHash, signature);
@@ -40,7 +45,10 @@ contract SignatureValidatorFuzzTest is Test {
         vm.assume(correctHash != wrongHash);
 
         bytes32 ethSignedMessageHash = correctHash.toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKey, ethSignedMessageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+            signerKey,
+            ethSignedMessageHash
+        );
         bytes memory signature = abi.encodePacked(r, s, v);
 
         bool result = signatureValidator.verify(signer, wrongHash, signature);
@@ -56,10 +64,17 @@ contract SignatureValidatorFuzzTest is Test {
         vm.assume(wrongSigner != address(0));
 
         bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKey, ethSignedMessageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+            signerKey,
+            ethSignedMessageHash
+        );
         bytes memory signature = abi.encodePacked(r, s, v);
 
-        bool result = signatureValidator.verify(wrongSigner, messageHash, signature);
+        bool result = signatureValidator.verify(
+            wrongSigner,
+            messageHash,
+            signature
+        );
         assertFalse(result, "Signature with wrong signer should not verify");
     }
 
@@ -97,7 +112,9 @@ contract SignatureValidatorFuzzTest is Test {
         bytes memory signature = abi.encodePacked(r, s, v);
 
         // Invalid signatures may either return false or revert with ECDSAInvalidSignature
-        try signatureValidator.verify(signer, messageHash, signature) returns (bool result) {
+        try signatureValidator.verify(signer, messageHash, signature) returns (
+            bool result
+        ) {
             assertFalse(result, "Malformed signature should not verify");
         } catch {
             // It's acceptable to revert on malformed signatures
@@ -117,11 +134,15 @@ contract SignatureValidatorFuzzTest is Test {
     }
 
     /// @notice Fuzz test: Signature with all zeros should not verify
-    function testFuzz_Verify_RejectsZeroSignature(bytes32 messageHash) public view {
+    function testFuzz_Verify_RejectsZeroSignature(
+        bytes32 messageHash
+    ) public view {
         bytes memory zeroSignature = new bytes(65);
 
         // Zero signatures may either return false or revert with ECDSAInvalidSignature
-        try signatureValidator.verify(signer, messageHash, zeroSignature) returns (bool result) {
+        try
+            signatureValidator.verify(signer, messageHash, zeroSignature)
+        returns (bool result) {
             assertFalse(result, "All-zero signature should not verify");
         } catch {
             // It's acceptable to revert on zero signatures
@@ -138,17 +159,26 @@ contract SignatureValidatorFuzzTest is Test {
         vm.assume(rModifier != 0 || sModifier != 0 || vModifier != 0);
 
         bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKey, ethSignedMessageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+            signerKey,
+            ethSignedMessageHash
+        );
 
         // Modify signature components
         bytes32 modifiedR = bytes32(uint256(r) ^ uint256(rModifier));
         bytes32 modifiedS = bytes32(uint256(s) ^ uint256(sModifier));
         uint8 modifiedV = v ^ vModifier;
 
-        bytes memory modifiedSignature = abi.encodePacked(modifiedR, modifiedS, modifiedV);
+        bytes memory modifiedSignature = abi.encodePacked(
+            modifiedR,
+            modifiedS,
+            modifiedV
+        );
 
         // Modified signatures may either return false or revert with ECDSAInvalidSignature
-        try signatureValidator.verify(signer, messageHash, modifiedSignature) returns (bool result) {
+        try
+            signatureValidator.verify(signer, messageHash, modifiedSignature)
+        returns (bool result) {
             assertFalse(result, "Modified signature should not verify");
         } catch {
             // It's acceptable to revert on invalid signatures
@@ -164,18 +194,33 @@ contract SignatureValidatorFuzzTest is Test {
 
         // Sign first message
         bytes32 ethSignedMessageHash1 = messageHash1.toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKey, ethSignedMessageHash1);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+            signerKey,
+            ethSignedMessageHash1
+        );
         bytes memory signature = abi.encodePacked(r, s, v);
 
         // Try to use signature for second message
-        bool result = signatureValidator.verify(signer, messageHash2, signature);
-        assertFalse(result, "Signature should not be replayable across different messages");
+        bool result = signatureValidator.verify(
+            signer,
+            messageHash2,
+            signature
+        );
+        assertFalse(
+            result,
+            "Signature should not be replayable across different messages"
+        );
     }
 
     /// @notice Fuzz test: Signature malleability with high s values
-    function testFuzz_Verify_HandlesMalleableSignatures(bytes32 messageHash) public view {
+    function testFuzz_Verify_HandlesMalleableSignatures(
+        bytes32 messageHash
+    ) public view {
         bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKey, ethSignedMessageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+            signerKey,
+            ethSignedMessageHash
+        );
 
         // Try to create malleable signature (flip s and v)
         // secp256k1 curve order
@@ -183,13 +228,22 @@ contract SignatureValidatorFuzzTest is Test {
         bytes32 malleableS = bytes32(uint256(secp256k1N) - uint256(s));
         uint8 malleableV = v == 27 ? 28 : 27;
 
-        bytes memory malleableSignature = abi.encodePacked(r, malleableS, malleableV);
+        bytes memory malleableSignature = abi.encodePacked(
+            r,
+            malleableS,
+            malleableV
+        );
 
         // Modern ECDSA should reject high-s values (or both should verify to same address)
         // We verify that the signature either fails or verifies to the correct signer
-        try signatureValidator.verify(signer, messageHash, malleableSignature) returns (bool result) {
+        try
+            signatureValidator.verify(signer, messageHash, malleableSignature)
+        returns (bool result) {
             // If it doesn't revert, it should still verify correctly
-            assertTrue(result, "Malleable signature should either revert or verify correctly");
+            assertTrue(
+                result,
+                "Malleable signature should either revert or verify correctly"
+            );
         } catch {
             // It's acceptable to revert on malleable signatures
         }
@@ -202,8 +256,16 @@ contract SignatureValidatorFuzzTest is Test {
         uint256 privateKey2
     ) public view {
         // Bound private keys to valid range
-        privateKey1 = bound(privateKey1, 1, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140);
-        privateKey2 = bound(privateKey2, 1, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140);
+        privateKey1 = bound(
+            privateKey1,
+            1,
+            0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140
+        );
+        privateKey2 = bound(
+            privateKey2,
+            1,
+            0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140
+        );
         vm.assume(privateKey1 != privateKey2);
 
         address addr1 = vm.addr(privateKey1);
@@ -214,22 +276,36 @@ contract SignatureValidatorFuzzTest is Test {
 
         // Test signature 1
         {
-            (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey1, ethSignedMessageHash);
+            (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+                privateKey1,
+                ethSignedMessageHash
+            );
             bytes memory signature = abi.encodePacked(r, s, v);
 
             // Signature 1 should verify for addr1, not addr2
-            assertTrue(signatureValidator.verify(addr1, messageHash, signature));
-            assertFalse(signatureValidator.verify(addr2, messageHash, signature));
+            assertTrue(
+                signatureValidator.verify(addr1, messageHash, signature)
+            );
+            assertFalse(
+                signatureValidator.verify(addr2, messageHash, signature)
+            );
         }
 
         // Test signature 2
         {
-            (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey2, ethSignedMessageHash);
+            (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+                privateKey2,
+                ethSignedMessageHash
+            );
             bytes memory signature = abi.encodePacked(r, s, v);
 
             // Signature 2 should verify for addr2, not addr1
-            assertTrue(signatureValidator.verify(addr2, messageHash, signature));
-            assertFalse(signatureValidator.verify(addr1, messageHash, signature));
+            assertTrue(
+                signatureValidator.verify(addr2, messageHash, signature)
+            );
+            assertFalse(
+                signatureValidator.verify(addr1, messageHash, signature)
+            );
         }
     }
 }

@@ -36,13 +36,17 @@ contract DiscoveryUpdateFuzzTest is DiscoveryFuzzTestBase {
         emit IFlyoverDiscovery.ProviderUpdate(pegInLp, newName, newUrl);
         discovery.updateProvider(newName, newUrl);
 
-        Flyover.LiquidityProvider memory updated = discovery.getProvider(pegInLp);
+        Flyover.LiquidityProvider memory updated = discovery.getProvider(
+            pegInLp
+        );
         assertEq(updated.name, newName, "Name should be updated");
         assertEq(updated.apiBaseUrl, newUrl, "URL should be updated");
     }
 
     /// @notice Fuzz test: Multiple updates work correctly
-    function testFuzz_UpdateProvider_MultipleUpdatesWork(uint8 updateCount) public {
+    function testFuzz_UpdateProvider_MultipleUpdatesWork(
+        uint8 updateCount
+    ) public {
         updateCount = uint8(bound(updateCount, 1, 10));
 
         for (uint8 i = 0; i < updateCount; i++) {
@@ -52,9 +56,15 @@ contract DiscoveryUpdateFuzzTest is DiscoveryFuzzTestBase {
             vm.prank(pegInLp);
             discovery.updateProvider(newName, newUrl);
 
-            Flyover.LiquidityProvider memory updated = discovery.getProvider(pegInLp);
+            Flyover.LiquidityProvider memory updated = discovery.getProvider(
+                pegInLp
+            );
             assertEq(updated.name, newName, "Name should match after update");
-            assertEq(updated.apiBaseUrl, newUrl, "URL should match after update");
+            assertEq(
+                updated.apiBaseUrl,
+                newUrl,
+                "URL should match after update"
+            );
         }
     }
 
@@ -64,7 +74,9 @@ contract DiscoveryUpdateFuzzTest is DiscoveryFuzzTestBase {
         bytes32 urlSeed
     ) public {
         // Get original values
-        Flyover.LiquidityProvider memory before = discovery.getProvider(pegInLp);
+        Flyover.LiquidityProvider memory before = discovery.getProvider(
+            pegInLp
+        );
 
         string memory newName = generateFuzzString(nameSeed, 1, 50);
         string memory newUrl = generateFuzzString(urlSeed, 1, 100);
@@ -72,7 +84,9 @@ contract DiscoveryUpdateFuzzTest is DiscoveryFuzzTestBase {
         vm.prank(pegInLp);
         discovery.updateProvider(newName, newUrl);
 
-        Flyover.LiquidityProvider memory after_ = discovery.getProvider(pegInLp);
+        Flyover.LiquidityProvider memory after_ = discovery.getProvider(
+            pegInLp
+        );
 
         // Name and URL should change
         assertEq(after_.name, newName, "Name should be updated");
@@ -80,9 +94,21 @@ contract DiscoveryUpdateFuzzTest is DiscoveryFuzzTestBase {
 
         // Other fields should remain unchanged
         assertEq(after_.id, before.id, "ID should remain unchanged");
-        assertEq(after_.providerAddress, before.providerAddress, "Address should remain unchanged");
-        assertEq(after_.status, before.status, "Status should remain unchanged");
-        assertEq(uint256(after_.providerType), uint256(before.providerType), "Type should remain unchanged");
+        assertEq(
+            after_.providerAddress,
+            before.providerAddress,
+            "Address should remain unchanged"
+        );
+        assertEq(
+            after_.status,
+            before.status,
+            "Status should remain unchanged"
+        );
+        assertEq(
+            uint256(after_.providerType),
+            uint256(before.providerType),
+            "Type should remain unchanged"
+        );
     }
 
     // ============ Authorization Tests ============
@@ -124,7 +150,10 @@ contract DiscoveryUpdateFuzzTest is DiscoveryFuzzTestBase {
     // ============ String Boundary Tests ============
 
     /// @notice Fuzz test: Single character name and URL work
-    function testFuzz_UpdateProvider_SingleCharacterStrings(uint8 nameChar, uint8 urlChar) public {
+    function testFuzz_UpdateProvider_SingleCharacterStrings(
+        uint8 nameChar,
+        uint8 urlChar
+    ) public {
         // Ensure printable ASCII
         nameChar = uint8(bound(nameChar, 33, 126));
         urlChar = uint8(bound(urlChar, 33, 126));
@@ -135,7 +164,9 @@ contract DiscoveryUpdateFuzzTest is DiscoveryFuzzTestBase {
         vm.prank(pegInLp);
         discovery.updateProvider(name, url);
 
-        Flyover.LiquidityProvider memory updated = discovery.getProvider(pegInLp);
+        Flyover.LiquidityProvider memory updated = discovery.getProvider(
+            pegInLp
+        );
         assertEq(updated.name, name, "Single char name should work");
         assertEq(updated.apiBaseUrl, url, "Single char URL should work");
     }
@@ -148,19 +179,25 @@ contract DiscoveryUpdateFuzzTest is DiscoveryFuzzTestBase {
         bytes32 seed4
     ) public {
         // Create long strings by concatenating
-        string memory name = string(abi.encodePacked(
-            generateFuzzString(seed1, 50, 100),
-            generateFuzzString(seed2, 50, 100)
-        ));
-        string memory url = string(abi.encodePacked(
-            generateFuzzString(seed3, 50, 100),
-            generateFuzzString(seed4, 50, 100)
-        ));
+        string memory name = string(
+            abi.encodePacked(
+                generateFuzzString(seed1, 50, 100),
+                generateFuzzString(seed2, 50, 100)
+            )
+        );
+        string memory url = string(
+            abi.encodePacked(
+                generateFuzzString(seed3, 50, 100),
+                generateFuzzString(seed4, 50, 100)
+            )
+        );
 
         vm.prank(pegInLp);
         discovery.updateProvider(name, url);
 
-        Flyover.LiquidityProvider memory updated = discovery.getProvider(pegInLp);
+        Flyover.LiquidityProvider memory updated = discovery.getProvider(
+            pegInLp
+        );
         assertEq(updated.name, name, "Long name should work");
         assertEq(updated.apiBaseUrl, url, "Long URL should work");
     }
@@ -183,7 +220,9 @@ contract DiscoveryUpdateFuzzTest is DiscoveryFuzzTestBase {
         vm.prank(pegInLp);
         discovery.updateProvider(newName, newUrl);
 
-        Flyover.LiquidityProvider memory updated = discovery.getProvider(pegInLp);
+        Flyover.LiquidityProvider memory updated = discovery.getProvider(
+            pegInLp
+        );
         assertEq(updated.name, newName, "Name should be updated");
         assertEq(updated.apiBaseUrl, newUrl, "URL should be updated");
         assertFalse(updated.status, "Status should still be disabled");

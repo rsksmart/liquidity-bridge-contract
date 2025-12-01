@@ -25,8 +25,14 @@ contract CollateralQueriesFuzzTest is CollateralFuzzTestBase {
         address unregistered,
         uint8 providerTypeRaw
     ) public view {
-        vm.assume(unregistered != pegInLp && unregistered != pegOutLp && unregistered != fullLp);
-        Flyover.ProviderType providerType = getValidProviderType(providerTypeRaw);
+        vm.assume(
+            unregistered != pegInLp &&
+                unregistered != pegOutLp &&
+                unregistered != fullLp
+        );
+        Flyover.ProviderType providerType = getValidProviderType(
+            providerTypeRaw
+        );
 
         assertFalse(
             collateralManagement.isRegistered(providerType, unregistered),
@@ -35,11 +41,16 @@ contract CollateralQueriesFuzzTest is CollateralFuzzTestBase {
     }
 
     /// @notice Fuzz test: Adding collateral changes registration status
-    function testFuzz_IsRegistered_TrueAfterAddingCollateral(uint256 amount) public {
+    function testFuzz_IsRegistered_TrueAfterAddingCollateral(
+        uint256 amount
+    ) public {
         amount = bound(amount, 1 wei, 50 ether);
 
         assertFalse(
-            collateralManagement.isRegistered(Flyover.ProviderType.PegIn, fuzzUser),
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.PegIn,
+                fuzzUser
+            ),
             "Should not be registered initially"
         );
 
@@ -47,7 +58,10 @@ contract CollateralQueriesFuzzTest is CollateralFuzzTestBase {
         collateralManagement.addPegInCollateralTo{value: amount}(fuzzUser);
 
         assertTrue(
-            collateralManagement.isRegistered(Flyover.ProviderType.PegIn, fuzzUser),
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.PegIn,
+                fuzzUser
+            ),
             "Should be registered after adding collateral"
         );
     }
@@ -55,43 +69,66 @@ contract CollateralQueriesFuzzTest is CollateralFuzzTestBase {
     // ============ isCollateralSufficient Tests ============
 
     /// @notice Fuzz test: isCollateralSufficient returns true when >= minCollateral
-    function testFuzz_IsCollateralSufficient_TrueWhenAboveMin(uint256 amount) public {
+    function testFuzz_IsCollateralSufficient_TrueWhenAboveMin(
+        uint256 amount
+    ) public {
         amount = bound(amount, TEST_MIN_COLLATERAL, 100 ether);
 
         vm.prank(adder);
         collateralManagement.addPegInCollateralTo{value: amount}(fuzzUser);
 
         assertTrue(
-            collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegIn, fuzzUser),
+            collateralManagement.isCollateralSufficient(
+                Flyover.ProviderType.PegIn,
+                fuzzUser
+            ),
             "Should be sufficient when >= min collateral"
         );
     }
 
     /// @notice Fuzz test: isCollateralSufficient returns false when < minCollateral
-    function testFuzz_IsCollateralSufficient_FalseWhenBelowMin(uint256 amount) public {
+    function testFuzz_IsCollateralSufficient_FalseWhenBelowMin(
+        uint256 amount
+    ) public {
         amount = bound(amount, 1 wei, TEST_MIN_COLLATERAL - 1);
 
         vm.prank(adder);
         collateralManagement.addPegInCollateralTo{value: amount}(fuzzUser);
 
         assertFalse(
-            collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegIn, fuzzUser),
+            collateralManagement.isCollateralSufficient(
+                Flyover.ProviderType.PegIn,
+                fuzzUser
+            ),
             "Should not be sufficient when < min collateral"
         );
     }
 
     /// @notice Fuzz test: isCollateralSufficient becomes false after slashing below min
-    function testFuzz_IsCollateralSufficient_FalseAfterSlashBelowMin(uint256 slashAmount) public {
+    function testFuzz_IsCollateralSufficient_FalseAfterSlashBelowMin(
+        uint256 slashAmount
+    ) public {
         // Slash enough to go below minimum
-        slashAmount = bound(slashAmount, BASE_COLLATERAL - TEST_MIN_COLLATERAL + 1, BASE_COLLATERAL);
+        slashAmount = bound(
+            slashAmount,
+            BASE_COLLATERAL - TEST_MIN_COLLATERAL + 1,
+            BASE_COLLATERAL
+        );
 
         Quotes.PegInQuote memory quote = createPegInQuote(pegInLp, slashAmount);
 
         vm.prank(slasher);
-        collateralManagement.slashPegInCollateral(ZERO_ADDRESS, quote, bytes32(0));
+        collateralManagement.slashPegInCollateral(
+            ZERO_ADDRESS,
+            quote,
+            bytes32(0)
+        );
 
         assertFalse(
-            collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegIn, pegInLp),
+            collateralManagement.isCollateralSufficient(
+                Flyover.ProviderType.PegIn,
+                pegInLp
+            ),
             "Should not be sufficient after slashing below min"
         );
     }
@@ -99,7 +136,9 @@ contract CollateralQueriesFuzzTest is CollateralFuzzTestBase {
     // ============ getPegInCollateral / getPegOutCollateral Tests ============
 
     /// @notice Fuzz test: getPegInCollateral returns correct value after addition
-    function testFuzz_GetPegInCollateral_ReturnsCorrectValueAfterAddition(uint256 amount) public {
+    function testFuzz_GetPegInCollateral_ReturnsCorrectValueAfterAddition(
+        uint256 amount
+    ) public {
         amount = bound(amount, 0.001 ether, 50 ether);
 
         vm.prank(adder);
@@ -113,7 +152,9 @@ contract CollateralQueriesFuzzTest is CollateralFuzzTestBase {
     }
 
     /// @notice Fuzz test: getPegOutCollateral returns correct value after addition
-    function testFuzz_GetPegOutCollateral_ReturnsCorrectValueAfterAddition(uint256 amount) public {
+    function testFuzz_GetPegOutCollateral_ReturnsCorrectValueAfterAddition(
+        uint256 amount
+    ) public {
         amount = bound(amount, 0.001 ether, 50 ether);
 
         vm.prank(adder);
@@ -136,7 +177,9 @@ contract CollateralQueriesFuzzTest is CollateralFuzzTestBase {
 
         vm.startPrank(adder);
         collateralManagement.addPegInCollateralTo{value: pegInAmount}(fuzzUser);
-        collateralManagement.addPegOutCollateralTo{value: pegOutAmount}(fuzzUser);
+        collateralManagement.addPegOutCollateralTo{value: pegOutAmount}(
+            fuzzUser
+        );
         vm.stopPrank();
 
         assertEq(
@@ -154,7 +197,9 @@ contract CollateralQueriesFuzzTest is CollateralFuzzTestBase {
     // ============ getResignationBlock Tests ============
 
     /// @notice Fuzz test: getResignationBlock returns correct block after resign
-    function testFuzz_GetResignationBlock_CorrectBlockAfterResign(uint256 blockNum) public {
+    function testFuzz_GetResignationBlock_CorrectBlockAfterResign(
+        uint256 blockNum
+    ) public {
         blockNum = bound(blockNum, 1, type(uint64).max);
         vm.roll(blockNum);
 
@@ -184,11 +229,20 @@ contract CollateralQueriesFuzzTest is CollateralFuzzTestBase {
         Quotes.PegOutQuote memory quote2 = createPegOutQuote(fullLp, penalty2);
 
         vm.startPrank(slasher);
-        collateralManagement.slashPegInCollateral(punisher, quote1, bytes32(uint256(1)));
-        collateralManagement.slashPegOutCollateral(punisher, quote2, bytes32(uint256(2)));
+        collateralManagement.slashPegInCollateral(
+            punisher,
+            quote1,
+            bytes32(uint256(1))
+        );
+        collateralManagement.slashPegOutCollateral(
+            punisher,
+            quote2,
+            bytes32(uint256(2))
+        );
         vm.stopPrank();
 
-        uint256 expectedReward = calculateReward(penalty1) + calculateReward(penalty2);
+        uint256 expectedReward = calculateReward(penalty1) +
+            calculateReward(penalty2);
 
         assertEq(
             collateralManagement.getRewards(punisher),
@@ -211,13 +265,22 @@ contract CollateralQueriesFuzzTest is CollateralFuzzTestBase {
         Quotes.PegOutQuote memory quote2 = createPegOutQuote(fullLp, penalty2);
 
         vm.startPrank(slasher);
-        collateralManagement.slashPegInCollateral(punisher, quote1, bytes32(uint256(1)));
-        collateralManagement.slashPegOutCollateral(punisher, quote2, bytes32(uint256(2)));
+        collateralManagement.slashPegInCollateral(
+            punisher,
+            quote1,
+            bytes32(uint256(1))
+        );
+        collateralManagement.slashPegOutCollateral(
+            punisher,
+            quote2,
+            bytes32(uint256(2))
+        );
         vm.stopPrank();
 
         uint256 expectedReward1 = calculateReward(penalty1);
         uint256 expectedReward2 = calculateReward(penalty2);
-        uint256 expectedPenalties = (penalty1 - expectedReward1) + (penalty2 - expectedReward2);
+        uint256 expectedPenalties = (penalty1 - expectedReward1) +
+            (penalty2 - expectedReward2);
 
         assertEq(
             collateralManagement.getPenalties(),

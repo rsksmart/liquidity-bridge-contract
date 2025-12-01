@@ -149,12 +149,15 @@ abstract contract DiscoveryFuzzTestBase is Test {
         uint256 minLength,
         uint256 maxLength
     ) internal pure returns (string memory) {
-        uint256 length = uint256(seed) % (maxLength - minLength + 1) + minLength;
+        uint256 length = (uint256(seed) % (maxLength - minLength + 1)) +
+            minLength;
         bytes memory result = new bytes(length);
 
         for (uint256 i = 0; i < length; i++) {
             // Generate printable ASCII characters (32-126)
-            uint8 charCode = uint8(uint256(keccak256(abi.encode(seed, i))) % 95 + 32);
+            uint8 charCode = uint8(
+                (uint256(keccak256(abi.encode(seed, i))) % 95) + 32
+            );
             result[i] = bytes1(charCode);
         }
 
@@ -164,7 +167,9 @@ abstract contract DiscoveryFuzzTestBase is Test {
     /// @notice Get a valid provider type from a uint8
     /// @param typeIndex The raw type index
     /// @return providerType A valid ProviderType
-    function getValidProviderType(uint8 typeIndex) internal pure returns (Flyover.ProviderType) {
+    function getValidProviderType(
+        uint8 typeIndex
+    ) internal pure returns (Flyover.ProviderType) {
         uint8 bounded = typeIndex % 3;
         if (bounded == 0) return Flyover.ProviderType.PegIn;
         if (bounded == 1) return Flyover.ProviderType.PegOut;
@@ -174,7 +179,9 @@ abstract contract DiscoveryFuzzTestBase is Test {
     /// @notice Calculate required collateral for a provider type
     /// @param providerType The provider type
     /// @return required The minimum required collateral
-    function getRequiredCollateral(Flyover.ProviderType providerType) internal pure returns (uint256) {
+    function getRequiredCollateral(
+        Flyover.ProviderType providerType
+    ) internal pure returns (uint256) {
         if (providerType == Flyover.ProviderType.Both) {
             return MIN_COLLATERAL * 2;
         }
@@ -184,7 +191,9 @@ abstract contract DiscoveryFuzzTestBase is Test {
     /// @notice Create a new EOA address with funds
     /// @param name The name for the address
     /// @return addr The new address
-    function createFundedEOA(string memory name) internal returns (address addr) {
+    function createFundedEOA(
+        string memory name
+    ) internal returns (address addr) {
         addr = makeAddr(name);
         vm.deal(addr, 100 ether);
         return addr;
@@ -207,6 +216,12 @@ abstract contract DiscoveryFuzzTestBase is Test {
         uint256 collateral
     ) internal returns (uint256 providerId) {
         vm.prank(provider);
-        return discovery.register{value: collateral}(name, url, status, providerType);
+        return
+            discovery.register{value: collateral}(
+                name,
+                url,
+                status,
+                providerType
+            );
     }
 }

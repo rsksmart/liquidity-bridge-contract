@@ -41,7 +41,9 @@ abstract contract PegInFuzzTestBase is PegInTestBase {
     /// @notice Creates a test PegIn quote with the specified value
     /// @param value The value amount for the quote
     /// @return quote The created PegIn quote
-    function createFuzzTestQuote(uint256 value) internal view returns (Quotes.PegInQuote memory) {
+    function createFuzzTestQuote(
+        uint256 value
+    ) internal view returns (Quotes.PegInQuote memory) {
         return createFuzzTestQuoteForLP(value, fuzzUser, fuzzUser, pegInLp);
     }
 
@@ -70,7 +72,14 @@ abstract contract PegInFuzzTestBase is PegInTestBase {
         address refund,
         address lp
     ) internal view returns (Quotes.PegInQuote memory) {
-        return createFuzzTestQuoteForLPWithData(value, destination, refund, lp, new bytes(0));
+        return
+            createFuzzTestQuoteForLPWithData(
+                value,
+                destination,
+                refund,
+                lp,
+                new bytes(0)
+            );
     }
 
     /// @notice Creates a test PegIn quote for a specific LP with custom call data
@@ -90,28 +99,29 @@ abstract contract PegInFuzzTestBase is PegInTestBase {
         bytes memory testBtcAddress = new bytes(21);
         testBtcAddress[0] = 0x6f; // Testnet version byte
 
-        return Quotes.PegInQuote({
-            callFee: DEFAULT_CALL_FEE,
-            penaltyFee: DEFAULT_PENALTY_FEE,
-            value: value,
-            productFeeAmount: 0,
-            gasFee: DEFAULT_GAS_FEE,
-            fedBtcAddress: bytes20(testBtcAddress),
-            lbcAddress: address(pegInContract),
-            liquidityProviderRskAddress: lp,
-            contractAddress: destination,
-            rskRefundAddress: payable(refund),
-            nonce: int64(uint64(block.timestamp)),
-            gasLimit: DEFAULT_GAS_LIMIT,
-            agreementTimestamp: uint32(block.timestamp),
-            timeForDeposit: DEFAULT_TIME_FOR_DEPOSIT,
-            callTime: DEFAULT_CALL_TIME,
-            depositConfirmations: DEFAULT_DEPOSIT_CONFIRMATIONS,
-            callOnRegister: false,
-            btcRefundAddress: testBtcAddress,
-            liquidityProviderBtcAddress: testBtcAddress,
-            data: data
-        });
+        return
+            Quotes.PegInQuote({
+                callFee: DEFAULT_CALL_FEE,
+                penaltyFee: DEFAULT_PENALTY_FEE,
+                value: value,
+                productFeeAmount: 0,
+                gasFee: DEFAULT_GAS_FEE,
+                fedBtcAddress: bytes20(testBtcAddress),
+                lbcAddress: address(pegInContract),
+                liquidityProviderRskAddress: lp,
+                contractAddress: destination,
+                rskRefundAddress: payable(refund),
+                nonce: int64(uint64(block.timestamp)),
+                gasLimit: DEFAULT_GAS_LIMIT,
+                agreementTimestamp: uint32(block.timestamp),
+                timeForDeposit: DEFAULT_TIME_FOR_DEPOSIT,
+                callTime: DEFAULT_CALL_TIME,
+                depositConfirmations: DEFAULT_DEPOSIT_CONFIRMATIONS,
+                callOnRegister: false,
+                btcRefundAddress: testBtcAddress,
+                liquidityProviderBtcAddress: testBtcAddress,
+                data: data
+            });
     }
 
     // ============ Value Calculation Helpers ============
@@ -119,8 +129,11 @@ abstract contract PegInFuzzTestBase is PegInTestBase {
     /// @notice Calculates the total value needed for a PegIn quote
     /// @param quote The PegIn quote
     /// @return The total value (value + callFee + productFeeAmount + gasFee)
-    function getTotalQuoteValue(Quotes.PegInQuote memory quote) internal pure returns (uint256) {
-        return quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+    function getTotalQuoteValue(
+        Quotes.PegInQuote memory quote
+    ) internal pure returns (uint256) {
+        return
+            quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
     }
 
     // ============ Signature Helpers ============
@@ -129,7 +142,10 @@ abstract contract PegInFuzzTestBase is PegInTestBase {
     /// @param signer The signer address (must be one of the registered LPs)
     /// @param quoteHash The hash of the quote to sign
     /// @return signature The EIP-191 signature
-    function signFuzzQuote(address signer, bytes32 quoteHash) internal view returns (bytes memory) {
+    function signFuzzQuote(
+        address signer,
+        bytes32 quoteHash
+    ) internal view returns (bytes memory) {
         uint256 privateKey;
         if (signer == fullLp) {
             privateKey = fullLpKey;
@@ -144,7 +160,10 @@ abstract contract PegInFuzzTestBase is PegInTestBase {
         bytes32 ethSignedMessageHash = keccak256(
             abi.encodePacked("\x19Ethereum Signed Message:\n32", quoteHash)
         );
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, ethSignedMessageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+            privateKey,
+            ethSignedMessageHash
+        );
         return abi.encodePacked(r, s, v);
     }
 
@@ -154,7 +173,10 @@ abstract contract PegInFuzzTestBase is PegInTestBase {
     /// @param lp The LP address
     /// @param amount The amount to deposit
     /// @return newBalance The LP's balance after deposit
-    function depositForLP(address lp, uint256 amount) internal returns (uint256 newBalance) {
+    function depositForLP(
+        address lp,
+        uint256 amount
+    ) internal returns (uint256 newBalance) {
         vm.prank(lp);
         pegInContract.deposit{value: amount}();
         return pegInContract.getBalance(lp);
@@ -165,7 +187,9 @@ abstract contract PegInFuzzTestBase is PegInTestBase {
     /// @notice Creates a BTC block header with a specific timestamp (little-endian encoded)
     /// @param timestamp The Unix timestamp for the block
     /// @return header The 80-byte BTC block header
-    function createBtcBlockHeader(uint32 timestamp) internal pure returns (bytes memory) {
+    function createBtcBlockHeader(
+        uint32 timestamp
+    ) internal pure returns (bytes memory) {
         // BTC block header structure (80 bytes total):
         // - Version: 4 bytes (set to 0)
         // - Previous block hash: 32 bytes (set to 0)
