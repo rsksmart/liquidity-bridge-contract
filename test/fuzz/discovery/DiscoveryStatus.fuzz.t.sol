@@ -68,8 +68,14 @@ contract DiscoveryStatusFuzzTest is DiscoveryFuzzTestBase {
             vm.prank(pegInLp);
             discovery.setProviderStatus(1, newStatus);
 
-            Flyover.LiquidityProvider memory provider = discovery.getProvider(pegInLp);
-            assertEq(provider.status, newStatus, "Status should match after toggle");
+            Flyover.LiquidityProvider memory provider = discovery.getProvider(
+                pegInLp
+            );
+            assertEq(
+                provider.status,
+                newStatus,
+                "Status should match after toggle"
+            );
 
             currentStatus = newStatus;
         }
@@ -84,7 +90,8 @@ contract DiscoveryStatusFuzzTest is DiscoveryFuzzTestBase {
         providerIdToDisable = bound(providerIdToDisable, 1, 3);
 
         // Get initial provider count
-        Flyover.LiquidityProvider[] memory initialProviders = discovery.getProviders();
+        Flyover.LiquidityProvider[] memory initialProviders = discovery
+            .getProviders();
         uint256 initialCount = initialProviders.length;
         assertEq(initialCount, 3, "Should start with 3 providers");
 
@@ -99,7 +106,11 @@ contract DiscoveryStatusFuzzTest is DiscoveryFuzzTestBase {
 
         // Check listing
         Flyover.LiquidityProvider[] memory providers = discovery.getProviders();
-        assertEq(providers.length, 2, "Should have 2 providers after disabling one");
+        assertEq(
+            providers.length,
+            2,
+            "Should have 2 providers after disabling one"
+        );
 
         // Verify the disabled provider is not in the list
         for (uint256 i = 0; i < providers.length; i++) {
@@ -125,15 +136,25 @@ contract DiscoveryStatusFuzzTest is DiscoveryFuzzTestBase {
         vm.prank(providerAddress);
         discovery.setProviderStatus(providerIdToToggle, false);
 
-        Flyover.LiquidityProvider[] memory afterDisable = discovery.getProviders();
-        assertEq(afterDisable.length, 2, "Should have 2 providers after disable");
+        Flyover.LiquidityProvider[] memory afterDisable = discovery
+            .getProviders();
+        assertEq(
+            afterDisable.length,
+            2,
+            "Should have 2 providers after disable"
+        );
 
         // Re-enable
         vm.prank(providerAddress);
         discovery.setProviderStatus(providerIdToToggle, true);
 
-        Flyover.LiquidityProvider[] memory afterEnable = discovery.getProviders();
-        assertEq(afterEnable.length, 3, "Should have 3 providers after re-enable");
+        Flyover.LiquidityProvider[] memory afterEnable = discovery
+            .getProviders();
+        assertEq(
+            afterEnable.length,
+            3,
+            "Should have 3 providers after re-enable"
+        );
     }
 
     // ============ Event Emission Tests ============
@@ -150,5 +171,4 @@ contract DiscoveryStatusFuzzTest is DiscoveryFuzzTestBase {
         emit IFlyoverDiscovery.ProviderStatusSet(providerId, status);
         discovery.setProviderStatus(providerId, status);
     }
-
 }

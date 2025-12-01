@@ -20,7 +20,9 @@ contract PegInDepositWithdrawFuzzTest is PegInFuzzTestBase {
     // ============ Deposit Fuzz Tests ============
 
     /// @notice Fuzz test: Valid deposits should succeed and emit BalanceIncrease
-    function testFuzz_Deposit_IncreasesBalanceProperly(uint128 depositAmount) public {
+    function testFuzz_Deposit_IncreasesBalanceProperly(
+        uint128 depositAmount
+    ) public {
         depositAmount = uint128(bound(depositAmount, 0.001 ether, 50 ether));
 
         uint256 contractBalanceBefore = address(pegInContract).balance;
@@ -65,7 +67,9 @@ contract PegInDepositWithdrawFuzzTest is PegInFuzzTestBase {
         deposit2 = uint64(bound(deposit2, 0.001 ether, 10 ether));
         deposit3 = uint64(bound(deposit3, 0.001 ether, 10 ether));
 
-        uint256 expectedTotal = uint256(deposit1) + uint256(deposit2) + uint256(deposit3);
+        uint256 expectedTotal = uint256(deposit1) +
+            uint256(deposit2) +
+            uint256(deposit3);
         vm.assume(expectedTotal <= 50 ether);
 
         vm.startPrank(fullLp);
@@ -82,7 +86,9 @@ contract PegInDepositWithdrawFuzzTest is PegInFuzzTestBase {
     }
 
     /// @notice Fuzz test: Non-provider should be rejected
-    function testFuzz_Deposit_RevertsForNonProvider(uint128 depositAmount) public {
+    function testFuzz_Deposit_RevertsForNonProvider(
+        uint128 depositAmount
+    ) public {
         depositAmount = uint128(bound(depositAmount, 0.001 ether, 10 ether));
 
         vm.prank(fuzzUser);
@@ -96,7 +102,9 @@ contract PegInDepositWithdrawFuzzTest is PegInFuzzTestBase {
     }
 
     /// @notice Fuzz test: PegOut-only provider should be rejected for PegIn deposit
-    function testFuzz_Deposit_RevertsPegOutOnlyProvider(uint128 depositAmount) public {
+    function testFuzz_Deposit_RevertsPegOutOnlyProvider(
+        uint128 depositAmount
+    ) public {
         depositAmount = uint128(bound(depositAmount, 0.001 ether, 10 ether));
 
         vm.prank(pegOutLp);
@@ -117,7 +125,9 @@ contract PegInDepositWithdrawFuzzTest is PegInFuzzTestBase {
         uint128 withdrawAmount
     ) public {
         depositAmount = uint128(bound(depositAmount, 0.01 ether, 50 ether));
-        withdrawAmount = uint128(bound(withdrawAmount, 0.001 ether, depositAmount));
+        withdrawAmount = uint128(
+            bound(withdrawAmount, 0.001 ether, depositAmount)
+        );
 
         // Deposit first
         vm.prank(pegInLp);
@@ -211,7 +221,9 @@ contract PegInDepositWithdrawFuzzTest is PegInFuzzTestBase {
     }
 
     /// @notice Fuzz test: Full withdrawal should leave zero balance
-    function testFuzz_Withdraw_FullWithdrawalLeavesZeroBalance(uint128 depositAmount) public {
+    function testFuzz_Withdraw_FullWithdrawalLeavesZeroBalance(
+        uint128 depositAmount
+    ) public {
         depositAmount = uint128(bound(depositAmount, 0.001 ether, 50 ether));
 
         // Deposit first

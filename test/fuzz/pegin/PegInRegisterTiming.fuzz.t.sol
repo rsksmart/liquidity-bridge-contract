@@ -67,7 +67,9 @@ contract PegInRegisterTimingFuzzTest is PegInFuzzTestBase {
     }
 
     /// @notice Fuzz test: Wrong signer should revert with IncorrectSignature
-    function testFuzz_RegisterPegIn_RevertsOnWrongSigner(uint128 callValue) public {
+    function testFuzz_RegisterPegIn_RevertsOnWrongSigner(
+        uint128 callValue
+    ) public {
         callValue = uint128(bound(callValue, TEST_MIN_PEGIN, 10 ether));
 
         Quotes.PegInQuote memory quote = createFuzzTestQuoteForLP(
@@ -302,8 +304,12 @@ contract PegInRegisterTimingFuzzTest is PegInFuzzTestBase {
         bytes memory signature = signFuzzQuote(fullLp, quoteHash);
 
         // Setup BTC block headers
-        bytes memory firstHeader = createBtcBlockHeader(uint32(block.timestamp) + 300);
-        bytes memory nConfHeader = createBtcBlockHeader(uint32(block.timestamp) + 600);
+        bytes memory firstHeader = createBtcBlockHeader(
+            uint32(block.timestamp) + 300
+        );
+        bytes memory nConfHeader = createBtcBlockHeader(
+            uint32(block.timestamp) + 600
+        );
 
         // Setup bridge to return user refund error
         int256 BRIDGE_REFUNDED_USER_ERROR = -100;
@@ -352,8 +358,12 @@ contract PegInRegisterTimingFuzzTest is PegInFuzzTestBase {
         bytes memory signature = signFuzzQuote(fullLp, quoteHash);
 
         // Setup BTC block headers
-        bytes memory firstHeader = createBtcBlockHeader(uint32(block.timestamp) + 300);
-        bytes memory nConfHeader = createBtcBlockHeader(uint32(block.timestamp) + 600);
+        bytes memory firstHeader = createBtcBlockHeader(
+            uint32(block.timestamp) + 300
+        );
+        bytes memory nConfHeader = createBtcBlockHeader(
+            uint32(block.timestamp) + 600
+        );
 
         // Setup bridge to return LP refund error
         int256 BRIDGE_REFUNDED_LP_ERROR = -200;
@@ -526,8 +536,12 @@ contract PegInRegisterTimingFuzzTest is PegInFuzzTestBase {
         uint256 totalPaid = peginAmount + extraPaid;
 
         // Setup BTC block headers
-        bytes memory firstHeader = createBtcBlockHeader(uint32(block.timestamp) + 300);
-        bytes memory nConfHeader = createBtcBlockHeader(uint32(block.timestamp) + 600);
+        bytes memory firstHeader = createBtcBlockHeader(
+            uint32(block.timestamp) + 300
+        );
+        bytes memory nConfHeader = createBtcBlockHeader(
+            uint32(block.timestamp) + 600
+        );
 
         // Setup bridge to return overpayment
         vm.deal(address(bridgeMock), totalPaid);
@@ -549,12 +563,7 @@ contract PegInRegisterTimingFuzzTest is PegInFuzzTestBase {
         emit IPegIn.PegInRegistered(quoteHash, totalPaid);
         // Expect refund event for overpayment
         vm.expectEmit(true, true, true, true);
-        emit IPegIn.Refund(
-            fuzzUser,
-            quoteHash,
-            extraPaid,
-            true
-        );
+        emit IPegIn.Refund(fuzzUser, quoteHash, extraPaid, true);
         pegInContract.registerPegIn(
             quote,
             signature,
@@ -593,8 +602,12 @@ contract PegInRegisterTimingFuzzTest is PegInFuzzTestBase {
         uint256 paidAmount = peginAmount - underpayment;
 
         // Setup BTC block headers
-        bytes memory firstHeader = createBtcBlockHeader(uint32(block.timestamp) + 300);
-        bytes memory nConfHeader = createBtcBlockHeader(uint32(block.timestamp) + 600);
+        bytes memory firstHeader = createBtcBlockHeader(
+            uint32(block.timestamp) + 300
+        );
+        bytes memory nConfHeader = createBtcBlockHeader(
+            uint32(block.timestamp) + 600
+        );
 
         // Setup bridge to return underpayment
         vm.deal(address(bridgeMock), paidAmount);
@@ -610,7 +623,10 @@ contract PegInRegisterTimingFuzzTest is PegInFuzzTestBase {
         // Calculate expected amounts for error
         uint256 agreedAmount = peginAmount;
         uint256 SAT_TO_WEI_CONVERSION = 10 ** 10;
-        if (agreedAmount > SAT_TO_WEI_CONVERSION && (agreedAmount % SAT_TO_WEI_CONVERSION) != 0) {
+        if (
+            agreedAmount > SAT_TO_WEI_CONVERSION &&
+            (agreedAmount % SAT_TO_WEI_CONVERSION) != 0
+        ) {
             agreedAmount -= (agreedAmount % SAT_TO_WEI_CONVERSION);
         }
 
