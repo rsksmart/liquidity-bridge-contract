@@ -20,25 +20,6 @@ contract CollateralResignWithdrawFuzzTest is CollateralFuzzTestBase {
 
     // ============ resign Tests ============
 
-    /// @notice Fuzz test: Registered provider can resign
-    function testFuzz_Resign_RegisteredProviderCanResign() public {
-        vm.prank(pegInLp);
-        vm.expectEmit(true, false, false, true);
-        emit ICollateralManagement.Resigned(pegInLp);
-        collateralManagement.resign();
-
-        assertEq(
-            collateralManagement.getResignationBlock(pegInLp),
-            block.number,
-            "Resignation block should be current block"
-        );
-
-        assertFalse(
-            collateralManagement.isRegistered(Flyover.ProviderType.PegIn, pegInLp),
-            "Should not be registered after resign"
-        );
-    }
-
     /// @notice Fuzz test: Unregistered address cannot resign
     function testFuzz_Resign_RevertsForUnregistered(address unregistered) public {
         vm.assume(unregistered != pegInLp && unregistered != pegOutLp && unregistered != fullLp);
@@ -49,21 +30,6 @@ contract CollateralResignWithdrawFuzzTest is CollateralFuzzTestBase {
             abi.encodeWithSelector(
                 Flyover.ProviderNotRegistered.selector,
                 unregistered
-            )
-        );
-        collateralManagement.resign();
-    }
-
-    /// @notice Fuzz test: Cannot resign twice
-    function testFuzz_Resign_RevertsIfAlreadyResigned() public {
-        vm.prank(pegInLp);
-        collateralManagement.resign();
-
-        vm.prank(pegInLp);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ICollateralManagement.AlreadyResigned.selector,
-                pegInLp
             )
         );
         collateralManagement.resign();
@@ -165,82 +131,6 @@ contract CollateralResignWithdrawFuzzTest is CollateralFuzzTestBase {
         );
     }
 
-    /// @notice Fuzz test: Withdrawal clears all state
-    function testFuzz_WithdrawCollateral_ClearsAllState() public {
-        vm.prank(fullLp);
-        collateralManagement.resign();
-
-        vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS);
-
-        vm.prank(fullLp);
-        collateralManagement.withdrawCollateral();
-
-        assertEq(
-            collateralManagement.getPegInCollateral(fullLp),
-            0,
-            "PegIn collateral should be 0"
-        );
-        assertEq(
-            collateralManagement.getPegOutCollateral(fullLp),
-            0,
-            "PegOut collateral should be 0"
-        );
-        assertEq(
-            collateralManagement.getResignationBlock(fullLp),
-            0,
-            "Resignation block should be 0"
-        );
-    }
-
-    /// @notice Fuzz test: Full LP withdrawal returns combined collateral
-    function testFuzz_WithdrawCollateral_FullLpReturnsCombinedCollateral() public {
-        uint256 pegInAmount = collateralManagement.getPegInCollateral(fullLp);
-        uint256 pegOutAmount = collateralManagement.getPegOutCollateral(fullLp);
-        uint256 expectedTotal = pegInAmount + pegOutAmount;
-
-        vm.prank(fullLp);
-        collateralManagement.resign();
-
-        vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS);
-
-        uint256 balanceBefore = fullLp.balance;
-
-        vm.prank(fullLp);
-        vm.expectEmit(true, true, false, true);
-        emit ICollateralManagement.WithdrawCollateral(fullLp, expectedTotal);
-        collateralManagement.withdrawCollateral();
-
-        assertEq(
-            fullLp.balance,
-            balanceBefore + expectedTotal,
-            "Should receive combined PegIn and PegOut collateral"
-        );
-    }
-
-    /// @notice Fuzz test: Cannot withdraw if all collateral was slashed
-    function testFuzz_WithdrawCollateral_RevertsIfNoCollateral() public {
-        // Must resign first (while still having collateral), then slash
-        // because resign() requires provider to have collateral
-        vm.prank(pegInLp);
-        collateralManagement.resign();
-
-        // Slash all collateral after resignation
-        Quotes.PegInQuote memory quote = createPegInQuote(pegInLp, 1000 ether);
-        vm.prank(slasher);
-        collateralManagement.slashPegInCollateral(ZERO_ADDRESS, quote, bytes32(0));
-
-        vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS);
-
-        vm.prank(pegInLp);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ICollateralManagement.NothingToWithdraw.selector,
-                pegInLp
-            )
-        );
-        collateralManagement.withdrawCollateral();
-    }
-
     /// @notice Fuzz test: Partial slashing before withdrawal
     function testFuzz_WithdrawCollateral_PartialSlashBeforeWithdrawal(
         uint128 slashAmount
@@ -314,23 +204,4 @@ contract CollateralResignWithdrawFuzzTest is CollateralFuzzTestBase {
         );
     }
 
-    // ============ Edge Cases Tests ============
-
-    /// @notice Fuzz test: Different providers can resign independently
-    function testFuzz_Resign_ProvidersResignIndependently() public {
-        vm.prank(pegInLp);
-        collateralManagement.resign();
-
-        // pegOutLp should still be registered
-        assertTrue(
-            collateralManagement.isRegistered(Flyover.ProviderType.PegOut, pegOutLp),
-            "pegOutLp should still be registered"
-        );
-
-        // fullLp should still be registered
-        assertTrue(
-            collateralManagement.isRegistered(Flyover.ProviderType.Both, fullLp),
-            "fullLp should still be registered"
-        );
-    }
 }

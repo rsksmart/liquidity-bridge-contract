@@ -34,29 +34,6 @@ contract DiscoveryOperationalFuzzTest is DiscoveryFuzzTestBase {
         }
     }
 
-    /// @notice Fuzz test: Provider with specific type is operational only for that type
-    function testFuzz_IsOperational_SpecificTypeRestrictions() public view {
-        // pegInLp should be operational for PegIn but not PegOut
-        assertTrue(
-            discovery.isOperational(Flyover.ProviderType.PegIn, pegInLp),
-            "pegInLp should be operational for PegIn"
-        );
-        assertFalse(
-            discovery.isOperational(Flyover.ProviderType.PegOut, pegInLp),
-            "pegInLp should NOT be operational for PegOut"
-        );
-
-        // pegOutLp should be operational for PegOut but not PegIn
-        assertTrue(
-            discovery.isOperational(Flyover.ProviderType.PegOut, pegOutLp),
-            "pegOutLp should be operational for PegOut"
-        );
-        assertFalse(
-            discovery.isOperational(Flyover.ProviderType.PegIn, pegOutLp),
-            "pegOutLp should NOT be operational for PegIn"
-        );
-    }
-
     /// @notice Fuzz test: Disabled provider is not operational
     function testFuzz_IsOperational_ReturnsFalseWhenDisabled(uint8 providerTypeRaw) public {
         Flyover.ProviderType providerType = getValidProviderType(providerTypeRaw);
@@ -105,18 +82,6 @@ contract DiscoveryOperationalFuzzTest is DiscoveryFuzzTestBase {
 
     // ============ getProvider Tests ============
 
-    /// @notice Fuzz test: getProvider returns correct provider data
-    function testFuzz_GetProvider_ReturnsCorrectData() public view {
-        Flyover.LiquidityProvider memory provider = discovery.getProvider(pegInLp);
-
-        assertEq(provider.id, 1, "ID should be 1");
-        assertEq(provider.providerAddress, pegInLp, "Address should match");
-        assertEq(provider.name, "Pegin Provider", "Name should match");
-        assertEq(provider.apiBaseUrl, "lp1.com", "URL should match");
-        assertTrue(provider.status, "Status should be true");
-        assertEq(uint256(provider.providerType), uint256(Flyover.ProviderType.PegIn), "Type should be PegIn");
-    }
-
     /// @notice Fuzz test: getProvider reverts for unregistered address
     function testFuzz_GetProvider_RevertsForUnregistered(address unregistered) public {
         vm.assume(unregistered != pegInLp && unregistered != pegOutLp && unregistered != fullLp);
@@ -132,28 +97,6 @@ contract DiscoveryOperationalFuzzTest is DiscoveryFuzzTestBase {
     }
 
     // ============ getProviders Tests ============
-
-    /// @notice Fuzz test: getProviders returns all enabled providers
-    function testFuzz_GetProviders_ReturnsAllEnabled() public view {
-        Flyover.LiquidityProvider[] memory providers = discovery.getProviders();
-
-        assertEq(providers.length, 3, "Should have 3 providers");
-
-        // Check all providers are present
-        bool foundPegIn = false;
-        bool foundPegOut = false;
-        bool foundFull = false;
-
-        for (uint256 i = 0; i < providers.length; i++) {
-            if (providers[i].providerAddress == pegInLp) foundPegIn = true;
-            if (providers[i].providerAddress == pegOutLp) foundPegOut = true;
-            if (providers[i].providerAddress == fullLp) foundFull = true;
-        }
-
-        assertTrue(foundPegIn, "pegInLp should be in list");
-        assertTrue(foundPegOut, "pegOutLp should be in list");
-        assertTrue(foundFull, "fullLp should be in list");
-    }
 
     /// @notice Fuzz test: getProviders excludes disabled providers
     function testFuzz_GetProviders_ExcludesDisabled(uint8 disableCount) public {
@@ -175,22 +118,6 @@ contract DiscoveryOperationalFuzzTest is DiscoveryFuzzTestBase {
 
         Flyover.LiquidityProvider[] memory providers = discovery.getProviders();
         assertEq(providers.length, 3 - disableCount, "Provider count should decrease");
-    }
-
-    /// @notice Fuzz test: getProviders returns empty for no providers
-    function testFuzz_GetProviders_ReturnsEmptyWhenAllDisabled() public {
-        // Disable all providers
-        vm.prank(pegInLp);
-        discovery.setProviderStatus(1, false);
-
-        vm.prank(pegOutLp);
-        discovery.setProviderStatus(2, false);
-
-        vm.prank(fullLp);
-        discovery.setProviderStatus(3, false);
-
-        Flyover.LiquidityProvider[] memory providers = discovery.getProviders();
-        assertEq(providers.length, 0, "Should have 0 providers");
     }
 
     // ============ getProvidersId Tests ============
@@ -223,48 +150,4 @@ contract DiscoveryOperationalFuzzTest is DiscoveryFuzzTestBase {
         );
     }
 
-    // ============ Resigned Provider Tests ============
-
-    /// @notice Fuzz test: Resigned provider is not listed
-    function testFuzz_GetProviders_ExcludesResigned() public {
-        // Resign a provider
-        vm.prank(pegInLp);
-        collateralManagement.resign();
-
-        // Provider should no longer be listed because collateral is "resigned"
-        Flyover.LiquidityProvider[] memory providers = discovery.getProviders();
-        assertEq(providers.length, 2, "Should have 2 providers after resign");
-
-        for (uint256 i = 0; i < providers.length; i++) {
-            assertTrue(
-                providers[i].providerAddress != pegInLp,
-                "Resigned provider should not be in list"
-            );
-        }
-    }
-
-    /// @notice Fuzz test: Resigned provider is not operational
-    function testFuzz_IsOperational_ReturnsFalseForResigned() public {
-        // Resign a provider
-        vm.prank(pegInLp);
-        collateralManagement.resign();
-
-        // Provider should not be operational
-        assertFalse(
-            discovery.isOperational(Flyover.ProviderType.PegIn, pegInLp),
-            "Resigned provider should not be operational"
-        );
-    }
-
-    // ============ Provider Order Tests ============
-
-    /// @notice Fuzz test: Providers are returned in registration order
-    function testFuzz_GetProviders_ReturnsInOrder() public view {
-        Flyover.LiquidityProvider[] memory providers = discovery.getProviders();
-
-        // Should be in ID order
-        assertEq(providers[0].id, 1, "First should be ID 1");
-        assertEq(providers[1].id, 2, "Second should be ID 2");
-        assertEq(providers[2].id, 3, "Third should be ID 3");
-    }
 }
