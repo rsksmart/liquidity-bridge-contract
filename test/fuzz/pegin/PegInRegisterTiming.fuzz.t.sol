@@ -250,7 +250,7 @@ contract PegInRegisterTimingFuzzTest is PegInFuzzTestBase {
     ) public {
         callValue = uint128(bound(callValue, TEST_MIN_PEGIN, 10 ether));
         // Avoid known error codes: -100 (user refund), -200 (LP refund), -303 (confirmations)
-        errorCode = int256(bound(uint256(uint256(int256(errorCode))), 304, 1000));
+        errorCode = int256(bound(uint256(errorCode), 304, 1000));
         errorCode = -errorCode; // Make negative
 
         Quotes.PegInQuote memory quote = createFuzzTestQuoteForLP(
