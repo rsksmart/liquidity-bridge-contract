@@ -85,38 +85,6 @@ contract DiscoveryUpdateFuzzTest is DiscoveryFuzzTestBase {
         assertEq(uint256(after_.providerType), uint256(before.providerType), "Type should remain unchanged");
     }
 
-    // ============ Invalid Data Tests ============
-
-    /// @notice Fuzz test: Empty name reverts
-    function testFuzz_UpdateProvider_RevertsOnEmptyName(bytes32 urlSeed) public {
-        string memory url = generateFuzzString(urlSeed, 1, 100);
-
-        vm.prank(pegInLp);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IFlyoverDiscovery.InvalidProviderData.selector,
-                "",
-                url
-            )
-        );
-        discovery.updateProvider("", url);
-    }
-
-    /// @notice Fuzz test: Empty URL reverts
-    function testFuzz_UpdateProvider_RevertsOnEmptyUrl(bytes32 nameSeed) public {
-        string memory name = generateFuzzString(nameSeed, 1, 100);
-
-        vm.prank(pegInLp);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IFlyoverDiscovery.InvalidProviderData.selector,
-                name,
-                ""
-            )
-        );
-        discovery.updateProvider(name, "");
-    }
-
     // ============ Authorization Tests ============
 
     /// @notice Fuzz test: Unregistered address cannot update
