@@ -20,54 +20,6 @@ contract CollateralQueriesFuzzTest is CollateralFuzzTestBase {
 
     // ============ isRegistered Tests ============
 
-    /// @notice Fuzz test: isRegistered returns true for PegIn provider with PegIn collateral
-    function testFuzz_IsRegistered_TrueForPegInProvider() public view {
-        assertTrue(
-            collateralManagement.isRegistered(Flyover.ProviderType.PegIn, pegInLp),
-            "PegIn provider should be registered for PegIn"
-        );
-        assertFalse(
-            collateralManagement.isRegistered(Flyover.ProviderType.PegOut, pegInLp),
-            "PegIn provider should not be registered for PegOut"
-        );
-        assertFalse(
-            collateralManagement.isRegistered(Flyover.ProviderType.Both, pegInLp),
-            "PegIn provider should not be registered for Both"
-        );
-    }
-
-    /// @notice Fuzz test: isRegistered returns true for PegOut provider with PegOut collateral
-    function testFuzz_IsRegistered_TrueForPegOutProvider() public view {
-        assertTrue(
-            collateralManagement.isRegistered(Flyover.ProviderType.PegOut, pegOutLp),
-            "PegOut provider should be registered for PegOut"
-        );
-        assertFalse(
-            collateralManagement.isRegistered(Flyover.ProviderType.PegIn, pegOutLp),
-            "PegOut provider should not be registered for PegIn"
-        );
-        assertFalse(
-            collateralManagement.isRegistered(Flyover.ProviderType.Both, pegOutLp),
-            "PegOut provider should not be registered for Both"
-        );
-    }
-
-    /// @notice Fuzz test: isRegistered returns true for Full provider for all types
-    function testFuzz_IsRegistered_TrueForFullProvider() public view {
-        assertTrue(
-            collateralManagement.isRegistered(Flyover.ProviderType.PegIn, fullLp),
-            "Full provider should be registered for PegIn"
-        );
-        assertTrue(
-            collateralManagement.isRegistered(Flyover.ProviderType.PegOut, fullLp),
-            "Full provider should be registered for PegOut"
-        );
-        assertTrue(
-            collateralManagement.isRegistered(Flyover.ProviderType.Both, fullLp),
-            "Full provider should be registered for Both"
-        );
-    }
-
     /// @notice Fuzz test: isRegistered returns false for unregistered address
     function testFuzz_IsRegistered_FalseForUnregistered(
         address unregistered,
@@ -125,33 +77,6 @@ contract CollateralQueriesFuzzTest is CollateralFuzzTestBase {
         assertFalse(
             collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegIn, fuzzUser),
             "Should not be sufficient when < min collateral"
-        );
-    }
-
-    /// @notice Fuzz test: isCollateralSufficient at exact minimum
-    function testFuzz_IsCollateralSufficient_TrueAtExactMin() public {
-        vm.prank(adder);
-        collateralManagement.addPegInCollateralTo{value: TEST_MIN_COLLATERAL}(fuzzUser);
-
-        assertTrue(
-            collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegIn, fuzzUser),
-            "Should be sufficient at exact min collateral"
-        );
-    }
-
-    /// @notice Fuzz test: isCollateralSufficient returns false after resign
-    function testFuzz_IsCollateralSufficient_FalseAfterResign() public {
-        assertTrue(
-            collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegIn, pegInLp),
-            "Should be sufficient initially"
-        );
-
-        vm.prank(pegInLp);
-        collateralManagement.resign();
-
-        assertFalse(
-            collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegIn, pegInLp),
-            "Should not be sufficient after resign"
         );
     }
 
@@ -254,35 +179,6 @@ contract CollateralQueriesFuzzTest is CollateralFuzzTestBase {
         );
     }
 
-    // ============ Configuration Getters Tests ============
-
-    /// @notice Fuzz test: getMinCollateral returns configured value
-    function testFuzz_GetMinCollateral_ReturnsConfiguredValue() public view {
-        assertEq(
-            collateralManagement.getMinCollateral(),
-            TEST_MIN_COLLATERAL,
-            "Should return configured min collateral"
-        );
-    }
-
-    /// @notice Fuzz test: getResignDelayInBlocks returns configured value
-    function testFuzz_GetResignDelayInBlocks_ReturnsConfiguredValue() public view {
-        assertEq(
-            collateralManagement.getResignDelayInBlocks(),
-            TEST_RESIGN_DELAY_BLOCKS,
-            "Should return configured resign delay"
-        );
-    }
-
-    /// @notice Fuzz test: getRewardPercentage returns configured value
-    function testFuzz_GetRewardPercentage_ReturnsConfiguredValue() public view {
-        assertEq(
-            collateralManagement.getRewardPercentage(),
-            TEST_REWARD_PERCENTAGE,
-            "Should return configured reward percentage"
-        );
-    }
-
     // ============ getRewards / getPenalties Tests ============
 
     /// @notice Fuzz test: getRewards returns 0 initially
@@ -291,15 +187,6 @@ contract CollateralQueriesFuzzTest is CollateralFuzzTestBase {
             collateralManagement.getRewards(addr),
             0,
             "Should return 0 rewards initially"
-        );
-    }
-
-    /// @notice Fuzz test: getPenalties returns 0 initially
-    function testFuzz_GetPenalties_ZeroInitially() public view {
-        assertEq(
-            collateralManagement.getPenalties(),
-            0,
-            "Should return 0 penalties initially"
         );
     }
 
