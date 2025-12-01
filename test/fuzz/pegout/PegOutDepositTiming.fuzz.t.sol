@@ -21,7 +21,9 @@ contract PegOutDepositTimingFuzzTest is PegOutFuzzTestBase {
         uint32 currentTime,
         uint32 timeUntilLimit
     ) public {
-        currentTime = uint32(bound(currentTime, 1000000, type(uint32).max - 1000000));
+        currentTime = uint32(
+            bound(currentTime, 1000000, type(uint32).max - 1000000)
+        );
         timeUntilLimit = uint32(bound(timeUntilLimit, 100, 1000000));
 
         vm.warp(currentTime);
@@ -46,8 +48,12 @@ contract PegOutDepositTimingFuzzTest is PegOutFuzzTestBase {
         uint32 depositDateLimit,
         uint32 lateness
     ) public {
-        currentTime = uint32(bound(currentTime, 1000000, type(uint32).max - 2000000));
-        depositDateLimit = uint32(bound(depositDateLimit, currentTime, currentTime + 100000));
+        currentTime = uint32(
+            bound(currentTime, 1000000, type(uint32).max - 2000000)
+        );
+        depositDateLimit = uint32(
+            bound(depositDateLimit, currentTime, currentTime + 100000)
+        );
         lateness = uint32(bound(lateness, 1, 100000));
 
         uint32 expireDate = depositDateLimit + lateness + 10000;
@@ -79,8 +85,12 @@ contract PegOutDepositTimingFuzzTest is PegOutFuzzTestBase {
         uint32 expireDate,
         uint32 lateness
     ) public {
-        currentTime = uint32(bound(currentTime, 1000000, type(uint32).max - 2000000));
-        expireDate = uint32(bound(expireDate, currentTime + 1000, currentTime + 100000));
+        currentTime = uint32(
+            bound(currentTime, 1000000, type(uint32).max - 2000000)
+        );
+        expireDate = uint32(
+            bound(expireDate, currentTime + 1000, currentTime + 100000)
+        );
         lateness = uint32(bound(lateness, 1, 100000));
 
         vm.warp(expireDate + lateness);
@@ -111,7 +121,9 @@ contract PegOutDepositTimingFuzzTest is PegOutFuzzTestBase {
         uint32 blocksUntilExpiry,
         uint16 extraBlocks
     ) public {
-        currentBlock = uint32(bound(currentBlock, 1000, type(uint32).max - 1000000));
+        currentBlock = uint32(
+            bound(currentBlock, 1000, type(uint32).max - 1000000)
+        );
         blocksUntilExpiry = uint32(bound(blocksUntilExpiry, 10, 10000));
         extraBlocks = uint16(bound(extraBlocks, 1, 1000));
 
@@ -142,7 +154,9 @@ contract PegOutDepositTimingFuzzTest is PegOutFuzzTestBase {
         uint32 currentTime,
         uint32 timeUntilLimit
     ) public {
-        currentTime = uint32(bound(currentTime, 1000000, type(uint32).max - 1000000));
+        currentTime = uint32(
+            bound(currentTime, 1000000, type(uint32).max - 1000000)
+        );
         timeUntilLimit = uint32(bound(timeUntilLimit, 100, 100000));
 
         vm.warp(currentTime);
@@ -169,7 +183,9 @@ contract PegOutDepositTimingFuzzTest is PegOutFuzzTestBase {
         uint32 currentBlock,
         uint32 blocksUntilExpiry
     ) public {
-        currentBlock = uint32(bound(currentBlock, 1000, type(uint32).max - 100000));
+        currentBlock = uint32(
+            bound(currentBlock, 1000, type(uint32).max - 100000)
+        );
         blocksUntilExpiry = uint32(bound(blocksUntilExpiry, 10, 10000));
 
         vm.roll(currentBlock);
@@ -194,7 +210,9 @@ contract PegOutDepositTimingFuzzTest is PegOutFuzzTestBase {
         uint32 depositWindow,
         uint32 expiryWindow
     ) public {
-        agreementTimestamp = uint32(bound(agreementTimestamp, 1000000, type(uint32).max - 2000000));
+        agreementTimestamp = uint32(
+            bound(agreementTimestamp, 1000000, type(uint32).max - 2000000)
+        );
         depositWindow = uint32(bound(depositWindow, 100, 100000));
         expiryWindow = uint32(bound(expiryWindow, 100, 100000));
 

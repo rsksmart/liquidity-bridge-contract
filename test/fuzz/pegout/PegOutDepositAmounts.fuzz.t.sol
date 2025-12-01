@@ -43,13 +43,21 @@ contract PegOutDepositAmountsFuzzTest is PegOutFuzzTestBase {
 
         // Expect PegOutDeposit event with correct parameters
         vm.expectEmit(true, true, true, true);
-        emit IPegOut.PegOutDeposit(quoteHash, fuzzUser, block.timestamp, totalValue);
+        emit IPegOut.PegOutDeposit(
+            quoteHash,
+            fuzzUser,
+            block.timestamp,
+            totalValue
+        );
 
         // Should succeed with exact payment
         vm.prank(fuzzUser);
         pegOutContract.depositPegOut{value: totalValue}(quote, signature);
 
-        assertFalse(pegOutContract.isQuoteCompleted(quoteHash), "Quote should not be completed yet");
+        assertFalse(
+            pegOutContract.isQuoteCompleted(quoteHash),
+            "Quote should not be completed yet"
+        );
     }
 
     /// @notice Fuzz test: Underpayment should revert
@@ -104,7 +112,12 @@ contract PegOutDepositAmountsFuzzTest is PegOutFuzzTestBase {
 
         // Expect PegOutDeposit event with the PAID amount (including dust overpayment)
         vm.expectEmit(true, true, true, true);
-        emit IPegOut.PegOutDeposit(quoteHash, fuzzUser, block.timestamp, paidAmount);
+        emit IPegOut.PegOutDeposit(
+            quoteHash,
+            fuzzUser,
+            block.timestamp,
+            paidAmount
+        );
 
         vm.prank(fuzzUser);
         pegOutContract.depositPegOut{value: paidAmount}(quote, signature);
@@ -125,7 +138,9 @@ contract PegOutDepositAmountsFuzzTest is PegOutFuzzTestBase {
         uint128 extraAmount
     ) public {
         value = uint128(bound(value, 0.001 ether, 100 ether));
-        extraAmount = uint128(bound(extraAmount, TEST_DUST_THRESHOLD, 10 ether));
+        extraAmount = uint128(
+            bound(extraAmount, TEST_DUST_THRESHOLD, 10 ether)
+        );
 
         Quotes.PegOutQuote memory quote = createFuzzTestQuote(value);
         uint256 totalValue = getTotalQuoteValue(quote);
@@ -140,11 +155,20 @@ contract PegOutDepositAmountsFuzzTest is PegOutFuzzTestBase {
 
         // Contract emits PegOutDeposit with msg.value (paidAmount), then PegOutChangePaid
         vm.expectEmit(true, true, true, true);
-        emit IPegOut.PegOutDeposit(quoteHash, fuzzUser, block.timestamp, paidAmount);
+        emit IPegOut.PegOutDeposit(
+            quoteHash,
+            fuzzUser,
+            block.timestamp,
+            paidAmount
+        );
 
         // PegOutChangePaid goes to quote.rskRefundAddress (which is 'fuzzUser' in our test quote)
         vm.expectEmit(true, true, true, true);
-        emit IPegOut.PegOutChangePaid(quoteHash, quote.rskRefundAddress, extraAmount);
+        emit IPegOut.PegOutChangePaid(
+            quoteHash,
+            quote.rskRefundAddress,
+            extraAmount
+        );
 
         vm.prank(fuzzUser);
         pegOutContract.depositPegOut{value: paidAmount}(quote, signature);
@@ -170,7 +194,10 @@ contract PegOutDepositAmountsFuzzTest is PegOutFuzzTestBase {
         gasFee = uint32(bound(gasFee, 0, 0.1 ether));
 
         // Check for overflow in total calculation
-        uint256 total = uint256(value) + uint256(callFee) + uint256(productFeeAmount) + uint256(gasFee);
+        uint256 total = uint256(value) +
+            uint256(callFee) +
+            uint256(productFeeAmount) +
+            uint256(gasFee);
         vm.assume(total <= 500 ether);
         vm.assume(total < type(uint256).max);
 
@@ -244,6 +271,9 @@ contract PegOutDepositAmountsFuzzTest is PegOutFuzzTestBase {
         // Both should be tracked separately
         assertFalse(pegOutContract.isQuoteCompleted(quoteHash1));
         assertFalse(pegOutContract.isQuoteCompleted(quoteHash2));
-        assertTrue(quoteHash1 != quoteHash2, "Different nonces should produce different hashes");
+        assertTrue(
+            quoteHash1 != quoteHash2,
+            "Different nonces should produce different hashes"
+        );
     }
 }

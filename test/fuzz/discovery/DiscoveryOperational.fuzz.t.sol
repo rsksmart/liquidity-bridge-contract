@@ -20,13 +20,20 @@ contract DiscoveryOperationalFuzzTest is DiscoveryFuzzTestBase {
     // ============ isOperational Tests ============
 
     /// @notice Fuzz test: Registered provider with sufficient collateral is operational
-    function testFuzz_IsOperational_ReturnsTrueForValidProvider(uint8 providerTypeRaw) public view {
-        Flyover.ProviderType providerType = getValidProviderType(providerTypeRaw);
+    function testFuzz_IsOperational_ReturnsTrueForValidProvider(
+        uint8 providerTypeRaw
+    ) public view {
+        Flyover.ProviderType providerType = getValidProviderType(
+            providerTypeRaw
+        );
 
         // fullLp is registered with Both type, so it's operational for any type
         bool isOp = discovery.isOperational(providerType, fullLp);
 
-        if (providerType == Flyover.ProviderType.PegIn || providerType == Flyover.ProviderType.Both) {
+        if (
+            providerType == Flyover.ProviderType.PegIn ||
+            providerType == Flyover.ProviderType.Both
+        ) {
             assertTrue(isOp, "fullLp should be operational for PegIn/Both");
         } else {
             // PegOut only - fullLp has both collaterals
@@ -35,8 +42,12 @@ contract DiscoveryOperationalFuzzTest is DiscoveryFuzzTestBase {
     }
 
     /// @notice Fuzz test: Disabled provider is not operational
-    function testFuzz_IsOperational_ReturnsFalseWhenDisabled(uint8 providerTypeRaw) public {
-        Flyover.ProviderType providerType = getValidProviderType(providerTypeRaw);
+    function testFuzz_IsOperational_ReturnsFalseWhenDisabled(
+        uint8 providerTypeRaw
+    ) public {
+        Flyover.ProviderType providerType = getValidProviderType(
+            providerTypeRaw
+        );
 
         // Disable fullLp
         vm.prank(fullLp);
@@ -51,9 +62,15 @@ contract DiscoveryOperationalFuzzTest is DiscoveryFuzzTestBase {
         address unregistered,
         uint8 providerTypeRaw
     ) public {
-        vm.assume(unregistered != pegInLp && unregistered != pegOutLp && unregistered != fullLp);
+        vm.assume(
+            unregistered != pegInLp &&
+                unregistered != pegOutLp &&
+                unregistered != fullLp
+        );
         vm.assume(unregistered != address(0));
-        Flyover.ProviderType providerType = getValidProviderType(providerTypeRaw);
+        Flyover.ProviderType providerType = getValidProviderType(
+            providerTypeRaw
+        );
 
         // This should revert because the provider is not registered
         vm.expectRevert(
@@ -66,25 +83,41 @@ contract DiscoveryOperationalFuzzTest is DiscoveryFuzzTestBase {
     }
 
     /// @notice Fuzz test: Re-enabled provider becomes operational again
-    function testFuzz_IsOperational_BecomesOperationalAfterReenable(uint8 providerTypeRaw) public {
-        Flyover.ProviderType providerType = getValidProviderType(providerTypeRaw);
+    function testFuzz_IsOperational_BecomesOperationalAfterReenable(
+        uint8 providerTypeRaw
+    ) public {
+        Flyover.ProviderType providerType = getValidProviderType(
+            providerTypeRaw
+        );
 
         // Disable fullLp
         vm.prank(fullLp);
         discovery.setProviderStatus(3, false);
-        assertFalse(discovery.isOperational(providerType, fullLp), "Should not be operational when disabled");
+        assertFalse(
+            discovery.isOperational(providerType, fullLp),
+            "Should not be operational when disabled"
+        );
 
         // Re-enable
         vm.prank(fullLp);
         discovery.setProviderStatus(3, true);
-        assertTrue(discovery.isOperational(providerType, fullLp), "Should be operational after re-enable");
+        assertTrue(
+            discovery.isOperational(providerType, fullLp),
+            "Should be operational after re-enable"
+        );
     }
 
     // ============ getProvider Tests ============
 
     /// @notice Fuzz test: getProvider reverts for unregistered address
-    function testFuzz_GetProvider_RevertsForUnregistered(address unregistered) public {
-        vm.assume(unregistered != pegInLp && unregistered != pegOutLp && unregistered != fullLp);
+    function testFuzz_GetProvider_RevertsForUnregistered(
+        address unregistered
+    ) public {
+        vm.assume(
+            unregistered != pegInLp &&
+                unregistered != pegOutLp &&
+                unregistered != fullLp
+        );
         vm.assume(unregistered != address(0));
 
         vm.expectRevert(
@@ -117,13 +150,19 @@ contract DiscoveryOperationalFuzzTest is DiscoveryFuzzTestBase {
         }
 
         Flyover.LiquidityProvider[] memory providers = discovery.getProviders();
-        assertEq(providers.length, 3 - disableCount, "Provider count should decrease");
+        assertEq(
+            providers.length,
+            3 - disableCount,
+            "Provider count should decrease"
+        );
     }
 
     // ============ getProvidersId Tests ============
 
     /// @notice Fuzz test: getProvidersId returns correct count after registrations
-    function testFuzz_GetProvidersId_ReturnsCorrectCount(uint8 newProviders) public {
+    function testFuzz_GetProvidersId_ReturnsCorrectCount(
+        uint8 newProviders
+    ) public {
         newProviders = uint8(bound(newProviders, 0, 10));
 
         // Already have 3 providers from setupProviders()
@@ -132,7 +171,9 @@ contract DiscoveryOperationalFuzzTest is DiscoveryFuzzTestBase {
 
         // Register new providers
         for (uint8 i = 0; i < newProviders; i++) {
-            address provider = createFundedEOA(string(abi.encodePacked("newProvider_", i)));
+            address provider = createFundedEOA(
+                string(abi.encodePacked("newProvider_", i))
+            );
 
             vm.prank(provider);
             discovery.register{value: MIN_COLLATERAL}(
@@ -149,5 +190,4 @@ contract DiscoveryOperationalFuzzTest is DiscoveryFuzzTestBase {
             "Provider ID should increment correctly"
         );
     }
-
 }

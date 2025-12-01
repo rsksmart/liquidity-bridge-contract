@@ -30,12 +30,16 @@ contract CollateralSlashingFuzzTest is CollateralFuzzTestBase {
     function testFuzz_SlashPegInCollateral_ReducesCollateralCorrectly(
         uint128 penaltyFee
     ) public {
-        penaltyFee = uint128(bound(penaltyFee, 0.001 ether, BASE_COLLATERAL / 2));
+        penaltyFee = uint128(
+            bound(penaltyFee, 0.001 ether, BASE_COLLATERAL / 2)
+        );
 
         Quotes.PegInQuote memory quote = createPegInQuote(pegInLp, penaltyFee);
         bytes32 quoteHash = generateQuoteHash(1);
 
-        uint256 collateralBefore = collateralManagement.getPegInCollateral(pegInLp);
+        uint256 collateralBefore = collateralManagement.getPegInCollateral(
+            pegInLp
+        );
         uint256 expectedReward = calculateReward(penaltyFee);
 
         vm.prank(slasher);
@@ -61,7 +65,9 @@ contract CollateralSlashingFuzzTest is CollateralFuzzTestBase {
     function testFuzz_SlashPegInCollateral_RewardCalculatedCorrectly(
         uint128 penaltyFee
     ) public {
-        penaltyFee = uint128(bound(penaltyFee, 0.001 ether, BASE_COLLATERAL / 2));
+        penaltyFee = uint128(
+            bound(penaltyFee, 0.001 ether, BASE_COLLATERAL / 2)
+        );
 
         Quotes.PegInQuote memory quote = createPegInQuote(pegInLp, penaltyFee);
         bytes32 quoteHash = generateQuoteHash(2);
@@ -82,7 +88,9 @@ contract CollateralSlashingFuzzTest is CollateralFuzzTestBase {
     function testFuzz_SlashPegInCollateral_PenaltiesAccumulate(
         uint128 penaltyFee
     ) public {
-        penaltyFee = uint128(bound(penaltyFee, 0.001 ether, BASE_COLLATERAL / 2));
+        penaltyFee = uint128(
+            bound(penaltyFee, 0.001 ether, BASE_COLLATERAL / 2)
+        );
 
         Quotes.PegInQuote memory quote = createPegInQuote(pegInLp, penaltyFee);
         bytes32 quoteHash = generateQuoteHash(3);
@@ -107,7 +115,10 @@ contract CollateralSlashingFuzzTest is CollateralFuzzTestBase {
         excessAmount = bound(excessAmount, 1, 100 ether);
         uint256 totalPenalty = BASE_COLLATERAL + excessAmount;
 
-        Quotes.PegInQuote memory quote = createPegInQuote(pegInLp, totalPenalty);
+        Quotes.PegInQuote memory quote = createPegInQuote(
+            pegInLp,
+            totalPenalty
+        );
         bytes32 quoteHash = generateQuoteHash(4);
 
         // Actual penalty will be capped to available collateral
@@ -163,12 +174,19 @@ contract CollateralSlashingFuzzTest is CollateralFuzzTestBase {
     function testFuzz_SlashPegOutCollateral_ReducesCollateralCorrectly(
         uint128 penaltyFee
     ) public {
-        penaltyFee = uint128(bound(penaltyFee, 0.001 ether, BASE_COLLATERAL / 2));
+        penaltyFee = uint128(
+            bound(penaltyFee, 0.001 ether, BASE_COLLATERAL / 2)
+        );
 
-        Quotes.PegOutQuote memory quote = createPegOutQuote(pegOutLp, penaltyFee);
+        Quotes.PegOutQuote memory quote = createPegOutQuote(
+            pegOutLp,
+            penaltyFee
+        );
         bytes32 quoteHash = generateQuoteHash(6);
 
-        uint256 collateralBefore = collateralManagement.getPegOutCollateral(pegOutLp);
+        uint256 collateralBefore = collateralManagement.getPegOutCollateral(
+            pegOutLp
+        );
         uint256 expectedReward = calculateReward(penaltyFee);
 
         vm.prank(slasher);
@@ -199,7 +217,10 @@ contract CollateralSlashingFuzzTest is CollateralFuzzTestBase {
         vm.assume(nonSlasher != address(0));
         penaltyFee = uint128(bound(penaltyFee, 0.001 ether, BASE_COLLATERAL));
 
-        Quotes.PegOutQuote memory quote = createPegOutQuote(pegOutLp, penaltyFee);
+        Quotes.PegOutQuote memory quote = createPegOutQuote(
+            pegOutLp,
+            penaltyFee
+        );
         bytes32 quoteHash = generateQuoteHash(7);
         bytes32 slasherRole = collateralManagement.COLLATERAL_SLASHER();
 
@@ -224,8 +245,14 @@ contract CollateralSlashingFuzzTest is CollateralFuzzTestBase {
         penalty1 = uint64(bound(penalty1, 0.001 ether, BASE_COLLATERAL / 4));
         penalty2 = uint64(bound(penalty2, 0.001 ether, BASE_COLLATERAL / 4));
 
-        Quotes.PegInQuote memory pegInQuote = createPegInQuote(fullLp, penalty1);
-        Quotes.PegOutQuote memory pegOutQuote = createPegOutQuote(fullLp, penalty2);
+        Quotes.PegInQuote memory pegInQuote = createPegInQuote(
+            fullLp,
+            penalty1
+        );
+        Quotes.PegOutQuote memory pegOutQuote = createPegOutQuote(
+            fullLp,
+            penalty2
+        );
 
         bytes32 quoteHash1 = generateQuoteHash(8);
         bytes32 quoteHash2 = generateQuoteHash(9);
@@ -234,8 +261,16 @@ contract CollateralSlashingFuzzTest is CollateralFuzzTestBase {
         uint256 expectedReward2 = calculateReward(penalty2);
 
         vm.startPrank(slasher);
-        collateralManagement.slashPegInCollateral(punisher, pegInQuote, quoteHash1);
-        collateralManagement.slashPegOutCollateral(punisher, pegOutQuote, quoteHash2);
+        collateralManagement.slashPegInCollateral(
+            punisher,
+            pegInQuote,
+            quoteHash1
+        );
+        collateralManagement.slashPegOutCollateral(
+            punisher,
+            pegOutQuote,
+            quoteHash2
+        );
         vm.stopPrank();
 
         assertEq(
@@ -253,19 +288,34 @@ contract CollateralSlashingFuzzTest is CollateralFuzzTestBase {
         penalty1 = uint64(bound(penalty1, 0.001 ether, BASE_COLLATERAL / 4));
         penalty2 = uint64(bound(penalty2, 0.001 ether, BASE_COLLATERAL / 4));
 
-        Quotes.PegInQuote memory pegInQuote = createPegInQuote(fullLp, penalty1);
-        Quotes.PegOutQuote memory pegOutQuote = createPegOutQuote(fullLp, penalty2);
+        Quotes.PegInQuote memory pegInQuote = createPegInQuote(
+            fullLp,
+            penalty1
+        );
+        Quotes.PegOutQuote memory pegOutQuote = createPegOutQuote(
+            fullLp,
+            penalty2
+        );
 
         bytes32 quoteHash1 = generateQuoteHash(10);
         bytes32 quoteHash2 = generateQuoteHash(11);
 
         uint256 expectedReward1 = calculateReward(penalty1);
         uint256 expectedReward2 = calculateReward(penalty2);
-        uint256 expectedPenalties = (penalty1 - expectedReward1) + (penalty2 - expectedReward2);
+        uint256 expectedPenalties = (penalty1 - expectedReward1) +
+            (penalty2 - expectedReward2);
 
         vm.startPrank(slasher);
-        collateralManagement.slashPegInCollateral(punisher, pegInQuote, quoteHash1);
-        collateralManagement.slashPegOutCollateral(punisher, pegOutQuote, quoteHash2);
+        collateralManagement.slashPegInCollateral(
+            punisher,
+            pegInQuote,
+            quoteHash1
+        );
+        collateralManagement.slashPegOutCollateral(
+            punisher,
+            pegOutQuote,
+            quoteHash2
+        );
         vm.stopPrank();
 
         assertEq(
@@ -278,8 +328,12 @@ contract CollateralSlashingFuzzTest is CollateralFuzzTestBase {
     // ============ withdrawRewards Tests ============
 
     /// @notice Fuzz test: Punisher can withdraw rewards
-    function testFuzz_WithdrawRewards_PunisherCanWithdraw(uint128 penaltyFee) public {
-        penaltyFee = uint128(bound(penaltyFee, 0.01 ether, BASE_COLLATERAL / 2));
+    function testFuzz_WithdrawRewards_PunisherCanWithdraw(
+        uint128 penaltyFee
+    ) public {
+        penaltyFee = uint128(
+            bound(penaltyFee, 0.01 ether, BASE_COLLATERAL / 2)
+        );
 
         Quotes.PegInQuote memory quote = createPegInQuote(pegInLp, penaltyFee);
         bytes32 quoteHash = generateQuoteHash(12);
@@ -309,7 +363,9 @@ contract CollateralSlashingFuzzTest is CollateralFuzzTestBase {
     }
 
     /// @notice Fuzz test: Cannot withdraw if no rewards
-    function testFuzz_WithdrawRewards_RevertsIfNoRewards(address noRewardUser) public {
+    function testFuzz_WithdrawRewards_RevertsIfNoRewards(
+        address noRewardUser
+    ) public {
         vm.assume(noRewardUser != address(0));
         vm.assume(collateralManagement.getRewards(noRewardUser) == 0);
 
@@ -326,7 +382,9 @@ contract CollateralSlashingFuzzTest is CollateralFuzzTestBase {
     // ============ Slashing With Zero Collateral Tests ============
 
     /// @notice Fuzz test: Slashing provider with zero collateral does nothing
-    function testFuzz_Slash_ZeroCollateralSlashesNothing(uint128 penaltyFee) public {
+    function testFuzz_Slash_ZeroCollateralSlashesNothing(
+        uint128 penaltyFee
+    ) public {
         penaltyFee = uint128(bound(penaltyFee, 0.001 ether, 10 ether));
 
         // fuzzUser has no collateral
@@ -341,7 +399,7 @@ contract CollateralSlashingFuzzTest is CollateralFuzzTestBase {
             quoteHash,
             Flyover.ProviderType.PegIn,
             0, // actual penalty is 0 (min of penaltyFee and collateral)
-            0  // reward is 0
+            0 // reward is 0
         );
         collateralManagement.slashPegInCollateral(punisher, quote, quoteHash);
 

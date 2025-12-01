@@ -46,7 +46,9 @@ abstract contract PegOutFuzzTestBase is PegOutTestBase {
     /// @notice Creates a test PegOut quote with the specified value
     /// @param value The value amount for the quote
     /// @return quote The created PegOut quote
-    function createFuzzTestQuote(uint256 value) internal view returns (Quotes.PegOutQuote memory) {
+    function createFuzzTestQuote(
+        uint256 value
+    ) internal view returns (Quotes.PegOutQuote memory) {
         return createFuzzTestQuoteForUser(value, fuzzUser);
     }
 
@@ -64,27 +66,29 @@ abstract contract PegOutFuzzTestBase is PegOutTestBase {
         );
         uint32 currentTime = uint32(block.timestamp);
 
-        return Quotes.PegOutQuote({
-            callFee: DEFAULT_CALL_FEE,
-            penaltyFee: DEFAULT_PENALTY_FEE,
-            value: value,
-            productFeeAmount: 0,
-            gasFee: DEFAULT_GAS_FEE,
-            lbcAddress: address(pegOutContract),
-            lpRskAddress: pegOutLp,
-            rskRefundAddress: userAddress,
-            nonce: int64(uint64(block.timestamp)),
-            agreementTimestamp: currentTime,
-            depositDateLimit: currentTime + DEFAULT_DEPOSIT_DATE_LIMIT_OFFSET,
-            transferTime: DEFAULT_TRANSFER_TIME,
-            depositConfirmations: DEFAULT_DEPOSIT_CONFIRMATIONS,
-            transferConfirmations: DEFAULT_TRANSFER_CONFIRMATIONS,
-            expireBlock: uint32(block.number + DEFAULT_EXPIRE_BLOCK_OFFSET),
-            expireDate: currentTime + DEFAULT_EXPIRE_DATE_OFFSET,
-            depositAddress: testBtcAddress,
-            btcRefundAddress: testBtcAddress,
-            lpBtcAddress: testBtcAddress
-        });
+        return
+            Quotes.PegOutQuote({
+                callFee: DEFAULT_CALL_FEE,
+                penaltyFee: DEFAULT_PENALTY_FEE,
+                value: value,
+                productFeeAmount: 0,
+                gasFee: DEFAULT_GAS_FEE,
+                lbcAddress: address(pegOutContract),
+                lpRskAddress: pegOutLp,
+                rskRefundAddress: userAddress,
+                nonce: int64(uint64(block.timestamp)),
+                agreementTimestamp: currentTime,
+                depositDateLimit: currentTime +
+                    DEFAULT_DEPOSIT_DATE_LIMIT_OFFSET,
+                transferTime: DEFAULT_TRANSFER_TIME,
+                depositConfirmations: DEFAULT_DEPOSIT_CONFIRMATIONS,
+                transferConfirmations: DEFAULT_TRANSFER_CONFIRMATIONS,
+                expireBlock: uint32(block.number + DEFAULT_EXPIRE_BLOCK_OFFSET),
+                expireDate: currentTime + DEFAULT_EXPIRE_DATE_OFFSET,
+                depositAddress: testBtcAddress,
+                btcRefundAddress: testBtcAddress,
+                lpBtcAddress: testBtcAddress
+            });
     }
 
     /// @notice Creates a test PegOut quote with custom BTC address type
@@ -103,37 +107,50 @@ abstract contract PegOutFuzzTestBase is PegOutTestBase {
             btcAddress = abi.encodePacked(hex"6f", hash160);
         } else if (keccak256(bytes(addressType)) == keccak256(bytes("p2sh"))) {
             btcAddress = abi.encodePacked(hex"c4", hash160);
-        } else if (keccak256(bytes(addressType)) == keccak256(bytes("p2wpkh"))) {
+        } else if (
+            keccak256(bytes(addressType)) == keccak256(bytes("p2wpkh"))
+        ) {
             btcAddress = abi.encodePacked(hex"00", hash160);
         } else if (keccak256(bytes(addressType)) == keccak256(bytes("p2wsh"))) {
-            btcAddress = abi.encodePacked(hex"00", hash160, hex"0000000000000000000000"); // 32 bytes for WSH
-        } else { // p2tr
-            btcAddress = abi.encodePacked(hex"01", hash160, hex"0000000000000000000000"); // 32 bytes for Taproot
+            btcAddress = abi.encodePacked(
+                hex"00",
+                hash160,
+                hex"0000000000000000000000"
+            ); // 32 bytes for WSH
+        } else {
+            // p2tr
+            btcAddress = abi.encodePacked(
+                hex"01",
+                hash160,
+                hex"0000000000000000000000"
+            ); // 32 bytes for Taproot
         }
 
         uint32 currentTime = uint32(block.timestamp);
 
-        return Quotes.PegOutQuote({
-            callFee: DEFAULT_CALL_FEE,
-            penaltyFee: DEFAULT_PENALTY_FEE,
-            value: value,
-            productFeeAmount: 0,
-            gasFee: DEFAULT_GAS_FEE,
-            lbcAddress: address(pegOutContract),
-            lpRskAddress: pegOutLp,
-            rskRefundAddress: fuzzUser,
-            nonce: int64(uint64(block.timestamp)),
-            agreementTimestamp: currentTime,
-            depositDateLimit: currentTime + DEFAULT_DEPOSIT_DATE_LIMIT_OFFSET,
-            transferTime: DEFAULT_TRANSFER_TIME,
-            depositConfirmations: DEFAULT_DEPOSIT_CONFIRMATIONS,
-            transferConfirmations: DEFAULT_TRANSFER_CONFIRMATIONS,
-            expireBlock: uint32(block.number + DEFAULT_EXPIRE_BLOCK_OFFSET),
-            expireDate: currentTime + DEFAULT_EXPIRE_DATE_OFFSET,
-            depositAddress: btcAddress,
-            btcRefundAddress: btcAddress,
-            lpBtcAddress: btcAddress
-        });
+        return
+            Quotes.PegOutQuote({
+                callFee: DEFAULT_CALL_FEE,
+                penaltyFee: DEFAULT_PENALTY_FEE,
+                value: value,
+                productFeeAmount: 0,
+                gasFee: DEFAULT_GAS_FEE,
+                lbcAddress: address(pegOutContract),
+                lpRskAddress: pegOutLp,
+                rskRefundAddress: fuzzUser,
+                nonce: int64(uint64(block.timestamp)),
+                agreementTimestamp: currentTime,
+                depositDateLimit: currentTime +
+                    DEFAULT_DEPOSIT_DATE_LIMIT_OFFSET,
+                transferTime: DEFAULT_TRANSFER_TIME,
+                depositConfirmations: DEFAULT_DEPOSIT_CONFIRMATIONS,
+                transferConfirmations: DEFAULT_TRANSFER_CONFIRMATIONS,
+                expireBlock: uint32(block.number + DEFAULT_EXPIRE_BLOCK_OFFSET),
+                expireDate: currentTime + DEFAULT_EXPIRE_DATE_OFFSET,
+                depositAddress: btcAddress,
+                btcRefundAddress: btcAddress,
+                lpBtcAddress: btcAddress
+            });
     }
 
     // ============ Value Calculation Helpers ============
@@ -141,8 +158,11 @@ abstract contract PegOutFuzzTestBase is PegOutTestBase {
     /// @notice Calculates the total value needed to deposit for a quote
     /// @param quote The PegOut quote
     /// @return The total value (value + callFee + productFeeAmount + gasFee)
-    function getTotalQuoteValue(Quotes.PegOutQuote memory quote) internal pure returns (uint256) {
-        return quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+    function getTotalQuoteValue(
+        Quotes.PegOutQuote memory quote
+    ) internal pure returns (uint256) {
+        return
+            quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
     }
 
     // ============ Signature Helpers ============
@@ -151,7 +171,10 @@ abstract contract PegOutFuzzTestBase is PegOutTestBase {
     /// @param signer The signer address (must be one of the registered LPs)
     /// @param quoteHash The hash of the quote to sign
     /// @return signature The EIP-191 signature
-    function signFuzzQuote(address signer, bytes32 quoteHash) internal view returns (bytes memory) {
+    function signFuzzQuote(
+        address signer,
+        bytes32 quoteHash
+    ) internal view returns (bytes memory) {
         uint256 privateKey;
         if (signer == fullLp) {
             privateKey = fullLpKey;
@@ -166,7 +189,10 @@ abstract contract PegOutFuzzTestBase is PegOutTestBase {
         bytes32 ethSignedMessageHash = keccak256(
             abi.encodePacked("\x19Ethereum Signed Message:\n32", quoteHash)
         );
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, ethSignedMessageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+            privateKey,
+            ethSignedMessageHash
+        );
         return abi.encodePacked(r, s, v);
     }
 
@@ -175,7 +201,9 @@ abstract contract PegOutFuzzTestBase is PegOutTestBase {
     /// @notice Extracts the 20-byte hash160 from a BTC address (skips version byte)
     /// @param btcAddress The BTC address bytes (with version prefix)
     /// @return hash160 The 20-byte hash160 extracted from the address
-    function extractHash160(bytes memory btcAddress) internal pure returns (bytes memory) {
+    function extractHash160(
+        bytes memory btcAddress
+    ) internal pure returns (bytes memory) {
         bytes memory hash160 = new bytes(20);
         for (uint i = 0; i < 20; i++) {
             hash160[i] = btcAddress[i + 1];
@@ -186,7 +214,9 @@ abstract contract PegOutFuzzTestBase is PegOutTestBase {
     /// @notice Returns the BTC address type string from an index
     /// @param index The address type index (0-3)
     /// @return addressType The address type string
-    function getAddressTypeFromIndex(uint8 index) internal pure returns (string memory) {
+    function getAddressTypeFromIndex(
+        uint8 index
+    ) internal pure returns (string memory) {
         if (index == 0) return "p2pkh";
         if (index == 1) return "p2sh";
         if (index == 2) return "p2wpkh";
@@ -198,13 +228,18 @@ abstract contract PegOutFuzzTestBase is PegOutTestBase {
     /// @notice Creates a quote, deposits it, and returns the quote
     /// @param value The value for the quote
     /// @return quote The created and deposited quote
-    function createAndDepositFuzzQuote(uint256 value) internal returns (Quotes.PegOutQuote memory) {
+    function createAndDepositFuzzQuote(
+        uint256 value
+    ) internal returns (Quotes.PegOutQuote memory) {
         Quotes.PegOutQuote memory quote = createFuzzTestQuote(value);
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signFuzzQuote(pegOutLp, quoteHash);
 
         vm.prank(fuzzUser);
-        pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(quote, signature);
+        pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(
+            quote,
+            signature
+        );
 
         return quote;
     }
@@ -212,8 +247,12 @@ abstract contract PegOutFuzzTestBase is PegOutTestBase {
     /// @notice Sets up the bridge mock with appropriate header and confirmations
     /// @param quote The quote for which to setup the bridge
     function setupFuzzBridgeMock(Quotes.PegOutQuote memory quote) internal {
-        bytes memory header = createBtcBlockHeader(uint32(block.timestamp + 100));
+        bytes memory header = createBtcBlockHeader(
+            uint32(block.timestamp + 100)
+        );
         bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
-        bridgeMock.setConfirmations(int256(uint256(quote.transferConfirmations)));
+        bridgeMock.setConfirmations(
+            int256(uint256(quote.transferConfirmations))
+        );
     }
 }

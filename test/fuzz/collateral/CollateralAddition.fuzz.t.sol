@@ -27,7 +27,9 @@ contract CollateralAdditionFuzzTest is CollateralFuzzTestBase {
         vm.assume(recipient != address(0));
         amount = bound(amount, 0.001 ether, 50 ether);
 
-        uint256 collateralBefore = collateralManagement.getPegInCollateral(recipient);
+        uint256 collateralBefore = collateralManagement.getPegInCollateral(
+            recipient
+        );
 
         vm.prank(adder);
         vm.expectEmit(true, true, false, true);
@@ -51,7 +53,9 @@ contract CollateralAdditionFuzzTest is CollateralFuzzTestBase {
         amount2 = uint64(bound(amount2, 0.001 ether, 10 ether));
         amount3 = uint64(bound(amount3, 0.001 ether, 10 ether));
 
-        uint256 expectedTotal = uint256(amount1) + uint256(amount2) + uint256(amount3);
+        uint256 expectedTotal = uint256(amount1) +
+            uint256(amount2) +
+            uint256(amount3);
 
         vm.startPrank(adder);
         collateralManagement.addPegInCollateralTo{value: amount1}(fuzzUser);
@@ -99,7 +103,9 @@ contract CollateralAdditionFuzzTest is CollateralFuzzTestBase {
         vm.assume(recipient != address(0));
         amount = bound(amount, 0.001 ether, 50 ether);
 
-        uint256 collateralBefore = collateralManagement.getPegOutCollateral(recipient);
+        uint256 collateralBefore = collateralManagement.getPegOutCollateral(
+            recipient
+        );
 
         vm.prank(adder);
         vm.expectEmit(true, true, false, true);
@@ -123,7 +129,9 @@ contract CollateralAdditionFuzzTest is CollateralFuzzTestBase {
         amount2 = uint64(bound(amount2, 0.001 ether, 10 ether));
         amount3 = uint64(bound(amount3, 0.001 ether, 10 ether));
 
-        uint256 expectedTotal = uint256(amount1) + uint256(amount2) + uint256(amount3);
+        uint256 expectedTotal = uint256(amount1) +
+            uint256(amount2) +
+            uint256(amount3);
 
         vm.startPrank(adder);
         collateralManagement.addPegOutCollateralTo{value: amount1}(fuzzUser);
@@ -173,12 +181,17 @@ contract CollateralAdditionFuzzTest is CollateralFuzzTestBase {
 
         // First register by having adder add initial collateral
         vm.prank(adder);
-        collateralManagement.addPegInCollateralTo{value: initialAmount}(fuzzUser);
+        collateralManagement.addPegInCollateralTo{value: initialAmount}(
+            fuzzUser
+        );
 
         // Now provider can add more
         vm.prank(fuzzUser);
         vm.expectEmit(true, true, false, true);
-        emit ICollateralManagement.PegInCollateralAdded(fuzzUser, additionalAmount);
+        emit ICollateralManagement.PegInCollateralAdded(
+            fuzzUser,
+            additionalAmount
+        );
         collateralManagement.addPegInCollateral{value: additionalAmount}();
 
         assertEq(
@@ -189,7 +202,9 @@ contract CollateralAdditionFuzzTest is CollateralFuzzTestBase {
     }
 
     /// @notice Fuzz test: Unregistered address cannot add PegIn collateral to self
-    function testFuzz_AddPegInCollateral_RevertsForUnregistered(uint256 amount) public {
+    function testFuzz_AddPegInCollateral_RevertsForUnregistered(
+        uint256 amount
+    ) public {
         amount = bound(amount, 0.001 ether, 10 ether);
 
         vm.prank(fuzzUser);
@@ -214,12 +229,17 @@ contract CollateralAdditionFuzzTest is CollateralFuzzTestBase {
 
         // First register by having adder add initial collateral
         vm.prank(adder);
-        collateralManagement.addPegOutCollateralTo{value: initialAmount}(fuzzUser);
+        collateralManagement.addPegOutCollateralTo{value: initialAmount}(
+            fuzzUser
+        );
 
         // Now provider can add more
         vm.prank(fuzzUser);
         vm.expectEmit(true, true, false, true);
-        emit ICollateralManagement.PegOutCollateralAdded(fuzzUser, additionalAmount);
+        emit ICollateralManagement.PegOutCollateralAdded(
+            fuzzUser,
+            additionalAmount
+        );
         collateralManagement.addPegOutCollateral{value: additionalAmount}();
 
         assertEq(
@@ -230,7 +250,9 @@ contract CollateralAdditionFuzzTest is CollateralFuzzTestBase {
     }
 
     /// @notice Fuzz test: Unregistered address cannot add PegOut collateral to self
-    function testFuzz_AddPegOutCollateral_RevertsForUnregistered(uint256 amount) public {
+    function testFuzz_AddPegOutCollateral_RevertsForUnregistered(
+        uint256 amount
+    ) public {
         amount = bound(amount, 0.001 ether, 10 ether);
 
         vm.prank(fuzzUser);
@@ -257,7 +279,9 @@ contract CollateralAdditionFuzzTest is CollateralFuzzTestBase {
 
         vm.startPrank(adder);
         collateralManagement.addPegInCollateralTo{value: pegInAmount}(fuzzUser);
-        collateralManagement.addPegOutCollateralTo{value: pegOutAmount}(fuzzUser);
+        collateralManagement.addPegOutCollateralTo{value: pegOutAmount}(
+            fuzzUser
+        );
         vm.stopPrank();
 
         assertEq(
@@ -270,11 +294,16 @@ contract CollateralAdditionFuzzTest is CollateralFuzzTestBase {
     // ============ Registration Status Tests ============
 
     /// @notice Fuzz test: Adding collateral makes provider registered
-    function testFuzz_AddCollateral_MakesProviderRegistered(uint256 amount) public {
+    function testFuzz_AddCollateral_MakesProviderRegistered(
+        uint256 amount
+    ) public {
         amount = bound(amount, TEST_MIN_COLLATERAL, 50 ether);
 
         assertFalse(
-            collateralManagement.isRegistered(Flyover.ProviderType.PegIn, fuzzUser),
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.PegIn,
+                fuzzUser
+            ),
             "Should not be registered initially"
         );
 
@@ -282,17 +311,25 @@ contract CollateralAdditionFuzzTest is CollateralFuzzTestBase {
         collateralManagement.addPegInCollateralTo{value: amount}(fuzzUser);
 
         assertTrue(
-            collateralManagement.isRegistered(Flyover.ProviderType.PegIn, fuzzUser),
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.PegIn,
+                fuzzUser
+            ),
             "Should be registered after adding collateral"
         );
     }
 
     /// @notice Fuzz test: Adding sufficient collateral makes collateral sufficient
-    function testFuzz_AddCollateral_MakesCollateralSufficient(uint256 amount) public {
+    function testFuzz_AddCollateral_MakesCollateralSufficient(
+        uint256 amount
+    ) public {
         amount = bound(amount, TEST_MIN_COLLATERAL, 50 ether);
 
         assertFalse(
-            collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegIn, fuzzUser),
+            collateralManagement.isCollateralSufficient(
+                Flyover.ProviderType.PegIn,
+                fuzzUser
+            ),
             "Should not be sufficient initially"
         );
 
@@ -300,13 +337,18 @@ contract CollateralAdditionFuzzTest is CollateralFuzzTestBase {
         collateralManagement.addPegInCollateralTo{value: amount}(fuzzUser);
 
         assertTrue(
-            collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegIn, fuzzUser),
+            collateralManagement.isCollateralSufficient(
+                Flyover.ProviderType.PegIn,
+                fuzzUser
+            ),
             "Should be sufficient after adding >= min collateral"
         );
     }
 
     /// @notice Fuzz test: Adding less than minimum does not make collateral sufficient
-    function testFuzz_AddCollateral_BelowMinNotSufficient(uint256 amount) public {
+    function testFuzz_AddCollateral_BelowMinNotSufficient(
+        uint256 amount
+    ) public {
         amount = bound(amount, 1 wei, TEST_MIN_COLLATERAL - 1);
 
         vm.prank(adder);
@@ -314,13 +356,19 @@ contract CollateralAdditionFuzzTest is CollateralFuzzTestBase {
 
         // Is registered (has > 0 collateral)
         assertTrue(
-            collateralManagement.isRegistered(Flyover.ProviderType.PegIn, fuzzUser),
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.PegIn,
+                fuzzUser
+            ),
             "Should be registered with any collateral"
         );
 
         // But not sufficient
         assertFalse(
-            collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegIn, fuzzUser),
+            collateralManagement.isCollateralSufficient(
+                Flyover.ProviderType.PegIn,
+                fuzzUser
+            ),
             "Should not be sufficient with < min collateral"
         );
     }
@@ -332,7 +380,8 @@ contract CollateralAdditionFuzzTest is CollateralFuzzTestBase {
         amount = bound(amount, 1 wei, 10 ether);
 
         vm.prank(fuzzUser);
-        (bool success, bytes memory returnData) = address(collateralManagement).call{value: amount}("");
+        (bool success, bytes memory returnData) = address(collateralManagement)
+            .call{value: amount}("");
 
         // Low-level calls don't bubble up reverts - they return success=false
         assertFalse(success, "Direct ETH transfer should fail");

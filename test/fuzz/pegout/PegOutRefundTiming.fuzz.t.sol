@@ -25,7 +25,9 @@ contract PegOutRefundTimingFuzzTest is PegOutFuzzTestBase {
         uint32 transferTime,
         uint16 depositConfirmations
     ) public {
-        agreementTimestamp = uint32(bound(agreementTimestamp, 1000000, type(uint32).max - 1000000));
+        agreementTimestamp = uint32(
+            bound(agreementTimestamp, 1000000, type(uint32).max - 1000000)
+        );
         transferTime = uint32(bound(transferTime, 100, 100000));
         depositConfirmations = uint16(bound(depositConfirmations, 1, 100));
 
@@ -43,10 +45,15 @@ contract PegOutRefundTimingFuzzTest is PegOutFuzzTestBase {
         bytes memory signature = signFuzzQuote(pegOutLp, quoteHash);
 
         vm.prank(fuzzUser);
-        pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(quote, signature);
+        pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(
+            quote,
+            signature
+        );
 
         // Generate BTC tx with timestamp within acceptable window
-        uint32 onTimeBtcTimestamp = uint32(agreementTimestamp + transferTime + TEST_BTC_BLOCK_TIME - 100);
+        uint32 onTimeBtcTimestamp = uint32(
+            agreementTimestamp + transferTime + TEST_BTC_BLOCK_TIME - 100
+        );
         bytes memory btcTx = generateMockBtcTx(quote, quoteHash);
 
         // Setup bridge with on-time header
@@ -75,7 +82,9 @@ contract PegOutRefundTimingFuzzTest is PegOutFuzzTestBase {
         uint32 transferTime,
         uint32 lateness
     ) public {
-        agreementTimestamp = uint32(bound(agreementTimestamp, 1000000, type(uint32).max - 2000000));
+        agreementTimestamp = uint32(
+            bound(agreementTimestamp, 1000000, type(uint32).max - 2000000)
+        );
         transferTime = uint32(bound(transferTime, 1000, 50000));
         lateness = uint32(bound(lateness, 1, 10000));
 
@@ -92,16 +101,23 @@ contract PegOutRefundTimingFuzzTest is PegOutFuzzTestBase {
         bytes memory signature = signFuzzQuote(pegOutLp, quoteHash);
 
         vm.prank(fuzzUser);
-        pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(quote, signature);
+        pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(
+            quote,
+            signature
+        );
 
         // Generate BTC tx with late timestamp
-        uint32 lateBtcTimestamp = uint32(agreementTimestamp + transferTime + TEST_BTC_BLOCK_TIME + lateness);
+        uint32 lateBtcTimestamp = uint32(
+            agreementTimestamp + transferTime + TEST_BTC_BLOCK_TIME + lateness
+        );
         bytes memory btcTx = generateMockBtcTx(quote, quoteHash);
 
         // Setup bridge with late header
         bytes memory header = createBtcBlockHeader(lateBtcTimestamp);
         bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
-        bridgeMock.setConfirmations(int256(uint256(quote.transferConfirmations)));
+        bridgeMock.setConfirmations(
+            int256(uint256(quote.transferConfirmations))
+        );
 
         uint256 penalty = quote.penaltyFee;
         uint256 reward = (penalty * TEST_REWARD_PERCENTAGE) / 10000;
@@ -135,8 +151,16 @@ contract PegOutRefundTimingFuzzTest is PegOutFuzzTestBase {
         uint32 expireDate,
         uint32 lateness
     ) public {
-        agreementTimestamp = uint32(bound(agreementTimestamp, 1000000, type(uint32).max - 2000000));
-        expireDate = uint32(bound(expireDate, agreementTimestamp + 1000, agreementTimestamp + 100000));
+        agreementTimestamp = uint32(
+            bound(agreementTimestamp, 1000000, type(uint32).max - 2000000)
+        );
+        expireDate = uint32(
+            bound(
+                expireDate,
+                agreementTimestamp + 1000,
+                agreementTimestamp + 100000
+            )
+        );
         lateness = uint32(bound(lateness, 1, 10000));
 
         vm.warp(agreementTimestamp);
@@ -151,15 +175,22 @@ contract PegOutRefundTimingFuzzTest is PegOutFuzzTestBase {
         bytes memory signature = signFuzzQuote(pegOutLp, quoteHash);
 
         vm.prank(fuzzUser);
-        pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(quote, signature);
+        pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(
+            quote,
+            signature
+        );
 
         // Warp past expiration
         vm.warp(expireDate + lateness);
 
         bytes memory btcTx = generateMockBtcTx(quote, quoteHash);
-        bytes memory header = createBtcBlockHeader(uint32(expireDate + lateness));
+        bytes memory header = createBtcBlockHeader(
+            uint32(expireDate + lateness)
+        );
         bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
-        bridgeMock.setConfirmations(int256(uint256(quote.transferConfirmations)));
+        bridgeMock.setConfirmations(
+            int256(uint256(quote.transferConfirmations))
+        );
 
         uint256 penalty = quote.penaltyFee;
         uint256 reward = (penalty * TEST_REWARD_PERCENTAGE) / 10000;
@@ -197,8 +228,12 @@ contract PegOutRefundTimingFuzzTest is PegOutFuzzTestBase {
         uint32 expireBlock,
         uint16 lateBlocks
     ) public {
-        currentBlock = uint32(bound(currentBlock, 1000, type(uint32).max - 100000));
-        expireBlock = uint32(bound(expireBlock, currentBlock + 10, currentBlock + 10000));
+        currentBlock = uint32(
+            bound(currentBlock, 1000, type(uint32).max - 100000)
+        );
+        expireBlock = uint32(
+            bound(expireBlock, currentBlock + 10, currentBlock + 10000)
+        );
         lateBlocks = uint16(bound(lateBlocks, 1, 1000));
 
         vm.roll(currentBlock);
@@ -212,15 +247,22 @@ contract PegOutRefundTimingFuzzTest is PegOutFuzzTestBase {
         bytes memory signature = signFuzzQuote(pegOutLp, quoteHash);
 
         vm.prank(fuzzUser);
-        pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(quote, signature);
+        pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(
+            quote,
+            signature
+        );
 
         // Roll past expiration
         vm.roll(expireBlock + lateBlocks);
 
         bytes memory btcTx = generateMockBtcTx(quote, quoteHash);
-        bytes memory header = createBtcBlockHeader(uint32(block.timestamp + 100));
+        bytes memory header = createBtcBlockHeader(
+            uint32(block.timestamp + 100)
+        );
         bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
-        bridgeMock.setConfirmations(int256(uint256(quote.transferConfirmations)));
+        bridgeMock.setConfirmations(
+            int256(uint256(quote.transferConfirmations))
+        );
 
         uint256 penalty = quote.penaltyFee;
         uint256 reward = (penalty * TEST_REWARD_PERCENTAGE) / 10000;
@@ -256,8 +298,16 @@ contract PegOutRefundTimingFuzzTest is PegOutFuzzTestBase {
         uint32 agreementTimestamp,
         uint32 expireDate
     ) public {
-        agreementTimestamp = uint32(bound(agreementTimestamp, 1000000, type(uint32).max - 200000));
-        expireDate = uint32(bound(expireDate, agreementTimestamp + 1000, agreementTimestamp + 100000));
+        agreementTimestamp = uint32(
+            bound(agreementTimestamp, 1000000, type(uint32).max - 200000)
+        );
+        expireDate = uint32(
+            bound(
+                expireDate,
+                agreementTimestamp + 1000,
+                agreementTimestamp + 100000
+            )
+        );
 
         vm.warp(agreementTimestamp);
 
@@ -271,7 +321,10 @@ contract PegOutRefundTimingFuzzTest is PegOutFuzzTestBase {
         bytes memory signature = signFuzzQuote(pegOutLp, quoteHash);
 
         vm.prank(fuzzUser);
-        pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(quote, signature);
+        pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(
+            quote,
+            signature
+        );
 
         // Warp to exactly expireDate
         vm.warp(expireDate);
@@ -279,7 +332,9 @@ contract PegOutRefundTimingFuzzTest is PegOutFuzzTestBase {
         bytes memory btcTx = generateMockBtcTx(quote, quoteHash);
         bytes memory header = createBtcBlockHeader(uint32(expireDate));
         bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
-        bridgeMock.setConfirmations(int256(uint256(quote.transferConfirmations)));
+        bridgeMock.setConfirmations(
+            int256(uint256(quote.transferConfirmations))
+        );
 
         // Should succeed without penalty (boundary condition)
         vm.prank(pegOutLp);
@@ -316,19 +371,27 @@ contract PegOutRefundTimingFuzzTest is PegOutFuzzTestBase {
         bytes memory signature = signFuzzQuote(pegOutLp, quoteHash);
 
         vm.prank(fuzzUser);
-        pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(quote, signature);
+        pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(
+            quote,
+            signature
+        );
 
         // Make it late
         vm.warp(quote.expireDate + 1);
 
         bytes memory btcTx = generateMockBtcTx(quote, quoteHash);
-        bytes memory header = createBtcBlockHeader(uint32(quote.expireDate + 1));
+        bytes memory header = createBtcBlockHeader(
+            uint32(quote.expireDate + 1)
+        );
         bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
-        bridgeMock.setConfirmations(int256(uint256(quote.transferConfirmations)));
+        bridgeMock.setConfirmations(
+            int256(uint256(quote.transferConfirmations))
+        );
 
         // Calculate expected penalty and reward amounts
         uint256 expectedPenalty = quote.penaltyFee;
-        uint256 expectedReward = (expectedPenalty * TEST_REWARD_PERCENTAGE) / 10000;
+        uint256 expectedReward = (expectedPenalty * TEST_REWARD_PERCENTAGE) /
+            10000;
 
         vm.prank(pegOutLp);
 
@@ -374,10 +437,15 @@ contract PegOutRefundTimingFuzzTest is PegOutFuzzTestBase {
         bytes memory signature = signFuzzQuote(pegOutLp, quoteHash);
 
         vm.prank(fuzzUser);
-        pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(quote, signature);
+        pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(
+            quote,
+            signature
+        );
 
         bytes memory btcTx = generateMockBtcTx(quote, quoteHash);
-        bytes memory header = createBtcBlockHeader(uint32(block.timestamp + 100));
+        bytes memory header = createBtcBlockHeader(
+            uint32(block.timestamp + 100)
+        );
         bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
         bridgeMock.setConfirmations(int256(uint256(actualConfirmations)));
 
@@ -415,10 +483,15 @@ contract PegOutRefundTimingFuzzTest is PegOutFuzzTestBase {
         bytes memory signature = signFuzzQuote(pegOutLp, quoteHash);
 
         vm.prank(fuzzUser);
-        pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(quote, signature);
+        pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(
+            quote,
+            signature
+        );
 
         bytes memory btcTx = generateMockBtcTx(quote, quoteHash);
-        bytes memory header = createBtcBlockHeader(uint32(block.timestamp + 100));
+        bytes memory header = createBtcBlockHeader(
+            uint32(block.timestamp + 100)
+        );
         bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
         bridgeMock.setConfirmations(int256(uint256(actualConfirmations)));
 
