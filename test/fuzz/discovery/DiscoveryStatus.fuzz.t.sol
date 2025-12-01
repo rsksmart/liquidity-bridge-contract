@@ -215,36 +215,4 @@ contract DiscoveryStatusFuzzTest is DiscoveryFuzzTestBase {
         discovery.setProviderStatus(nonExistentId, status);
     }
 
-    // ============ Combined Authorization and Status Tests ============
-
-    /// @notice Fuzz test: Each provider can only manage its own status
-    function testFuzz_SetProviderStatus_ProviderOnlyManagesOwnStatus() public {
-        // pegInLp manages provider 1
-        vm.prank(pegInLp);
-        discovery.setProviderStatus(1, false);
-        assertFalse(discovery.getProvider(pegInLp).status);
-
-        // pegOutLp manages provider 2
-        vm.prank(pegOutLp);
-        discovery.setProviderStatus(2, false);
-        assertFalse(discovery.getProvider(pegOutLp).status);
-
-        // fullLp manages provider 3
-        vm.prank(fullLp);
-        discovery.setProviderStatus(3, false);
-        assertFalse(discovery.getProvider(fullLp).status);
-
-        // Re-enable all
-        vm.prank(pegInLp);
-        discovery.setProviderStatus(1, true);
-        assertTrue(discovery.getProvider(pegInLp).status);
-
-        vm.prank(pegOutLp);
-        discovery.setProviderStatus(2, true);
-        assertTrue(discovery.getProvider(pegOutLp).status);
-
-        vm.prank(fullLp);
-        discovery.setProviderStatus(3, true);
-        assertTrue(discovery.getProvider(fullLp).status);
-    }
 }

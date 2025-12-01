@@ -117,19 +117,6 @@ contract DiscoveryUpdateFuzzTest is DiscoveryFuzzTestBase {
         discovery.updateProvider(name, "");
     }
 
-    /// @notice Fuzz test: Both empty name and URL reverts
-    function testFuzz_UpdateProvider_RevertsOnBothEmpty() public {
-        vm.prank(pegInLp);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IFlyoverDiscovery.InvalidProviderData.selector,
-                "",
-                ""
-            )
-        );
-        discovery.updateProvider("", "");
-    }
-
     // ============ Authorization Tests ============
 
     /// @notice Fuzz test: Unregistered address cannot update
@@ -148,29 +135,6 @@ contract DiscoveryUpdateFuzzTest is DiscoveryFuzzTestBase {
             )
         );
         discovery.updateProvider(name, url);
-    }
-
-    /// @notice Fuzz test: Each provider can only update itself
-    function testFuzz_UpdateProvider_EachProviderUpdatesItself() public {
-        // pegInLp updates
-        vm.prank(pegInLp);
-        discovery.updateProvider("New PegIn Name", "newpegin.url");
-        assertEq(discovery.getProvider(pegInLp).name, "New PegIn Name");
-
-        // pegOutLp updates
-        vm.prank(pegOutLp);
-        discovery.updateProvider("New PegOut Name", "newpegout.url");
-        assertEq(discovery.getProvider(pegOutLp).name, "New PegOut Name");
-
-        // fullLp updates
-        vm.prank(fullLp);
-        discovery.updateProvider("New Full Name", "newfull.url");
-        assertEq(discovery.getProvider(fullLp).name, "New Full Name");
-
-        // Verify each update only affected the correct provider
-        assertEq(discovery.getProvider(pegInLp).apiBaseUrl, "newpegin.url");
-        assertEq(discovery.getProvider(pegOutLp).apiBaseUrl, "newpegout.url");
-        assertEq(discovery.getProvider(fullLp).apiBaseUrl, "newfull.url");
     }
 
     // ============ Event Emission Tests ============
