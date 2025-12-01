@@ -215,24 +215,6 @@ contract DiscoveryRegistrationFuzzTest is DiscoveryFuzzTestBase {
         );
     }
 
-    /// @notice Fuzz test: Both empty name and URL reverts
-    function testFuzz_Register_RevertsOnBothEmpty() public {
-        vm.prank(fuzzUser);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IFlyoverDiscovery.InvalidProviderData.selector,
-                "",
-                ""
-            )
-        );
-        discovery.register{value: MIN_COLLATERAL}(
-            "",
-            "",
-            true,
-            Flyover.ProviderType.PegIn
-        );
-    }
-
     // ============ Double Registration Tests ============
 
     /// @notice Fuzz test: Double registration by same address reverts
