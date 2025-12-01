@@ -170,7 +170,14 @@ help:
 	@echo "  test-file         - Run a specific test file"
 	@echo "  test-func         - Run a specific test function"
 	@echo "  coverage          - Run tests with coverage"
-	@echo "  gas-report        - Generate gas report"
+	@echo ""
+	@echo "Fuzz Tests:"
+	@echo "  test-fuzz             - Run all fuzz tests"
+	@echo "  test-fuzz-collateral  - Run collateral fuzz tests"
+	@echo "  test-fuzz-discovery   - Run discovery fuzz tests"
+	@echo "  test-fuzz-pegin       - Run pegin fuzz tests"
+	@echo "  test-fuzz-pegout      - Run pegout fuzz tests"
+	@echo "  test-fuzz-libraries   - Run libraries fuzz tests"
 	@echo ""
 	@echo "Deployment examples:"
 	@echo "  make deploy-flyover-fork NETWORK=testnet               # Deploy full Flyover system (simulation)"
@@ -777,6 +784,44 @@ test-func:
 coverage:
 	@echo "Running tests with coverage..."
 	forge coverage
+
+# ============ Fuzz Tests ============
+
+# Run all fuzz tests
+.PHONY: test-fuzz
+test-fuzz:
+	@echo "Running all fuzz tests..."
+	forge test --match-path "test/fuzz/**/*.sol" -vv
+
+# Run collateral fuzz tests
+.PHONY: test-fuzz-collateral
+test-fuzz-collateral:
+	@echo "Running collateral fuzz tests..."
+	forge test --match-path "test/fuzz/collateral/*.sol" -vv
+
+# Run discovery fuzz tests
+.PHONY: test-fuzz-discovery
+test-fuzz-discovery:
+	@echo "Running discovery fuzz tests..."
+	forge test --match-path "test/fuzz/discovery/*.sol" -vv
+
+# Run pegin fuzz tests
+.PHONY: test-fuzz-pegin
+test-fuzz-pegin:
+	@echo "Running pegin fuzz tests..."
+	forge test --match-path "test/fuzz/pegin/*.sol" -vv
+
+# Run pegout fuzz tests
+.PHONY: test-fuzz-pegout
+test-fuzz-pegout:
+	@echo "Running pegout fuzz tests..."
+	forge test --match-path "test/fuzz/pegout/*.sol" -vv
+
+# Run libraries fuzz tests
+.PHONY: test-fuzz-libraries
+test-fuzz-libraries:
+	@echo "Running libraries fuzz tests..."
+	forge test --match-path "test/fuzz/libraries/*.sol" -vv
 
 # Clean build artifacts
 .PHONY: clean
