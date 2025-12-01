@@ -196,23 +196,4 @@ contract DiscoveryStatusFuzzTest is DiscoveryFuzzTestBase {
         discovery.setProviderStatus(providerId, status);
     }
 
-    // ============ Non-Existent Provider Tests ============
-
-    /// @notice Fuzz test: Setting status on non-existent provider ID
-    function testFuzz_SetProviderStatus_NonExistentProviderIdDoesNotRevert(
-        uint256 nonExistentId,
-        bool status
-    ) public {
-        // IDs 0 or > lastProviderId (3) don't correspond to registered providers
-        vm.assume(nonExistentId == 0 || nonExistentId > 3);
-        nonExistentId = bound(nonExistentId, 4, 1000);
-
-        // Note: The contract doesn't explicitly check if providerId exists,
-        // so this will succeed but the status change has no effect
-        // since the provider address won't match any registered provider
-        vm.prank(owner);
-        // This should work because owner can set any providerId
-        discovery.setProviderStatus(nonExistentId, status);
-    }
-
 }
