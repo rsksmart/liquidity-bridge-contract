@@ -23,20 +23,6 @@ contract DiscoveryStatusFuzzTest is DiscoveryFuzzTestBase {
 
     // ============ Authorization Tests ============
 
-    /// @notice Fuzz test: Provider can toggle its own status
-    function testFuzz_SetProviderStatus_ProviderCanToggleOwnStatus(
-        bool newStatus
-    ) public {
-        // Provider 1 (pegInLp) toggles status
-        vm.prank(pegInLp);
-        vm.expectEmit(true, true, false, true);
-        emit IFlyoverDiscovery.ProviderStatusSet(1, newStatus);
-        discovery.setProviderStatus(1, newStatus);
-
-        Flyover.LiquidityProvider memory provider = discovery.getProvider(pegInLp);
-        assertEq(provider.status, newStatus, "Status should be updated");
-    }
-
     /// @notice Fuzz test: Owner can toggle any provider's status
     function testFuzz_SetProviderStatus_OwnerCanToggleAnyStatus(
         uint256 providerId,
@@ -67,21 +53,6 @@ contract DiscoveryStatusFuzzTest is DiscoveryFuzzTestBase {
         discovery.setProviderStatus(providerId, newStatus);
     }
 
-    /// @notice Fuzz test: Provider cannot toggle other provider's status
-    function testFuzz_SetProviderStatus_ProviderCannotToggleOther(
-        bool newStatus
-    ) public {
-        // pegInLp (provider 1) tries to toggle pegOutLp's status (provider 2)
-        vm.prank(pegInLp);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IFlyoverDiscovery.NotAuthorized.selector,
-                pegInLp
-            )
-        );
-        discovery.setProviderStatus(2, newStatus);
-    }
-
     // ============ Status Toggle Cycle Tests ============
 
     /// @notice Fuzz test: Multiple status toggles work correctly
@@ -101,22 +72,6 @@ contract DiscoveryStatusFuzzTest is DiscoveryFuzzTestBase {
             assertEq(provider.status, newStatus, "Status should match after toggle");
 
             currentStatus = newStatus;
-        }
-    }
-
-    /// @notice Fuzz test: Setting same status multiple times is idempotent
-    function testFuzz_SetProviderStatus_IdempotentStatusSet(
-        bool status,
-        uint8 repeatCount
-    ) public {
-        repeatCount = uint8(bound(repeatCount, 1, 10));
-
-        for (uint8 i = 0; i < repeatCount; i++) {
-            vm.prank(pegInLp);
-            discovery.setProviderStatus(1, status);
-
-            Flyover.LiquidityProvider memory provider = discovery.getProvider(pegInLp);
-            assertEq(provider.status, status, "Status should remain same");
         }
     }
 

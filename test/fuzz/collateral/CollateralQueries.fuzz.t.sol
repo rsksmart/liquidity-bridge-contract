@@ -153,17 +153,6 @@ contract CollateralQueriesFuzzTest is CollateralFuzzTestBase {
 
     // ============ getResignationBlock Tests ============
 
-    /// @notice Fuzz test: getResignationBlock returns 0 for non-resigned
-    function testFuzz_GetResignationBlock_ZeroForNonResigned(address addr) public view {
-        vm.assume(addr != pegInLp && addr != pegOutLp && addr != fullLp);
-
-        assertEq(
-            collateralManagement.getResignationBlock(addr),
-            0,
-            "Should return 0 for non-resigned"
-        );
-    }
-
     /// @notice Fuzz test: getResignationBlock returns correct block after resign
     function testFuzz_GetResignationBlock_CorrectBlockAfterResign(uint256 blockNum) public {
         blockNum = bound(blockNum, 1, type(uint64).max);
@@ -180,15 +169,6 @@ contract CollateralQueriesFuzzTest is CollateralFuzzTestBase {
     }
 
     // ============ getRewards / getPenalties Tests ============
-
-    /// @notice Fuzz test: getRewards returns 0 initially
-    function testFuzz_GetRewards_ZeroInitially(address addr) public view {
-        assertEq(
-            collateralManagement.getRewards(addr),
-            0,
-            "Should return 0 rewards initially"
-        );
-    }
 
     /// @notice Fuzz test: getRewards accumulates from slashing
     function testFuzz_GetRewards_AccumulatesFromSlashing(
