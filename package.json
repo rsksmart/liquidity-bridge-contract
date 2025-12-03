@@ -33,7 +33,7 @@
     "@nomicfoundation/hardhat-ethers": "^3.0.8",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@openzeppelin/hardhat-upgrades": "^3.6.0",
-    "@rsksmart/pmt-builder": "^3.0.0",
+    "@rsksmart/pmt-builder": "^3.0.1",
     "bech32": "^2.0.0",
     "bitcoinjs-lib": "^6.0.1",
     "bs58": "^6.0.0",
