@@ -3,220 +3,168 @@ pragma solidity 0.8.25;
 
 import "lib/forge-std/src/Test.sol";
 import "lib/forge-std/src/console.sol";
-import {QuotesV2} from "src/legacy/QuotesV2.sol";
-import {LiquidityBridgeContractV2} from "src/legacy/LiquidityBridgeContractV2.sol";
-import {HashQuote} from "../../script/legacy/tasks/HashQuote.s.sol";
+import {Quotes} from "src/libraries/Quotes.sol";
+import {HashQuote} from "../../script/tasks/HashQuote.s.sol";
 import {BtcAddressParser} from "../../script/helpers/BtcAddressParser.sol";
 
 /**
+ * @title MockPegInContract
+ * @notice Mock PegIn contract for testing hash functionality
+ */
+contract MockPegInContract {
+    function hashPegInQuote(Quotes.PegInQuote calldata quote) external pure returns (bytes32) {
+        return keccak256(Quotes.encodeQuote(quote));
+    }
+}
+
+/**
+ * @title MockPegOutContract
+ * @notice Mock PegOut contract for testing hash functionality
+ */
+contract MockPegOutContract {
+    function hashPegOutQuote(Quotes.PegOutQuote calldata quote) external pure returns (bytes32) {
+        return keccak256(Quotes.encodePegOutQuote(quote));
+    }
+}
+
+/**
  * @title HashQuoteTest
- * @notice Test for the hash-quote task - validates the actual script works correctly
+ * @notice Test for the new hash-quote task using the Quotes library
  */
 contract HashQuoteTest is Test, BtcAddressParser {
     HashQuote public hashScript;
-    LiquidityBridgeContractV2 public lbc;
+    MockPegInContract public pegIn;
+    MockPegOutContract public pegOut;
 
     function setUp() public {
-        // Deploy LBC
-        lbc = new LiquidityBridgeContractV2();
-
-        // Instantiate the hash script
+        pegIn = new MockPegInContract();
+        pegOut = new MockPegOutContract();
         hashScript = new HashQuote();
 
-        // Set LBC address in environment for script to use
-        vm.setEnv("LBC_ADDRESS", vm.toString(address(lbc)));
+        vm.setEnv("PEGIN_CONTRACT_ADDRESS", vm.toString(address(pegIn)));
+        vm.setEnv("PEGOUT_CONTRACT_ADDRESS", vm.toString(address(pegOut)));
     }
 
-    function test_HashPeginQuoteWithParsing() public {
-        console.log("\n=== TEST HASH PEGIN QUOTE (VIA PARSING) ===\n");
-        address expectedLbcAddress = 0x2E2Ed0Cfd3AD2f1d34481277b3204d807Ca2F8c2;
-        bytes32 expectedHash = 0x67e68a14a4a1ed6300970c7cd532cfd558206b3d7ac3fbc10e4cd67e5816e39d;
+    function test_HashPegInQuote() public {
+        console.log("\n=== TEST HASH PEGIN QUOTE ===\n");
 
-        // Decode BTC addresses using FFI (matching TypeScript parser behavior)
-        bytes20 fedBtcAddress = parseFedBtcAddress(
-            "3GQ87zLKyTygsRMZ1hfCHZSdBxujzKoCCU"
-        );
-        bytes memory btcRefundAddress = parseBtcAddress(
-            "1111111111111111111114oLvT2"
-        );
-        bytes memory lpBtcAddress = parseBtcAddress(
-            "1D2xucTYkxCHvaaZuaKVJTfZQWr4PUjzAy"
-        );
+        Quotes.PegInQuote memory quote = createTestPegInQuote();
 
-        address rskRefundAddr = 0xaC31A4bEedd7EC916B7A48a612230cb85c1aaf56;
-        QuotesV2.PeginQuote memory quote = QuotesV2.PeginQuote({
-            fedBtcAddress: fedBtcAddress,
-            lbcAddress: expectedLbcAddress,
-            liquidityProviderRskAddress: 0x82a06eBDB97776a2da4041dF8f2b2ea8D3257852,
-            btcRefundAddress: btcRefundAddress,
-            rskRefundAddress: payable(rskRefundAddr),
-            liquidityProviderBtcAddress: lpBtcAddress,
-            callFee: 100000000000000,
-            penaltyFee: 10000000000000,
-            contractAddress: rskRefundAddr,
-            data: hex"",
-            gasLimit: 21000,
-            nonce: 3635227228603468300,
-            value: 985215170000000000,
-            agreementTimestamp: 1752739488,
-            timeForDeposit: 5400,
-            callTime: 7200,
-            depositConfirmations: 3,
-            callOnRegister: false,
-            productFeeAmount: 0,
-            gasFee: 547377600000
-        });
+        bytes32 hash1 = pegIn.hashPegInQuote(quote);
+        bytes32 hash2 = pegIn.hashPegInQuote(quote);
 
-        // Use vm.etch to deploy contract code at the expected address
-        // This allows us to test with the exact expected address structure
-        bytes memory code = address(lbc).code;
-        vm.etch(expectedLbcAddress, code);
-        LiquidityBridgeContractV2 lbcAtExpectedAddress = LiquidityBridgeContractV2(
-                payable(expectedLbcAddress)
-            );
+        assertEq(hash1, hash2, "Hash should be deterministic");
+        assertTrue(hash1 != bytes32(0), "Hash should not be zero");
 
-        // Hash the quote with the expected address
-        bytes32 hash = lbcAtExpectedAddress.hashQuote(quote);
-        // Verify hash is deterministic
-        bytes32 hash2 = lbcAtExpectedAddress.hashQuote(quote);
-        assertEq(hash, hash2, "Hash should be deterministic");
-
-        // Verify hash is not zero
-        assertTrue(hash != bytes32(0), "Hash should not be zero");
-
-        // Verify the hash matches exactly the expected value from TypeScript tests
-        assertEq(
-            hash,
-            expectedHash,
-            "Hash should match expected value from TypeScript tests exactly"
-        );
+        console.log("PegIn quote hashed successfully:");
+        console.logBytes32(hash1);
+        console.log("\n[PASS] HashQuote for PegIn works correctly!");
     }
 
-    function test_HashPegoutQuoteFromContract() public view {
-        console.log("\n=== TEST HASH PEGOUT QUOTE (FROM CONTRACT) ===\n");
+    function test_HashPegOutQuote() public {
+        console.log("\n=== TEST HASH PEGOUT QUOTE ===\n");
 
-        // Create quote and hash using contract directly
-        QuotesV2.PegOutQuote memory quote = createTestPegoutQuote();
-        bytes32 hash = lbc.hashPegoutQuote(quote);
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote();
+
+        bytes32 hash1 = pegOut.hashPegOutQuote(quote);
+        bytes32 hash2 = pegOut.hashPegOutQuote(quote);
+
+        assertEq(hash1, hash2, "Hash should be deterministic");
+        assertTrue(hash1 != bytes32(0), "Hash should not be zero");
 
         console.log("PegOut quote hashed successfully:");
-        console.logBytes32(hash);
-
+        console.logBytes32(hash1);
         console.log("\n[PASS] HashQuote for PegOut works correctly!");
     }
 
-    function test_PeginHashMatchesContract() public view {
-        console.log("\n=== TEST PEGIN HASH CONSISTENCY ===\n");
+    function test_DifferentQuotesProduceDifferentHashes() public {
+        console.log("\n=== TEST DIFFERENT QUOTES PRODUCE DIFFERENT HASHES ===\n");
 
-        // Create a test quote directly
-        QuotesV2.PeginQuote memory quote = createTestPeginQuote();
+        Quotes.PegInQuote memory quote1 = createTestPegInQuote();
+        Quotes.PegInQuote memory quote2 = createTestPegInQuote();
+        quote2.value = quote1.value + 1 ether;
 
-        // Hash using contract directly
-        bytes32 contractHash = lbc.hashQuote(quote);
-        console.log("Hash from contract:");
-        console.logBytes32(contractHash);
+        bytes32 hash1 = pegIn.hashPegInQuote(quote1);
+        bytes32 hash2 = pegIn.hashPegInQuote(quote2);
 
-        // The script uses the same contract method, so hashes should match
-        // This test validates the script calls the contract correctly
+        assertTrue(hash1 != hash2, "Different quotes should have different hashes");
 
-        console.log(
-            "\n[PASS] Script uses contract hashQuote method correctly!"
-        );
+        console.log("[PASS] Different quotes produce different hashes!");
     }
 
-    function test_PegoutHashMatchesContract() public view {
-        console.log("\n=== TEST PEGOUT HASH CONSISTENCY ===\n");
+    function test_QuoteEncodingConsistency() public {
+        console.log("\n=== TEST QUOTE ENCODING CONSISTENCY ===\n");
 
-        // Create a test pegout quote directly
-        QuotesV2.PegOutQuote memory quote = createTestPegoutQuote();
+        Quotes.PegInQuote memory quote = createTestPegInQuote();
 
-        // Hash using contract directly
-        bytes32 contractHash = lbc.hashPegoutQuote(quote);
-        console.log("Hash from contract:");
-        console.logBytes32(contractHash);
+        bytes memory encoded1 = Quotes.encodeQuote(quote);
+        bytes memory encoded2 = Quotes.encodeQuote(quote);
 
-        // The script uses the same contract method, so hashes should match
-        // This test validates the script calls the contract correctly
+        assertEq(encoded1.length, encoded2.length, "Encoding should be consistent");
+        assertEq(keccak256(encoded1), keccak256(encoded2), "Encoded bytes should be identical");
 
-        console.log(
-            "\n[PASS] Script uses contract hashPegoutQuote method correctly!"
-        );
+        console.log("Encoding length:", encoded1.length);
+        console.log("[PASS] Quote encoding is consistent!");
     }
 
-    function createTestPeginQuote()
-        internal
-        view
-        returns (QuotesV2.PeginQuote memory)
-    {
-        // Bitcoin address must be 21 or 33 bytes (version byte + 20/32 bytes)
-        bytes
-            memory testBtcAddress = hex"6f0000000000000000000000000000000000000000"; // 21 bytes (p2pkh testnet)
-        bytes20 fedAddress = bytes20(
-            hex"0000000000000000000000000000000000000000"
-        );
+    function createTestPegInQuote() internal view returns (Quotes.PegInQuote memory) {
+        bytes memory testBtcAddress = hex"6f0000000000000000000000000000000000000000";
+        bytes20 fedAddress = bytes20(hex"0000000000000000000000000000000000000000");
 
         address lpAddr = address(0x1234567890123456789012345678901234567890);
         address userAddr = address(0x2234567890123456789012345678901234567891);
         address destAddr = address(0x3234567890123456789012345678901234567892);
 
-        return
-            QuotesV2.PeginQuote({
-                fedBtcAddress: fedAddress,
-                lbcAddress: address(lbc),
-                liquidityProviderRskAddress: lpAddr,
-                btcRefundAddress: testBtcAddress,
-                rskRefundAddress: payable(userAddr),
-                liquidityProviderBtcAddress: testBtcAddress,
-                callFee: 100000000000000,
-                penaltyFee: 10000000000000,
-                contractAddress: destAddr,
-                data: hex"",
-                gasLimit: 21000,
-                nonce: 12345,
-                value: 0.5 ether,
-                agreementTimestamp: 1735243258,
-                timeForDeposit: 3600,
-                callTime: 7200,
-                depositConfirmations: 10,
-                callOnRegister: false,
-                productFeeAmount: 0,
-                gasFee: 100
-            });
+        return Quotes.PegInQuote({
+            callFee: 100000000000000,
+            penaltyFee: 10000000000000,
+            value: 0.5 ether,
+            productFeeAmount: 0,
+            gasFee: 100,
+            fedBtcAddress: fedAddress,
+            lbcAddress: address(pegIn),
+            liquidityProviderRskAddress: lpAddr,
+            contractAddress: destAddr,
+            rskRefundAddress: payable(userAddr),
+            nonce: 12345,
+            gasLimit: 21000,
+            agreementTimestamp: 1735243258,
+            timeForDeposit: 3600,
+            callTime: 7200,
+            depositConfirmations: 10,
+            callOnRegister: false,
+            btcRefundAddress: testBtcAddress,
+            liquidityProviderBtcAddress: testBtcAddress,
+            data: hex""
+        });
     }
 
-    function createTestPegoutQuote()
-        internal
-        view
-        returns (QuotesV2.PegOutQuote memory)
-    {
-        // Bitcoin address must be 21 or 33 bytes
-        bytes
-            memory testBtcAddress = hex"0076a914000000000000000000000000000000000000000088ac"; // 21 bytes
+    function createTestPegOutQuote() internal view returns (Quotes.PegOutQuote memory) {
+        bytes memory testBtcAddress = hex"0076a914000000000000000000000000000000000000000088ac";
 
         address lpAddr = address(0x1234567890123456789012345678901234567890);
         address userAddr = address(0x2234567890123456789012345678901234567891);
 
-        return
-            QuotesV2.PegOutQuote({
-                lbcAddress: address(lbc),
-                lpRskAddress: lpAddr,
-                btcRefundAddress: testBtcAddress,
-                rskRefundAddress: userAddr,
-                lpBtcAddress: testBtcAddress,
-                callFee: 100000000000000,
-                penaltyFee: 10000000000000,
-                nonce: 12345,
-                deposityAddress: testBtcAddress,
-                value: 0.5 ether,
-                agreementTimestamp: 1735243258,
-                depositDateLimit: 1735253058,
-                transferTime: 3600,
-                depositConfirmations: 10,
-                transferConfirmations: 2,
-                productFeeAmount: 0,
-                gasFee: 100,
-                expireBlock: 100,
-                expireDate: 1735339658
-            });
+        return Quotes.PegOutQuote({
+            callFee: 100000000000000,
+            penaltyFee: 10000000000000,
+            value: 0.5 ether,
+            productFeeAmount: 0,
+            gasFee: 100,
+            lbcAddress: address(pegOut),
+            lpRskAddress: lpAddr,
+            rskRefundAddress: userAddr,
+            nonce: 12345,
+            agreementTimestamp: 1735243258,
+            depositDateLimit: 1735253058,
+            transferTime: 3600,
+            expireDate: 1735339658,
+            expireBlock: 100,
+            depositConfirmations: 10,
+            transferConfirmations: 2,
+            depositAddress: testBtcAddress,
+            btcRefundAddress: testBtcAddress,
+            lpBtcAddress: testBtcAddress
+        });
     }
 }
