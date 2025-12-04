@@ -30,10 +30,14 @@ contract DeployPegOutTest is Test {
 
         // Deploy CollateralManagement first (dependency)
         HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
-        DeployCollateralManagement.DeploymentResult memory cmResult = deployCMScript.deploy(address(this), cfg);
+        DeployCollateralManagement.DeploymentResult
+            memory cmResult = deployCMScript.deploy(address(this), cfg);
         collateralManagementProxy = cmResult.proxy;
 
-        console.log("Setup: CollateralManagement deployed at:", collateralManagementProxy);
+        console.log(
+            "Setup: CollateralManagement deployed at:",
+            collateralManagementProxy
+        );
     }
 
     function test_DeploymentFlow() public {
@@ -77,14 +81,24 @@ contract DeployPegOutTest is Test {
         console.log("\n5. Verifying deployment...");
         PegOutContract pegOut = PegOutContract(payable(address(proxy)));
 
-        assertEq(pegOut.dustThreshold(), cfg.dustThreshold, "Dust threshold mismatch");
-        assertEq(pegOut.btcBlockTime(), cfg.btcBlockTime, "BTC block time mismatch");
+        assertEq(
+            pegOut.dustThreshold(),
+            cfg.dustThreshold,
+            "Dust threshold mismatch"
+        );
+        assertEq(
+            pegOut.btcBlockTime(),
+            cfg.btcBlockTime,
+            "BTC block time mismatch"
+        );
 
         console.log("   Dust Threshold:", pegOut.dustThreshold());
         console.log("   BTC Block Time:", pegOut.btcBlockTime());
         console.log("   Version:", pegOut.VERSION());
 
-        console.log("\n[PASS] PegOutContract deployment flow executed successfully!");
+        console.log(
+            "\n[PASS] PegOutContract deployment flow executed successfully!"
+        );
     }
 
     function test_DeployUsingScript() public {
@@ -104,13 +118,20 @@ contract DeployPegOutTest is Test {
         console.log("  Proxy:", result.proxy);
         console.log("  Admin:", result.admin);
 
-        assertTrue(result.implementation != address(0), "Implementation should not be zero");
+        assertTrue(
+            result.implementation != address(0),
+            "Implementation should not be zero"
+        );
         assertTrue(result.proxy != address(0), "Proxy should not be zero");
         assertTrue(result.admin != address(0), "Admin should not be zero");
 
         // Verify contract is initialized
         PegOutContract pegOut = PegOutContract(payable(result.proxy));
-        assertEq(pegOut.btcBlockTime(), cfg.btcBlockTime, "BTC block time mismatch");
+        assertEq(
+            pegOut.btcBlockTime(),
+            cfg.btcBlockTime,
+            "BTC block time mismatch"
+        );
 
         console.log("\n[PASS] DeployPegOut script works correctly!");
     }
@@ -129,14 +150,19 @@ contract DeployPegOutTest is Test {
         );
 
         PegOutContract pegOut = PegOutContract(payable(poResult.proxy));
-        CollateralManagementContract cm = CollateralManagementContract(payable(collateralManagementProxy));
+        CollateralManagementContract cm = CollateralManagementContract(
+            payable(collateralManagementProxy)
+        );
 
         // Grant COLLATERAL_SLASHER role to PegOut
         bytes32 collateralSlasherRole = cm.COLLATERAL_SLASHER();
         cm.grantRole(collateralSlasherRole, poResult.proxy);
 
         console.log("Granted COLLATERAL_SLASHER to PegOutContract");
-        assertTrue(cm.hasRole(collateralSlasherRole, poResult.proxy), "PegOut should have COLLATERAL_SLASHER");
+        assertTrue(
+            cm.hasRole(collateralSlasherRole, poResult.proxy),
+            "PegOut should have COLLATERAL_SLASHER"
+        );
 
         console.log("\n[PASS] Integration with CollateralManagement verified!");
     }
@@ -157,7 +183,10 @@ contract DeployPegOutTest is Test {
 
         // Check deployer has DEFAULT_ADMIN_ROLE
         bytes32 defaultAdminRole = pegOut.DEFAULT_ADMIN_ROLE();
-        assertTrue(pegOut.hasRole(defaultAdminRole, deployer), "Deployer should have DEFAULT_ADMIN_ROLE");
+        assertTrue(
+            pegOut.hasRole(defaultAdminRole, deployer),
+            "Deployer should have DEFAULT_ADMIN_ROLE"
+        );
 
         console.log("  Deployer has DEFAULT_ADMIN_ROLE: true");
 
@@ -181,8 +210,16 @@ contract DeployPegOutTest is Test {
         console.log("  DAO Fee Percentage:", pegOut.getFeePercentage());
         console.log("  DAO Fee Collector:", pegOut.getFeeCollector());
 
-        assertEq(pegOut.getFeePercentage(), cfg.daoFeePercentage, "DAO fee percentage mismatch");
-        assertEq(pegOut.getFeeCollector(), cfg.daoFeeCollector, "DAO fee collector mismatch");
+        assertEq(
+            pegOut.getFeePercentage(),
+            cfg.daoFeePercentage,
+            "DAO fee percentage mismatch"
+        );
+        assertEq(
+            pegOut.getFeeCollector(),
+            cfg.daoFeeCollector,
+            "DAO fee collector mismatch"
+        );
 
         console.log("\n[PASS] DAO configuration set correctly!");
     }

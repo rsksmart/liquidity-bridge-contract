@@ -34,7 +34,10 @@ contract PauseSystemTest is Test {
         vm.setEnv("FLYOVER_DISCOVERY_ADDRESS", vm.toString(address(discovery)));
         vm.setEnv("PEGIN_CONTRACT_ADDRESS", vm.toString(address(pegIn)));
         vm.setEnv("PEGOUT_CONTRACT_ADDRESS", vm.toString(address(pegOut)));
-        vm.setEnv("COLLATERAL_MANAGEMENT_ADDRESS", vm.toString(address(collateral)));
+        vm.setEnv(
+            "COLLATERAL_MANAGEMENT_ADDRESS",
+            vm.toString(address(collateral))
+        );
     }
 
     function test_CheckStatus() public {
@@ -119,7 +122,9 @@ contract PauseSystemTest is Test {
         // Verify script can read env vars and call checkStatus
         pauseScript.checkStatus();
 
-        console.log("[PASS] Legacy PauseSystem script can be instantiated and called!");
+        console.log(
+            "[PASS] Legacy PauseSystem script can be instantiated and called!"
+        );
     }
 }
 
@@ -145,7 +150,11 @@ contract MockPausableContract {
         _pausedSince = 0;
     }
 
-    function pauseStatus() external view returns (bool isPaused, string memory reason, uint64 since) {
+    function pauseStatus()
+        external
+        view
+        returns (bool isPaused, string memory reason, uint64 since)
+    {
         return (_isPaused, _pauseReason, _pausedSince);
     }
 }

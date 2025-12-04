@@ -48,11 +48,12 @@ import {BtcAddressParser} from "./BtcAddressParser.sol";
  * - expireDate: Expiration date (uint32)
  */
 abstract contract QuoteParser is BtcAddressParser {
-
     /// @notice Parse a PegIn quote from JSON string
     /// @param json The JSON string containing the quote data
     /// @return quote The parsed PegInQuote struct
-    function parsePegInQuote(string memory json) internal returns (Quotes.PegInQuote memory quote) {
+    function parsePegInQuote(
+        string memory json
+    ) internal returns (Quotes.PegInQuote memory quote) {
         Vm vm = _getVm();
 
         // Parse Bitcoin addresses using FFI
@@ -61,12 +62,20 @@ abstract contract QuoteParser is BtcAddressParser {
 
         // Parse RSK/EVM addresses
         quote.lbcAddress = vm.parseJsonAddress(json, ".lbcAddr");
-        quote.liquidityProviderRskAddress = vm.parseJsonAddress(json, ".lpRSKAddr");
+        quote.liquidityProviderRskAddress = vm.parseJsonAddress(
+            json,
+            ".lpRSKAddr"
+        );
 
-        string memory btcRefundAddr = vm.parseJsonString(json, ".btcRefundAddr");
+        string memory btcRefundAddr = vm.parseJsonString(
+            json,
+            ".btcRefundAddr"
+        );
         quote.btcRefundAddress = parseBtcAddress(btcRefundAddr);
 
-        quote.rskRefundAddress = payable(vm.parseJsonAddress(json, ".rskRefundAddr"));
+        quote.rskRefundAddress = payable(
+            vm.parseJsonAddress(json, ".rskRefundAddr")
+        );
 
         string memory lpBTCAddr = vm.parseJsonString(json, ".lpBTCAddr");
         quote.liquidityProviderBtcAddress = parseBtcAddress(lpBTCAddr);
@@ -82,10 +91,16 @@ abstract contract QuoteParser is BtcAddressParser {
         quote.nonce = _parseNonce(vm, json);
 
         quote.value = vm.parseJsonUint(json, ".value");
-        quote.agreementTimestamp = uint32(vm.parseJsonUint(json, ".agreementTimestamp"));
-        quote.timeForDeposit = uint32(vm.parseJsonUint(json, ".timeForDeposit"));
+        quote.agreementTimestamp = uint32(
+            vm.parseJsonUint(json, ".agreementTimestamp")
+        );
+        quote.timeForDeposit = uint32(
+            vm.parseJsonUint(json, ".timeForDeposit")
+        );
         quote.callTime = uint32(vm.parseJsonUint(json, ".lpCallTime"));
-        quote.depositConfirmations = uint16(vm.parseJsonUint(json, ".confirmations"));
+        quote.depositConfirmations = uint16(
+            vm.parseJsonUint(json, ".confirmations")
+        );
         quote.callOnRegister = vm.parseJsonBool(json, ".callOnRegister");
         quote.gasFee = vm.parseJsonUint(json, ".gasFee");
         quote.productFeeAmount = vm.parseJsonUint(json, ".productFeeAmount");
@@ -94,14 +109,19 @@ abstract contract QuoteParser is BtcAddressParser {
     /// @notice Parse a PegOut quote from JSON string
     /// @param json The JSON string containing the quote data
     /// @return quote The parsed PegOutQuote struct
-    function parsePegOutQuote(string memory json) internal returns (Quotes.PegOutQuote memory quote) {
+    function parsePegOutQuote(
+        string memory json
+    ) internal returns (Quotes.PegOutQuote memory quote) {
         Vm vm = _getVm();
 
         // Parse addresses
         quote.lbcAddress = vm.parseJsonAddress(json, ".lbcAddress");
         quote.lpRskAddress = vm.parseJsonAddress(json, ".lpRskAddress");
 
-        string memory btcRefundAddr = vm.parseJsonString(json, ".btcRefundAddress");
+        string memory btcRefundAddr = vm.parseJsonString(
+            json,
+            ".btcRefundAddress"
+        );
         quote.btcRefundAddress = parseBtcAddress(btcRefundAddr);
 
         quote.rskRefundAddress = vm.parseJsonAddress(json, ".rskRefundAddress");
@@ -120,11 +140,19 @@ abstract contract QuoteParser is BtcAddressParser {
         quote.depositAddress = parseBtcAddress(depositAddr);
 
         quote.value = vm.parseJsonUint(json, ".value");
-        quote.agreementTimestamp = uint32(vm.parseJsonUint(json, ".agreementTimestamp"));
-        quote.depositDateLimit = uint32(vm.parseJsonUint(json, ".depositDateLimit"));
+        quote.agreementTimestamp = uint32(
+            vm.parseJsonUint(json, ".agreementTimestamp")
+        );
+        quote.depositDateLimit = uint32(
+            vm.parseJsonUint(json, ".depositDateLimit")
+        );
         quote.transferTime = uint32(vm.parseJsonUint(json, ".transferTime"));
-        quote.depositConfirmations = uint16(vm.parseJsonUint(json, ".depositConfirmations"));
-        quote.transferConfirmations = uint16(vm.parseJsonUint(json, ".transferConfirmations"));
+        quote.depositConfirmations = uint16(
+            vm.parseJsonUint(json, ".depositConfirmations")
+        );
+        quote.transferConfirmations = uint16(
+            vm.parseJsonUint(json, ".transferConfirmations")
+        );
         quote.productFeeAmount = vm.parseJsonUint(json, ".productFeeAmount");
         quote.gasFee = vm.parseJsonUint(json, ".gasFee");
         quote.expireBlock = uint32(vm.parseJsonUint(json, ".expireBlocks"));
@@ -135,7 +163,10 @@ abstract contract QuoteParser is BtcAddressParser {
     /// @param vm The Forge VM instance
     /// @param json The JSON string
     /// @return The parsed nonce value
-    function _parseNonce(Vm vm, string memory json) private pure returns (int64) {
+    function _parseNonce(
+        Vm vm,
+        string memory json
+    ) private pure returns (int64) {
         try vm.parseJsonInt(json, ".nonce") returns (int256 nonceInt) {
             return int64(nonceInt);
         } catch {

@@ -30,10 +30,14 @@ contract DeployFlyoverDiscoveryTest is Test {
 
         // Deploy CollateralManagement first (dependency)
         HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
-        DeployCollateralManagement.DeploymentResult memory cmResult = deployCMScript.deploy(address(this), cfg);
+        DeployCollateralManagement.DeploymentResult
+            memory cmResult = deployCMScript.deploy(address(this), cfg);
         collateralManagementProxy = cmResult.proxy;
 
-        console.log("Setup: CollateralManagement deployed at:", collateralManagementProxy);
+        console.log(
+            "Setup: CollateralManagement deployed at:",
+            collateralManagementProxy
+        );
     }
 
     function test_DeploymentFlow() public {
@@ -53,11 +57,7 @@ contract DeployFlyoverDiscoveryTest is Test {
         console.log("\n3. Preparing initializer calldata...");
         bytes memory initData = abi.encodeCall(
             FlyoverDiscovery.initialize,
-            (
-                deployer,
-                cfg.adminDelay,
-                collateralManagementProxy
-            )
+            (deployer, cfg.adminDelay, collateralManagementProxy)
         );
         console.log("   Init data length:", initData.length);
 
@@ -75,7 +75,9 @@ contract DeployFlyoverDiscoveryTest is Test {
         assertEq(fd.lastProviderId(), 0, "Initial provider ID should be 0");
         console.log("   Last Provider ID:", fd.lastProviderId());
 
-        console.log("\n[PASS] FlyoverDiscovery deployment flow executed successfully!");
+        console.log(
+            "\n[PASS] FlyoverDiscovery deployment flow executed successfully!"
+        );
     }
 
     function test_DeployUsingScript() public {
@@ -84,18 +86,18 @@ contract DeployFlyoverDiscoveryTest is Test {
         HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
         address deployer = address(this);
 
-        DeployFlyoverDiscovery.DeploymentResult memory result = deployScript.deploy(
-            deployer,
-            cfg,
-            collateralManagementProxy
-        );
+        DeployFlyoverDiscovery.DeploymentResult memory result = deployScript
+            .deploy(deployer, cfg, collateralManagementProxy);
 
         console.log("Deployment Result:");
         console.log("  Implementation:", result.implementation);
         console.log("  Proxy:", result.proxy);
         console.log("  Admin:", result.admin);
 
-        assertTrue(result.implementation != address(0), "Implementation should not be zero");
+        assertTrue(
+            result.implementation != address(0),
+            "Implementation should not be zero"
+        );
         assertTrue(result.proxy != address(0), "Proxy should not be zero");
         assertTrue(result.admin != address(0), "Admin should not be zero");
 
@@ -113,21 +115,23 @@ contract DeployFlyoverDiscoveryTest is Test {
         address deployer = address(this);
 
         // Deploy FlyoverDiscovery
-        DeployFlyoverDiscovery.DeploymentResult memory fdResult = deployScript.deploy(
-            deployer,
-            cfg,
-            collateralManagementProxy
-        );
+        DeployFlyoverDiscovery.DeploymentResult memory fdResult = deployScript
+            .deploy(deployer, cfg, collateralManagementProxy);
 
         FlyoverDiscovery fd = FlyoverDiscovery(fdResult.proxy);
-        CollateralManagementContract cm = CollateralManagementContract(payable(collateralManagementProxy));
+        CollateralManagementContract cm = CollateralManagementContract(
+            payable(collateralManagementProxy)
+        );
 
         // Grant COLLATERAL_ADDER role to FlyoverDiscovery
         bytes32 collateralAdderRole = cm.COLLATERAL_ADDER();
         cm.grantRole(collateralAdderRole, fdResult.proxy);
 
         console.log("Granted COLLATERAL_ADDER to FlyoverDiscovery");
-        assertTrue(cm.hasRole(collateralAdderRole, fdResult.proxy), "FlyoverDiscovery should have COLLATERAL_ADDER");
+        assertTrue(
+            cm.hasRole(collateralAdderRole, fdResult.proxy),
+            "FlyoverDiscovery should have COLLATERAL_ADDER"
+        );
 
         console.log("\n[PASS] Integration with CollateralManagement verified!");
     }
@@ -138,17 +142,17 @@ contract DeployFlyoverDiscoveryTest is Test {
         HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
         address deployer = address(this);
 
-        DeployFlyoverDiscovery.DeploymentResult memory result = deployScript.deploy(
-            deployer,
-            cfg,
-            collateralManagementProxy
-        );
+        DeployFlyoverDiscovery.DeploymentResult memory result = deployScript
+            .deploy(deployer, cfg, collateralManagementProxy);
 
         FlyoverDiscovery fd = FlyoverDiscovery(result.proxy);
 
         // Check deployer has DEFAULT_ADMIN_ROLE
         bytes32 defaultAdminRole = fd.DEFAULT_ADMIN_ROLE();
-        assertTrue(fd.hasRole(defaultAdminRole, deployer), "Deployer should have DEFAULT_ADMIN_ROLE");
+        assertTrue(
+            fd.hasRole(defaultAdminRole, deployer),
+            "Deployer should have DEFAULT_ADMIN_ROLE"
+        );
 
         console.log("  Deployer has DEFAULT_ADMIN_ROLE: true");
 

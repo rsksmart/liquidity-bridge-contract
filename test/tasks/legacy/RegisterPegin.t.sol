@@ -28,7 +28,12 @@ contract RegisterPeginTest is Test {
         lbc = new LiquidityBridgeContractV2();
 
         vm.prank(liquidityProvider, liquidityProvider);
-        lbc.register{value: 0.1 ether}("Test LP", "https://test.com", true, "pegin");
+        lbc.register{value: 0.1 ether}(
+            "Test LP",
+            "https://test.com",
+            true,
+            "pegin"
+        );
 
         registerScript = new RegisterPegin();
         vm.setEnv("LBC_ADDRESS", vm.toString(address(lbc)));
@@ -48,13 +53,22 @@ contract RegisterPeginTest is Test {
 
         console.log("\n=== TEST PEGIN QUOTE PARSING ===\n");
 
-        string memory existingFile = "script/legacy/tasks/hash-quote.example.json";
+        string
+            memory existingFile = "script/legacy/tasks/hash-quote.example.json";
         string memory json = vm.readFile(existingFile);
 
-        QuotesV2.PeginQuote memory parsedQuote = registerScript.parsePeginQuote(json);
+        QuotesV2.PeginQuote memory parsedQuote = registerScript.parsePeginQuote(
+            json
+        );
 
-        assertTrue(parsedQuote.lbcAddress != address(0), "lbcAddress should not be zero");
-        assertTrue(parsedQuote.liquidityProviderRskAddress != address(0), "lpRskAddress should not be zero");
+        assertTrue(
+            parsedQuote.lbcAddress != address(0),
+            "lbcAddress should not be zero"
+        );
+        assertTrue(
+            parsedQuote.liquidityProviderRskAddress != address(0),
+            "lpRskAddress should not be zero"
+        );
         assertTrue(parsedQuote.value > 0, "value should be greater than zero");
 
         console.log("\n[PASS] Quote parsing works correctly!");

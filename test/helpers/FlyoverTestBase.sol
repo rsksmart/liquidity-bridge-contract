@@ -124,9 +124,12 @@ abstract contract FlyoverTestBase is Test {
         HelperConfig.FlyoverConfig memory cfg = _getTestConfig();
 
         DeployCollateralManagement deployer = new DeployCollateralManagement();
-        DeployCollateralManagement.DeploymentResult memory result = deployer.deploy(owner, cfg);
+        DeployCollateralManagement.DeploymentResult memory result = deployer
+            .deploy(owner, cfg);
 
-        collateralManagement = CollateralManagementContract(payable(result.proxy));
+        collateralManagement = CollateralManagementContract(
+            payable(result.proxy)
+        );
     }
 
     /// @notice Deploy CollateralManagement + FlyoverDiscovery
@@ -146,8 +149,14 @@ abstract contract FlyoverTestBase is Test {
 
         // Setup cross-contract roles
         vm.startPrank(owner);
-        collateralManagement.grantRole(collateralManagement.COLLATERAL_ADDER(), owner);
-        collateralManagement.grantRole(collateralManagement.COLLATERAL_ADDER(), address(discovery));
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_ADDER(),
+            owner
+        );
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_ADDER(),
+            address(discovery)
+        );
         vm.stopPrank();
     }
 
@@ -170,7 +179,10 @@ abstract contract FlyoverTestBase is Test {
 
         // Grant COLLATERAL_SLASHER role to PegInContract
         vm.prank(owner);
-        collateralManagement.grantRole(collateralManagement.COLLATERAL_SLASHER(), address(pegInContract));
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_SLASHER(),
+            address(pegInContract)
+        );
     }
 
     /// @notice Deploy CollateralManagement + Discovery + PegOutContract
@@ -192,7 +204,10 @@ abstract contract FlyoverTestBase is Test {
 
         // Grant COLLATERAL_SLASHER role to PegOutContract
         vm.prank(owner);
-        collateralManagement.grantRole(collateralManagement.COLLATERAL_SLASHER(), address(pegOutContract));
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_SLASHER(),
+            address(pegOutContract)
+        );
 
         // Initialize BTC mocks
         initBtcMocks();
@@ -208,20 +223,37 @@ abstract contract FlyoverTestBase is Test {
         HelperConfig.FlyoverConfig memory cfg = _getTestConfig();
 
         DeployFlyover deployer = new DeployFlyover();
-        DeployFlyover.FlyoverDeployment memory deployment = deployer.deployAll(owner, cfg);
+        DeployFlyover.FlyoverDeployment memory deployment = deployer.deployAll(
+            owner,
+            cfg
+        );
 
         // Store contract references
-        collateralManagement = CollateralManagementContract(payable(deployment.collateralManagementProxy));
+        collateralManagement = CollateralManagementContract(
+            payable(deployment.collateralManagementProxy)
+        );
         discovery = FlyoverDiscovery(deployment.flyoverDiscoveryProxy);
         pegInContract = PegInContract(payable(deployment.pegInProxy));
         pegOutContract = PegOutContract(payable(deployment.pegOutProxy));
 
         // Setup cross-contract roles
         vm.startPrank(owner);
-        collateralManagement.grantRole(collateralManagement.COLLATERAL_ADDER(), owner);
-        collateralManagement.grantRole(collateralManagement.COLLATERAL_ADDER(), address(discovery));
-        collateralManagement.grantRole(collateralManagement.COLLATERAL_SLASHER(), address(pegInContract));
-        collateralManagement.grantRole(collateralManagement.COLLATERAL_SLASHER(), address(pegOutContract));
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_ADDER(),
+            owner
+        );
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_ADDER(),
+            address(discovery)
+        );
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_SLASHER(),
+            address(pegInContract)
+        );
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_SLASHER(),
+            address(pegOutContract)
+        );
         vm.stopPrank();
 
         // Initialize BTC mocks
@@ -234,7 +266,10 @@ abstract contract FlyoverTestBase is Test {
 
     /// @notice Setup providers with collateral and registrations
     function setupProviders() internal {
-        require(address(discovery) != address(0), "Discovery not deployed. Call deployDiscovery() or deployFullSystem() first");
+        require(
+            address(discovery) != address(0),
+            "Discovery not deployed. Call deployDiscovery() or deployFullSystem() first"
+        );
 
         // Create addresses with known private keys for signature testing
         (pegInLp, pegInLpKey) = makeAddrAndKey("pegInLp");
@@ -274,7 +309,10 @@ abstract contract FlyoverTestBase is Test {
 
     /// @notice Setup role accounts for CollateralManagement tests
     function setupRoles() internal {
-        require(address(collateralManagement) != address(0), "CollateralManagement not deployed");
+        require(
+            address(collateralManagement) != address(0),
+            "CollateralManagement not deployed"
+        );
 
         adder = makeAddr("adder");
         slasher = makeAddr("slasher");
@@ -283,14 +321,23 @@ abstract contract FlyoverTestBase is Test {
         vm.deal(slasher, 100 ether);
 
         vm.startPrank(owner);
-        collateralManagement.grantRole(collateralManagement.COLLATERAL_ADDER(), adder);
-        collateralManagement.grantRole(collateralManagement.COLLATERAL_SLASHER(), slasher);
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_ADDER(),
+            adder
+        );
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_SLASHER(),
+            slasher
+        );
         vm.stopPrank();
     }
 
     /// @notice Setup providers with direct collateral (for CollateralManagement tests)
     function setupProvidersWithCollateral() internal {
-        require(address(adder) != address(0), "Roles not setup. Call setupRoles() first");
+        require(
+            address(adder) != address(0),
+            "Roles not setup. Call setupRoles() first"
+        );
 
         pegInLp = makeAddr("pegInLp");
         pegOutLp = makeAddr("pegOutLp");
@@ -301,10 +348,18 @@ abstract contract FlyoverTestBase is Test {
         vm.deal(fullLp, 100 ether);
 
         vm.startPrank(adder);
-        collateralManagement.addPegInCollateralTo{value: BASE_COLLATERAL}(pegInLp);
-        collateralManagement.addPegOutCollateralTo{value: BASE_COLLATERAL}(pegOutLp);
-        collateralManagement.addPegInCollateralTo{value: BASE_COLLATERAL}(fullLp);
-        collateralManagement.addPegOutCollateralTo{value: BASE_COLLATERAL}(fullLp);
+        collateralManagement.addPegInCollateralTo{value: BASE_COLLATERAL}(
+            pegInLp
+        );
+        collateralManagement.addPegOutCollateralTo{value: BASE_COLLATERAL}(
+            pegOutLp
+        );
+        collateralManagement.addPegInCollateralTo{value: BASE_COLLATERAL}(
+            fullLp
+        );
+        collateralManagement.addPegOutCollateralTo{value: BASE_COLLATERAL}(
+            fullLp
+        );
         vm.stopPrank();
     }
 
@@ -313,59 +368,69 @@ abstract contract FlyoverTestBase is Test {
     // ============================================================
 
     /// @notice Create an empty PegIn quote for testing
-    function getEmptyPegInQuote() internal pure returns (Quotes.PegInQuote memory) {
+    function getEmptyPegInQuote()
+        internal
+        pure
+        returns (Quotes.PegInQuote memory)
+    {
         bytes memory emptyBytes = new bytes(0);
         bytes memory testAddress = new bytes(20);
 
-        return Quotes.PegInQuote({
-            callFee: 0,
-            penaltyFee: 0,
-            value: 0,
-            productFeeAmount: 0,
-            gasFee: 0,
-            fedBtcAddress: bytes20(testAddress),
-            lbcAddress: ZERO_ADDRESS,
-            liquidityProviderRskAddress: ZERO_ADDRESS,
-            contractAddress: ZERO_ADDRESS,
-            rskRefundAddress: payable(ZERO_ADDRESS),
-            nonce: 0,
-            gasLimit: 0,
-            agreementTimestamp: 0,
-            timeForDeposit: 0,
-            callTime: 0,
-            depositConfirmations: 0,
-            callOnRegister: false,
-            btcRefundAddress: testAddress,
-            liquidityProviderBtcAddress: testAddress,
-            data: emptyBytes
-        });
+        return
+            Quotes.PegInQuote({
+                callFee: 0,
+                penaltyFee: 0,
+                value: 0,
+                productFeeAmount: 0,
+                gasFee: 0,
+                fedBtcAddress: bytes20(testAddress),
+                lbcAddress: ZERO_ADDRESS,
+                liquidityProviderRskAddress: ZERO_ADDRESS,
+                contractAddress: ZERO_ADDRESS,
+                rskRefundAddress: payable(ZERO_ADDRESS),
+                nonce: 0,
+                gasLimit: 0,
+                agreementTimestamp: 0,
+                timeForDeposit: 0,
+                callTime: 0,
+                depositConfirmations: 0,
+                callOnRegister: false,
+                btcRefundAddress: testAddress,
+                liquidityProviderBtcAddress: testAddress,
+                data: emptyBytes
+            });
     }
 
     /// @notice Create an empty PegOut quote for testing
-    function getEmptyPegOutQuote() internal pure returns (Quotes.PegOutQuote memory) {
+    function getEmptyPegOutQuote()
+        internal
+        pure
+        returns (Quotes.PegOutQuote memory)
+    {
         bytes memory testAddress = new bytes(20);
 
-        return Quotes.PegOutQuote({
-            callFee: 0,
-            penaltyFee: 0,
-            value: 0,
-            productFeeAmount: 0,
-            gasFee: 0,
-            lbcAddress: ZERO_ADDRESS,
-            lpRskAddress: ZERO_ADDRESS,
-            rskRefundAddress: ZERO_ADDRESS,
-            nonce: 0,
-            agreementTimestamp: 0,
-            depositDateLimit: 0,
-            transferTime: 0,
-            expireDate: 0,
-            expireBlock: 0,
-            depositConfirmations: 0,
-            transferConfirmations: 0,
-            depositAddress: testAddress,
-            btcRefundAddress: testAddress,
-            lpBtcAddress: testAddress
-        });
+        return
+            Quotes.PegOutQuote({
+                callFee: 0,
+                penaltyFee: 0,
+                value: 0,
+                productFeeAmount: 0,
+                gasFee: 0,
+                lbcAddress: ZERO_ADDRESS,
+                lpRskAddress: ZERO_ADDRESS,
+                rskRefundAddress: ZERO_ADDRESS,
+                nonce: 0,
+                agreementTimestamp: 0,
+                depositDateLimit: 0,
+                transferTime: 0,
+                expireDate: 0,
+                expireBlock: 0,
+                depositConfirmations: 0,
+                transferConfirmations: 0,
+                depositAddress: testAddress,
+                btcRefundAddress: testAddress,
+                lpBtcAddress: testAddress
+            });
     }
 
     /// @notice Create a test PegIn quote with populated values
@@ -374,30 +439,34 @@ abstract contract FlyoverTestBase is Test {
         address lpAddress,
         address userAddress
     ) internal view returns (Quotes.PegInQuote memory) {
-        bytes memory testBtcAddress = hex"6f0000000000000000000000000000000000000000";
+        bytes
+            memory testBtcAddress = hex"6f0000000000000000000000000000000000000000";
 
-        return Quotes.PegInQuote({
-            callFee: 100000000000000,
-            penaltyFee: 10000000000000,
-            value: 0.5 ether,
-            productFeeAmount: 0,
-            gasFee: 100,
-            fedBtcAddress: bytes20(hex"0000000000000000000000000000000000000000"),
-            lbcAddress: lbcAddress,
-            liquidityProviderRskAddress: lpAddress,
-            contractAddress: userAddress,
-            rskRefundAddress: payable(userAddress),
-            nonce: int64(uint64(block.timestamp)),
-            gasLimit: 21000,
-            agreementTimestamp: uint32(block.timestamp),
-            timeForDeposit: 3600,
-            callTime: 7200,
-            depositConfirmations: 10,
-            callOnRegister: false,
-            btcRefundAddress: testBtcAddress,
-            liquidityProviderBtcAddress: testBtcAddress,
-            data: hex""
-        });
+        return
+            Quotes.PegInQuote({
+                callFee: 100000000000000,
+                penaltyFee: 10000000000000,
+                value: 0.5 ether,
+                productFeeAmount: 0,
+                gasFee: 100,
+                fedBtcAddress: bytes20(
+                    hex"0000000000000000000000000000000000000000"
+                ),
+                lbcAddress: lbcAddress,
+                liquidityProviderRskAddress: lpAddress,
+                contractAddress: userAddress,
+                rskRefundAddress: payable(userAddress),
+                nonce: int64(uint64(block.timestamp)),
+                gasLimit: 21000,
+                agreementTimestamp: uint32(block.timestamp),
+                timeForDeposit: 3600,
+                callTime: 7200,
+                depositConfirmations: 10,
+                callOnRegister: false,
+                btcRefundAddress: testBtcAddress,
+                liquidityProviderBtcAddress: testBtcAddress,
+                data: hex""
+            });
     }
 
     /// @notice Create a test PegOut quote with populated values
@@ -406,29 +475,31 @@ abstract contract FlyoverTestBase is Test {
         address lpAddress,
         address userAddress
     ) internal view returns (Quotes.PegOutQuote memory) {
-        bytes memory testBtcAddress = hex"76a914000000000000000000000000000000000000000088ac";
+        bytes
+            memory testBtcAddress = hex"76a914000000000000000000000000000000000000000088ac";
 
-        return Quotes.PegOutQuote({
-            callFee: 100000000000000,
-            penaltyFee: 10000000000000,
-            value: 0.5 ether,
-            productFeeAmount: 0,
-            gasFee: 100,
-            lbcAddress: lbcAddress,
-            lpRskAddress: lpAddress,
-            rskRefundAddress: userAddress,
-            nonce: int64(uint64(block.timestamp)),
-            agreementTimestamp: uint32(block.timestamp),
-            depositDateLimit: uint32(block.timestamp + 600),
-            transferTime: 3600,
-            expireDate: uint32(block.timestamp + 1000),
-            expireBlock: uint32(block.number + 10),
-            depositConfirmations: 10,
-            transferConfirmations: 2,
-            depositAddress: testBtcAddress,
-            btcRefundAddress: testBtcAddress,
-            lpBtcAddress: testBtcAddress
-        });
+        return
+            Quotes.PegOutQuote({
+                callFee: 100000000000000,
+                penaltyFee: 10000000000000,
+                value: 0.5 ether,
+                productFeeAmount: 0,
+                gasFee: 100,
+                lbcAddress: lbcAddress,
+                lpRskAddress: lpAddress,
+                rskRefundAddress: userAddress,
+                nonce: int64(uint64(block.timestamp)),
+                agreementTimestamp: uint32(block.timestamp),
+                depositDateLimit: uint32(block.timestamp + 600),
+                transferTime: 3600,
+                expireDate: uint32(block.timestamp + 1000),
+                expireBlock: uint32(block.number + 10),
+                depositConfirmations: 10,
+                transferConfirmations: 2,
+                depositAddress: testBtcAddress,
+                btcRefundAddress: testBtcAddress,
+                lpBtcAddress: testBtcAddress
+            });
     }
 
     // ============================================================
@@ -442,7 +513,9 @@ abstract contract FlyoverTestBase is Test {
     }
 
     /// @notice Creates a BTC block header with a specific timestamp
-    function createBtcBlockHeader(uint32 timestamp) internal pure returns (bytes memory) {
+    function createBtcBlockHeader(
+        uint32 timestamp
+    ) internal pure returns (bytes memory) {
         bytes memory header = new bytes(80);
 
         // Place timestamp at offset 68 (little-endian)
@@ -455,7 +528,9 @@ abstract contract FlyoverTestBase is Test {
     }
 
     /// @notice Converts uint64 to 8-byte little-endian
-    function toLittleEndian64(uint64 value) internal pure returns (bytes memory) {
+    function toLittleEndian64(
+        uint64 value
+    ) internal pure returns (bytes memory) {
         bytes memory result = new bytes(8);
         result[0] = bytes1(uint8(value));
         result[1] = bytes1(uint8(value >> 8));
@@ -490,29 +565,35 @@ abstract contract FlyoverTestBase is Test {
         );
 
         // Build mock transaction
-        return abi.encodePacked(
-            hex"01000000", // Version
-            hex"01", // 1 input
-            hex"013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40",
-            hex"00000000",
-            hex"6a",
-            hex"47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4",
-            hex"ffffffff",
-            hex"02", // 2 outputs
-            toLittleEndian64(satAmount),
-            uint8(outputScript.length),
-            outputScript,
-            hex"0000000000000000",
-            hex"22",
-            hex"6a20",
-            quoteHash,
-            hex"00000000"
-        );
+        return
+            abi.encodePacked(
+                hex"01000000", // Version
+                hex"01", // 1 input
+                hex"013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40",
+                hex"00000000",
+                hex"6a",
+                hex"47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4",
+                hex"ffffffff",
+                hex"02", // 2 outputs
+                toLittleEndian64(satAmount),
+                uint8(outputScript.length),
+                outputScript,
+                hex"0000000000000000",
+                hex"22",
+                hex"6a20",
+                quoteHash,
+                hex"00000000"
+            );
     }
 
     /// @notice Sign a quote hash with a provider's private key
-    function signQuoteHash(bytes32 quoteHash, uint256 privateKey) internal pure returns (bytes memory) {
-        bytes32 messageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", quoteHash));
+    function signQuoteHash(
+        bytes32 quoteHash,
+        uint256 privateKey
+    ) internal pure returns (bytes memory) {
+        bytes32 messageHash = keccak256(
+            abi.encodePacked("\x19Ethereum Signed Message:\n32", quoteHash)
+        );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, messageHash);
         return abi.encodePacked(r, s, v);
     }
@@ -522,24 +603,28 @@ abstract contract FlyoverTestBase is Test {
     // ============================================================
 
     /// @notice Get test configuration (uses local/test values)
-    function _getTestConfig() internal returns (HelperConfig.FlyoverConfig memory) {
+    function _getTestConfig()
+        internal
+        returns (HelperConfig.FlyoverConfig memory)
+    {
         // Deploy bridge mock if not already deployed
         if (address(bridgeMock) == address(0)) {
             bridgeMock = new BridgeMock();
         }
 
-        return HelperConfig.FlyoverConfig({
-            bridge: address(bridgeMock),
-            minimumCollateral: TEST_MIN_COLLATERAL,
-            minimumPegIn: TEST_MIN_PEGIN,
-            rewardPercentage: TEST_REWARD_PERCENTAGE,
-            resignDelayBlocks: TEST_RESIGN_DELAY_BLOCKS,
-            dustThreshold: TEST_DUST_THRESHOLD_PEGIN,
-            btcBlockTime: TEST_BTC_BLOCK_TIME,
-            mainnet: false,
-            daoFeePercentage: 0,
-            daoFeeCollector: payable(ZERO_ADDRESS),
-            adminDelay: TEST_DEFAULT_ADMIN_DELAY
-        });
+        return
+            HelperConfig.FlyoverConfig({
+                bridge: address(bridgeMock),
+                minimumCollateral: TEST_MIN_COLLATERAL,
+                minimumPegIn: TEST_MIN_PEGIN,
+                rewardPercentage: TEST_REWARD_PERCENTAGE,
+                resignDelayBlocks: TEST_RESIGN_DELAY_BLOCKS,
+                dustThreshold: TEST_DUST_THRESHOLD_PEGIN,
+                btcBlockTime: TEST_BTC_BLOCK_TIME,
+                mainnet: false,
+                daoFeePercentage: 0,
+                daoFeeCollector: payable(ZERO_ADDRESS),
+                adminDelay: TEST_DEFAULT_ADMIN_DELAY
+            });
     }
 }

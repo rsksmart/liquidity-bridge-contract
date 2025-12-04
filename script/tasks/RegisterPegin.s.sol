@@ -17,7 +17,9 @@ interface IPegIn {
         uint256 height
     ) external returns (int256);
 
-    function hashPegInQuote(Quotes.PegInQuote calldata quote) external view returns (bytes32);
+    function hashPegInQuote(
+        Quotes.PegInQuote calldata quote
+    ) external view returns (bytes32);
 }
 
 /**
@@ -55,7 +57,8 @@ interface IPegIn {
  * - BTC_NETWORK: Bitcoin network (mainnet or testnet)
  */
 contract RegisterPegin is Script, AddressResolver, QuoteParser {
-    string constant HELPER_SCRIPT_FETCH_TX = "script/helpers/fetch-btc-tx-data.ts";
+    string constant HELPER_SCRIPT_FETCH_TX =
+        "script/helpers/fetch-btc-tx-data.ts";
 
     /**
      * @notice Fetch Bitcoin transaction data using FFI helper script
@@ -136,13 +139,18 @@ contract RegisterPegin is Script, AddressResolver, QuoteParser {
         string memory btcNetwork = getBtcNetwork();
         console.log("  BTC Network:", btcNetwork);
 
-        (bytes memory rawTx, bytes memory pmt, uint256 height) = fetchBtcTxData(txId, btcNetwork);
+        (bytes memory rawTx, bytes memory pmt, uint256 height) = fetchBtcTxData(
+            txId,
+            btcNetwork
+        );
 
         console.log("\n--- Executing registration transaction ---\n");
 
         vm.startBroadcast();
 
-        try pegIn.registerPegIn(quote, signature, rawTx, pmt, height) returns (int256 result) {
+        try pegIn.registerPegIn(quote, signature, rawTx, pmt, height) returns (
+            int256 result
+        ) {
             console.log("[SUCCESS] PegIn registered successfully!");
             console.log("Result code:", vm.toString(result));
             console.log("Quote hash:");
@@ -163,7 +171,9 @@ contract RegisterPegin is Script, AddressResolver, QuoteParser {
      * @param sigHex The hex string (with or without 0x prefix)
      * @return The parsed signature bytes
      */
-    function parseSignature(string memory sigHex) public pure returns (bytes memory) {
+    function parseSignature(
+        string memory sigHex
+    ) public pure returns (bytes memory) {
         return HexUtils.parseBytes(sigHex);
     }
 }

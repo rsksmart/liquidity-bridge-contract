@@ -64,7 +64,8 @@ contract DeployFlyover is Script {
         // 1) Deploy CollateralManagement first (no dependencies)
         console.log("=== Deploying CollateralManagement ===");
         DeployCollateralManagement deployerCM = new DeployCollateralManagement();
-        DeployCollateralManagement.DeploymentResult memory cmResult = deployerCM.deploy(defaultAdmin, cfg);
+        DeployCollateralManagement.DeploymentResult memory cmResult = deployerCM
+            .deploy(defaultAdmin, cfg);
         deployment.collateralManagementImpl = cmResult.implementation;
         deployment.collateralManagementProxy = cmResult.proxy;
         deployment.collateralManagementAdmin = cmResult.admin;
@@ -73,11 +74,8 @@ contract DeployFlyover is Script {
         console.log("");
         console.log("=== Deploying FlyoverDiscovery ===");
         DeployFlyoverDiscovery deployerFD = new DeployFlyoverDiscovery();
-        DeployFlyoverDiscovery.DeploymentResult memory fdResult = deployerFD.deploy(
-            defaultAdmin,
-            cfg,
-            deployment.collateralManagementProxy
-        );
+        DeployFlyoverDiscovery.DeploymentResult memory fdResult = deployerFD
+            .deploy(defaultAdmin, cfg, deployment.collateralManagementProxy);
         deployment.flyoverDiscoveryImpl = fdResult.implementation;
         deployment.flyoverDiscoveryProxy = fdResult.proxy;
         deployment.flyoverDiscoveryAdmin = fdResult.admin;
@@ -123,18 +121,27 @@ contract DeployFlyover is Script {
         // This allows FlyoverDiscovery to add collateral when LPs register
         bytes32 collateralAdderRole = cm.COLLATERAL_ADDER();
         cm.grantRole(collateralAdderRole, deployment.flyoverDiscoveryProxy);
-        console.log("Granted COLLATERAL_ADDER to FlyoverDiscovery:", deployment.flyoverDiscoveryProxy);
+        console.log(
+            "Granted COLLATERAL_ADDER to FlyoverDiscovery:",
+            deployment.flyoverDiscoveryProxy
+        );
 
         // Grant COLLATERAL_SLASHER to PegInContract
         // This allows PegInContract to slash collateral when penalizing LPs
         bytes32 collateralSlasherRole = cm.COLLATERAL_SLASHER();
         cm.grantRole(collateralSlasherRole, deployment.pegInProxy);
-        console.log("Granted COLLATERAL_SLASHER to PegInContract:", deployment.pegInProxy);
+        console.log(
+            "Granted COLLATERAL_SLASHER to PegInContract:",
+            deployment.pegInProxy
+        );
 
         // Grant COLLATERAL_SLASHER to PegOutContract
         // This allows PegOutContract to slash collateral when penalizing LPs
         cm.grantRole(collateralSlasherRole, deployment.pegOutProxy);
-        console.log("Granted COLLATERAL_SLASHER to PegOutContract:", deployment.pegOutProxy);
+        console.log(
+            "Granted COLLATERAL_SLASHER to PegOutContract:",
+            deployment.pegOutProxy
+        );
     }
 
     /// @notice Logs the deployment addresses

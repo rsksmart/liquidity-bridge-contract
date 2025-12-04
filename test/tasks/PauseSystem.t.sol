@@ -37,10 +37,16 @@ contract PauseSystemTest is FlyoverTestBase {
      * @notice Set environment variables to point to our mock contracts
      */
     function _setEnvVars() internal {
-        vm.setEnv("FLYOVER_DISCOVERY_ADDRESS", vm.toString(address(mockDiscovery)));
+        vm.setEnv(
+            "FLYOVER_DISCOVERY_ADDRESS",
+            vm.toString(address(mockDiscovery))
+        );
         vm.setEnv("PEGIN_CONTRACT_ADDRESS", vm.toString(address(mockPegIn)));
         vm.setEnv("PEGOUT_CONTRACT_ADDRESS", vm.toString(address(mockPegOut)));
-        vm.setEnv("COLLATERAL_MANAGEMENT_ADDRESS", vm.toString(address(mockCollateral)));
+        vm.setEnv(
+            "COLLATERAL_MANAGEMENT_ADDRESS",
+            vm.toString(address(mockCollateral))
+        );
     }
 
     function test_CheckStatus() public {
@@ -276,7 +282,11 @@ contract MockPausableContract {
         _pausedSince = 0;
     }
 
-    function pauseStatus() external view returns (bool isPaused, string memory reason, uint64 since) {
+    function pauseStatus()
+        external
+        view
+        returns (bool isPaused, string memory reason, uint64 since)
+    {
         return (_isPaused, _pauseReason, _pausedSince);
     }
 }
