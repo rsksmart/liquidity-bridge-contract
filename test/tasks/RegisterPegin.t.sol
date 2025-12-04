@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import "lib/forge-std/src/Test.sol";
-import "lib/forge-std/src/console.sol";
+import {console} from "forge-std/console.sol";
+import {FlyoverTestBase} from "../helpers/FlyoverTestBase.sol";
 import {Quotes} from "src/libraries/Quotes.sol";
 import {RegisterPegin} from "../../script/tasks/RegisterPegin.s.sol";
 
@@ -34,9 +34,9 @@ contract MockPegInContract {
  * @title RegisterPeginTest
  * @notice Test for the register-pegin task with new PegInContract
  */
-contract RegisterPeginTest is Test {
+contract RegisterPeginTest is FlyoverTestBase {
     RegisterPegin public registerScript;
-    MockPegInContract public pegIn;
+    MockPegInContract public mockPegIn;
     address public user;
     address public liquidityProvider;
     uint256 public lpPrivateKey;
@@ -52,10 +52,10 @@ contract RegisterPeginTest is Test {
         vm.deal(user, 10 ether);
         vm.deal(liquidityProvider, 10 ether);
 
-        pegIn = new MockPegInContract();
+        mockPegIn = new MockPegInContract();
 
         registerScript = new RegisterPegin();
-        vm.setEnv("PEGIN_CONTRACT_ADDRESS", vm.toString(address(pegIn)));
+        vm.setEnv("PEGIN_CONTRACT_ADDRESS", vm.toString(address(mockPegIn)));
     }
 
     function test_RegistrationFlowStructure() public pure {
@@ -103,10 +103,10 @@ contract RegisterPeginTest is Test {
     function test_QuoteHashing() public {
         console.log("\n=== TEST QUOTE HASHING ===\n");
 
-        Quotes.PegInQuote memory quote = createTestQuote();
+        Quotes.PegInQuote memory quote = createTestPegInQuote(address(mockPegIn), liquidityProvider, user);
 
-        bytes32 hash1 = pegIn.hashPegInQuote(quote);
-        bytes32 hash2 = pegIn.hashPegInQuote(quote);
+        bytes32 hash1 = mockPegIn.hashPegInQuote(quote);
+        bytes32 hash2 = mockPegIn.hashPegInQuote(quote);
 
         assertEq(hash1, hash2, "Hash should be deterministic");
         assertTrue(hash1 != bytes32(0), "Hash should not be zero");
@@ -119,10 +119,10 @@ contract RegisterPeginTest is Test {
     function test_MockRegistration() public {
         console.log("\n=== TEST MOCK REGISTRATION ===\n");
 
-        Quotes.PegInQuote memory quote = createTestQuote();
-        bytes memory signature = signQuote(pegIn.hashPegInQuote(quote));
+        Quotes.PegInQuote memory quote = createTestPegInQuote(address(mockPegIn), liquidityProvider, user);
+        bytes memory signature = signQuoteHash(mockPegIn.hashPegInQuote(quote), lpPrivateKey);
 
-        int256 result = pegIn.registerPegIn(quote, signature, MOCK_RAW_TX, MOCK_PMT, MOCK_HEIGHT);
+        int256 result = mockPegIn.registerPegIn(quote, signature, MOCK_RAW_TX, MOCK_PMT, MOCK_HEIGHT);
 
         assertEq(result, 0, "Registration should succeed with result 0");
 
@@ -141,49 +141,5 @@ contract RegisterPeginTest is Test {
         console.log("[INFO] BTC_NETWORK env var takes precedence");
 
         console.log("[PASS] Network detection logic validated!");
-    }
-
-    function createTestQuote() internal view returns (Quotes.PegInQuote memory) {
-        bytes memory testBtcAddress = hex"6f0000000000000000000000000000000000000000";
-        bytes20 fedAddress = bytes20(hex"0000000000000000000000000000000000000000");
-
-        return Quotes.PegInQuote({
-            callFee: 100000000000000,
-            penaltyFee: 10000000000000,
-            value: 0.5 ether,
-            productFeeAmount: 0,
-            gasFee: 100,
-            fedBtcAddress: fedAddress,
-            lbcAddress: address(pegIn),
-            liquidityProviderRskAddress: liquidityProvider,
-            contractAddress: user,
-            rskRefundAddress: payable(user),
-            nonce: int64(uint64(block.timestamp)),
-            gasLimit: 21000,
-            agreementTimestamp: uint32(block.timestamp),
-            timeForDeposit: 3600,
-            callTime: 7200,
-            depositConfirmations: 10,
-            callOnRegister: false,
-            btcRefundAddress: testBtcAddress,
-            liquidityProviderBtcAddress: testBtcAddress,
-            data: hex""
-        });
-    }
-
-    function signQuote(bytes32 quoteHash) internal view returns (bytes memory) {
-        bytes32 messageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", quoteHash));
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(lpPrivateKey, messageHash);
-        return abi.encodePacked(r, s, v);
-    }
-
-    function toHexString(bytes32 data) internal pure returns (string memory) {
-        bytes memory hexChars = "0123456789abcdef";
-        bytes memory result = new bytes(64);
-        for (uint256 i = 0; i < 32; i++) {
-            result[i * 2] = hexChars[uint8(data[i] >> 4)];
-            result[i * 2 + 1] = hexChars[uint8(data[i] & 0x0f)];
-        }
-        return string(result);
     }
 }
