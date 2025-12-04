@@ -45,8 +45,13 @@ import {AddressResolver} from "../helpers/AddressResolver.sol";
 
 interface IPausable {
     function pause(string calldata reason) external;
+
     function unpause() external;
-    function pauseStatus() external view returns (bool isPaused, string memory reason, uint64 since);
+
+    function pauseStatus()
+        external
+        view
+        returns (bool isPaused, string memory reason, uint64 since);
 }
 
 contract PauseSystem is Script, AddressResolver {
@@ -58,8 +63,16 @@ contract PauseSystem is Script, AddressResolver {
         uint64 since;
     }
 
-    error PartialPauseFailure(uint256 succeeded, uint256 total, string[] failedContracts);
-    error PartialUnpauseFailure(uint256 succeeded, uint256 total, string[] failedContracts);
+    error PartialPauseFailure(
+        uint256 succeeded,
+        uint256 total,
+        string[] failedContracts
+    );
+    error PartialUnpauseFailure(
+        uint256 succeeded,
+        uint256 total,
+        string[] failedContracts
+    );
 
     /**
      * @notice Load all contract addresses
@@ -92,15 +105,30 @@ contract PauseSystem is Script, AddressResolver {
 
         console.log("Contract Addresses:");
         for (uint256 i = 0; i < contracts.length; i++) {
-            console.log(string.concat("  ", contracts[i].name, ": ", vm.toString(contracts[i].addr)));
+            console.log(
+                string.concat(
+                    "  ",
+                    contracts[i].name,
+                    ": ",
+                    vm.toString(contracts[i].addr)
+                )
+            );
         }
 
         console.log("\nCurrent Pause Status:");
         for (uint256 i = 0; i < contracts.length; i++) {
             IPausable pausable = IPausable(contracts[i].addr);
-            (bool isPaused, string memory reason, uint64 since) = pausable.pauseStatus();
+            (bool isPaused, string memory reason, uint64 since) = pausable
+                .pauseStatus();
 
-            console.log(string.concat("  ", contracts[i].name, ": ", isPaused ? "PAUSED" : "ACTIVE"));
+            console.log(
+                string.concat(
+                    "  ",
+                    contracts[i].name,
+                    ": ",
+                    isPaused ? "PAUSED" : "ACTIVE"
+                )
+            );
             if (isPaused) {
                 console.log(string.concat("    - Reason: ", reason));
                 console.log(string.concat("    - Since: ", vm.toString(since)));
@@ -130,9 +158,13 @@ contract PauseSystem is Script, AddressResolver {
 
         for (uint256 i = 0; i < contracts.length; i++) {
             try IPausable(contracts[i].addr).pause(reason) {
-                console.log(string.concat("  [OK] ", contracts[i].name, " paused"));
+                console.log(
+                    string.concat("  [OK] ", contracts[i].name, " paused")
+                );
             } catch Error(string memory error) {
-                console.log(string.concat("  [FAIL] ", contracts[i].name, " - ", error));
+                console.log(
+                    string.concat("  [FAIL] ", contracts[i].name, " - ", error)
+                );
                 failedContracts[failCount] = contracts[i].name;
                 failCount++;
             }
@@ -141,7 +173,14 @@ contract PauseSystem is Script, AddressResolver {
         vm.stopBroadcast();
 
         uint256 successCount = contracts.length - failCount;
-        console.log(string.concat("\nPaused: ", vm.toString(successCount), "/", vm.toString(contracts.length)));
+        console.log(
+            string.concat(
+                "\nPaused: ",
+                vm.toString(successCount),
+                "/",
+                vm.toString(contracts.length)
+            )
+        );
 
         // If any failed, revert the entire transaction to prevent inconsistent state
         if (failCount > 0) {
@@ -150,7 +189,11 @@ contract PauseSystem is Script, AddressResolver {
             for (uint256 i = 0; i < failCount; i++) {
                 trimmedFailed[i] = failedContracts[i];
             }
-            revert PartialPauseFailure(successCount, contracts.length, trimmedFailed);
+            revert PartialPauseFailure(
+                successCount,
+                contracts.length,
+                trimmedFailed
+            );
         }
 
         console.log("\n[SUCCESS] All contracts paused successfully!");
@@ -173,9 +216,13 @@ contract PauseSystem is Script, AddressResolver {
 
         for (uint256 i = 0; i < contracts.length; i++) {
             try IPausable(contracts[i].addr).unpause() {
-                console.log(string.concat("  [OK] ", contracts[i].name, " unpaused"));
+                console.log(
+                    string.concat("  [OK] ", contracts[i].name, " unpaused")
+                );
             } catch Error(string memory error) {
-                console.log(string.concat("  [FAIL] ", contracts[i].name, " - ", error));
+                console.log(
+                    string.concat("  [FAIL] ", contracts[i].name, " - ", error)
+                );
                 failedContracts[failCount] = contracts[i].name;
                 failCount++;
             }
@@ -184,7 +231,14 @@ contract PauseSystem is Script, AddressResolver {
         vm.stopBroadcast();
 
         uint256 successCount = contracts.length - failCount;
-        console.log(string.concat("\nUnpaused: ", vm.toString(successCount), "/", vm.toString(contracts.length)));
+        console.log(
+            string.concat(
+                "\nUnpaused: ",
+                vm.toString(successCount),
+                "/",
+                vm.toString(contracts.length)
+            )
+        );
 
         // If any failed, revert the entire transaction to prevent inconsistent state
         if (failCount > 0) {
@@ -193,7 +247,11 @@ contract PauseSystem is Script, AddressResolver {
             for (uint256 i = 0; i < failCount; i++) {
                 trimmedFailed[i] = failedContracts[i];
             }
-            revert PartialUnpauseFailure(successCount, contracts.length, trimmedFailed);
+            revert PartialUnpauseFailure(
+                successCount,
+                contracts.length,
+                trimmedFailed
+            );
         }
 
         console.log("\n[SUCCESS] All contracts unpaused successfully!");

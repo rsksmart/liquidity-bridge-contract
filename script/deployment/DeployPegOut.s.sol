@@ -27,12 +27,21 @@ contract DeployPegOut is Script {
         address deployer = vm.rememberKey(deployerKey);
 
         // Get the CollateralManagement proxy address from environment
-        address collateralManagementProxy = vm.envAddress("COLLATERAL_MANAGEMENT_PROXY");
-        require(collateralManagementProxy != address(0), "COLLATERAL_MANAGEMENT_PROXY must be set");
+        address collateralManagementProxy = vm.envAddress(
+            "COLLATERAL_MANAGEMENT_PROXY"
+        );
+        require(
+            collateralManagementProxy != address(0),
+            "COLLATERAL_MANAGEMENT_PROXY must be set"
+        );
 
         vm.startBroadcast(deployerKey);
 
-        DeploymentResult memory result = deploy(deployer, cfg, collateralManagementProxy);
+        DeploymentResult memory result = deploy(
+            deployer,
+            cfg,
+            collateralManagementProxy
+        );
 
         vm.stopBroadcast();
 

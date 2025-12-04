@@ -10,7 +10,10 @@ import {QuoteParser} from "../helpers/QuoteParser.sol";
 
 interface IPegOut {
     function refundUserPegOut(bytes32 quoteHash) external;
-    function hashPegOutQuote(Quotes.PegOutQuote calldata quote) external view returns (bytes32);
+
+    function hashPegOutQuote(
+        Quotes.PegOutQuote calldata quote
+    ) external view returns (bytes32);
 }
 
 /**
@@ -42,7 +45,6 @@ interface IPegOut {
  * - NETWORK: Network name for addresses.json (default: rskRegtest)
  */
 contract RefundUserPegout is Script, AddressResolver, QuoteParser {
-
     /**
      * @notice Refund a user PegOut transaction
      * @param quoteHashStr The hash of the accepted PegOut quote (hex string)

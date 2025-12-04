@@ -42,7 +42,10 @@ contract DeployCollateralManagementTest is Test {
         console.log("  Admin Delay:", cfg.adminDelay);
 
         // Validations
-        assertTrue(cfg.bridge != address(0), "Bridge address should not be zero");
+        assertTrue(
+            cfg.bridge != address(0),
+            "Bridge address should not be zero"
+        );
         assertTrue(cfg.minimumCollateral > 0, "Min collateral should be > 0");
         assertTrue(cfg.minimumPegIn > 0, "Min PegIn should be > 0");
         assertTrue(cfg.dustThreshold > 0, "Dust threshold should be > 0");
@@ -87,18 +90,34 @@ contract DeployCollateralManagementTest is Test {
         console.log("   Proxy deployed at:", address(proxy));
 
         console.log("\n5. Verifying deployment...");
-        CollateralManagementContract cm = CollateralManagementContract(payable(address(proxy)));
+        CollateralManagementContract cm = CollateralManagementContract(
+            payable(address(proxy))
+        );
 
-        assertEq(cm.getMinCollateral(), cfg.minimumCollateral, "Min collateral mismatch");
-        assertEq(cm.getResignDelayInBlocks(), cfg.resignDelayBlocks, "Resign delay mismatch");
-        assertEq(cm.getRewardPercentage(), cfg.rewardPercentage, "Reward percentage mismatch");
+        assertEq(
+            cm.getMinCollateral(),
+            cfg.minimumCollateral,
+            "Min collateral mismatch"
+        );
+        assertEq(
+            cm.getResignDelayInBlocks(),
+            cfg.resignDelayBlocks,
+            "Resign delay mismatch"
+        );
+        assertEq(
+            cm.getRewardPercentage(),
+            cfg.rewardPercentage,
+            "Reward percentage mismatch"
+        );
 
         console.log("   Min Collateral:", cm.getMinCollateral());
         console.log("   Resign Delay:", cm.getResignDelayInBlocks());
         console.log("   Reward %:", cm.getRewardPercentage());
         console.log("   Version:", cm.VERSION());
 
-        console.log("\n[PASS] CollateralManagement deployment flow executed successfully!");
+        console.log(
+            "\n[PASS] CollateralManagement deployment flow executed successfully!"
+        );
     }
 
     function test_DeployUsingScript() public {
@@ -107,22 +126,34 @@ contract DeployCollateralManagementTest is Test {
         HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
         address deployer = address(this);
 
-        DeployCollateralManagement.DeploymentResult memory result = deployScript.deploy(deployer, cfg);
+        DeployCollateralManagement.DeploymentResult memory result = deployScript
+            .deploy(deployer, cfg);
 
         console.log("Deployment Result:");
         console.log("  Implementation:", result.implementation);
         console.log("  Proxy:", result.proxy);
         console.log("  Admin:", result.admin);
 
-        assertTrue(result.implementation != address(0), "Implementation should not be zero");
+        assertTrue(
+            result.implementation != address(0),
+            "Implementation should not be zero"
+        );
         assertTrue(result.proxy != address(0), "Proxy should not be zero");
         assertTrue(result.admin != address(0), "Admin should not be zero");
 
         // Verify proxy points to implementation
-        CollateralManagementContract cm = CollateralManagementContract(payable(result.proxy));
-        assertEq(cm.getMinCollateral(), cfg.minimumCollateral, "Min collateral mismatch");
+        CollateralManagementContract cm = CollateralManagementContract(
+            payable(result.proxy)
+        );
+        assertEq(
+            cm.getMinCollateral(),
+            cfg.minimumCollateral,
+            "Min collateral mismatch"
+        );
 
-        console.log("\n[PASS] DeployCollateralManagement script works correctly!");
+        console.log(
+            "\n[PASS] DeployCollateralManagement script works correctly!"
+        );
     }
 
     function test_RolesAreSetCorrectly() public {
@@ -131,20 +162,32 @@ contract DeployCollateralManagementTest is Test {
         HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
         address deployer = address(this);
 
-        DeployCollateralManagement.DeploymentResult memory result = deployScript.deploy(deployer, cfg);
-        CollateralManagementContract cm = CollateralManagementContract(payable(result.proxy));
+        DeployCollateralManagement.DeploymentResult memory result = deployScript
+            .deploy(deployer, cfg);
+        CollateralManagementContract cm = CollateralManagementContract(
+            payable(result.proxy)
+        );
 
         // Check deployer has DEFAULT_ADMIN_ROLE
         bytes32 defaultAdminRole = cm.DEFAULT_ADMIN_ROLE();
-        assertTrue(cm.hasRole(defaultAdminRole, deployer), "Deployer should have DEFAULT_ADMIN_ROLE");
+        assertTrue(
+            cm.hasRole(defaultAdminRole, deployer),
+            "Deployer should have DEFAULT_ADMIN_ROLE"
+        );
 
         console.log("  Deployer has DEFAULT_ADMIN_ROLE: true");
         console.log("  COLLATERAL_ADDER role exists");
         console.log("  COLLATERAL_SLASHER role exists");
 
         // Verify roles are defined
-        assertTrue(cm.COLLATERAL_ADDER() != bytes32(0), "COLLATERAL_ADDER should be defined");
-        assertTrue(cm.COLLATERAL_SLASHER() != bytes32(0), "COLLATERAL_SLASHER should be defined");
+        assertTrue(
+            cm.COLLATERAL_ADDER() != bytes32(0),
+            "COLLATERAL_ADDER should be defined"
+        );
+        assertTrue(
+            cm.COLLATERAL_SLASHER() != bytes32(0),
+            "COLLATERAL_SLASHER should be defined"
+        );
 
         console.log("\n[PASS] Roles are set correctly!");
     }

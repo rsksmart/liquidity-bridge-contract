@@ -16,7 +16,9 @@ library TestUtils {
     }
 
     /// @notice Convert bytes to hex string (without 0x prefix)
-    function toHexString(bytes memory data) internal pure returns (string memory) {
+    function toHexString(
+        bytes memory data
+    ) internal pure returns (string memory) {
         return HexUtils.toHexString(data);
     }
 

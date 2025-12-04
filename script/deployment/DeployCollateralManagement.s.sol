@@ -45,7 +45,10 @@ contract DeployCollateralManagement is Script {
     ) public returns (DeploymentResult memory result) {
         // 1) Deploy implementation
         CollateralManagementContract implementation = new CollateralManagementContract();
-        console.log("CollateralManagement implementation:", address(implementation));
+        console.log(
+            "CollateralManagement implementation:",
+            address(implementation)
+        );
 
         // 2) Deploy Proxy Admin
         ProxyAdmin admin = new ProxyAdmin(defaultAdmin);
@@ -72,7 +75,9 @@ contract DeployCollateralManagement is Script {
         console.log("CollateralManagement proxy:", address(proxy));
 
         // Sanity check
-        CollateralManagementContract cm = CollateralManagementContract(payable(address(proxy)));
+        CollateralManagementContract cm = CollateralManagementContract(
+            payable(address(proxy))
+        );
         console.log("CollateralManagement version:", cm.VERSION());
         console.log("Min collateral:", cm.getMinCollateral());
 

@@ -15,20 +15,26 @@ library HexUtils {
     /// @return The byte value (0-15)
     function hexCharToByte(bytes1 char) internal pure returns (uint8) {
         uint8 c = uint8(char);
-        if (c >= 48 && c <= 57) return c - 48;      // '0' - '9'
-        if (c >= 65 && c <= 70) return c - 55;      // 'A' - 'F'
-        if (c >= 97 && c <= 102) return c - 87;     // 'a' - 'f'
+        if (c >= 48 && c <= 57) return c - 48; // '0' - '9'
+        if (c >= 65 && c <= 70) return c - 55; // 'A' - 'F'
+        if (c >= 97 && c <= 102) return c - 87; // 'a' - 'f'
         revert InvalidHexCharacter(char);
     }
 
     /// @notice Parse a hex string to bytes32 (quote hash)
     /// @param hexStr The hex string (with or without 0x prefix)
     /// @return The parsed bytes32 value
-    function parseBytes32(string memory hexStr) internal pure returns (bytes32) {
+    function parseBytes32(
+        string memory hexStr
+    ) internal pure returns (bytes32) {
         bytes memory hexBytes = bytes(hexStr);
 
         uint256 startIndex = 0;
-        if (hexBytes.length >= 2 && hexBytes[0] == "0" && (hexBytes[1] == "x" || hexBytes[1] == "X")) {
+        if (
+            hexBytes.length >= 2 &&
+            hexBytes[0] == "0" &&
+            (hexBytes[1] == "x" || hexBytes[1] == "X")
+        ) {
             startIndex = 2;
         }
 
@@ -50,11 +56,17 @@ library HexUtils {
     /// @notice Parse a hex string to bytes (for signatures, etc.)
     /// @param hexStr The hex string (with or without 0x prefix)
     /// @return The parsed bytes
-    function parseBytes(string memory hexStr) internal pure returns (bytes memory) {
+    function parseBytes(
+        string memory hexStr
+    ) internal pure returns (bytes memory) {
         bytes memory hexBytes = bytes(hexStr);
 
         uint256 startIndex = 0;
-        if (hexBytes.length >= 2 && hexBytes[0] == "0" && (hexBytes[1] == "x" || hexBytes[1] == "X")) {
+        if (
+            hexBytes.length >= 2 &&
+            hexBytes[0] == "0" &&
+            (hexBytes[1] == "x" || hexBytes[1] == "X")
+        ) {
             startIndex = 2;
         }
 
@@ -89,7 +101,9 @@ library HexUtils {
     /// @notice Convert bytes to hex string (without 0x prefix)
     /// @param data The bytes value
     /// @return The hex string representation
-    function toHexString(bytes memory data) internal pure returns (string memory) {
+    function toHexString(
+        bytes memory data
+    ) internal pure returns (string memory) {
         bytes memory hexChars = "0123456789abcdef";
         bytes memory result = new bytes(data.length * 2);
         for (uint256 i = 0; i < data.length; i++) {

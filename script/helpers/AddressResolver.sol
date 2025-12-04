@@ -29,7 +29,13 @@ library AddressResolverLib {
         // Try to read from addresses.json
         try vm.readFile("addresses.json") returns (string memory json) {
             string memory network = vm.envOr("NETWORK", string("rskRegtest"));
-            string memory key = string.concat(".", network, ".", jsonKey, ".address");
+            string memory key = string.concat(
+                ".",
+                network,
+                ".",
+                jsonKey,
+                ".address"
+            );
 
             try vm.parseJsonAddress(json, key) returns (address addr) {
                 if (addr != address(0)) {
@@ -51,22 +57,36 @@ library AddressResolverLib {
 
     /// @notice Get PegIn contract address
     function getPegInAddress(Vm vm) internal view returns (address) {
-        return getContractAddress(vm, "PEGIN_CONTRACT_ADDRESS", "PegInContract");
+        return
+            getContractAddress(vm, "PEGIN_CONTRACT_ADDRESS", "PegInContract");
     }
 
     /// @notice Get PegOut contract address
     function getPegOutAddress(Vm vm) internal view returns (address) {
-        return getContractAddress(vm, "PEGOUT_CONTRACT_ADDRESS", "PegOutContract");
+        return
+            getContractAddress(vm, "PEGOUT_CONTRACT_ADDRESS", "PegOutContract");
     }
 
     /// @notice Get FlyoverDiscovery contract address
     function getFlyoverDiscoveryAddress(Vm vm) internal view returns (address) {
-        return getContractAddress(vm, "FLYOVER_DISCOVERY_ADDRESS", "FlyoverDiscovery");
+        return
+            getContractAddress(
+                vm,
+                "FLYOVER_DISCOVERY_ADDRESS",
+                "FlyoverDiscovery"
+            );
     }
 
     /// @notice Get CollateralManagement contract address
-    function getCollateralManagementAddress(Vm vm) internal view returns (address) {
-        return getContractAddress(vm, "COLLATERAL_MANAGEMENT_ADDRESS", "CollateralManagement");
+    function getCollateralManagementAddress(
+        Vm vm
+    ) internal view returns (address) {
+        return
+            getContractAddress(
+                vm,
+                "COLLATERAL_MANAGEMENT_ADDRESS",
+                "CollateralManagement"
+            );
     }
 }
 

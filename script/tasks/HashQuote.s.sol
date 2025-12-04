@@ -8,11 +8,15 @@ import {AddressResolver} from "../helpers/AddressResolver.sol";
 import {QuoteParser} from "../helpers/QuoteParser.sol";
 
 interface IPegIn {
-    function hashPegInQuote(Quotes.PegInQuote calldata quote) external view returns (bytes32);
+    function hashPegInQuote(
+        Quotes.PegInQuote calldata quote
+    ) external view returns (bytes32);
 }
 
 interface IPegOut {
-    function hashPegOutQuote(Quotes.PegOutQuote calldata quote) external view returns (bytes32);
+    function hashPegOutQuote(
+        Quotes.PegOutQuote calldata quote
+    ) external view returns (bytes32);
 }
 
 /**
@@ -45,7 +49,6 @@ interface IPegOut {
  * - NETWORK: Network name for addresses.json (default: rskRegtest)
  */
 contract HashQuote is Script, AddressResolver, QuoteParser {
-
     /**
      * @notice Hash a PegIn quote from JSON file
      * @param jsonFilePath Path to the JSON file containing the quote

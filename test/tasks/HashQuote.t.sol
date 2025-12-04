@@ -12,7 +12,9 @@ import {TestUtils} from "../helpers/TestUtils.sol";
  * @notice Mock PegIn contract for testing hash functionality
  */
 contract MockPegInContract {
-    function hashPegInQuote(Quotes.PegInQuote calldata quote) external pure returns (bytes32) {
+    function hashPegInQuote(
+        Quotes.PegInQuote calldata quote
+    ) external pure returns (bytes32) {
         return keccak256(Quotes.encodeQuote(quote));
     }
 }
@@ -22,7 +24,9 @@ contract MockPegInContract {
  * @notice Mock PegOut contract for testing hash functionality
  */
 contract MockPegOutContract {
-    function hashPegOutQuote(Quotes.PegOutQuote calldata quote) external pure returns (bytes32) {
+    function hashPegOutQuote(
+        Quotes.PegOutQuote calldata quote
+    ) external pure returns (bytes32) {
         return keccak256(Quotes.encodePegOutQuote(quote));
     }
 }
@@ -54,7 +58,11 @@ contract HashQuoteTest is FlyoverTestBase {
     function test_HashPegInQuote() public view {
         console.log("\n=== TEST HASH PEGIN QUOTE ===\n");
 
-        Quotes.PegInQuote memory quote = createTestPegInQuote(address(mockPegIn), lpAddr, userAddr);
+        Quotes.PegInQuote memory quote = createTestPegInQuote(
+            address(mockPegIn),
+            lpAddr,
+            userAddr
+        );
 
         bytes32 hash1 = mockPegIn.hashPegInQuote(quote);
         bytes32 hash2 = mockPegIn.hashPegInQuote(quote);
@@ -70,7 +78,11 @@ contract HashQuoteTest is FlyoverTestBase {
     function test_HashPegOutQuote() public view {
         console.log("\n=== TEST HASH PEGOUT QUOTE ===\n");
 
-        Quotes.PegOutQuote memory quote = createTestPegOutQuote(address(mockPegOut), lpAddr, userAddr);
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            address(mockPegOut),
+            lpAddr,
+            userAddr
+        );
 
         bytes32 hash1 = mockPegOut.hashPegOutQuote(quote);
         bytes32 hash2 = mockPegOut.hashPegOutQuote(quote);
@@ -84,16 +96,29 @@ contract HashQuoteTest is FlyoverTestBase {
     }
 
     function test_DifferentQuotesProduceDifferentHashes() public view {
-        console.log("\n=== TEST DIFFERENT QUOTES PRODUCE DIFFERENT HASHES ===\n");
+        console.log(
+            "\n=== TEST DIFFERENT QUOTES PRODUCE DIFFERENT HASHES ===\n"
+        );
 
-        Quotes.PegInQuote memory quote1 = createTestPegInQuote(address(mockPegIn), lpAddr, userAddr);
-        Quotes.PegInQuote memory quote2 = createTestPegInQuote(address(mockPegIn), lpAddr, userAddr);
+        Quotes.PegInQuote memory quote1 = createTestPegInQuote(
+            address(mockPegIn),
+            lpAddr,
+            userAddr
+        );
+        Quotes.PegInQuote memory quote2 = createTestPegInQuote(
+            address(mockPegIn),
+            lpAddr,
+            userAddr
+        );
         quote2.value = quote1.value + 1 ether;
 
         bytes32 hash1 = mockPegIn.hashPegInQuote(quote1);
         bytes32 hash2 = mockPegIn.hashPegInQuote(quote2);
 
-        assertTrue(hash1 != hash2, "Different quotes should have different hashes");
+        assertTrue(
+            hash1 != hash2,
+            "Different quotes should have different hashes"
+        );
 
         console.log("[PASS] Different quotes produce different hashes!");
     }
@@ -101,13 +126,25 @@ contract HashQuoteTest is FlyoverTestBase {
     function test_QuoteEncodingConsistency() public view {
         console.log("\n=== TEST QUOTE ENCODING CONSISTENCY ===\n");
 
-        Quotes.PegInQuote memory quote = createTestPegInQuote(address(mockPegIn), lpAddr, userAddr);
+        Quotes.PegInQuote memory quote = createTestPegInQuote(
+            address(mockPegIn),
+            lpAddr,
+            userAddr
+        );
 
         bytes memory encoded1 = Quotes.encodeQuote(quote);
         bytes memory encoded2 = Quotes.encodeQuote(quote);
 
-        assertEq(encoded1.length, encoded2.length, "Encoding should be consistent");
-        assertEq(keccak256(encoded1), keccak256(encoded2), "Encoded bytes should be identical");
+        assertEq(
+            encoded1.length,
+            encoded2.length,
+            "Encoding should be consistent"
+        );
+        assertEq(
+            keccak256(encoded1),
+            keccak256(encoded2),
+            "Encoded bytes should be identical"
+        );
 
         console.log("Encoding length:", encoded1.length);
         console.log("[PASS] Quote encoding is consistent!");
@@ -119,7 +156,11 @@ contract HashQuoteTest is FlyoverTestBase {
         bytes32 testHash = 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef;
         string memory hexStr = TestUtils.toHexString(testHash);
 
-        assertEq(bytes(hexStr).length, 64, "Hex string should be 64 characters");
+        assertEq(
+            bytes(hexStr).length,
+            64,
+            "Hex string should be 64 characters"
+        );
 
         console.log("Hex string:", hexStr);
         console.log("[PASS] HexUtils integration works correctly!");

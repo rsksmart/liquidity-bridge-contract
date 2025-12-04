@@ -22,9 +22,19 @@ contract MockPegOutContract {
         bool completed;
     }
 
-    event RefundUserPegOut(bytes32 indexed quoteHash, address indexed user, uint256 amount);
+    event RefundUserPegOut(
+        bytes32 indexed quoteHash,
+        address indexed user,
+        uint256 amount
+    );
 
-    function registerPegOut(bytes32 quoteHash, address user, uint256 amount, uint32 expireDate, uint32 expireBlock) external {
+    function registerPegOut(
+        bytes32 quoteHash,
+        address user,
+        uint256 amount,
+        uint32 expireDate,
+        uint32 expireBlock
+    ) external {
         pegOutStates[quoteHash] = PegOutState({
             user: user,
             amount: amount,
@@ -41,7 +51,11 @@ contract MockPegOutContract {
         require(state.user != address(0), "Quote does not exist");
         require(!state.refunded, "Already refunded");
         require(!state.completed, "Already completed");
-        require(block.timestamp >= state.expireDate || block.number >= state.expireBlock, "Not expired yet");
+        require(
+            block.timestamp >= state.expireDate ||
+                block.number >= state.expireBlock,
+            "Not expired yet"
+        );
 
         state.refunded = true;
 
@@ -51,7 +65,9 @@ contract MockPegOutContract {
         emit RefundUserPegOut(quoteHash, state.user, state.amount);
     }
 
-    function hashPegOutQuote(Quotes.PegOutQuote calldata quote) external pure returns (bytes32) {
+    function hashPegOutQuote(
+        Quotes.PegOutQuote calldata quote
+    ) external pure returns (bytes32) {
         return keccak256(Quotes.encodePegOutQuote(quote));
     }
 
@@ -89,15 +105,31 @@ contract RefundUserPegoutTest is FlyoverTestBase {
         console.log("LP address:", liquidityProvider);
         console.log("PegOut deployed at:", address(mockPegOut));
 
-        Quotes.PegOutQuote memory quote = createTestPegOutQuote(address(mockPegOut), liquidityProvider, user);
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            address(mockPegOut),
+            liquidityProvider,
+            user
+        );
         bytes32 quoteHash = mockPegOut.hashPegOutQuote(quote);
         console.log("Quote hash:");
         console.logBytes32(quoteHash);
 
-        uint256 totalValue = quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+        uint256 totalValue = quote.value +
+            quote.callFee +
+            quote.productFeeAmount +
+            quote.gasFee;
 
-        mockPegOut.registerPegOut(quoteHash, user, totalValue, quote.expireDate, quote.expireBlock);
-        console.log("[SUCCESS] PegOut registered with total value:", totalValue);
+        mockPegOut.registerPegOut(
+            quoteHash,
+            user,
+            totalValue,
+            quote.expireDate,
+            quote.expireBlock
+        );
+        console.log(
+            "[SUCCESS] PegOut registered with total value:",
+            totalValue
+        );
 
         vm.warp(quote.expireDate + 1);
         vm.roll(quote.expireBlock + 1);
@@ -109,7 +141,11 @@ contract RefundUserPegoutTest is FlyoverTestBase {
         mockPegOut.refundUserPegOut(quoteHash);
 
         uint256 userBalanceAfter = user.balance;
-        assertEq(userBalanceAfter, userBalanceBefore + totalValue, "User should receive full refund");
+        assertEq(
+            userBalanceAfter,
+            userBalanceBefore + totalValue,
+            "User should receive full refund"
+        );
 
         console.log("\n[PASS] Refund successful!");
         console.log("Amount refunded:", totalValue);
@@ -118,11 +154,24 @@ contract RefundUserPegoutTest is FlyoverTestBase {
     function test_CannotRefundBeforeExpiry() public {
         console.log("\n=== TEST CANNOT REFUND BEFORE EXPIRY ===\n");
 
-        Quotes.PegOutQuote memory quote = createTestPegOutQuote(address(mockPegOut), liquidityProvider, user);
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            address(mockPegOut),
+            liquidityProvider,
+            user
+        );
         bytes32 quoteHash = mockPegOut.hashPegOutQuote(quote);
 
-        uint256 totalValue = quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
-        mockPegOut.registerPegOut(quoteHash, user, totalValue, quote.expireDate, quote.expireBlock);
+        uint256 totalValue = quote.value +
+            quote.callFee +
+            quote.productFeeAmount +
+            quote.gasFee;
+        mockPegOut.registerPegOut(
+            quoteHash,
+            user,
+            totalValue,
+            quote.expireDate,
+            quote.expireBlock
+        );
 
         vm.expectRevert("Not expired yet");
         mockPegOut.refundUserPegOut(quoteHash);
@@ -133,11 +182,24 @@ contract RefundUserPegoutTest is FlyoverTestBase {
     function test_CannotRefundTwice() public {
         console.log("\n=== TEST CANNOT REFUND TWICE ===\n");
 
-        Quotes.PegOutQuote memory quote = createTestPegOutQuote(address(mockPegOut), liquidityProvider, user);
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            address(mockPegOut),
+            liquidityProvider,
+            user
+        );
         bytes32 quoteHash = mockPegOut.hashPegOutQuote(quote);
 
-        uint256 totalValue = quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
-        mockPegOut.registerPegOut(quoteHash, user, totalValue, quote.expireDate, quote.expireBlock);
+        uint256 totalValue = quote.value +
+            quote.callFee +
+            quote.productFeeAmount +
+            quote.gasFee;
+        mockPegOut.registerPegOut(
+            quoteHash,
+            user,
+            totalValue,
+            quote.expireDate,
+            quote.expireBlock
+        );
 
         vm.warp(quote.expireDate + 1);
         vm.roll(quote.expireBlock + 1);
@@ -153,7 +215,8 @@ contract RefundUserPegoutTest is FlyoverTestBase {
     function test_ScriptQuoteHashParsing() public pure {
         console.log("\n=== TEST QUOTE HASH PARSING ===\n");
 
-        string memory hashStr = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+        string
+            memory hashStr = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
 
         bytes memory hashBytes = bytes(hashStr);
         assertEq(hashBytes.length, 64, "Hash string should be 64 characters");

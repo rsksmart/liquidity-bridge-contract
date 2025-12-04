@@ -25,7 +25,9 @@ contract MockPegInContract {
         return 0;
     }
 
-    function hashPegInQuote(Quotes.PegInQuote calldata quote) public pure returns (bytes32) {
+    function hashPegInQuote(
+        Quotes.PegInQuote calldata quote
+    ) public pure returns (bytes32) {
         return keccak256(Quotes.encodeQuote(quote));
     }
 }
@@ -93,7 +95,8 @@ contract RegisterPeginTest is FlyoverTestBase {
         assertEq(uint8(sig2[1]), 0xcd, "Second byte should be 0xcd");
 
         // Test full length signature
-        string memory fullSigHex = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12";
+        string
+            memory fullSigHex = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12";
         bytes memory fullSig = registerScript.parseSignature(fullSigHex);
         assertEq(fullSig.length, 65, "Full signature should be 65 bytes");
 
@@ -103,7 +106,11 @@ contract RegisterPeginTest is FlyoverTestBase {
     function test_QuoteHashing() public {
         console.log("\n=== TEST QUOTE HASHING ===\n");
 
-        Quotes.PegInQuote memory quote = createTestPegInQuote(address(mockPegIn), liquidityProvider, user);
+        Quotes.PegInQuote memory quote = createTestPegInQuote(
+            address(mockPegIn),
+            liquidityProvider,
+            user
+        );
 
         bytes32 hash1 = mockPegIn.hashPegInQuote(quote);
         bytes32 hash2 = mockPegIn.hashPegInQuote(quote);
@@ -119,10 +126,23 @@ contract RegisterPeginTest is FlyoverTestBase {
     function test_MockRegistration() public {
         console.log("\n=== TEST MOCK REGISTRATION ===\n");
 
-        Quotes.PegInQuote memory quote = createTestPegInQuote(address(mockPegIn), liquidityProvider, user);
-        bytes memory signature = signQuoteHash(mockPegIn.hashPegInQuote(quote), lpPrivateKey);
+        Quotes.PegInQuote memory quote = createTestPegInQuote(
+            address(mockPegIn),
+            liquidityProvider,
+            user
+        );
+        bytes memory signature = signQuoteHash(
+            mockPegIn.hashPegInQuote(quote),
+            lpPrivateKey
+        );
 
-        int256 result = mockPegIn.registerPegIn(quote, signature, MOCK_RAW_TX, MOCK_PMT, MOCK_HEIGHT);
+        int256 result = mockPegIn.registerPegIn(
+            quote,
+            signature,
+            MOCK_RAW_TX,
+            MOCK_PMT,
+            MOCK_HEIGHT
+        );
 
         assertEq(result, 0, "Registration should succeed with result 0");
 
