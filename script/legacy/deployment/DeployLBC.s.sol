@@ -3,11 +3,11 @@ pragma solidity 0.8.25;
 
 import {Script, console} from "lib/forge-std/src/Script.sol";
 
-import {HelperConfig} from "../HelperConfig.s.sol";
+import {HelperConfig} from "../../HelperConfig.s.sol";
 
-import {LiquidityBridgeContract} from "../../src/legacy/LiquidityBridgeContract.sol";
-import {LiquidityBridgeContractProxy} from "../../src/legacy/LiquidityBridgeContractProxy.sol";
-import {LiquidityBridgeContractAdmin} from "../../src/legacy/LiquidityBridgeContractAdmin.sol";
+import {LiquidityBridgeContract} from "../../../src/legacy/LiquidityBridgeContract.sol";
+import {LiquidityBridgeContractProxy} from "../../../src/legacy/LiquidityBridgeContractProxy.sol";
+import {LiquidityBridgeContractAdmin} from "../../../src/legacy/LiquidityBridgeContractAdmin.sol";
 
 contract DeployLBC is Script {
     function run() external {
@@ -15,7 +15,6 @@ contract DeployLBC is Script {
         HelperConfig.NetworkConfig memory cfg = helper.getConfig();
 
         uint256 deployerKey = helper.getDeployerPrivateKey();
-        address deployer = vm.rememberKey(deployerKey);
 
         vm.startBroadcast(deployerKey);
 

@@ -12,7 +12,7 @@ PRIORITY_GAS_PRICE ?= 0
 
 # Hash-quote defaults
 QUOTE_TYPE ?= pegin
-QUOTE_FILE ?= script/tasks/hash-quote.example.json
+QUOTE_FILE ?= script/legacy/tasks/hash-quote.example.json
 
 # Pause-system defaults
 PAUSE_REASON ?= Emergency maintenance

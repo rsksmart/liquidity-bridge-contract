@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import "lib/forge-std/src/Test.sol";
 import "lib/forge-std/src/console.sol";
-import {UpgradeLBC} from "../../script/deployment/UpgradeLBC.s.sol";
+import {UpgradeLBC} from "../../script/legacy/deployment/UpgradeLBC.s.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {LiquidityBridgeContract} from "../../src/legacy/LiquidityBridgeContract.sol";
 import {LiquidityBridgeContractV2} from "../../src/legacy/LiquidityBridgeContractV2.sol";

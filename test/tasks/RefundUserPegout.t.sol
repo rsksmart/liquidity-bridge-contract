@@ -5,7 +5,7 @@ import "lib/forge-std/src/Test.sol";
 import "lib/forge-std/src/console.sol";
 import {QuotesV2} from "src/legacy/QuotesV2.sol";
 import {LiquidityBridgeContractV2} from "src/legacy/LiquidityBridgeContractV2.sol";
-import {RefundUserPegout} from "../../script/tasks/RefundUserPegout.s.sol";
+import {RefundUserPegout} from "../../script/legacy/tasks/RefundUserPegout.s.sol";
 
 /**
  * @title RefundUserPegoutTest

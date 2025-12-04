@@ -60,7 +60,7 @@ interface ILiquidityBridgeContract {
  *     --rpc-url http://localhost:4444 \
  *     --ffi
  */
-import {BtcAddressParser} from "../helpers/BtcAddressParser.sol";
+import {BtcAddressParser} from "../../../script/helpers/BtcAddressParser.sol";
 
 contract HashQuote is Script, BtcAddressParser {
     // LBC contract address - should be loaded from deployment config

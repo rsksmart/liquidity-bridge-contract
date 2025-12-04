@@ -5,7 +5,7 @@ import "lib/forge-std/src/Test.sol";
 import "lib/forge-std/src/console.sol";
 import {QuotesV2} from "src/legacy/QuotesV2.sol";
 import {LiquidityBridgeContractV2} from "src/legacy/LiquidityBridgeContractV2.sol";
-import {HashQuote} from "../../script/tasks/HashQuote.s.sol";
+import {HashQuote} from "../../script/legacy/tasks/HashQuote.s.sol";
 import {BtcAddressParser} from "../../script/helpers/BtcAddressParser.sol";
 
 /**
