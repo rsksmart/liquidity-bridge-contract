@@ -33,34 +33,28 @@ abstract contract PegOutTestBase is Test {
     uint256 constant TEST_MIN_COLLATERAL = 0.6 ether;
     uint256 constant TEST_RESIGN_DELAY_BLOCKS = 500;
     uint256 constant TEST_REWARD_PERCENTAGE = 1000;
-    uint256 constant TEST_DUST_THRESHOLD = 0.0000001 ether; // From PEGOUT_CONSTANTS
+    uint256 constant TEST_DUST_THRESHOLD = 0.0000001 ether;
     uint256 constant TEST_BTC_BLOCK_TIME = 3600;
     uint256 constant DISCOVERY_INITIAL_DELAY = 5000;
     uint256 constant MIN_COLLATERAL = 0.6 ether;
 
     address constant ZERO_ADDRESS = address(0);
 
-    // BTC Mock Constants (shared across all PegOut tests)
+    // BTC Mock Constants
     bytes32 constant BLOCK_HEADER_HASH = bytes32(uint256(1));
     uint256 constant PARTIAL_MERKLE_TREE = 0;
     bytes32[] internal merkleHashes;
 
     /// @notice Deploy PegOutContract with all dependencies
     function deployPegOutContract() internal {
-        // Create owner
         owner = makeAddr("owner");
         vm.deal(owner, 100 ether);
 
-        // Deploy CollateralManagement
         deployCollateralManagement();
-
-        // Deploy Discovery
         deployDiscovery();
 
-        // Deploy BridgeMock
         bridgeMock = new BridgeMock();
 
-        // Deploy PegOutContract
         PegOutContract implementation = new PegOutContract();
 
         bytes memory initData = abi.encodeCall(
@@ -83,8 +77,6 @@ abstract contract PegOutTestBase is Test {
         );
         pegOutContract = PegOutContract(payable(address(proxy)));
 
-        // Grant COLLATERAL_SLASHER role to PegOutContract
-        // Store the role hash BEFORE prank to avoid consuming it
         bytes32 slasherRole = collateralManagement.COLLATERAL_SLASHER();
 
         vm.prank(owner);
@@ -113,7 +105,6 @@ abstract contract PegOutTestBase is Test {
             payable(address(cmProxy))
         );
 
-        // Verify owner has admin role (should be automatic with delay = 0)
         require(
             collateralManagement.hasRole(
                 collateralManagement.DEFAULT_ADMIN_ROLE(),
@@ -141,8 +132,6 @@ abstract contract PegOutTestBase is Test {
         );
         discovery = FlyoverDiscovery(payable(address(discoveryProxy)));
 
-        // Grant COLLATERAL_ADDER role to Discovery contract
-        // Store the role hash BEFORE prank to avoid consuming it
         bytes32 adderRole = collateralManagement.COLLATERAL_ADDER();
 
         vm.prank(owner);
@@ -151,17 +140,14 @@ abstract contract PegOutTestBase is Test {
 
     /// @notice Setup providers with collateral
     function setupProviders() internal {
-        // Create addresses with known private keys for signature testing
         (pegInLp, pegInLpKey) = makeAddrAndKey("pegInLp");
         (pegOutLp, pegOutLpKey) = makeAddrAndKey("pegOutLp");
         (fullLp, fullLpKey) = makeAddrAndKey("fullLp");
 
-        // Fund providers
         vm.deal(pegInLp, 100 ether);
         vm.deal(pegOutLp, 100 ether);
         vm.deal(fullLp, 100 ether);
 
-        // Register providers via Discovery
         vm.prank(pegInLp);
         discovery.register{value: MIN_COLLATERAL}(
             "Pegin Provider",
@@ -187,26 +173,21 @@ abstract contract PegOutTestBase is Test {
         );
     }
 
-    /// @notice Initialize BTC mock data (call in setUp of test contracts)
+    /// @notice Initialize BTC mock data
     function initBtcMocks() internal {
         merkleHashes = new bytes32[](1);
         merkleHashes[0] = bytes32(uint256(1));
     }
 
     /// @notice Creates a BTC block header with a specific timestamp
-    /// @param timestamp The Unix timestamp for the block
-    /// @return header The 80-byte BTC block header
     function createBtcBlockHeader(
         uint32 timestamp
     ) internal pure returns (bytes memory) {
         bytes memory header = new bytes(80);
-
-        // Place timestamp at offset 68 (little-endian)
         header[68] = bytes1(uint8(timestamp));
         header[69] = bytes1(uint8(timestamp >> 8));
         header[70] = bytes1(uint8(timestamp >> 16));
         header[71] = bytes1(uint8(timestamp >> 24));
-
         return header;
     }
 
@@ -227,52 +208,41 @@ abstract contract PegOutTestBase is Test {
     }
 
     /// @notice Generates a simple mock BTC transaction for testing
-    /// @dev Creates a minimal valid BTC tx with P2PKH output
-    /// @param quote The PegOut quote
-    /// @param quoteHash The hash of the quote
-    /// @return btcTx The raw BTC transaction bytes
     function generateMockBtcTx(
         Quotes.PegOutQuote memory quote,
         bytes32 quoteHash
     ) internal pure returns (bytes memory) {
-        // Convert quote value from WEI to SAT (divide by 10^10)
         uint64 satAmount = uint64(quote.value / 1e10);
 
-        // Extract P2PKH hash160 from 21-byte address (skip version byte)
         bytes memory hash160 = new bytes(20);
         for (uint i = 0; i < 20; i++) {
             hash160[i] = quote.depositAddress[i + 1];
         }
 
-        // Create P2PKH output script
         bytes memory outputScript = abi.encodePacked(
-            hex"76a914", // OP_DUP OP_HASH160 PUSH20
+            hex"76a914",
             hash160,
-            hex"88ac" // OP_EQUALVERIFY OP_CHECKSIG
+            hex"88ac"
         );
 
-        // Build mock transaction
         return
             abi.encodePacked(
-                hex"01000000", // Version
-                hex"01", // 1 input
-                // Hardcoded previous tx and signature
+                hex"01000000",
+                hex"01",
                 hex"013503c427ba46058d2d8ac9221a2f6fd50734a69f19dae65420191e3ada2d40",
                 hex"00000000",
                 hex"6a",
                 hex"47304402205d047dbd8c49aea5bd0400b85a57b2da7e139cec632fb138b7bee1d382fd70ca02201aa529f59b4f66fdf86b0728937a91a40962aedd3f6e30bce5208fec0464d54901210255507b238c6f14735a7abe96a635058da47b05b61737a610bef757f009eea2a4",
                 hex"ffffffff",
-                hex"02", // 2 outputs
-                // Output 1: Payment to user
+                hex"02",
                 toLittleEndian64(satAmount),
                 uint8(outputScript.length),
                 outputScript,
-                // Output 2: OP_RETURN with quote hash
-                hex"0000000000000000", // 0 amount
-                hex"22", // script length (34 bytes)
-                hex"6a20", // OP_RETURN PUSH32
+                hex"0000000000000000",
+                hex"22",
+                hex"6a20",
                 quoteHash,
-                hex"00000000" // Locktime
+                hex"00000000"
             );
     }
 }

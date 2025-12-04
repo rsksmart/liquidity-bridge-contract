@@ -4,7 +4,9 @@ pragma solidity 0.8.25;
 import "lib/forge-std/src/Script.sol";
 import "lib/forge-std/src/console.sol";
 import {Quotes} from "src/libraries/Quotes.sol";
-import {BtcAddressParser} from "../helpers/BtcAddressParser.sol";
+import {AddressResolver} from "../helpers/AddressResolver.sol";
+import {HexUtils} from "../helpers/HexUtils.sol";
+import {QuoteParser} from "../helpers/QuoteParser.sol";
 
 interface IPegIn {
     function registerPegIn(
@@ -52,7 +54,7 @@ interface IPegIn {
  * - NETWORK: Network name for addresses.json (default: rskRegtest)
  * - BTC_NETWORK: Bitcoin network (mainnet or testnet)
  */
-contract RegisterPegin is Script, BtcAddressParser {
+contract RegisterPegin is Script, AddressResolver, QuoteParser {
     string constant HELPER_SCRIPT_FETCH_TX = "script/helpers/fetch-btc-tx-data.ts";
 
     /**
@@ -80,30 +82,6 @@ contract RegisterPegin is Script, BtcAddressParser {
         console.log("  Block height:", height);
         console.log("  Raw TX length:", rawTx.length);
         console.log("  PMT length:", pmt.length);
-    }
-
-    /**
-     * @notice Get PegIn contract address from environment or addresses.json
-     */
-    function getPegInAddress() internal view returns (address) {
-        try vm.envAddress("PEGIN_CONTRACT_ADDRESS") returns (address addr) {
-            if (addr != address(0)) {
-                return addr;
-            }
-        } catch {}
-
-        try vm.readFile("addresses.json") returns (string memory json) {
-            string memory network = vm.envOr("NETWORK", string("rskRegtest"));
-            string memory key = string.concat(".", network, ".PegInContract.address");
-
-            try vm.parseJsonAddress(json, key) returns (address addr) {
-                if (addr != address(0)) {
-                    return addr;
-                }
-            } catch {}
-        } catch {}
-
-        revert("Failed to find PegInContract address. Set PEGIN_CONTRACT_ADDRESS env var.");
     }
 
     /**
@@ -140,7 +118,7 @@ contract RegisterPegin is Script, BtcAddressParser {
 
         console.log("Reading quote from file:", quoteFilePath);
         string memory json = vm.readFile(quoteFilePath);
-        Quotes.PegInQuote memory quote = parsePeginQuote(json);
+        Quotes.PegInQuote memory quote = parsePegInQuote(json);
 
         address pegInAddress = getPegInAddress();
         console.log("PegIn Contract Address:", pegInAddress);
@@ -182,78 +160,10 @@ contract RegisterPegin is Script, BtcAddressParser {
 
     /**
      * @notice Parse signature from hex string
+     * @param sigHex The hex string (with or without 0x prefix)
+     * @return The parsed signature bytes
      */
     function parseSignature(string memory sigHex) public pure returns (bytes memory) {
-        bytes memory sigBytes = bytes(sigHex);
-
-        uint startIndex = 0;
-        if (sigBytes.length >= 2 && sigBytes[0] == "0" && (sigBytes[1] == "x" || sigBytes[1] == "X")) {
-            startIndex = 2;
-        }
-
-        uint hexLength = sigBytes.length - startIndex;
-        require(hexLength % 2 == 0, "Invalid signature hex length");
-
-        bytes memory result = new bytes(hexLength / 2);
-        for (uint i = 0; i < hexLength / 2; i++) {
-            uint8 high = hexCharToByte(sigBytes[startIndex + i * 2]);
-            uint8 low = hexCharToByte(sigBytes[startIndex + i * 2 + 1]);
-            result[i] = bytes1(high * 16 + low);
-        }
-
-        return result;
-    }
-
-    /**
-     * @notice Parse PegIn quote from JSON
-     */
-    function parsePeginQuote(string memory json) public returns (Quotes.PegInQuote memory) {
-        Quotes.PegInQuote memory quote;
-
-        string memory fedBTCAddr = vm.parseJsonString(json, ".fedBTCAddr");
-        quote.fedBtcAddress = parseFedBtcAddress(fedBTCAddr);
-
-        quote.lbcAddress = vm.parseJsonAddress(json, ".lbcAddr");
-        quote.liquidityProviderRskAddress = vm.parseJsonAddress(json, ".lpRSKAddr");
-
-        string memory btcRefundAddr = vm.parseJsonString(json, ".btcRefundAddr");
-        quote.btcRefundAddress = parseBtcAddress(btcRefundAddr);
-
-        quote.rskRefundAddress = payable(vm.parseJsonAddress(json, ".rskRefundAddr"));
-
-        string memory lpBTCAddr = vm.parseJsonString(json, ".lpBTCAddr");
-        quote.liquidityProviderBtcAddress = parseBtcAddress(lpBTCAddr);
-
-        quote.callFee = vm.parseJsonUint(json, ".callFee");
-        quote.penaltyFee = vm.parseJsonUint(json, ".penaltyFee");
-        quote.contractAddress = vm.parseJsonAddress(json, ".contractAddr");
-        quote.data = vm.parseJsonBytes(json, ".data");
-        quote.gasLimit = uint32(vm.parseJsonUint(json, ".gasLimit"));
-
-        try vm.parseJsonInt(json, ".nonce") returns (int256 nonceInt) {
-            quote.nonce = int64(nonceInt);
-        } catch {
-            string memory nonceStr = vm.parseJsonString(json, ".nonce");
-            quote.nonce = int64(uint64(vm.parseUint(nonceStr)));
-        }
-
-        quote.value = vm.parseJsonUint(json, ".value");
-        quote.agreementTimestamp = uint32(vm.parseJsonUint(json, ".agreementTimestamp"));
-        quote.timeForDeposit = uint32(vm.parseJsonUint(json, ".timeForDeposit"));
-        quote.callTime = uint32(vm.parseJsonUint(json, ".lpCallTime"));
-        quote.depositConfirmations = uint16(vm.parseJsonUint(json, ".confirmations"));
-        quote.callOnRegister = vm.parseJsonBool(json, ".callOnRegister");
-        quote.gasFee = vm.parseJsonUint(json, ".gasFee");
-        quote.productFeeAmount = vm.parseJsonUint(json, ".productFeeAmount");
-
-        return quote;
-    }
-
-    function hexCharToByte(bytes1 char) internal pure returns (uint8) {
-        uint8 c = uint8(char);
-        if (c >= 48 && c <= 57) return c - 48;
-        if (c >= 65 && c <= 70) return c - 55;
-        if (c >= 97 && c <= 102) return c - 87;
-        revert("Invalid hex character");
+        return HexUtils.parseBytes(sigHex);
     }
 }

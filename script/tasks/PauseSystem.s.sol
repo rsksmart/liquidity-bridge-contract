@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 import "lib/forge-std/src/Script.sol";
 import "lib/forge-std/src/console.sol";
+import {AddressResolver} from "../helpers/AddressResolver.sol";
 
 /**
  * @title PauseSystem
@@ -48,7 +49,7 @@ interface IPausable {
     function pauseStatus() external view returns (bool isPaused, string memory reason, uint64 since);
 }
 
-contract PauseSystem is Script {
+contract PauseSystem is Script, AddressResolver {
     struct ContractInfo {
         string name;
         address addr;
@@ -57,39 +58,8 @@ contract PauseSystem is Script {
         uint64 since;
     }
 
-    /**
-     * @notice Get contract address from environment variable or addresses.json
-     */
-    function getContractAddress(
-        string memory envVarName,
-        string memory jsonKey
-    ) internal view returns (address) {
-        // First try environment variable
-        try vm.envAddress(envVarName) returns (address addr) {
-            if (addr != address(0)) {
-                return addr;
-            }
-        } catch {}
-
-        // Try to read from addresses.json
-        try vm.readFile("addresses.json") returns (string memory json) {
-            string memory network = vm.envOr("NETWORK", string("rskRegtest"));
-            string memory key = string.concat(".", network, ".", jsonKey, ".address");
-
-            try vm.parseJsonAddress(json, key) returns (address addr) {
-                if (addr != address(0)) {
-                    return addr;
-                }
-            } catch {}
-        } catch {}
-
-        revert(
-            string.concat(
-                "Failed to find ", jsonKey, " address. Set ", envVarName,
-                " env var or ensure addresses.json is configured."
-            )
-        );
-    }
+    error PartialPauseFailure(uint256 succeeded, uint256 total, string[] failedContracts);
+    error PartialUnpauseFailure(uint256 succeeded, uint256 total, string[] failedContracts);
 
     /**
      * @notice Load all contract addresses
@@ -98,16 +68,16 @@ contract PauseSystem is Script {
         ContractInfo[] memory contracts = new ContractInfo[](4);
 
         contracts[0].name = "FlyoverDiscovery";
-        contracts[0].addr = getContractAddress("FLYOVER_DISCOVERY_ADDRESS", "FlyoverDiscovery");
+        contracts[0].addr = getFlyoverDiscoveryAddress();
 
         contracts[1].name = "PegInContract";
-        contracts[1].addr = getContractAddress("PEGIN_CONTRACT_ADDRESS", "PegInContract");
+        contracts[1].addr = getPegInAddress();
 
         contracts[2].name = "PegOutContract";
-        contracts[2].addr = getContractAddress("PEGOUT_CONTRACT_ADDRESS", "PegOutContract");
+        contracts[2].addr = getPegOutAddress();
 
         contracts[3].name = "CollateralManagement";
-        contracts[3].addr = getContractAddress("COLLATERAL_MANAGEMENT_ADDRESS", "CollateralManagement");
+        contracts[3].addr = getCollateralManagementAddress();
 
         return contracts;
     }
@@ -121,12 +91,12 @@ contract PauseSystem is Script {
         ContractInfo[] memory contracts = loadContracts();
 
         console.log("Contract Addresses:");
-        for (uint i = 0; i < contracts.length; i++) {
+        for (uint256 i = 0; i < contracts.length; i++) {
             console.log(string.concat("  ", contracts[i].name, ": ", vm.toString(contracts[i].addr)));
         }
 
         console.log("\nCurrent Pause Status:");
-        for (uint i = 0; i < contracts.length; i++) {
+        for (uint256 i = 0; i < contracts.length; i++) {
             IPausable pausable = IPausable(contracts[i].addr);
             (bool isPaused, string memory reason, uint64 since) = pausable.pauseStatus();
 
@@ -141,7 +111,8 @@ contract PauseSystem is Script {
     }
 
     /**
-     * @notice Pause all system contracts
+     * @notice Pause all system contracts atomically
+     * @dev If any contract fails to pause, the entire transaction reverts to prevent inconsistent state
      */
     function pauseAll(string memory reason) public {
         require(bytes(reason).length > 0, "Reason cannot be empty");
@@ -153,24 +124,41 @@ contract PauseSystem is Script {
 
         vm.startBroadcast();
 
-        uint256 successCount = 0;
-        for (uint i = 0; i < contracts.length; i++) {
+        // First pass: attempt all pauses, collect failures
+        string[] memory failedContracts = new string[](contracts.length);
+        uint256 failCount = 0;
+
+        for (uint256 i = 0; i < contracts.length; i++) {
             try IPausable(contracts[i].addr).pause(reason) {
                 console.log(string.concat("  [OK] ", contracts[i].name, " paused"));
-                successCount++;
             } catch Error(string memory error) {
                 console.log(string.concat("  [FAIL] ", contracts[i].name, " - ", error));
+                failedContracts[failCount] = contracts[i].name;
+                failCount++;
             }
         }
 
         vm.stopBroadcast();
 
+        uint256 successCount = contracts.length - failCount;
         console.log(string.concat("\nPaused: ", vm.toString(successCount), "/", vm.toString(contracts.length)));
-        require(successCount == contracts.length, "Pause operation failed for some contracts");
+
+        // If any failed, revert the entire transaction to prevent inconsistent state
+        if (failCount > 0) {
+            // Trim the failed contracts array
+            string[] memory trimmedFailed = new string[](failCount);
+            for (uint256 i = 0; i < failCount; i++) {
+                trimmedFailed[i] = failedContracts[i];
+            }
+            revert PartialPauseFailure(successCount, contracts.length, trimmedFailed);
+        }
+
+        console.log("\n[SUCCESS] All contracts paused successfully!");
     }
 
     /**
-     * @notice Unpause all system contracts
+     * @notice Unpause all system contracts atomically
+     * @dev If any contract fails to unpause, the entire transaction reverts to prevent inconsistent state
      */
     function unpauseAll() public {
         console.log("\n=== UNPAUSE OPERATION ===\n");
@@ -179,19 +167,35 @@ contract PauseSystem is Script {
 
         vm.startBroadcast();
 
-        uint256 successCount = 0;
-        for (uint i = 0; i < contracts.length; i++) {
+        // First pass: attempt all unpauses, collect failures
+        string[] memory failedContracts = new string[](contracts.length);
+        uint256 failCount = 0;
+
+        for (uint256 i = 0; i < contracts.length; i++) {
             try IPausable(contracts[i].addr).unpause() {
                 console.log(string.concat("  [OK] ", contracts[i].name, " unpaused"));
-                successCount++;
             } catch Error(string memory error) {
                 console.log(string.concat("  [FAIL] ", contracts[i].name, " - ", error));
+                failedContracts[failCount] = contracts[i].name;
+                failCount++;
             }
         }
 
         vm.stopBroadcast();
 
+        uint256 successCount = contracts.length - failCount;
         console.log(string.concat("\nUnpaused: ", vm.toString(successCount), "/", vm.toString(contracts.length)));
-        require(successCount == contracts.length, "Unpause operation failed for some contracts");
+
+        // If any failed, revert the entire transaction to prevent inconsistent state
+        if (failCount > 0) {
+            // Trim the failed contracts array
+            string[] memory trimmedFailed = new string[](failCount);
+            for (uint256 i = 0; i < failCount; i++) {
+                trimmedFailed[i] = failedContracts[i];
+            }
+            revert PartialUnpauseFailure(successCount, contracts.length, trimmedFailed);
+        }
+
+        console.log("\n[SUCCESS] All contracts unpaused successfully!");
     }
 }

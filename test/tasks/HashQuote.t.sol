@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import "lib/forge-std/src/Test.sol";
-import "lib/forge-std/src/console.sol";
+import {console} from "forge-std/console.sol";
+import {FlyoverTestBase} from "../helpers/FlyoverTestBase.sol";
 import {Quotes} from "src/libraries/Quotes.sol";
 import {HashQuote} from "../../script/tasks/HashQuote.s.sol";
-import {BtcAddressParser} from "../../script/helpers/BtcAddressParser.sol";
+import {TestUtils} from "../helpers/TestUtils.sol";
 
 /**
  * @title MockPegInContract
@@ -31,27 +31,33 @@ contract MockPegOutContract {
  * @title HashQuoteTest
  * @notice Test for the new hash-quote task using the Quotes library
  */
-contract HashQuoteTest is Test, BtcAddressParser {
+contract HashQuoteTest is FlyoverTestBase {
     HashQuote public hashScript;
-    MockPegInContract public pegIn;
-    MockPegOutContract public pegOut;
+    MockPegInContract public mockPegIn;
+    MockPegOutContract public mockPegOut;
+
+    address public lpAddr;
+    address public userAddr;
 
     function setUp() public {
-        pegIn = new MockPegInContract();
-        pegOut = new MockPegOutContract();
+        mockPegIn = new MockPegInContract();
+        mockPegOut = new MockPegOutContract();
         hashScript = new HashQuote();
 
-        vm.setEnv("PEGIN_CONTRACT_ADDRESS", vm.toString(address(pegIn)));
-        vm.setEnv("PEGOUT_CONTRACT_ADDRESS", vm.toString(address(pegOut)));
+        lpAddr = makeAddr("liquidityProvider");
+        userAddr = makeAddr("user");
+
+        vm.setEnv("PEGIN_CONTRACT_ADDRESS", vm.toString(address(mockPegIn)));
+        vm.setEnv("PEGOUT_CONTRACT_ADDRESS", vm.toString(address(mockPegOut)));
     }
 
-    function test_HashPegInQuote() public {
+    function test_HashPegInQuote() public view {
         console.log("\n=== TEST HASH PEGIN QUOTE ===\n");
 
-        Quotes.PegInQuote memory quote = createTestPegInQuote();
+        Quotes.PegInQuote memory quote = createTestPegInQuote(address(mockPegIn), lpAddr, userAddr);
 
-        bytes32 hash1 = pegIn.hashPegInQuote(quote);
-        bytes32 hash2 = pegIn.hashPegInQuote(quote);
+        bytes32 hash1 = mockPegIn.hashPegInQuote(quote);
+        bytes32 hash2 = mockPegIn.hashPegInQuote(quote);
 
         assertEq(hash1, hash2, "Hash should be deterministic");
         assertTrue(hash1 != bytes32(0), "Hash should not be zero");
@@ -61,13 +67,13 @@ contract HashQuoteTest is Test, BtcAddressParser {
         console.log("\n[PASS] HashQuote for PegIn works correctly!");
     }
 
-    function test_HashPegOutQuote() public {
+    function test_HashPegOutQuote() public view {
         console.log("\n=== TEST HASH PEGOUT QUOTE ===\n");
 
-        Quotes.PegOutQuote memory quote = createTestPegOutQuote();
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(address(mockPegOut), lpAddr, userAddr);
 
-        bytes32 hash1 = pegOut.hashPegOutQuote(quote);
-        bytes32 hash2 = pegOut.hashPegOutQuote(quote);
+        bytes32 hash1 = mockPegOut.hashPegOutQuote(quote);
+        bytes32 hash2 = mockPegOut.hashPegOutQuote(quote);
 
         assertEq(hash1, hash2, "Hash should be deterministic");
         assertTrue(hash1 != bytes32(0), "Hash should not be zero");
@@ -77,25 +83,25 @@ contract HashQuoteTest is Test, BtcAddressParser {
         console.log("\n[PASS] HashQuote for PegOut works correctly!");
     }
 
-    function test_DifferentQuotesProduceDifferentHashes() public {
+    function test_DifferentQuotesProduceDifferentHashes() public view {
         console.log("\n=== TEST DIFFERENT QUOTES PRODUCE DIFFERENT HASHES ===\n");
 
-        Quotes.PegInQuote memory quote1 = createTestPegInQuote();
-        Quotes.PegInQuote memory quote2 = createTestPegInQuote();
+        Quotes.PegInQuote memory quote1 = createTestPegInQuote(address(mockPegIn), lpAddr, userAddr);
+        Quotes.PegInQuote memory quote2 = createTestPegInQuote(address(mockPegIn), lpAddr, userAddr);
         quote2.value = quote1.value + 1 ether;
 
-        bytes32 hash1 = pegIn.hashPegInQuote(quote1);
-        bytes32 hash2 = pegIn.hashPegInQuote(quote2);
+        bytes32 hash1 = mockPegIn.hashPegInQuote(quote1);
+        bytes32 hash2 = mockPegIn.hashPegInQuote(quote2);
 
         assertTrue(hash1 != hash2, "Different quotes should have different hashes");
 
         console.log("[PASS] Different quotes produce different hashes!");
     }
 
-    function test_QuoteEncodingConsistency() public {
+    function test_QuoteEncodingConsistency() public view {
         console.log("\n=== TEST QUOTE ENCODING CONSISTENCY ===\n");
 
-        Quotes.PegInQuote memory quote = createTestPegInQuote();
+        Quotes.PegInQuote memory quote = createTestPegInQuote(address(mockPegIn), lpAddr, userAddr);
 
         bytes memory encoded1 = Quotes.encodeQuote(quote);
         bytes memory encoded2 = Quotes.encodeQuote(quote);
@@ -107,64 +113,15 @@ contract HashQuoteTest is Test, BtcAddressParser {
         console.log("[PASS] Quote encoding is consistent!");
     }
 
-    function createTestPegInQuote() internal view returns (Quotes.PegInQuote memory) {
-        bytes memory testBtcAddress = hex"6f0000000000000000000000000000000000000000";
-        bytes20 fedAddress = bytes20(hex"0000000000000000000000000000000000000000");
+    function test_HexUtilsIntegration() public pure {
+        console.log("\n=== TEST HEX UTILS INTEGRATION ===\n");
 
-        address lpAddr = address(0x1234567890123456789012345678901234567890);
-        address userAddr = address(0x2234567890123456789012345678901234567891);
-        address destAddr = address(0x3234567890123456789012345678901234567892);
+        bytes32 testHash = 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef;
+        string memory hexStr = TestUtils.toHexString(testHash);
 
-        return Quotes.PegInQuote({
-            callFee: 100000000000000,
-            penaltyFee: 10000000000000,
-            value: 0.5 ether,
-            productFeeAmount: 0,
-            gasFee: 100,
-            fedBtcAddress: fedAddress,
-            lbcAddress: address(pegIn),
-            liquidityProviderRskAddress: lpAddr,
-            contractAddress: destAddr,
-            rskRefundAddress: payable(userAddr),
-            nonce: 12345,
-            gasLimit: 21000,
-            agreementTimestamp: 1735243258,
-            timeForDeposit: 3600,
-            callTime: 7200,
-            depositConfirmations: 10,
-            callOnRegister: false,
-            btcRefundAddress: testBtcAddress,
-            liquidityProviderBtcAddress: testBtcAddress,
-            data: hex""
-        });
-    }
+        assertEq(bytes(hexStr).length, 64, "Hex string should be 64 characters");
 
-    function createTestPegOutQuote() internal view returns (Quotes.PegOutQuote memory) {
-        bytes memory testBtcAddress = hex"0076a914000000000000000000000000000000000000000088ac";
-
-        address lpAddr = address(0x1234567890123456789012345678901234567890);
-        address userAddr = address(0x2234567890123456789012345678901234567891);
-
-        return Quotes.PegOutQuote({
-            callFee: 100000000000000,
-            penaltyFee: 10000000000000,
-            value: 0.5 ether,
-            productFeeAmount: 0,
-            gasFee: 100,
-            lbcAddress: address(pegOut),
-            lpRskAddress: lpAddr,
-            rskRefundAddress: userAddr,
-            nonce: 12345,
-            agreementTimestamp: 1735243258,
-            depositDateLimit: 1735253058,
-            transferTime: 3600,
-            expireDate: 1735339658,
-            expireBlock: 100,
-            depositConfirmations: 10,
-            transferConfirmations: 2,
-            depositAddress: testBtcAddress,
-            btcRefundAddress: testBtcAddress,
-            lpBtcAddress: testBtcAddress
-        });
+        console.log("Hex string:", hexStr);
+        console.log("[PASS] HexUtils integration works correctly!");
     }
 }

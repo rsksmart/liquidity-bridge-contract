@@ -5,6 +5,8 @@ import {Script} from "lib/forge-std/src/Script.sol";
 import {BridgeMock} from "../src/test-contracts/BridgeMock.sol";
 
 contract HelperConfig is Script {
+    error InvalidDaoFeeConfiguration(uint256 feePercentage, address feeCollector);
+
     struct NetworkConfig {
         address bridge;
         uint256 minimumCollateral;
@@ -181,74 +183,79 @@ contract HelperConfig is Script {
         uint256 chainId = block.chainid;
 
         if (chainId == 30) {
-            cachedFlyoverConfig = getFlyoverMainnetConfig();
+            cachedFlyoverConfig = _buildFlyoverConfig("MAINNET", true);
         } else if (chainId == 31) {
-            cachedFlyoverConfig = getFlyoverTestnetConfig();
+            cachedFlyoverConfig = _buildFlyoverConfig("TESTNET", false);
         } else {
             cachedFlyoverConfig = getFlyoverLocalConfig();
         }
 
+        // Validate DAO fee configuration
+        _validateDaoFeeConfig(cachedFlyoverConfig);
+
         return cachedFlyoverConfig;
     }
 
-    function getFlyoverMainnetConfig() internal view returns (FlyoverConfig memory) {
-        address bridgeAddr = vm.envOr(
-            "BRIDGE_ADDRESS_MAINNET",
-            address(0x0000000000000000000000000000000001000006)
-        );
-        return
-            FlyoverConfig({
-                bridge: bridgeAddr,
-                minimumCollateral: vm.envOr(
-                    "MIN_COLLATERAL_MAINNET",
-                    uint256(0.5 ether)
-                ),
-                minimumPegIn: vm.envOr(
-                    "MIN_PEGIN_MAINNET",
-                    uint256(0.01 ether)
-                ),
-                rewardPercentage: vm.envOr("REWARD_P_MAINNET", uint256(50)),
-                resignDelayBlocks: vm.envOr("RESIGN_BLOCKS_MAINNET", uint256(120)),
-                dustThreshold: vm.envOr(
-                    "DUST_THRESHOLD_MAINNET",
-                    uint256(10_000)
-                ),
-                btcBlockTime: vm.envOr("BTC_BLOCK_TIME_MAINNET", uint256(600)),
-                mainnet: true,
-                daoFeePercentage: vm.envOr("DAO_FEE_PERCENTAGE_MAINNET", uint256(0)),
-                daoFeeCollector: payable(vm.envOr("DAO_FEE_COLLECTOR_MAINNET", address(0))),
-                adminDelay: uint48(vm.envOr("ADMIN_DELAY_MAINNET", uint256(0)))
-            });
+    /// @notice Validate that DAO fee configuration is consistent
+    /// @dev If feePercentage > 0, feeCollector must not be address(0)
+    function _validateDaoFeeConfig(FlyoverConfig memory cfg) internal pure {
+        if (cfg.daoFeePercentage > 0 && cfg.daoFeeCollector == address(0)) {
+            revert InvalidDaoFeeConfiguration(cfg.daoFeePercentage, cfg.daoFeeCollector);
+        }
     }
 
-    function getFlyoverTestnetConfig() internal view returns (FlyoverConfig memory) {
+    /// @notice Build Flyover config for a specific network suffix
+    /// @param suffix The network suffix (e.g., "MAINNET", "TESTNET")
+    /// @param isMainnet Whether this is mainnet
+    function _buildFlyoverConfig(
+        string memory suffix,
+        bool isMainnet
+    ) internal view returns (FlyoverConfig memory) {
         address bridgeAddr = vm.envOr(
-            "BRIDGE_ADDRESS_TESTNET",
+            string.concat("BRIDGE_ADDRESS_", suffix),
             address(0x0000000000000000000000000000000001000006)
         );
-        return
-            FlyoverConfig({
-                bridge: bridgeAddr,
-                minimumCollateral: vm.envOr(
-                    "MIN_COLLATERAL_TESTNET",
-                    uint256(0.1 ether)
-                ),
-                minimumPegIn: vm.envOr(
-                    "MIN_PEGIN_TESTNET",
-                    uint256(0.005 ether)
-                ),
-                rewardPercentage: vm.envOr("REWARD_P_TESTNET", uint256(50)),
-                resignDelayBlocks: vm.envOr("RESIGN_BLOCKS_TESTNET", uint256(100)),
-                dustThreshold: vm.envOr(
-                    "DUST_THRESHOLD_TESTNET",
-                    uint256(10_000)
-                ),
-                btcBlockTime: vm.envOr("BTC_BLOCK_TIME_TESTNET", uint256(600)),
-                mainnet: false,
-                daoFeePercentage: vm.envOr("DAO_FEE_PERCENTAGE_TESTNET", uint256(0)),
-                daoFeeCollector: payable(vm.envOr("DAO_FEE_COLLECTOR_TESTNET", address(0))),
-                adminDelay: uint48(vm.envOr("ADMIN_DELAY_TESTNET", uint256(0)))
-            });
+
+        return FlyoverConfig({
+            bridge: bridgeAddr,
+            minimumCollateral: vm.envOr(
+                string.concat("MIN_COLLATERAL_", suffix),
+                isMainnet ? uint256(0.5 ether) : uint256(0.1 ether)
+            ),
+            minimumPegIn: vm.envOr(
+                string.concat("MIN_PEGIN_", suffix),
+                isMainnet ? uint256(0.01 ether) : uint256(0.005 ether)
+            ),
+            rewardPercentage: vm.envOr(
+                string.concat("REWARD_P_", suffix),
+                uint256(50)
+            ),
+            resignDelayBlocks: vm.envOr(
+                string.concat("RESIGN_BLOCKS_", suffix),
+                isMainnet ? uint256(120) : uint256(100)
+            ),
+            dustThreshold: vm.envOr(
+                string.concat("DUST_THRESHOLD_", suffix),
+                uint256(10_000)
+            ),
+            btcBlockTime: vm.envOr(
+                string.concat("BTC_BLOCK_TIME_", suffix),
+                uint256(600)
+            ),
+            mainnet: isMainnet,
+            daoFeePercentage: vm.envOr(
+                string.concat("DAO_FEE_PERCENTAGE_", suffix),
+                uint256(0)
+            ),
+            daoFeeCollector: payable(vm.envOr(
+                string.concat("DAO_FEE_COLLECTOR_", suffix),
+                address(0)
+            )),
+            adminDelay: uint48(vm.envOr(
+                string.concat("ADMIN_DELAY_", suffix),
+                uint256(0)
+            ))
+        });
     }
 
     function getFlyoverLocalConfig() internal returns (FlyoverConfig memory) {
