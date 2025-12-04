@@ -18,7 +18,23 @@ contract HelperConfig is Script {
         address existingAdmin;
     }
 
+    /// @notice Configuration for the new Flyover contracts
+    struct FlyoverConfig {
+        address bridge;
+        uint256 minimumCollateral;
+        uint256 minimumPegIn;
+        uint256 rewardPercentage;
+        uint256 resignDelayBlocks;
+        uint256 dustThreshold;
+        uint256 btcBlockTime;
+        bool mainnet;
+        uint256 daoFeePercentage;
+        address payable daoFeeCollector;
+        uint48 adminDelay;
+    }
+
     NetworkConfig private cachedConfig;
+    FlyoverConfig private cachedFlyoverConfig;
 
     function getConfig() public returns (NetworkConfig memory) {
         if (cachedConfig.bridge != address(0)) {
@@ -150,6 +166,114 @@ contract HelperConfig is Script {
                 mainnet: false,
                 existingProxy: vm.envOr("EXISTING_PROXY_LOCAL", address(0)),
                 existingAdmin: vm.envOr("EXISTING_ADMIN_LOCAL", address(0))
+            });
+    }
+
+    // ============================================================
+    // Flyover Config Functions (for new split contracts)
+    // ============================================================
+
+    function getFlyoverConfig() public returns (FlyoverConfig memory) {
+        if (cachedFlyoverConfig.bridge != address(0)) {
+            return cachedFlyoverConfig;
+        }
+
+        uint256 chainId = block.chainid;
+
+        if (chainId == 30) {
+            cachedFlyoverConfig = getFlyoverMainnetConfig();
+        } else if (chainId == 31) {
+            cachedFlyoverConfig = getFlyoverTestnetConfig();
+        } else {
+            cachedFlyoverConfig = getFlyoverLocalConfig();
+        }
+
+        return cachedFlyoverConfig;
+    }
+
+    function getFlyoverMainnetConfig() internal view returns (FlyoverConfig memory) {
+        address bridgeAddr = vm.envOr(
+            "BRIDGE_ADDRESS_MAINNET",
+            address(0x0000000000000000000000000000000001000006)
+        );
+        return
+            FlyoverConfig({
+                bridge: bridgeAddr,
+                minimumCollateral: vm.envOr(
+                    "MIN_COLLATERAL_MAINNET",
+                    uint256(0.5 ether)
+                ),
+                minimumPegIn: vm.envOr(
+                    "MIN_PEGIN_MAINNET",
+                    uint256(0.01 ether)
+                ),
+                rewardPercentage: vm.envOr("REWARD_P_MAINNET", uint256(50)),
+                resignDelayBlocks: vm.envOr("RESIGN_BLOCKS_MAINNET", uint256(120)),
+                dustThreshold: vm.envOr(
+                    "DUST_THRESHOLD_MAINNET",
+                    uint256(10_000)
+                ),
+                btcBlockTime: vm.envOr("BTC_BLOCK_TIME_MAINNET", uint256(600)),
+                mainnet: true,
+                daoFeePercentage: vm.envOr("DAO_FEE_PERCENTAGE_MAINNET", uint256(0)),
+                daoFeeCollector: payable(vm.envOr("DAO_FEE_COLLECTOR_MAINNET", address(0))),
+                adminDelay: uint48(vm.envOr("ADMIN_DELAY_MAINNET", uint256(0)))
+            });
+    }
+
+    function getFlyoverTestnetConfig() internal view returns (FlyoverConfig memory) {
+        address bridgeAddr = vm.envOr(
+            "BRIDGE_ADDRESS_TESTNET",
+            address(0x0000000000000000000000000000000001000006)
+        );
+        return
+            FlyoverConfig({
+                bridge: bridgeAddr,
+                minimumCollateral: vm.envOr(
+                    "MIN_COLLATERAL_TESTNET",
+                    uint256(0.1 ether)
+                ),
+                minimumPegIn: vm.envOr(
+                    "MIN_PEGIN_TESTNET",
+                    uint256(0.005 ether)
+                ),
+                rewardPercentage: vm.envOr("REWARD_P_TESTNET", uint256(50)),
+                resignDelayBlocks: vm.envOr("RESIGN_BLOCKS_TESTNET", uint256(100)),
+                dustThreshold: vm.envOr(
+                    "DUST_THRESHOLD_TESTNET",
+                    uint256(10_000)
+                ),
+                btcBlockTime: vm.envOr("BTC_BLOCK_TIME_TESTNET", uint256(600)),
+                mainnet: false,
+                daoFeePercentage: vm.envOr("DAO_FEE_PERCENTAGE_TESTNET", uint256(0)),
+                daoFeeCollector: payable(vm.envOr("DAO_FEE_COLLECTOR_TESTNET", address(0))),
+                adminDelay: uint48(vm.envOr("ADMIN_DELAY_TESTNET", uint256(0)))
+            });
+    }
+
+    function getFlyoverLocalConfig() internal returns (FlyoverConfig memory) {
+        // Deploy mock bridge locally
+        BridgeMock bridge = new BridgeMock();
+
+        return
+            FlyoverConfig({
+                bridge: address(bridge),
+                minimumCollateral: vm.envOr(
+                    "MIN_COLLATERAL_LOCAL",
+                    uint256(0.05 ether)
+                ),
+                minimumPegIn: vm.envOr("MIN_PEGIN_LOCAL", uint256(0.001 ether)),
+                rewardPercentage: vm.envOr("REWARD_P_LOCAL", uint256(50)),
+                resignDelayBlocks: vm.envOr("RESIGN_BLOCKS_LOCAL", uint256(80)),
+                dustThreshold: vm.envOr(
+                    "DUST_THRESHOLD_LOCAL",
+                    uint256(10_000)
+                ),
+                btcBlockTime: vm.envOr("BTC_BLOCK_TIME_LOCAL", uint256(600)),
+                mainnet: false,
+                daoFeePercentage: vm.envOr("DAO_FEE_PERCENTAGE_LOCAL", uint256(0)),
+                daoFeeCollector: payable(vm.envOr("DAO_FEE_COLLECTOR_LOCAL", address(0))),
+                adminDelay: uint48(vm.envOr("ADMIN_DELAY_LOCAL", uint256(0)))
             });
     }
 }
