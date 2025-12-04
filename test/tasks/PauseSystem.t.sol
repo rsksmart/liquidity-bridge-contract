@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import "lib/forge-std/src/Test.sol";
 import "lib/forge-std/src/console.sol";
-import {PauseSystem} from "../../script/tasks/PauseSystem.s.sol";
+import {PauseSystem} from "../../script/legacy/tasks/PauseSystem.s.sol";
 
 /**
  * @title PauseSystemTest

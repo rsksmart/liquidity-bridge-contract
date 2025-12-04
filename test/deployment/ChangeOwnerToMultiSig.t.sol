@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import "lib/forge-std/src/Test.sol";
 import "lib/forge-std/src/console.sol";
-import {ChangeOwnerToMultiSig} from "../../script/deployment/ChangeOwnerToMultiSig.s.sol";
+import {ChangeOwnerToMultiSig} from "../../script/legacy/deployment/ChangeOwnerToMultiSig.s.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {LiquidityBridgeContract} from "../../src/legacy/LiquidityBridgeContract.sol";
 import {LiquidityBridgeContractProxy} from "../../src/legacy/LiquidityBridgeContractProxy.sol";

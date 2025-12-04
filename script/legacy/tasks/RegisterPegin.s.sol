@@ -80,7 +80,7 @@ interface ILiquidityBridgeContract {
  *     --broadcast \
  *     --private-key $TESTNET_PRIVATE_KEY
  */
-import {BtcAddressParser} from "../helpers/BtcAddressParser.sol";
+import {BtcAddressParser} from "../../helpers/BtcAddressParser.sol";
 
 contract RegisterPegin is Script, BtcAddressParser {
     string constant HELPER_SCRIPT_FETCH_TX =

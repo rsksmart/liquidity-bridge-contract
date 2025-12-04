@@ -5,7 +5,7 @@ import "lib/forge-std/src/Test.sol";
 import "lib/forge-std/src/console.sol";
 import {QuotesV2} from "src/legacy/QuotesV2.sol";
 import {LiquidityBridgeContractV2} from "src/legacy/LiquidityBridgeContractV2.sol";
-import {RegisterPegin} from "../../script/tasks/RegisterPegin.s.sol";
+import {RegisterPegin} from "../../script/legacy/tasks/RegisterPegin.s.sol";
 import {IBridge} from "src/interfaces/IBridge.sol";
 
 /**
@@ -93,7 +93,7 @@ contract RegisterPeginTest is Test {
         console.log("\n=== TEST PEGIN QUOTE PARSING ===\n");
 
         // Use the existing example file for parsing test
-        string memory existingFile = "script/tasks/hash-quote.example.json";
+        string memory existingFile = "script/legacy/tasks/hash-quote.example.json";
         string memory json = vm.readFile(existingFile);
 
         console.log("Parsing quote from:", existingFile);

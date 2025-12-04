@@ -3,10 +3,10 @@ pragma solidity 0.8.25;
 
 import {Script, console} from "lib/forge-std/src/Script.sol";
 
-import {HelperConfig} from "../HelperConfig.s.sol";
+import {HelperConfig} from "../../HelperConfig.s.sol";
 
-import {LiquidityBridgeContractV2} from "../../src/legacy/LiquidityBridgeContractV2.sol";
-import {LiquidityBridgeContractAdmin} from "../../src/legacy/LiquidityBridgeContractAdmin.sol";
+import {LiquidityBridgeContractV2} from "../../../src/legacy/LiquidityBridgeContractV2.sol";
+import {LiquidityBridgeContractAdmin} from "../../../src/legacy/LiquidityBridgeContractAdmin.sol";
 import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 /**
