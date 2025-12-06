@@ -142,10 +142,16 @@ contract DaoContributorTest is PegInTestBase {
         _accumulateContributions();
 
         uint256 contribution = pegInContract.getCurrentContribution();
-        assertEq(contribution, 0.02 ether, "Should return accumulated contribution amount");
+        assertEq(
+            contribution,
+            0.02 ether,
+            "Should return accumulated contribution amount"
+        );
     }
 
-    function test_GetCurrentContribution_AccumulatesMultipleContributions() public {
+    function test_GetCurrentContribution_AccumulatesMultipleContributions()
+        public
+    {
         _accumulateContributions();
         uint256 firstContribution = pegInContract.getCurrentContribution();
 
@@ -184,7 +190,9 @@ contract DaoContributorTest is PegInTestBase {
 
     // ============ configureContributions function tests ============
 
-    function test_ConfigureContributions_UpdatesFeeCollectorAndPercentage() public {
+    function test_ConfigureContributions_UpdatesFeeCollectorAndPercentage()
+        public
+    {
         address payable newFeeCollector = payable(makeAddr("newFeeCollector"));
         uint256 newFeePercentage = 500; // 5%
 
@@ -236,14 +244,24 @@ contract DaoContributorTest is PegInTestBase {
             ZERO_ADDRESS,
             "feeCollector should be zero address"
         );
-        assertEq(pegInContract.getFeePercentage(), 0, "feePercentage should be 0");
+        assertEq(
+            pegInContract.getFeePercentage(),
+            0,
+            "feePercentage should be 0"
+        );
     }
 
     // ============ claimContribution function tests ============
 
-    function test_ClaimContribution_RevertsWithNoFeesWhenContributionIsZero() public {
+    function test_ClaimContribution_RevertsWithNoFeesWhenContributionIsZero()
+        public
+    {
         // Initially there are no contributions
-        assertEq(pegInContract.getCurrentContribution(), 0, "Initial contribution should be 0");
+        assertEq(
+            pegInContract.getCurrentContribution(),
+            0,
+            "Initial contribution should be 0"
+        );
 
         vm.prank(owner);
         vm.expectRevert(
@@ -268,28 +286,40 @@ contract DaoContributorTest is PegInTestBase {
         pegInContract.claimContribution();
     }
 
-    function test_ClaimContribution_RevertsWithFeeCollectorUnsetWhenCollectorIsZero() public {
+    function test_ClaimContribution_RevertsWithFeeCollectorUnsetWhenCollectorIsZero()
+        public
+    {
         // First configure with zero fee collector
         vm.prank(owner);
-        pegInContract.configureContributions(payable(ZERO_ADDRESS), TEST_FEE_PERCENTAGE);
+        pegInContract.configureContributions(
+            payable(ZERO_ADDRESS),
+            TEST_FEE_PERCENTAGE
+        );
 
         // Accumulate contributions via registerPegIn
         _accumulateContributions();
 
         // Verify there are contributions
-        assertTrue(pegInContract.getCurrentContribution() > 0, "Should have contributions");
+        assertTrue(
+            pegInContract.getCurrentContribution() > 0,
+            "Should have contributions"
+        );
 
         // Try to claim - should revert because feeCollector is not set
         vm.prank(owner);
         vm.expectRevert(
             abi.encodeWithSelector(
-                AccessControlDaoContributorUpgradeable.FeeCollectorUnset.selector
+                AccessControlDaoContributorUpgradeable
+                    .FeeCollectorUnset
+                    .selector
             )
         );
         pegInContract.claimContribution();
     }
 
-    function test_ClaimContribution_RevertsWithNoBalanceWhenContractHasNoFunds() public {
+    function test_ClaimContribution_RevertsWithNoBalanceWhenContractHasNoFunds()
+        public
+    {
         // Accumulate contributions
         _accumulateContributions();
 
@@ -346,7 +376,10 @@ contract DaoContributorTest is PegInTestBase {
         // Accumulate contributions
         _accumulateContributions();
 
-        assertTrue(pegInContract.getCurrentContribution() > 0, "Should have contributions");
+        assertTrue(
+            pegInContract.getCurrentContribution() > 0,
+            "Should have contributions"
+        );
 
         vm.prank(owner);
         pegInContract.claimContribution();
@@ -364,7 +397,11 @@ contract DaoContributorTest is PegInTestBase {
         vm.prank(owner);
         pegInContract.claimContribution();
 
-        assertEq(pegInContract.getCurrentContribution(), 0, "Should be 0 after first claim");
+        assertEq(
+            pegInContract.getCurrentContribution(),
+            0,
+            "Should be 0 after first claim"
+        );
 
         // Second accumulation and claim
         _accumulateContributionsSecond();
@@ -390,7 +427,10 @@ contract DaoContributorTest is PegInTestBase {
 
         // Configure with rejecting wallet as fee collector
         vm.prank(owner);
-        pegInContract.configureContributions(payable(address(rejectingWallet)), TEST_FEE_PERCENTAGE);
+        pegInContract.configureContributions(
+            payable(address(rejectingWallet)),
+            TEST_FEE_PERCENTAGE
+        );
 
         // Accumulate contributions
         _accumulateContributions();
@@ -415,11 +455,17 @@ contract DaoContributorTest is PegInTestBase {
     // ============ _addDaoContribution (internal) tests via registerPegIn ============
 
     function test_AddDaoContribution_EmitsDaoContributionEvent() public {
-        Quotes.PegInQuote memory quote = _createQuoteWithFee(1 ether, 0.05 ether);
+        Quotes.PegInQuote memory quote = _createQuoteWithFee(
+            1 ether,
+            0.05 ether
+        );
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
         bytes memory signature = _signQuote(fullLp, fullLpKey, quoteHash);
 
-        uint256 peginAmount = quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+        uint256 peginAmount = quote.value +
+            quote.callFee +
+            quote.productFeeAmount +
+            quote.gasFee;
 
         // Setup BTC block headers
         uint32 firstConfTime = uint32(block.timestamp) + 300;
@@ -431,7 +477,10 @@ contract DaoContributorTest is PegInTestBase {
         vm.deal(address(bridgeMock), peginAmount);
         bridgeMock.setPegin{value: peginAmount}(quoteHash);
         bridgeMock.setHeader(30, firstHeader);
-        bridgeMock.setHeader(30 + uint256(quote.depositConfirmations) - 1, nConfHeader);
+        bridgeMock.setHeader(
+            30 + uint256(quote.depositConfirmations) - 1,
+            nConfHeader
+        );
 
         // Call for user first
         vm.prank(fullLp);
@@ -459,7 +508,10 @@ contract DaoContributorTest is PegInTestBase {
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
         bytes memory signature = _signQuote(fullLp, fullLpKey, quoteHash);
 
-        uint256 peginAmount = quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+        uint256 peginAmount = quote.value +
+            quote.callFee +
+            quote.productFeeAmount +
+            quote.gasFee;
 
         // Setup BTC block headers
         uint32 firstConfTime = uint32(block.timestamp) + 300;
@@ -471,7 +523,10 @@ contract DaoContributorTest is PegInTestBase {
         vm.deal(address(bridgeMock), peginAmount);
         bridgeMock.setPegin{value: peginAmount}(quoteHash);
         bridgeMock.setHeader(40, firstHeader);
-        bridgeMock.setHeader(40 + uint256(quote.depositConfirmations) - 1, nConfHeader);
+        bridgeMock.setHeader(
+            40 + uint256(quote.depositConfirmations) - 1,
+            nConfHeader
+        );
 
         // Call for user first
         vm.prank(fullLp);
@@ -491,7 +546,9 @@ contract DaoContributorTest is PegInTestBase {
 
         // Check that no DaoContribution event was emitted
         Vm.Log[] memory logs = vm.getRecordedLogs();
-        bytes32 daoContributionTopic = keccak256("DaoContribution(address,uint256)");
+        bytes32 daoContributionTopic = keccak256(
+            "DaoContribution(address,uint256)"
+        );
 
         bool foundDaoContribution = false;
         for (uint256 i = 0; i < logs.length; i++) {
@@ -501,15 +558,26 @@ contract DaoContributorTest is PegInTestBase {
             }
         }
 
-        assertFalse(foundDaoContribution, "DaoContribution event should not be emitted for zero amount");
+        assertFalse(
+            foundDaoContribution,
+            "DaoContribution event should not be emitted for zero amount"
+        );
     }
 
     function test_AddDaoContribution_AccumulatesContributions() public {
-        assertEq(pegInContract.getCurrentContribution(), 0, "Initial contribution should be 0");
+        assertEq(
+            pegInContract.getCurrentContribution(),
+            0,
+            "Initial contribution should be 0"
+        );
 
         _accumulateContributions();
         uint256 firstContribution = pegInContract.getCurrentContribution();
-        assertEq(firstContribution, 0.02 ether, "First contribution should be 0.02 ether");
+        assertEq(
+            firstContribution,
+            0.02 ether,
+            "First contribution should be 0.02 ether"
+        );
 
         _accumulateContributionsSecond();
         uint256 totalContribution = pegInContract.getCurrentContribution();
@@ -525,11 +593,17 @@ contract DaoContributorTest is PegInTestBase {
     /// @notice Accumulate DAO contributions by completing a registerPegIn flow
     function _accumulateContributions() internal {
         // Create a quote with product fee
-        Quotes.PegInQuote memory quote = _createQuoteWithFee(1 ether, 0.02 ether);
+        Quotes.PegInQuote memory quote = _createQuoteWithFee(
+            1 ether,
+            0.02 ether
+        );
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
         bytes memory signature = _signQuote(fullLp, fullLpKey, quoteHash);
 
-        uint256 peginAmount = quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+        uint256 peginAmount = quote.value +
+            quote.callFee +
+            quote.productFeeAmount +
+            quote.gasFee;
 
         // Setup BTC block headers
         uint32 firstConfTime = uint32(block.timestamp) + 300;
@@ -541,7 +615,10 @@ contract DaoContributorTest is PegInTestBase {
         vm.deal(address(bridgeMock), peginAmount);
         bridgeMock.setPegin{value: peginAmount}(quoteHash);
         bridgeMock.setHeader(10, firstHeader);
-        bridgeMock.setHeader(10 + uint256(quote.depositConfirmations) - 1, nConfHeader);
+        bridgeMock.setHeader(
+            10 + uint256(quote.depositConfirmations) - 1,
+            nConfHeader
+        );
 
         // Call for user first
         vm.prank(fullLp);
@@ -561,12 +638,18 @@ contract DaoContributorTest is PegInTestBase {
     /// @notice Accumulate more contributions for second claim test
     function _accumulateContributionsSecond() internal {
         // Use different nonce to create unique quote
-        Quotes.PegInQuote memory quote = _createQuoteWithFee(1.5 ether, 0.03 ether);
+        Quotes.PegInQuote memory quote = _createQuoteWithFee(
+            1.5 ether,
+            0.03 ether
+        );
         quote.nonce = int64(uint64(block.timestamp + 1000));
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
         bytes memory signature = _signQuote(fullLp, fullLpKey, quoteHash);
 
-        uint256 peginAmount = quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+        uint256 peginAmount = quote.value +
+            quote.callFee +
+            quote.productFeeAmount +
+            quote.gasFee;
 
         // Setup BTC block headers
         uint32 firstConfTime = uint32(block.timestamp) + 400;
@@ -578,7 +661,10 @@ contract DaoContributorTest is PegInTestBase {
         vm.deal(address(bridgeMock), peginAmount);
         bridgeMock.setPegin{value: peginAmount}(quoteHash);
         bridgeMock.setHeader(20, firstHeader);
-        bridgeMock.setHeader(20 + uint256(quote.depositConfirmations) - 1, nConfHeader);
+        bridgeMock.setHeader(
+            20 + uint256(quote.depositConfirmations) - 1,
+            nConfHeader
+        );
 
         // Call for user first
         vm.prank(fullLp);
@@ -601,31 +687,34 @@ contract DaoContributorTest is PegInTestBase {
     ) internal returns (Quotes.PegInQuote memory) {
         bytes memory testBtcAddress = new bytes(21);
 
-        return Quotes.PegInQuote({
-            callFee: 100000000000000,
-            penaltyFee: 10000000000000,
-            value: value,
-            productFeeAmount: productFee,
-            gasFee: 100,
-            fedBtcAddress: bytes20(testBtcAddress),
-            lbcAddress: address(pegInContract),
-            liquidityProviderRskAddress: fullLp,
-            contractAddress: makeAddr("user"),
-            rskRefundAddress: payable(makeAddr("user")),
-            nonce: int64(uint64(block.timestamp)),
-            gasLimit: 21000,
-            agreementTimestamp: uint32(block.timestamp),
-            timeForDeposit: 3600,
-            callTime: 7200,
-            depositConfirmations: 10,
-            callOnRegister: false,
-            btcRefundAddress: testBtcAddress,
-            liquidityProviderBtcAddress: testBtcAddress,
-            data: new bytes(0)
-        });
+        return
+            Quotes.PegInQuote({
+                callFee: 100000000000000,
+                penaltyFee: 10000000000000,
+                value: value,
+                productFeeAmount: productFee,
+                gasFee: 100,
+                fedBtcAddress: bytes20(testBtcAddress),
+                lbcAddress: address(pegInContract),
+                liquidityProviderRskAddress: fullLp,
+                contractAddress: makeAddr("user"),
+                rskRefundAddress: payable(makeAddr("user")),
+                nonce: int64(uint64(block.timestamp)),
+                gasLimit: 21000,
+                agreementTimestamp: uint32(block.timestamp),
+                timeForDeposit: 3600,
+                callTime: 7200,
+                depositConfirmations: 10,
+                callOnRegister: false,
+                btcRefundAddress: testBtcAddress,
+                liquidityProviderBtcAddress: testBtcAddress,
+                data: new bytes(0)
+            });
     }
 
-    function _createBtcBlockHeader(uint32 timestamp) internal pure returns (bytes memory) {
+    function _createBtcBlockHeader(
+        uint32 timestamp
+    ) internal pure returns (bytes memory) {
         bytes memory header = new bytes(80);
         header[68] = bytes1(uint8(timestamp));
         header[69] = bytes1(uint8(timestamp >> 8));
@@ -642,7 +731,10 @@ contract DaoContributorTest is PegInTestBase {
         bytes32 ethSignedMessageHash = keccak256(
             abi.encodePacked("\x19Ethereum Signed Message:\n32", quoteHash)
         );
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, ethSignedMessageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+            privateKey,
+            ethSignedMessageHash
+        );
         return abi.encodePacked(r, s, v);
     }
 }
