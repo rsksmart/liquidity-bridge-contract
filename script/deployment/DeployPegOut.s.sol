@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import {Script, console} from "lib/forge-std/src/Script.sol";
 import {HelperConfig} from "../HelperConfig.s.sol";
 import {PegOutContract} from "../../src/PegOutContract.sol";
+import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
