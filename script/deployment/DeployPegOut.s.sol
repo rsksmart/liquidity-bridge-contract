@@ -6,6 +6,7 @@ import {Script, console} from "lib/forge-std/src/Script.sol";
 import {HelperConfig} from "../HelperConfig.s.sol";
 
 import {PegOutContract} from "../../src/PegOutContract.sol";
+import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
@@ -91,7 +92,11 @@ contract DeployPegOut is Script {
 
         // Sanity check
         PegOutContract pegOut = PegOutContract(payable(address(proxy)));
-        console.log("PegOutContract version:", pegOut.VERSION());
+        console.log(
+            "Version:",
+            CollateralManagementContract(payable(collateralManagementProxy))
+                .VERSION()
+        );
         console.log("PegOutContract btcBlockTime:", pegOut.btcBlockTime());
 
         result = DeploymentResult({
