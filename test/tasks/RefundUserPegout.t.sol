@@ -4,7 +4,6 @@ pragma solidity 0.8.25;
 import {console} from "forge-std/console.sol";
 import {FlyoverTestBase} from "../helpers/FlyoverTestBase.sol";
 import {Quotes} from "src/libraries/Quotes.sol";
-import {RefundUserPegout} from "../../script/tasks/RefundUserPegout.s.sol";
 
 /**
  * @title MockPegOutContract
@@ -79,7 +78,6 @@ contract MockPegOutContract {
  * @notice Test for the refund-user-pegout task with new PegOutContract
  */
 contract RefundUserPegoutTest is FlyoverTestBase {
-    RefundUserPegout public refundScript;
     MockPegOutContract public mockPegOut;
     address public user;
     address public liquidityProvider;
@@ -95,8 +93,6 @@ contract RefundUserPegoutTest is FlyoverTestBase {
         mockPegOut = new MockPegOutContract();
         vm.deal(address(mockPegOut), 100 ether);
 
-        refundScript = new RefundUserPegout();
-        vm.setEnv("PEGOUT_CONTRACT_ADDRESS", vm.toString(address(mockPegOut)));
     }
 
     function test_SuccessfulRefund() public {
