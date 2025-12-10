@@ -92,7 +92,6 @@ contract RefundUserPegoutTest is FlyoverTestBase {
 
         mockPegOut = new MockPegOutContract();
         vm.deal(address(mockPegOut), 100 ether);
-
     }
 
     function test_SuccessfulRefund() public {
