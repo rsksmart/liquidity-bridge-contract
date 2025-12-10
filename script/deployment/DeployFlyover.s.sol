@@ -146,28 +146,32 @@ contract DeployFlyover is Script {
 
     /// @notice Logs the deployment addresses
     /// @param deployment The deployment result containing all contract addresses
-    function logDeployment(FlyoverDeployment memory deployment) internal pure {
+    function logDeployment(FlyoverDeployment memory deployment) internal view {
         console.log("");
         console.log("========================================");
         console.log("        FLYOVER DEPLOYMENT SUMMARY       ");
         console.log("========================================");
         console.log("");
         console.log("CollateralManagement:");
+        console.log("  Version:", CollateralManagementContract(payable(deployment.collateralManagementProxy)).VERSION());
         console.log("  Implementation:", deployment.collateralManagementImpl);
         console.log("  Proxy:", deployment.collateralManagementProxy);
         console.log("  Admin:", deployment.collateralManagementAdmin);
         console.log("");
         console.log("FlyoverDiscovery:");
+        console.log("  Version:", FlyoverDiscovery(deployment.flyoverDiscoveryProxy).VERSION());
         console.log("  Implementation:", deployment.flyoverDiscoveryImpl);
         console.log("  Proxy:", deployment.flyoverDiscoveryProxy);
         console.log("  Admin:", deployment.flyoverDiscoveryAdmin);
         console.log("");
         console.log("PegInContract:");
+        console.log("  Version:", PegInContract(payable(deployment.pegInProxy)).VERSION());
         console.log("  Implementation:", deployment.pegInImpl);
         console.log("  Proxy:", deployment.pegInProxy);
         console.log("  Admin:", deployment.pegInAdmin);
         console.log("");
         console.log("PegOutContract:");
+        console.log("  Version:", PegOutContract(payable(deployment.pegOutProxy)).VERSION());
         console.log("  Implementation:", deployment.pegOutImpl);
         console.log("  Proxy:", deployment.pegOutProxy);
         console.log("  Admin:", deployment.pegOutAdmin);

@@ -6,7 +6,6 @@ import {Script, console} from "lib/forge-std/src/Script.sol";
 import {HelperConfig} from "../HelperConfig.s.sol";
 
 import {PegInContract} from "../../src/PegInContract.sol";
-import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
@@ -92,11 +91,7 @@ contract DeployPegIn is Script {
 
         // Sanity check
         PegInContract pegIn = PegInContract(payable(address(proxy)));
-        console.log(
-            "Version:",
-            CollateralManagementContract(payable(collateralManagementProxy))
-                .VERSION()
-        );
+        console.log("PegInContract version:", pegIn.VERSION());
         console.log("PegInContract minPegIn:", pegIn.getMinPegIn());
 
         result = DeploymentResult({
