@@ -154,7 +154,7 @@ contract HelperConfig is Script {
                 bridge: address(bridge),
                 minimumCollateral: vm.envOr(
                     "MIN_COLLATERAL_LOCAL",
-                    uint256(0.05 ether)
+                    uint256(0.5 ether)
                 ),
                 minimumPegIn: vm.envOr("MIN_PEGIN_LOCAL", uint256(0.001 ether)),
                 rewardPercentage: uint32(
@@ -231,7 +231,7 @@ contract HelperConfig is Script {
                 ),
                 minimumPegIn: vm.envOr(
                     string.concat("MIN_PEGIN_", suffix),
-                    isMainnet ? uint256(0.01 ether) : uint256(0.005 ether)
+                    uint256(0.005 ether)
                 ),
                 rewardPercentage: vm.envOr(
                     string.concat("REWARD_P_", suffix),
@@ -277,7 +277,7 @@ contract HelperConfig is Script {
                     "MIN_COLLATERAL_LOCAL",
                     uint256(0.05 ether)
                 ),
-                minimumPegIn: vm.envOr("MIN_PEGIN_LOCAL", uint256(0.001 ether)),
+                minimumPegIn: vm.envOr("MIN_PEGIN_LOCAL", uint256(0.5 ether)),
                 rewardPercentage: vm.envOr("REWARD_P_LOCAL", uint256(50)),
                 resignDelayBlocks: vm.envOr("RESIGN_BLOCKS_LOCAL", uint256(80)),
                 dustThreshold: vm.envOr(
