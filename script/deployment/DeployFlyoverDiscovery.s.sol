@@ -6,6 +6,7 @@ import {Script, console} from "lib/forge-std/src/Script.sol";
 import {HelperConfig} from "../HelperConfig.s.sol";
 
 import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
+import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
@@ -86,6 +87,11 @@ contract DeployFlyoverDiscovery is Script {
         // Sanity check
         FlyoverDiscovery fd = FlyoverDiscovery(address(proxy));
         console.log("FlyoverDiscovery lastProviderId:", fd.lastProviderId());
+        console.log(
+            "Version:",
+            CollateralManagementContract(payable(collateralManagementProxy))
+                .VERSION()
+        );
 
         result = DeploymentResult({
             implementation: address(implementation),
