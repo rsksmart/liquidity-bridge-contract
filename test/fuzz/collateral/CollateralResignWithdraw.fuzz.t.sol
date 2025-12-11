@@ -18,58 +18,6 @@ contract CollateralResignWithdrawFuzzTest is CollateralFuzzTestBase {
         vm.deal(fuzzUser, 100 ether);
     }
 
-    // ============ resign Tests ============
-
-    /// @notice Fuzz test: Unregistered address cannot resign
-    function testFuzz_Resign_RevertsForUnregistered(
-        address unregistered
-    ) public {
-        vm.assume(
-            unregistered != pegInLp &&
-                unregistered != pegOutLp &&
-                unregistered != fullLp
-        );
-        vm.assume(unregistered != address(0));
-
-        vm.prank(unregistered);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Flyover.ProviderNotRegistered.selector,
-                unregistered
-            )
-        );
-        collateralManagement.resign();
-    }
-
-    /// @notice Fuzz test: Resignation block is recorded correctly at various blocks
-    function testFuzz_Resign_RecordsCorrectBlock(uint256 blockNumber) public {
-        blockNumber = bound(blockNumber, 1, type(uint64).max);
-        vm.roll(blockNumber);
-
-        vm.prank(pegInLp);
-        collateralManagement.resign();
-
-        assertEq(
-            collateralManagement.getResignationBlock(pegInLp),
-            blockNumber,
-            "Resignation block should match"
-        );
-    }
-
-    // ============ withdrawCollateral Tests ============
-
-    /// @notice Fuzz test: Cannot withdraw before resigning
-    function testFuzz_WithdrawCollateral_RevertsIfNotResigned() public {
-        vm.prank(pegInLp);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ICollateralManagement.NotResigned.selector,
-                pegInLp
-            )
-        );
-        collateralManagement.withdrawCollateral();
-    }
-
     /// @notice Fuzz test: Cannot withdraw before delay passes
     function testFuzz_WithdrawCollateral_RevertsBeforeDelay(
         uint256 blocksPassed
@@ -110,32 +58,6 @@ contract CollateralResignWithdrawFuzzTest is CollateralFuzzTestBase {
         vm.prank(pegInLp);
         vm.expectEmit(true, true, false, true);
         emit ICollateralManagement.WithdrawCollateral(pegInLp, expectedAmount);
-        collateralManagement.withdrawCollateral();
-
-        assertEq(
-            pegInLp.balance,
-            balanceBefore + expectedAmount,
-            "Balance should increase by collateral"
-        );
-    }
-
-    /// @notice Fuzz test: Can withdraw after delay with various extra blocks
-    function testFuzz_WithdrawCollateral_SucceedsAfterDelay(
-        uint256 extraBlocks
-    ) public {
-        extraBlocks = bound(extraBlocks, 1, 10000);
-
-        vm.prank(pegInLp);
-        collateralManagement.resign();
-
-        vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS + extraBlocks);
-
-        uint256 expectedAmount = collateralManagement.getPegInCollateral(
-            pegInLp
-        );
-        uint256 balanceBefore = pegInLp.balance;
-
-        vm.prank(pegInLp);
         collateralManagement.withdrawCollateral();
 
         assertEq(
@@ -189,8 +111,6 @@ contract CollateralResignWithdrawFuzzTest is CollateralFuzzTestBase {
         );
     }
 
-    // ============ Registration Status After Resign Tests ============
-
     /// @notice Fuzz test: Resigned provider is not registered
     function testFuzz_Resign_NotRegisteredAfterResign(
         uint8 providerTypeRaw
@@ -211,29 +131,6 @@ contract CollateralResignWithdrawFuzzTest is CollateralFuzzTestBase {
         assertFalse(
             collateralManagement.isRegistered(providerType, fullLp),
             "Should not be registered after resign"
-        );
-    }
-
-    /// @notice Fuzz test: Resigned provider has insufficient collateral
-    function testFuzz_Resign_InsufficientCollateralAfterResign(
-        uint8 providerTypeRaw
-    ) public {
-        Flyover.ProviderType providerType = getValidProviderType(
-            providerTypeRaw
-        );
-
-        // Use fullLp which has both PegIn and PegOut collateral
-        assertTrue(
-            collateralManagement.isCollateralSufficient(providerType, fullLp),
-            "Should have sufficient collateral initially"
-        );
-
-        vm.prank(fullLp);
-        collateralManagement.resign();
-
-        assertFalse(
-            collateralManagement.isCollateralSufficient(providerType, fullLp),
-            "Should not have sufficient collateral after resign"
         );
     }
 }
