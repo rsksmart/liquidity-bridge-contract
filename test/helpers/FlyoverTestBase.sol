@@ -14,12 +14,11 @@ import {BridgeMock} from "../../src/test-contracts/BridgeMock.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 
-// Deployment scripts
-import {DeployFlyover} from "../../script/deployment/DeployFlyover.s.sol";
-import {DeployCollateralManagement} from "../../script/deployment/DeployCollateralManagement.s.sol";
-import {DeployFlyoverDiscovery} from "../../script/deployment/DeployFlyoverDiscovery.s.sol";
-import {DeployPegIn} from "../../script/deployment/DeployPegIn.s.sol";
-import {DeployPegOut} from "../../script/deployment/DeployPegOut.s.sol";
+// OpenZeppelin
+import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+
+// Config
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 
 /**
@@ -123,13 +122,19 @@ abstract contract FlyoverTestBase is Test {
 
         HelperConfig.FlyoverConfig memory cfg = _getTestConfig();
 
-        DeployCollateralManagement deployer = new DeployCollateralManagement();
-        DeployCollateralManagement.DeploymentResult memory result = deployer
-            .deploy(owner, cfg);
+        // Inline deployment
+        address impl = address(new CollateralManagementContract());
+        address admin = address(new ProxyAdmin(owner));
+        address proxy = address(new TransparentUpgradeableProxy(
+            impl,
+            admin,
+            abi.encodeCall(
+                CollateralManagementContract.initialize,
+                (owner, cfg.adminDelay, cfg.minimumCollateral, cfg.resignDelayBlocks, cfg.rewardPercentage)
+            )
+        ));
 
-        collateralManagement = CollateralManagementContract(
-            payable(result.proxy)
-        );
+        collateralManagement = CollateralManagementContract(payable(proxy));
     }
 
     /// @notice Deploy CollateralManagement + FlyoverDiscovery
@@ -138,14 +143,19 @@ abstract contract FlyoverTestBase is Test {
 
         HelperConfig.FlyoverConfig memory cfg = _getTestConfig();
 
-        DeployFlyoverDiscovery deployer = new DeployFlyoverDiscovery();
-        DeployFlyoverDiscovery.DeploymentResult memory result = deployer.deploy(
-            owner,
-            cfg,
-            address(collateralManagement)
-        );
+        // Inline deployment
+        address impl = address(new FlyoverDiscovery());
+        address admin = address(new ProxyAdmin(owner));
+        address proxy = address(new TransparentUpgradeableProxy(
+            impl,
+            admin,
+            abi.encodeCall(
+                FlyoverDiscovery.initialize,
+                (owner, cfg.adminDelay, address(collateralManagement))
+            )
+        ));
 
-        discovery = FlyoverDiscovery(result.proxy);
+        discovery = FlyoverDiscovery(proxy);
 
         // Setup cross-contract roles
         vm.startPrank(owner);
@@ -168,14 +178,17 @@ abstract contract FlyoverTestBase is Test {
 
         HelperConfig.FlyoverConfig memory cfg = _getTestConfig();
 
-        DeployPegIn deployer = new DeployPegIn();
-        DeployPegIn.DeploymentResult memory result = deployer.deploy(
-            owner,
-            cfg,
-            address(collateralManagement)
+        // Inline deployment - split to avoid stack too deep
+        address impl = address(new PegInContract());
+        address admin = address(new ProxyAdmin(owner));
+        bytes memory initData = abi.encodeCall(
+            PegInContract.initialize,
+            (owner, payable(address(bridgeMock)), cfg.dustThreshold, cfg.minimumPegIn,
+             address(collateralManagement), cfg.mainnet, cfg.daoFeePercentage, cfg.daoFeeCollector)
         );
+        address proxy = address(new TransparentUpgradeableProxy(impl, admin, initData));
 
-        pegInContract = PegInContract(payable(result.proxy));
+        pegInContract = PegInContract(payable(proxy));
 
         // Grant COLLATERAL_SLASHER role to PegInContract
         vm.prank(owner);
@@ -193,14 +206,17 @@ abstract contract FlyoverTestBase is Test {
 
         HelperConfig.FlyoverConfig memory cfg = _getTestConfig();
 
-        DeployPegOut deployer = new DeployPegOut();
-        DeployPegOut.DeploymentResult memory result = deployer.deploy(
-            owner,
-            cfg,
-            address(collateralManagement)
+        // Inline deployment - split to avoid stack too deep
+        address impl = address(new PegOutContract());
+        address admin = address(new ProxyAdmin(owner));
+        bytes memory initData = abi.encodeCall(
+            PegOutContract.initialize,
+            (owner, payable(address(bridgeMock)), cfg.dustThreshold, address(collateralManagement),
+             cfg.mainnet, cfg.btcBlockTime, cfg.daoFeePercentage, cfg.daoFeeCollector)
         );
+        address proxy = address(new TransparentUpgradeableProxy(impl, admin, initData));
 
-        pegOutContract = PegOutContract(payable(result.proxy));
+        pegOutContract = PegOutContract(payable(proxy));
 
         // Grant COLLATERAL_SLASHER role to PegOutContract
         vm.prank(owner);
@@ -213,7 +229,7 @@ abstract contract FlyoverTestBase is Test {
         initBtcMocks();
     }
 
-    /// @notice Deploy full system using orchestrator script
+    /// @notice Deploy full system with inline deployment
     function deployFullSystem() internal {
         owner = makeAddr("owner");
         vm.deal(owner, 100 ether);
@@ -222,19 +238,53 @@ abstract contract FlyoverTestBase is Test {
 
         HelperConfig.FlyoverConfig memory cfg = _getTestConfig();
 
-        DeployFlyover deployer = new DeployFlyover();
-        DeployFlyover.FlyoverDeployment memory deployment = deployer.deployAll(
-            owner,
-            cfg
-        );
+        // Single ProxyAdmin for all contracts
+        address proxyAdmin = address(new ProxyAdmin(owner));
 
-        // Store contract references
-        collateralManagement = CollateralManagementContract(
-            payable(deployment.collateralManagementProxy)
-        );
-        discovery = FlyoverDiscovery(deployment.flyoverDiscoveryProxy);
-        pegInContract = PegInContract(payable(deployment.pegInProxy));
-        pegOutContract = PegOutContract(payable(deployment.pegOutProxy));
+        // 1) CollateralManagement
+        address cmImpl = address(new CollateralManagementContract());
+        address cmProxy = address(new TransparentUpgradeableProxy(
+            cmImpl,
+            proxyAdmin,
+            abi.encodeCall(
+                CollateralManagementContract.initialize,
+                (owner, cfg.adminDelay, cfg.minimumCollateral, cfg.resignDelayBlocks, cfg.rewardPercentage)
+            )
+        ));
+        collateralManagement = CollateralManagementContract(payable(cmProxy));
+
+        // 2) FlyoverDiscovery
+        address fdImpl = address(new FlyoverDiscovery());
+        address fdProxy = address(new TransparentUpgradeableProxy(
+            fdImpl,
+            proxyAdmin,
+            abi.encodeCall(FlyoverDiscovery.initialize, (owner, cfg.adminDelay, cmProxy))
+        ));
+        discovery = FlyoverDiscovery(fdProxy);
+
+        // 3) PegInContract
+        {
+            address piImpl = address(new PegInContract());
+            bytes memory piInitData = abi.encodeCall(
+                PegInContract.initialize,
+                (owner, payable(address(bridgeMock)), cfg.dustThreshold, cfg.minimumPegIn,
+                 cmProxy, cfg.mainnet, cfg.daoFeePercentage, cfg.daoFeeCollector)
+            );
+            address piProxy = address(new TransparentUpgradeableProxy(piImpl, proxyAdmin, piInitData));
+            pegInContract = PegInContract(payable(piProxy));
+        }
+
+        // 4) PegOutContract
+        {
+            address poImpl = address(new PegOutContract());
+            bytes memory poInitData = abi.encodeCall(
+                PegOutContract.initialize,
+                (owner, payable(address(bridgeMock)), cfg.dustThreshold, cmProxy,
+                 cfg.mainnet, cfg.btcBlockTime, cfg.daoFeePercentage, cfg.daoFeeCollector)
+            );
+            address poProxy = address(new TransparentUpgradeableProxy(poImpl, proxyAdmin, poInitData));
+            pegOutContract = PegOutContract(payable(poProxy));
+        }
 
         // Setup cross-contract roles
         vm.startPrank(owner);
