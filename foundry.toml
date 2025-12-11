@@ -28,6 +28,9 @@ remappings = [
   "src/=src/"
 ]
 
+[fuzz]
+runs = 128
+
 [rpc_endpoints]
 rskRegtest = "${REGTEST_RPC_URL}"
 rskTestnet = "${TESTNET_RPC_URL}"
