@@ -15,6 +15,8 @@ contract FlyoverDiscovery is
     EmergencyPause,
     IFlyoverDiscovery
 {
+    /// @notice The version of the contract
+    string constant public VERSION = "1.0.0";
 
     // ------------------------------------------------------------
     // FlyoverDiscovery State Variables

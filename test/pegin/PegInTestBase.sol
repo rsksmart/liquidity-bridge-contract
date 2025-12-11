@@ -56,8 +56,6 @@ abstract contract PegInTestBase is Test {
         bridgeMock = new BridgeMock();
 
         // Deploy PegInContract
-        // Note: In production, libraries would be deployed separately and linked
-        // For tests, we're using the libraries as they're already compiled
         PegInContract implementation = new PegInContract();
 
         bytes memory initData = abi.encodeCall(
@@ -81,7 +79,6 @@ abstract contract PegInTestBase is Test {
         pegInContract = PegInContract(payable(address(proxy)));
 
         // Grant COLLATERAL_SLASHER role to PegInContract
-        // Store the role hash BEFORE prank to avoid consuming it
         bytes32 slasherRole = collateralManagement.COLLATERAL_SLASHER();
 
         vm.prank(owner);
@@ -110,7 +107,6 @@ abstract contract PegInTestBase is Test {
             payable(address(cmProxy))
         );
 
-        // Verify owner has admin role (should be automatic with delay = 0)
         require(
             collateralManagement.hasRole(
                 collateralManagement.DEFAULT_ADMIN_ROLE(),
@@ -138,8 +134,6 @@ abstract contract PegInTestBase is Test {
         );
         discovery = FlyoverDiscovery(payable(address(discoveryProxy)));
 
-        // Grant COLLATERAL_ADDER role to Discovery contract
-        // Store the role hash BEFORE prank to avoid consuming it
         bytes32 adderRole = collateralManagement.COLLATERAL_ADDER();
 
         vm.prank(owner);
@@ -148,17 +142,14 @@ abstract contract PegInTestBase is Test {
 
     /// @notice Setup providers with collateral
     function setupProviders() internal {
-        // Create addresses with known private keys for signature testing
         (pegInLp, pegInLpKey) = makeAddrAndKey("pegInLp");
         (pegOutLp, pegOutLpKey) = makeAddrAndKey("pegOutLp");
         (fullLp, fullLpKey) = makeAddrAndKey("fullLp");
 
-        // Fund providers
         vm.deal(pegInLp, 100 ether);
         vm.deal(pegOutLp, 100 ether);
         vm.deal(fullLp, 100 ether);
 
-        // Register providers via Discovery
         vm.prank(pegInLp);
         discovery.register{value: MIN_COLLATERAL}(
             "Pegin Provider",

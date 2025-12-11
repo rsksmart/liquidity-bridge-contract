@@ -1,124 +1,122 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import "lib/forge-std/src/Test.sol";
-import "lib/forge-std/src/console.sol";
+import {console} from "forge-std/console.sol";
+import {FlyoverTestBase} from "../helpers/FlyoverTestBase.sol";
 import {PauseSystem} from "../../script/tasks/PauseSystem.s.sol";
 
 /**
  * @title PauseSystemTest
- * @notice Test for the pause-system task - validates the actual script works correctly
- * @dev Uses mock pausable contracts to test the pause/unpause flow
+ * @notice Test for the pause-system task with new Flyover contracts
+ * @dev Uses direct contract calls to avoid env var race conditions with parallel tests
  */
-contract PauseSystemTest is Test {
+contract PauseSystemTest is FlyoverTestBase {
     PauseSystem public pauseScript;
 
-    MockPausableContract public discovery;
-    MockPausableContract public pegIn;
-    MockPausableContract public pegOut;
-    MockPausableContract public collateral;
+    MockPausableContract public mockDiscovery;
+    MockPausableContract public mockPegIn;
+    MockPausableContract public mockPegOut;
+    MockPausableContract public mockCollateral;
 
     function setUp() public {
-        // Deploy mock pausable contracts
-        discovery = new MockPausableContract("FlyoverDiscovery");
-        pegIn = new MockPausableContract("PegInContract");
-        pegOut = new MockPausableContract("PegOutContract");
-        collateral = new MockPausableContract("CollateralManagement");
+        mockDiscovery = new MockPausableContract("FlyoverDiscovery");
+        mockPegIn = new MockPausableContract("PegInContract");
+        mockPegOut = new MockPausableContract("PegOutContract");
+        mockCollateral = new MockPausableContract("CollateralManagement");
 
         console.log("Mock contracts deployed:");
-        console.log("  FlyoverDiscovery:", address(discovery));
-        console.log("  PegInContract:", address(pegIn));
-        console.log("  PegOutContract:", address(pegOut));
-        console.log("  CollateralManagement:", address(collateral));
+        console.log("  FlyoverDiscovery:", address(mockDiscovery));
+        console.log("  PegInContract:", address(mockPegIn));
+        console.log("  PegOutContract:", address(mockPegOut));
+        console.log("  CollateralManagement:", address(mockCollateral));
 
-        // Instantiate the pause script
         pauseScript = new PauseSystem();
+    }
 
-        // Set contract addresses in environment for script to use
-        vm.setEnv("FLYOVER_DISCOVERY_ADDRESS", vm.toString(address(discovery)));
-        vm.setEnv("PEGIN_CONTRACT_ADDRESS", vm.toString(address(pegIn)));
-        vm.setEnv("PEGOUT_CONTRACT_ADDRESS", vm.toString(address(pegOut)));
+    /**
+     * @notice Set environment variables to point to our mock contracts
+     */
+    function _setEnvVars() internal {
+        vm.setEnv(
+            "FLYOVER_DISCOVERY_ADDRESS",
+            vm.toString(address(mockDiscovery))
+        );
+        vm.setEnv("PEGIN_CONTRACT_ADDRESS", vm.toString(address(mockPegIn)));
+        vm.setEnv("PEGOUT_CONTRACT_ADDRESS", vm.toString(address(mockPegOut)));
         vm.setEnv(
             "COLLATERAL_MANAGEMENT_ADDRESS",
-            vm.toString(address(collateral))
+            vm.toString(address(mockCollateral))
         );
     }
 
     function test_CheckStatus() public {
+        _setEnvVars();
         console.log("\n=== TEST CHECK STATUS ===\n");
 
-        // Test 1: Verify initial state - all contracts should be unpaused
-        (bool d1, , ) = discovery.pauseStatus();
-        (bool p1, , ) = pegIn.pauseStatus();
-        (bool p2, , ) = pegOut.pauseStatus();
-        (bool c1, , ) = collateral.pauseStatus();
+        (bool d1, , ) = mockDiscovery.pauseStatus();
+        (bool p1, , ) = mockPegIn.pauseStatus();
+        (bool p2, , ) = mockPegOut.pauseStatus();
+        (bool c1, , ) = mockCollateral.pauseStatus();
 
         assertFalse(d1, "Discovery should not be paused initially");
         assertFalse(p1, "PegIn should not be paused initially");
         assertFalse(p2, "PegOut should not be paused initially");
         assertFalse(c1, "Collateral should not be paused initially");
 
-        // Call checkStatus when contracts are unpaused
         pauseScript.checkStatus();
 
-        // Test 2: Pause contracts and verify checkStatus reports them as paused
+        // Directly pause contracts
         string memory reason = "Test pause for status check";
-        discovery.pause(reason);
-        pegIn.pause(reason);
-        pegOut.pause(reason);
-        collateral.pause(reason);
+        mockDiscovery.pause(reason);
+        mockPegIn.pause(reason);
+        mockPegOut.pause(reason);
+        mockCollateral.pause(reason);
 
-        // Verify all contracts are now paused
-        (d1, , ) = discovery.pauseStatus();
-        (p1, , ) = pegIn.pauseStatus();
-        (p2, , ) = pegOut.pauseStatus();
-        (c1, , ) = collateral.pauseStatus();
+        (d1, , ) = mockDiscovery.pauseStatus();
+        (p1, , ) = mockPegIn.pauseStatus();
+        (p2, , ) = mockPegOut.pauseStatus();
+        (c1, , ) = mockCollateral.pauseStatus();
 
         assertTrue(d1, "Discovery should be paused");
         assertTrue(p1, "PegIn should be paused");
         assertTrue(p2, "PegOut should be paused");
         assertTrue(c1, "Collateral should be paused");
 
-        // Call checkStatus when contracts are paused
+        _setEnvVars();
         pauseScript.checkStatus();
 
         console.log("\n[PASS] PauseSystem checkStatus works correctly!");
-        console.log(
-            "[PASS] Status correctly reported for both ACTIVE and PAUSED states!"
-        );
     }
 
     function test_PauseAllContracts() public {
         console.log("\n=== TEST PAUSE ALL CONTRACTS ===\n");
 
-        // Verify all contracts are active initially
-        (bool d1, , ) = discovery.pauseStatus();
-        (bool p1, , ) = pegIn.pauseStatus();
-        (bool p2, , ) = pegOut.pauseStatus();
-        (bool c1, , ) = collateral.pauseStatus();
+        (bool d1, , ) = mockDiscovery.pauseStatus();
+        (bool p1, , ) = mockPegIn.pauseStatus();
+        (bool p2, , ) = mockPegOut.pauseStatus();
+        (bool c1, , ) = mockCollateral.pauseStatus();
 
         assertFalse(d1, "Discovery should not be paused initially");
         assertFalse(p1, "PegIn should not be paused initially");
         assertFalse(p2, "PegOut should not be paused initially");
         assertFalse(c1, "Collateral should not be paused initially");
-        console.log("Initial state: All contracts ACTIVE");
 
-        // Pause all contracts using the script
+        // Directly pause contracts to avoid env var race conditions
         string memory reason = "Test emergency pause";
-        console.log("\nPausing all contracts with reason:", reason);
+        mockDiscovery.pause(reason);
+        mockPegIn.pause(reason);
+        mockPegOut.pause(reason);
+        mockCollateral.pause(reason);
 
-        pauseScript.pauseAll(reason);
-
-        // Verify all contracts are paused
         string memory dReason;
         string memory pReason;
         string memory p2Reason;
         string memory cReason;
 
-        (d1, dReason, ) = discovery.pauseStatus();
-        (p1, pReason, ) = pegIn.pauseStatus();
-        (p2, p2Reason, ) = pegOut.pauseStatus();
-        (c1, cReason, ) = collateral.pauseStatus();
+        (d1, dReason, ) = mockDiscovery.pauseStatus();
+        (p1, pReason, ) = mockPegIn.pauseStatus();
+        (p2, p2Reason, ) = mockPegOut.pauseStatus();
+        (c1, cReason, ) = mockCollateral.pauseStatus();
 
         assertTrue(d1, "Discovery should be paused");
         assertTrue(p1, "PegIn should be paused");
@@ -131,40 +129,39 @@ contract PauseSystemTest is Test {
         assertEq(cReason, reason, "Collateral pause reason should match");
 
         console.log("\n[PASS] All contracts paused successfully!");
-        console.log("[PASS] PauseSystem pauseAll works correctly!");
     }
 
     function test_UnpauseAllContracts() public {
         console.log("\n=== TEST UNPAUSE ALL CONTRACTS ===\n");
 
-        // First pause all contracts using the script
+        // Directly pause then unpause
         string memory pauseReason = "Setup for unpause test";
-        console.log("Setting up: Pausing all contracts first");
-        pauseScript.pauseAll(pauseReason);
+        mockDiscovery.pause(pauseReason);
+        mockPegIn.pause(pauseReason);
+        mockPegOut.pause(pauseReason);
+        mockCollateral.pause(pauseReason);
 
-        // Verify all are paused
-        (bool d1, , ) = discovery.pauseStatus();
-        (bool p1, , ) = pegIn.pauseStatus();
-        (bool p2, , ) = pegOut.pauseStatus();
-        (bool c1, , ) = collateral.pauseStatus();
+        (bool d1, , ) = mockDiscovery.pauseStatus();
+        (bool p1, , ) = mockPegIn.pauseStatus();
+        (bool p2, , ) = mockPegOut.pauseStatus();
+        (bool c1, , ) = mockCollateral.pauseStatus();
 
         assertTrue(d1 && p1 && p2 && c1, "All should be paused");
-        console.log("Setup complete: All contracts PAUSED");
 
-        // Unpause all using the script
-        console.log("\nUnpausing all contracts...");
-        pauseScript.unpauseAll();
+        mockDiscovery.unpause();
+        mockPegIn.unpause();
+        mockPegOut.unpause();
+        mockCollateral.unpause();
 
-        // Verify all contracts are unpaused
         string memory dReason;
         string memory pReason;
         string memory p2Reason;
         string memory cReason;
 
-        (d1, dReason, ) = discovery.pauseStatus();
-        (p1, pReason, ) = pegIn.pauseStatus();
-        (p2, p2Reason, ) = pegOut.pauseStatus();
-        (c1, cReason, ) = collateral.pauseStatus();
+        (d1, dReason, ) = mockDiscovery.pauseStatus();
+        (p1, pReason, ) = mockPegIn.pauseStatus();
+        (p2, p2Reason, ) = mockPegOut.pauseStatus();
+        (c1, cReason, ) = mockCollateral.pauseStatus();
 
         assertFalse(d1, "Discovery should be unpaused");
         assertFalse(p1, "PegIn should be unpaused");
@@ -177,37 +174,91 @@ contract PauseSystemTest is Test {
         assertEq(cReason, "", "Collateral reason should be cleared");
 
         console.log("\n[PASS] All contracts unpaused successfully!");
-        console.log("[PASS] PauseSystem unpauseAll works correctly!");
     }
 
     function test_CompleteCycle() public {
+        _setEnvVars();
         console.log("\n=== TEST COMPLETE PAUSE/UNPAUSE CYCLE ===\n");
 
         string memory reason = "Integration test";
 
-        // Check status, pause, check again, unpause, check final
         console.log("1. Initial status check");
         pauseScript.checkStatus();
 
         console.log("\n2. Pausing all contracts");
-        pauseScript.pauseAll(reason);
+        mockDiscovery.pause(reason);
+        mockPegIn.pause(reason);
+        mockPegOut.pause(reason);
+        mockCollateral.pause(reason);
 
         console.log("\n3. Status while paused");
+        _setEnvVars();
         pauseScript.checkStatus();
 
         console.log("\n4. Unpausing all contracts");
-        pauseScript.unpauseAll();
+        mockDiscovery.unpause();
+        mockPegIn.unpause();
+        mockPegOut.unpause();
+        mockCollateral.unpause();
 
         console.log("\n5. Final status check");
+        _setEnvVars();
         pauseScript.checkStatus();
 
         console.log("\n[PASS] Complete cycle successful!");
-        console.log("[PASS] PauseSystem.s.sol script works correctly!");
+    }
+
+    function test_PauseAllViaScript() public {
+        _setEnvVars();
+        console.log("\n=== TEST PAUSE ALL VIA SCRIPT ===\n");
+
+        // Test that the script's pauseAll function works correctly
+        pauseScript.pauseAll("Script-initiated pause");
+
+        (bool d1, string memory dReason, ) = mockDiscovery.pauseStatus();
+        (bool p1, string memory pReason, ) = mockPegIn.pauseStatus();
+        (bool p2, string memory p2Reason, ) = mockPegOut.pauseStatus();
+        (bool c1, string memory cReason, ) = mockCollateral.pauseStatus();
+
+        assertTrue(d1, "Discovery should be paused");
+        assertTrue(p1, "PegIn should be paused");
+        assertTrue(p2, "PegOut should be paused");
+        assertTrue(c1, "Collateral should be paused");
+
+        assertEq(dReason, "Script-initiated pause", "Reason should match");
+        assertEq(pReason, "Script-initiated pause", "Reason should match");
+        assertEq(p2Reason, "Script-initiated pause", "Reason should match");
+        assertEq(cReason, "Script-initiated pause", "Reason should match");
+
+        console.log("\n[PASS] pauseAll script function works correctly!");
+    }
+
+    function test_UnpauseAllViaScript() public {
+        _setEnvVars();
+        console.log("\n=== TEST UNPAUSE ALL VIA SCRIPT ===\n");
+
+        // First pause all
+        pauseScript.pauseAll("Pre-test pause");
+
+        // Then unpause via script
+        pauseScript.unpauseAll();
+
+        (bool d1, , ) = mockDiscovery.pauseStatus();
+        (bool p1, , ) = mockPegIn.pauseStatus();
+        (bool p2, , ) = mockPegOut.pauseStatus();
+        (bool c1, , ) = mockCollateral.pauseStatus();
+
+        assertFalse(d1, "Discovery should be unpaused");
+        assertFalse(p1, "PegIn should be unpaused");
+        assertFalse(p2, "PegOut should be unpaused");
+        assertFalse(c1, "Collateral should be unpaused");
+
+        console.log("\n[PASS] unpauseAll script function works correctly!");
     }
 }
 
 /**
- * @notice Mock pausable contract for testing
+ * @notice Mock pausable contract matching the new Flyover contract interface
  */
 contract MockPausableContract {
     string public name;

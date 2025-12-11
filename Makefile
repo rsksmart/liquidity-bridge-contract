@@ -12,7 +12,7 @@ PRIORITY_GAS_PRICE ?= 0
 
 # Hash-quote defaults
 QUOTE_TYPE ?= pegin
-QUOTE_FILE ?= script/tasks/hash-quote.example.json
+QUOTE_FILE ?= script/legacy/tasks/hash-quote.example.json
 
 # Pause-system defaults
 PAUSE_REASON ?= Emergency maintenance
@@ -115,6 +115,20 @@ help:
 	@echo "  dev      - Local development (Chain ID: 1337)"
 	@echo ""
 	@echo "Targets:"
+	@echo ""
+	@echo "Flyover Deployment:"
+	@echo "  deploy-flyover-fork      - Deploy full Flyover system (fork simulation)"
+	@echo "  deploy-flyover-broadcast - Deploy full Flyover system (actual deployment)"
+	@echo "  deploy-collateral-fork   - Deploy CollateralManagement (fork simulation)"
+	@echo "  deploy-collateral-broadcast - Deploy CollateralManagement (actual deployment)"
+	@echo "  deploy-discovery-fork    - Deploy FlyoverDiscovery (fork simulation)"
+	@echo "  deploy-discovery-broadcast - Deploy FlyoverDiscovery (actual deployment)"
+	@echo "  deploy-pegin-fork        - Deploy PegInContract (fork simulation)"
+	@echo "  deploy-pegin-broadcast   - Deploy PegInContract (actual deployment)"
+	@echo "  deploy-pegout-fork       - Deploy PegOutContract (fork simulation)"
+	@echo "  deploy-pegout-broadcast  - Deploy PegOutContract (actual deployment)"
+	@echo ""
+	@echo "Legacy LBC Deployment:"
 	@echo "  deploy-lbc-fork        - Deploy LiquidityBridgeContract (fork simulation)"
 	@echo "  deploy-lbc-broadcast  - Deploy LiquidityBridgeContract (actual deployment)"
 	@echo "  upgrade-lbc-fork      - Upgrade LiquidityBridgeContract to V2 (fork simulation)"
@@ -123,23 +137,49 @@ help:
 	@echo "  change-owner-broadcast - Transfer ownership to multisig (actual deployment)"
 	@echo "  deploy-lbc-high-gas-fork - Deploy with high gas limit (15M) (fork simulation)"
 	@echo "  deploy-lbc-high-gas-broadcast - Deploy with high gas limit (15M) (actual deployment)"
-	@echo "  hash-quote        - Hash a PegIn or PegOut quote"
-	@echo "  get-btc-height    - Get current BTC block height"
-	@echo "  get-versions      - Get contract versions"
-	@echo "  pause-status      - Check pause status of all system contracts"
-	@echo "  pause-system      - Pause all system contracts (simulation)"
-	@echo "  pause-system-broadcast - Pause all system contracts (actual)"
-	@echo "  unpause-system    - Unpause all system contracts (simulation)"
+	@echo ""
+	@echo "Task Scripts:"
+	@echo "  hash-quote               - Hash a PegIn or PegOut quote"
+	@echo "  get-btc-height           - Get current BTC block height"
+	@echo "  get-versions             - Get contract versions"
+	@echo "  pause-status             - Check pause status of all system contracts"
+	@echo "  pause-system             - Pause all system contracts (simulation)"
+	@echo "  pause-system-broadcast   - Pause all system contracts (actual)"
+	@echo "  unpause-system           - Unpause all system contracts (simulation)"
 	@echo "  unpause-system-broadcast - Unpause all system contracts (actual)"
-	@echo "  refund-user-pegout - Refund user for expired PegOut (simulation)"
+	@echo "  refund-user-pegout       - Refund user for expired PegOut (simulation)"
 	@echo "  refund-user-pegout-broadcast - Refund user for expired PegOut (actual)"
-	@echo "  register-pegin    - Register a PegIn Bitcoin transaction (simulation)"
+	@echo "  register-pegin           - Register a PegIn Bitcoin transaction (simulation)"
 	@echo "  register-pegin-broadcast - Register a PegIn Bitcoin transaction (actual)"
+	@echo ""
+	@echo "Build & Clean:"
 	@echo "  clean             - Clean build artifacts"
 	@echo "  build             - Build contracts"
-	@echo "  test              - Run tests"
-	@echo "  coverage          - Run tests with coverage"
 	@echo ""
+	@echo "Testing:"
+	@echo "  test              - Run all tests"
+	@echo "  test-v            - Run all tests with verbosity"
+	@echo "  test-tasks        - Run task script tests"
+	@echo "  test-pegin        - Run PegIn contract tests"
+	@echo "  test-pegout       - Run PegOut contract tests"
+	@echo "  test-collateral   - Run Collateral contract tests"
+	@echo "  test-discovery    - Run Discovery contract tests"
+	@echo "  test-integration  - Run integration tests"
+	@echo "  test-legacy       - Run legacy LBC tests"
+	@echo "  test-flyover      - Run all Flyover system tests"
+	@echo "  test-file         - Run a specific test file"
+	@echo "  test-func         - Run a specific test function"
+	@echo "  coverage          - Run tests with coverage"
+	@echo "  gas-report        - Generate gas report"
+	@echo ""
+	@echo "Deployment examples:"
+	@echo "  make deploy-flyover-fork NETWORK=testnet               # Deploy full Flyover system (simulation)"
+	@echo "  make deploy-flyover-broadcast NETWORK=testnet          # Deploy full Flyover system (actual)"
+	@echo "  make deploy-pegin-fork NETWORK=testnet                 # Deploy PegIn only (simulation)"
+	@echo "  make deploy-collateral-fork NETWORK=testnet            # Deploy Collateral only (simulation)"
+	@echo "  make deploy-lbc-fork NETWORK=testnet                   # Legacy LBC fork simulation"
+	@echo "  make deploy-lbc-broadcast NETWORK=testnet              # Legacy LBC actual deployment"
+	@echo "  make testnet-fork-deploy                               # Testnet fork simulation"
 	@echo "Fuzz Tests:"
 	@echo "  test-fuzz             - Run all fuzz tests"
 	@echo "  test-fuzz-collateral  - Run collateral fuzz tests"
@@ -153,7 +193,7 @@ help:
 	@echo "  make deploy-lbc-broadcast NETWORK=testnet               # Actual deployment"
 	@echo "  make testnet-fork-deploy                                # Testnet fork simulation"
 	@echo "  make upgrade-lbc-fork NETWORK=mainnet FORK_BLOCK=6020639 # Fork simulation"
-	@echo "  make upgrade-lbc-broadcast NETWORK=mainnet               # Actual upgrade"
+	@echo "  make upgrade-lbc-broadcast NETWORK=mainnet             # Actual upgrade"
 	@echo "  make hash-quote pegin testnet                      # Hash PegIn quote"
 	@echo "  make hash-quote pegout mainnet my-quote.json       # Hash PegOut with custom file"
 	@echo "  make pause-status NETWORK=testnet                  # Check pause status"
@@ -165,6 +205,152 @@ help:
 	@echo "  make refund-user-pegout-broadcast NETWORK=testnet QUOTE_HASH=abc123... # Refund user (actual)"
 	@echo "  make register-pegin NETWORK=testnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc... # Register PegIn (simulation)"
 	@echo "  make register-pegin-broadcast NETWORK=testnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc... # Register PegIn (actual)"
+	@echo ""
+	@echo "Test examples:"
+	@echo "  make test                                     # Run all tests"
+	@echo "  make test-v                                   # Run all tests with verbosity"
+	@echo "  make test-tasks                               # Run task script tests"
+	@echo "  make test-pegin                               # Run PegIn tests"
+	@echo "  make test-pegout                              # Run PegOut tests"
+	@echo "  make test-collateral                          # Run Collateral tests"
+	@echo "  make test-discovery                           # Run Discovery tests"
+	@echo "  make test-integration                         # Run integration tests"
+	@echo "  make test-flyover                             # Run all Flyover system tests"
+	@echo "  make test-file FILE=test/tasks/HashQuote.t.sol  # Run specific test file"
+	@echo "  make test-func FUNC=test_HashPeginQuote       # Run specific test function"
+
+# =============================================================================
+# FLYOVER DEPLOYMENT SCRIPTS
+# =============================================================================
+
+# Deploy full Flyover system (fork simulation)
+.PHONY: deploy-flyover-fork
+deploy-flyover-fork:
+	@echo "Deploying full Flyover system on $(NETWORK) (FORK SIMULATION)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	$(FORGE) script/deployment/DeployFlyover.s.sol:DeployFlyover \
+		$(FORK_OPTS) \
+		$(PRIVATE_KEY_OPTS) \
+		--gas-limit $(GAS_LIMIT) \
+		--legacy
+
+# Deploy full Flyover system (actual deployment)
+.PHONY: deploy-flyover-broadcast
+deploy-flyover-broadcast:
+	@echo "Deploying full Flyover system on $(NETWORK) (ACTUAL DEPLOYMENT)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	$(FORGE) script/deployment/DeployFlyover.s.sol:DeployFlyover \
+		$(RPC_OPTS) \
+		$(PRIVATE_KEY_OPTS) \
+		--gas-limit $(GAS_LIMIT) \
+		--legacy \
+		--broadcast
+
+# Deploy CollateralManagement (fork simulation)
+.PHONY: deploy-collateral-fork
+deploy-collateral-fork:
+	@echo "Deploying CollateralManagement on $(NETWORK) (FORK SIMULATION)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	$(FORGE) script/deployment/DeployCollateralManagement.s.sol:DeployCollateralManagement \
+		$(FORK_OPTS) \
+		$(PRIVATE_KEY_OPTS) \
+		--gas-limit $(GAS_LIMIT) \
+		--legacy
+
+# Deploy CollateralManagement (actual deployment)
+.PHONY: deploy-collateral-broadcast
+deploy-collateral-broadcast:
+	@echo "Deploying CollateralManagement on $(NETWORK) (ACTUAL DEPLOYMENT)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	$(FORGE) script/deployment/DeployCollateralManagement.s.sol:DeployCollateralManagement \
+		$(RPC_OPTS) \
+		$(PRIVATE_KEY_OPTS) \
+		--gas-limit $(GAS_LIMIT) \
+		--legacy \
+		--broadcast
+
+# Deploy FlyoverDiscovery (fork simulation)
+.PHONY: deploy-discovery-fork
+deploy-discovery-fork:
+	@echo "Deploying FlyoverDiscovery on $(NETWORK) (FORK SIMULATION)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	$(FORGE) script/deployment/DeployFlyoverDiscovery.s.sol:DeployFlyoverDiscovery \
+		$(FORK_OPTS) \
+		$(PRIVATE_KEY_OPTS) \
+		--gas-limit $(GAS_LIMIT) \
+		--legacy
+
+# Deploy FlyoverDiscovery (actual deployment)
+.PHONY: deploy-discovery-broadcast
+deploy-discovery-broadcast:
+	@echo "Deploying FlyoverDiscovery on $(NETWORK) (ACTUAL DEPLOYMENT)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	$(FORGE) script/deployment/DeployFlyoverDiscovery.s.sol:DeployFlyoverDiscovery \
+		$(RPC_OPTS) \
+		$(PRIVATE_KEY_OPTS) \
+		--gas-limit $(GAS_LIMIT) \
+		--legacy \
+		--broadcast
+
+# Deploy PegInContract (fork simulation)
+.PHONY: deploy-pegin-fork
+deploy-pegin-fork:
+	@echo "Deploying PegInContract on $(NETWORK) (FORK SIMULATION)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	$(FORGE) script/deployment/DeployPegIn.s.sol:DeployPegIn \
+		$(FORK_OPTS) \
+		$(PRIVATE_KEY_OPTS) \
+		--gas-limit $(GAS_LIMIT) \
+		--legacy
+
+# Deploy PegInContract (actual deployment)
+.PHONY: deploy-pegin-broadcast
+deploy-pegin-broadcast:
+	@echo "Deploying PegInContract on $(NETWORK) (ACTUAL DEPLOYMENT)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	$(FORGE) script/deployment/DeployPegIn.s.sol:DeployPegIn \
+		$(RPC_OPTS) \
+		$(PRIVATE_KEY_OPTS) \
+		--gas-limit $(GAS_LIMIT) \
+		--legacy \
+		--broadcast
+
+# Deploy PegOutContract (fork simulation)
+.PHONY: deploy-pegout-fork
+deploy-pegout-fork:
+	@echo "Deploying PegOutContract on $(NETWORK) (FORK SIMULATION)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	$(FORGE) script/deployment/DeployPegOut.s.sol:DeployPegOut \
+		$(FORK_OPTS) \
+		$(PRIVATE_KEY_OPTS) \
+		--gas-limit $(GAS_LIMIT) \
+		--legacy
+
+# Deploy PegOutContract (actual deployment)
+.PHONY: deploy-pegout-broadcast
+deploy-pegout-broadcast:
+	@echo "Deploying PegOutContract on $(NETWORK) (ACTUAL DEPLOYMENT)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	$(FORGE) script/deployment/DeployPegOut.s.sol:DeployPegOut \
+		$(RPC_OPTS) \
+		$(PRIVATE_KEY_OPTS) \
+		--gas-limit $(GAS_LIMIT) \
+		--legacy \
+		--broadcast
+
+# =============================================================================
+# LEGACY LBC DEPLOYMENT SCRIPTS
+# =============================================================================
 
 # Deploy LiquidityBridgeContract (fork simulation)
 .PHONY: deploy-lbc-fork
@@ -518,6 +704,84 @@ build:
 test:
 	@echo "Running tests..."
 	forge test
+
+# Run tests with verbosity
+.PHONY: test-v
+test-v:
+	@echo "Running tests with verbosity..."
+	forge test -vvv
+
+# Run task tests
+.PHONY: test-tasks
+test-tasks:
+	@echo "Running task tests..."
+	forge test --match-path "test/tasks/*.t.sol" -vv
+
+# Run PegIn tests
+.PHONY: test-pegin
+test-pegin:
+	@echo "Running PegIn tests..."
+	forge test --match-path "test/pegin/*.t.sol" -vv
+
+# Run PegOut tests
+.PHONY: test-pegout
+test-pegout:
+	@echo "Running PegOut tests..."
+	forge test --match-path "test/pegout/*.t.sol" -vv
+
+# Run Collateral tests
+.PHONY: test-collateral
+test-collateral:
+	@echo "Running Collateral tests..."
+	forge test --match-path "test/collateral/*.t.sol" -vv
+
+# Run Discovery tests
+.PHONY: test-discovery
+test-discovery:
+	@echo "Running Discovery tests..."
+	forge test --match-path "test/discovery/*.t.sol" -vv
+
+# Run Integration tests
+.PHONY: test-integration
+test-integration:
+	@echo "Running Integration tests..."
+	forge test --match-path "test/integration/*.t.sol" -vv
+
+# Run Legacy tests
+.PHONY: test-legacy
+test-legacy:
+	@echo "Running Legacy tests..."
+	forge test --match-path "test/legacy/*.t.sol" -vv
+
+# Run Flyover system tests (pegin, pegout, collateral, discovery)
+.PHONY: test-flyover
+test-flyover:
+	@echo "Running Flyover system tests..."
+	forge test --match-path "test/pegin/*.t.sol" --match-path "test/pegout/*.t.sol" --match-path "test/collateral/*.t.sol" --match-path "test/discovery/*.t.sol" -vv
+
+# Run a specific test file
+# Usage: make test-file FILE=test/tasks/HashQuote.t.sol
+.PHONY: test-file
+test-file:
+	@if [ -z "$(FILE)" ]; then \
+		echo "Error: FILE is required"; \
+		echo "Usage: make test-file FILE=test/tasks/HashQuote.t.sol"; \
+		exit 1; \
+	fi
+	@echo "Running tests in $(FILE)..."
+	forge test --match-path "$(FILE)" -vvv
+
+# Run a specific test function
+# Usage: make test-func FUNC=test_HashPeginQuote
+.PHONY: test-func
+test-func:
+	@if [ -z "$(FUNC)" ]; then \
+		echo "Error: FUNC is required"; \
+		echo "Usage: make test-func FUNC=test_HashPeginQuote"; \
+		exit 1; \
+	fi
+	@echo "Running test function $(FUNC)..."
+	forge test --match-test "$(FUNC)" -vvv
 
 # Run tests with coverage
 .PHONY: coverage

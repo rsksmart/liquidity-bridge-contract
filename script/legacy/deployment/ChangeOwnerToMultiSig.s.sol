@@ -30,10 +30,11 @@ pragma solidity 0.8.25;
  */
 
 import {Script, console} from "lib/forge-std/src/Script.sol";
-import {HelperConfig} from "../../script/HelperConfig.s.sol";
-import {LiquidityBridgeContractV2} from "../../src/legacy/LiquidityBridgeContractV2.sol";
-import {LiquidityBridgeContractAdmin} from "../../src/legacy/LiquidityBridgeContractAdmin.sol";
+import {HelperConfig} from "../../HelperConfig.s.sol";
+import {LiquidityBridgeContractV2} from "../../../src/legacy/LiquidityBridgeContractV2.sol";
+import {LiquidityBridgeContractAdmin} from "../../../../src/legacy/LiquidityBridgeContractAdmin.sol";
 import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {LiquidityBridgeContract} from "../../../../src/legacy/LiquidityBridgeContract.sol";
 
 interface IGnosisSafe {
     function getOwners() external view returns (address[] memory);

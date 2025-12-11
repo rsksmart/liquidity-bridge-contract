@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Script to get Bitcoin blockchain best chain height from RSK Bridge
-# Usage: ./script/tasks/GetBtcHeight.sh [rpc-url]
+# Usage: ./script/get-btc-height.sh [rpc-url]
 
 BRIDGE_ADDRESS="0x0000000000000000000000000000000001000006"
 RPC_URL=${1:-"https://public-node.testnet.rsk.co"}

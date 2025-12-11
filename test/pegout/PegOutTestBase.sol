@@ -33,14 +33,14 @@ abstract contract PegOutTestBase is Test {
     uint256 constant TEST_MIN_COLLATERAL = 0.6 ether;
     uint256 constant TEST_RESIGN_DELAY_BLOCKS = 500;
     uint256 constant TEST_REWARD_PERCENTAGE = 1000;
-    uint256 constant TEST_DUST_THRESHOLD = 0.0000001 ether; // From PEGOUT_CONSTANTS
+    uint256 constant TEST_DUST_THRESHOLD = 0.0000001 ether;
     uint256 constant TEST_BTC_BLOCK_TIME = 3600;
     uint256 constant DISCOVERY_INITIAL_DELAY = 5000;
     uint256 constant MIN_COLLATERAL = 0.6 ether;
 
     address constant ZERO_ADDRESS = address(0);
 
-    // BTC Mock Constants (shared across all PegOut tests)
+    // BTC Mock Constants
     bytes32 constant BLOCK_HEADER_HASH = bytes32(uint256(1));
     uint256 constant PARTIAL_MERKLE_TREE = 0;
     bytes32[] internal merkleHashes;
@@ -51,20 +51,14 @@ abstract contract PegOutTestBase is Test {
 
     /// @notice Deploy PegOutContract with all dependencies
     function deployPegOutContract() internal {
-        // Create owner
         owner = makeAddr("owner");
         vm.deal(owner, 100 ether);
 
-        // Deploy CollateralManagement
         deployCollateralManagement();
-
-        // Deploy Discovery
         deployDiscovery();
 
-        // Deploy BridgeMock
         bridgeMock = new BridgeMock();
 
-        // Deploy PegOutContract
         PegOutContract implementation = new PegOutContract();
 
         bytes memory initData = abi.encodeCall(
@@ -87,8 +81,6 @@ abstract contract PegOutTestBase is Test {
         );
         pegOutContract = PegOutContract(payable(address(proxy)));
 
-        // Grant COLLATERAL_SLASHER role to PegOutContract
-        // Store the role hash BEFORE prank to avoid consuming it
         bytes32 slasherRole = collateralManagement.COLLATERAL_SLASHER();
 
         vm.prank(owner);
@@ -117,7 +109,6 @@ abstract contract PegOutTestBase is Test {
             payable(address(cmProxy))
         );
 
-        // Verify owner has admin role (should be automatic with delay = 0)
         require(
             collateralManagement.hasRole(
                 collateralManagement.DEFAULT_ADMIN_ROLE(),
@@ -145,8 +136,6 @@ abstract contract PegOutTestBase is Test {
         );
         discovery = FlyoverDiscovery(payable(address(discoveryProxy)));
 
-        // Grant COLLATERAL_ADDER role to Discovery contract
-        // Store the role hash BEFORE prank to avoid consuming it
         bytes32 adderRole = collateralManagement.COLLATERAL_ADDER();
 
         vm.prank(owner);
@@ -155,17 +144,14 @@ abstract contract PegOutTestBase is Test {
 
     /// @notice Setup providers with collateral
     function setupProviders() internal {
-        // Create addresses with known private keys for signature testing
         (pegInLp, pegInLpKey) = makeAddrAndKey("pegInLp");
         (pegOutLp, pegOutLpKey) = makeAddrAndKey("pegOutLp");
         (fullLp, fullLpKey) = makeAddrAndKey("fullLp");
 
-        // Fund providers
         vm.deal(pegInLp, 100 ether);
         vm.deal(pegOutLp, 100 ether);
         vm.deal(fullLp, 100 ether);
 
-        // Register providers via Discovery
         vm.prank(pegInLp);
         discovery.register{value: MIN_COLLATERAL}(
             "Pegin Provider",
@@ -191,26 +177,21 @@ abstract contract PegOutTestBase is Test {
         );
     }
 
-    /// @notice Initialize BTC mock data (call in setUp of test contracts)
+    /// @notice Initialize BTC mock data
     function initBtcMocks() internal {
         merkleHashes = new bytes32[](1);
         merkleHashes[0] = bytes32(uint256(1));
     }
 
     /// @notice Creates a BTC block header with a specific timestamp
-    /// @param timestamp The Unix timestamp for the block
-    /// @return header The 80-byte BTC block header
     function createBtcBlockHeader(
         uint32 timestamp
     ) internal pure returns (bytes memory) {
         bytes memory header = new bytes(80);
-
-        // Place timestamp at offset 68 (little-endian)
         header[68] = bytes1(uint8(timestamp));
         header[69] = bytes1(uint8(timestamp >> 8));
         header[70] = bytes1(uint8(timestamp >> 16));
         header[71] = bytes1(uint8(timestamp >> 24));
-
         return header;
     }
 
@@ -231,6 +212,7 @@ abstract contract PegOutTestBase is Test {
     }
 
     /// @notice Generates a simple mock BTC transaction for testing
+
     /// @dev Uses FFI helper to generate BTC tx with P2PKH output (same as Hardhat tests)
     /// @param quote The PegOut quote
     /// @param quoteHash The hash of the quote
