@@ -23,8 +23,13 @@ contract DeployPegOut is Script {
         uint256 deployerKey = helper.getDeployerPrivateKey();
         address deployer = vm.rememberKey(deployerKey);
 
-        address collateralManagementProxy = vm.envAddress("COLLATERAL_MANAGEMENT_PROXY");
-        require(collateralManagementProxy != address(0), "COLLATERAL_MANAGEMENT_PROXY required");
+        address collateralManagementProxy = vm.envAddress(
+            "COLLATERAL_MANAGEMENT_PROXY"
+        );
+        require(
+            collateralManagementProxy != address(0),
+            "COLLATERAL_MANAGEMENT_PROXY required"
+        );
 
         vm.startBroadcast(deployerKey);
         result = _deploy(deployer, cfg, collateralManagementProxy);
@@ -40,15 +45,25 @@ contract DeployPegOut is Script {
     ) private returns (DeploymentResult memory result) {
         result.implementation = address(new PegOutContract());
         result.admin = address(new ProxyAdmin(defaultAdmin));
-        result.proxy = address(new TransparentUpgradeableProxy(
-            result.implementation,
-            result.admin,
-            abi.encodeCall(
-                PegOutContract.initialize,
-                (defaultAdmin, payable(cfg.bridge), cfg.dustThreshold, collateralManagementProxy,
-                 cfg.mainnet, cfg.btcBlockTime, cfg.daoFeePercentage, cfg.daoFeeCollector)
+        result.proxy = address(
+            new TransparentUpgradeableProxy(
+                result.implementation,
+                result.admin,
+                abi.encodeCall(
+                    PegOutContract.initialize,
+                    (
+                        defaultAdmin,
+                        payable(cfg.bridge),
+                        cfg.dustThreshold,
+                        collateralManagementProxy,
+                        cfg.mainnet,
+                        cfg.btcBlockTime,
+                        cfg.daoFeePercentage,
+                        cfg.daoFeeCollector
+                    )
+                )
             )
-        ));
+        );
     }
 
     function _log(DeploymentResult memory r) private pure {

@@ -23,8 +23,13 @@ contract DeployFlyoverDiscovery is Script {
         uint256 deployerKey = helper.getDeployerPrivateKey();
         address deployer = vm.rememberKey(deployerKey);
 
-        address collateralManagementProxy = vm.envAddress("COLLATERAL_MANAGEMENT_PROXY");
-        require(collateralManagementProxy != address(0), "COLLATERAL_MANAGEMENT_PROXY required");
+        address collateralManagementProxy = vm.envAddress(
+            "COLLATERAL_MANAGEMENT_PROXY"
+        );
+        require(
+            collateralManagementProxy != address(0),
+            "COLLATERAL_MANAGEMENT_PROXY required"
+        );
 
         vm.startBroadcast(deployerKey);
         result = _deploy(deployer, cfg, collateralManagementProxy);
@@ -40,14 +45,16 @@ contract DeployFlyoverDiscovery is Script {
     ) private returns (DeploymentResult memory result) {
         result.implementation = address(new FlyoverDiscovery());
         result.admin = address(new ProxyAdmin(defaultAdmin));
-        result.proxy = address(new TransparentUpgradeableProxy(
-            result.implementation,
-            result.admin,
-            abi.encodeCall(
-                FlyoverDiscovery.initialize,
-                (defaultAdmin, cfg.adminDelay, collateralManagementProxy)
+        result.proxy = address(
+            new TransparentUpgradeableProxy(
+                result.implementation,
+                result.admin,
+                abi.encodeCall(
+                    FlyoverDiscovery.initialize,
+                    (defaultAdmin, cfg.adminDelay, collateralManagementProxy)
+                )
             )
-        ));
+        );
     }
 
     function _log(DeploymentResult memory r) private pure {

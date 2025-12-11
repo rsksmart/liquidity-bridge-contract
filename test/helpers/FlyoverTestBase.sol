@@ -125,14 +125,22 @@ abstract contract FlyoverTestBase is Test {
         // Inline deployment
         address impl = address(new CollateralManagementContract());
         address admin = address(new ProxyAdmin(owner));
-        address proxy = address(new TransparentUpgradeableProxy(
-            impl,
-            admin,
-            abi.encodeCall(
-                CollateralManagementContract.initialize,
-                (owner, cfg.adminDelay, cfg.minimumCollateral, cfg.resignDelayBlocks, cfg.rewardPercentage)
+        address proxy = address(
+            new TransparentUpgradeableProxy(
+                impl,
+                admin,
+                abi.encodeCall(
+                    CollateralManagementContract.initialize,
+                    (
+                        owner,
+                        cfg.adminDelay,
+                        cfg.minimumCollateral,
+                        cfg.resignDelayBlocks,
+                        cfg.rewardPercentage
+                    )
+                )
             )
-        ));
+        );
 
         collateralManagement = CollateralManagementContract(payable(proxy));
     }
@@ -146,14 +154,16 @@ abstract contract FlyoverTestBase is Test {
         // Inline deployment
         address impl = address(new FlyoverDiscovery());
         address admin = address(new ProxyAdmin(owner));
-        address proxy = address(new TransparentUpgradeableProxy(
-            impl,
-            admin,
-            abi.encodeCall(
-                FlyoverDiscovery.initialize,
-                (owner, cfg.adminDelay, address(collateralManagement))
+        address proxy = address(
+            new TransparentUpgradeableProxy(
+                impl,
+                admin,
+                abi.encodeCall(
+                    FlyoverDiscovery.initialize,
+                    (owner, cfg.adminDelay, address(collateralManagement))
+                )
             )
-        ));
+        );
 
         discovery = FlyoverDiscovery(proxy);
 
@@ -183,10 +193,20 @@ abstract contract FlyoverTestBase is Test {
         address admin = address(new ProxyAdmin(owner));
         bytes memory initData = abi.encodeCall(
             PegInContract.initialize,
-            (owner, payable(address(bridgeMock)), cfg.dustThreshold, cfg.minimumPegIn,
-             address(collateralManagement), cfg.mainnet, cfg.daoFeePercentage, cfg.daoFeeCollector)
+            (
+                owner,
+                payable(address(bridgeMock)),
+                cfg.dustThreshold,
+                cfg.minimumPegIn,
+                address(collateralManagement),
+                cfg.mainnet,
+                cfg.daoFeePercentage,
+                cfg.daoFeeCollector
+            )
         );
-        address proxy = address(new TransparentUpgradeableProxy(impl, admin, initData));
+        address proxy = address(
+            new TransparentUpgradeableProxy(impl, admin, initData)
+        );
 
         pegInContract = PegInContract(payable(proxy));
 
@@ -211,10 +231,20 @@ abstract contract FlyoverTestBase is Test {
         address admin = address(new ProxyAdmin(owner));
         bytes memory initData = abi.encodeCall(
             PegOutContract.initialize,
-            (owner, payable(address(bridgeMock)), cfg.dustThreshold, address(collateralManagement),
-             cfg.mainnet, cfg.btcBlockTime, cfg.daoFeePercentage, cfg.daoFeeCollector)
+            (
+                owner,
+                payable(address(bridgeMock)),
+                cfg.dustThreshold,
+                address(collateralManagement),
+                cfg.mainnet,
+                cfg.btcBlockTime,
+                cfg.daoFeePercentage,
+                cfg.daoFeeCollector
+            )
         );
-        address proxy = address(new TransparentUpgradeableProxy(impl, admin, initData));
+        address proxy = address(
+            new TransparentUpgradeableProxy(impl, admin, initData)
+        );
 
         pegOutContract = PegOutContract(payable(proxy));
 
@@ -243,23 +273,36 @@ abstract contract FlyoverTestBase is Test {
 
         // 1) CollateralManagement
         address cmImpl = address(new CollateralManagementContract());
-        address cmProxy = address(new TransparentUpgradeableProxy(
-            cmImpl,
-            proxyAdmin,
-            abi.encodeCall(
-                CollateralManagementContract.initialize,
-                (owner, cfg.adminDelay, cfg.minimumCollateral, cfg.resignDelayBlocks, cfg.rewardPercentage)
+        address cmProxy = address(
+            new TransparentUpgradeableProxy(
+                cmImpl,
+                proxyAdmin,
+                abi.encodeCall(
+                    CollateralManagementContract.initialize,
+                    (
+                        owner,
+                        cfg.adminDelay,
+                        cfg.minimumCollateral,
+                        cfg.resignDelayBlocks,
+                        cfg.rewardPercentage
+                    )
+                )
             )
-        ));
+        );
         collateralManagement = CollateralManagementContract(payable(cmProxy));
 
         // 2) FlyoverDiscovery
         address fdImpl = address(new FlyoverDiscovery());
-        address fdProxy = address(new TransparentUpgradeableProxy(
-            fdImpl,
-            proxyAdmin,
-            abi.encodeCall(FlyoverDiscovery.initialize, (owner, cfg.adminDelay, cmProxy))
-        ));
+        address fdProxy = address(
+            new TransparentUpgradeableProxy(
+                fdImpl,
+                proxyAdmin,
+                abi.encodeCall(
+                    FlyoverDiscovery.initialize,
+                    (owner, cfg.adminDelay, cmProxy)
+                )
+            )
+        );
         discovery = FlyoverDiscovery(fdProxy);
 
         // 3) PegInContract
@@ -267,10 +310,20 @@ abstract contract FlyoverTestBase is Test {
             address piImpl = address(new PegInContract());
             bytes memory piInitData = abi.encodeCall(
                 PegInContract.initialize,
-                (owner, payable(address(bridgeMock)), cfg.dustThreshold, cfg.minimumPegIn,
-                 cmProxy, cfg.mainnet, cfg.daoFeePercentage, cfg.daoFeeCollector)
+                (
+                    owner,
+                    payable(address(bridgeMock)),
+                    cfg.dustThreshold,
+                    cfg.minimumPegIn,
+                    cmProxy,
+                    cfg.mainnet,
+                    cfg.daoFeePercentage,
+                    cfg.daoFeeCollector
+                )
             );
-            address piProxy = address(new TransparentUpgradeableProxy(piImpl, proxyAdmin, piInitData));
+            address piProxy = address(
+                new TransparentUpgradeableProxy(piImpl, proxyAdmin, piInitData)
+            );
             pegInContract = PegInContract(payable(piProxy));
         }
 
@@ -279,10 +332,20 @@ abstract contract FlyoverTestBase is Test {
             address poImpl = address(new PegOutContract());
             bytes memory poInitData = abi.encodeCall(
                 PegOutContract.initialize,
-                (owner, payable(address(bridgeMock)), cfg.dustThreshold, cmProxy,
-                 cfg.mainnet, cfg.btcBlockTime, cfg.daoFeePercentage, cfg.daoFeeCollector)
+                (
+                    owner,
+                    payable(address(bridgeMock)),
+                    cfg.dustThreshold,
+                    cmProxy,
+                    cfg.mainnet,
+                    cfg.btcBlockTime,
+                    cfg.daoFeePercentage,
+                    cfg.daoFeeCollector
+                )
             );
-            address poProxy = address(new TransparentUpgradeableProxy(poImpl, proxyAdmin, poInitData));
+            address poProxy = address(
+                new TransparentUpgradeableProxy(poImpl, proxyAdmin, poInitData)
+            );
             pegOutContract = PegOutContract(payable(poProxy));
         }
 
