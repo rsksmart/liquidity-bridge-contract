@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "compile": "npm run lint:sol && forge build",
-    "test": "npm run compile && forge test",
+    "test": "npm run compile && make test-unit",
     "coverage": "forge coverage",
     "lint:ts": "npx prettier --check . && npx eslint .",
     "lint:sol": "solhint 'src/**/*.sol'",

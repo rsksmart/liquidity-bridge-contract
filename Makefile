@@ -157,7 +157,8 @@ help:
 	@echo "  build             - Build contracts"
 	@echo ""
 	@echo "Testing:"
-	@echo "  test              - Run all tests"
+	@echo "  test              - Run all tests (unit + fuzz)"
+	@echo "  test-unit         - Run unit tests only (excludes fuzz tests)"
 	@echo "  test-v            - Run all tests with verbosity"
 	@echo "  test-tasks        - Run task script tests"
 	@echo "  test-pegin        - Run PegIn contract tests"
@@ -207,7 +208,8 @@ help:
 	@echo "  make register-pegin-broadcast NETWORK=testnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc... # Register PegIn (actual)"
 	@echo ""
 	@echo "Test examples:"
-	@echo "  make test                                     # Run all tests"
+	@echo "  make test                                     # Run all tests (unit + fuzz)"
+	@echo "  make test-unit                                # Run unit tests only (no fuzz)"
 	@echo "  make test-v                                   # Run all tests with verbosity"
 	@echo "  make test-tasks                               # Run task script tests"
 	@echo "  make test-pegin                               # Run PegIn tests"
@@ -699,11 +701,17 @@ build:
 	@echo "Building contracts..."
 	forge build
 
-# Run tests
+# Run all tests (unit + fuzz)
 .PHONY: test
 test:
-	@echo "Running tests..."
+	@echo "Running all tests..."
 	forge test
+
+# Run unit tests only (excludes fuzz tests)
+.PHONY: test-unit
+test-unit:
+	@echo "Running unit tests only (excluding fuzz tests)..."
+	forge test --no-match-path "test/fuzz/*"
 
 # Run tests with verbosity
 .PHONY: test-v
