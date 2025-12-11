@@ -26,6 +26,11 @@ PEGIN_QUOTE_FILE ?=
 PEGIN_SIGNATURE ?=
 PEGIN_TXID ?=
 
+# Flyover library addresses (set these after deploying libraries)
+# These are used for linking when deploying Flyover contracts
+FLYOVER_QUOTES_LIB ?=
+FLYOVER_SIGVAL_LIB ?=
+
 # Environment file
 ENV_FILE ?= .env
 
@@ -70,6 +75,15 @@ endif
 
 ifeq ($(VERIFY),true)
     FORGE_OPTS += --verify
+endif
+
+# Library linking options (for Flyover contracts)
+FLYOVER_LIB_OPTS :=
+ifneq ($(FLYOVER_QUOTES_LIB),)
+    FLYOVER_LIB_OPTS += --libraries src/libraries/Quotes.sol:Quotes:$(FLYOVER_QUOTES_LIB)
+endif
+ifneq ($(FLYOVER_SIGVAL_LIB),)
+    FLYOVER_LIB_OPTS += --libraries src/libraries/SignatureValidator.sol:SignatureValidator:$(FLYOVER_SIGVAL_LIB)
 endif
 
 # Network-specific RPC and key
@@ -180,7 +194,8 @@ help:
 	@echo "  test-fuzz-libraries   - Run libraries fuzz tests"
 	@echo ""
 	@echo "Deployment examples:"
-	@echo "  make deploy-flyover-fork NETWORK=testnet               # Deploy full Flyover system (simulation)"
+	@echo "  make deploy-flyover-fork NETWORK=testnet \\            # Deploy with linked libraries"
+	@echo "       FLYOVER_QUOTES_LIB=0x... FLYOVER_SIGVAL_LIB=0x..."
 	@echo "  make deploy-flyover-broadcast NETWORK=testnet          # Deploy full Flyover system (actual)"
 	@echo "  make deploy-pegin-fork NETWORK=testnet                 # Deploy PegIn only (simulation)"
 	@echo "  make deploy-collateral-fork NETWORK=testnet            # Deploy Collateral only (simulation)"
@@ -220,26 +235,40 @@ help:
 # =============================================================================
 
 # Deploy full Flyover system (fork simulation)
+# Link to existing libraries with FLYOVER_QUOTES_LIB and FLYOVER_SIGVAL_LIB
 .PHONY: deploy-flyover-fork
 deploy-flyover-fork:
 	@echo "Deploying full Flyover system on $(NETWORK) (FORK SIMULATION)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+ifneq ($(FLYOVER_LIB_OPTS),)
+	@echo "Using pre-deployed libraries:"
+	@echo "  Quotes: $(FLYOVER_QUOTES_LIB)"
+	@echo "  SignatureValidator: $(FLYOVER_SIGVAL_LIB)"
+endif
 	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
 	$(FORGE) script/deployment/DeployFlyover.s.sol:DeployFlyover \
 		$(FORK_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
+		$(FLYOVER_LIB_OPTS) \
 		--gas-limit $(GAS_LIMIT) \
 		--legacy
 
 # Deploy full Flyover system (actual deployment)
+# If libraries are already deployed, set FLYOVER_QUOTES_LIB and FLYOVER_SIGVAL_LIB
 .PHONY: deploy-flyover-broadcast
 deploy-flyover-broadcast:
 	@echo "Deploying full Flyover system on $(NETWORK) (ACTUAL DEPLOYMENT)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+ifneq ($(FLYOVER_LIB_OPTS),)
+	@echo "Using pre-deployed libraries:"
+	@echo "  Quotes: $(FLYOVER_QUOTES_LIB)"
+	@echo "  SignatureValidator: $(FLYOVER_SIGVAL_LIB)"
+endif
 	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
 	$(FORGE) script/deployment/DeployFlyover.s.sol:DeployFlyover \
 		$(RPC_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
+		$(FLYOVER_LIB_OPTS) \
 		--gas-limit $(GAS_LIMIT) \
 		--legacy \
 		--broadcast

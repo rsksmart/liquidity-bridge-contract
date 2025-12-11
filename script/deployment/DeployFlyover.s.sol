@@ -10,28 +10,23 @@ import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
 import {PegInContract} from "../../src/PegInContract.sol";
 import {PegOutContract} from "../../src/PegOutContract.sol";
 
-import {DeployCollateralManagement} from "./DeployCollateralManagement.s.sol";
-import {DeployFlyoverDiscovery} from "./DeployFlyoverDiscovery.s.sol";
-import {DeployPegIn} from "./DeployPegIn.s.sol";
-import {DeployPegOut} from "./DeployPegOut.s.sol";
+import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
 /// @title DeployFlyover
 /// @notice Orchestrates the deployment of all Flyover contracts and sets up roles
-/// @dev Deploys in order: CollateralManagement -> FlyoverDiscovery -> PegIn -> PegOut -> Roles
+/// @dev Gas optimized: single ProxyAdmin, inlined deployment logic, linked libraries
 contract DeployFlyover is Script {
     struct FlyoverDeployment {
         address collateralManagementImpl;
         address collateralManagementProxy;
-        address collateralManagementAdmin;
         address flyoverDiscoveryImpl;
         address flyoverDiscoveryProxy;
-        address flyoverDiscoveryAdmin;
         address pegInImpl;
         address pegInProxy;
-        address pegInAdmin;
         address pegOutImpl;
         address pegOutProxy;
-        address pegOutAdmin;
+        address proxyAdmin; // Single ProxyAdmin for all
     }
 
     function run() external returns (FlyoverDeployment memory) {
@@ -43,153 +38,89 @@ contract DeployFlyover is Script {
 
         vm.startBroadcast(deployerKey);
 
-        FlyoverDeployment memory deployment = deployAll(deployer, cfg);
-        setupRoles(deployment);
+        FlyoverDeployment memory d = _deployAll(deployer, cfg);
+        _setupRoles(d);
 
         vm.stopBroadcast();
 
-        logDeployment(deployment);
-
-        return deployment;
+        _log(d);
+        return d;
     }
 
-    /// @notice Deploys all Flyover contracts
-    /// @param defaultAdmin The address that will be the default admin for all contracts
-    /// @param cfg The Flyover configuration
-    /// @return deployment The deployment result containing all contract addresses
-    function deployAll(
+    function _deployAll(
         address defaultAdmin,
         HelperConfig.FlyoverConfig memory cfg
-    ) public returns (FlyoverDeployment memory deployment) {
-        // 1) Deploy CollateralManagement first (no dependencies)
-        console.log("=== Deploying CollateralManagement ===");
-        DeployCollateralManagement deployerCM = new DeployCollateralManagement();
-        DeployCollateralManagement.DeploymentResult memory cmResult = deployerCM
-            .deploy(defaultAdmin, cfg);
-        deployment.collateralManagementImpl = cmResult.implementation;
-        deployment.collateralManagementProxy = cmResult.proxy;
-        deployment.collateralManagementAdmin = cmResult.admin;
+    ) private returns (FlyoverDeployment memory d) {
+        // Single ProxyAdmin for all contracts
+        d.proxyAdmin = address(new ProxyAdmin(defaultAdmin));
 
-        // 2) Deploy FlyoverDiscovery (requires CollateralManagement)
-        console.log("");
-        console.log("=== Deploying FlyoverDiscovery ===");
-        DeployFlyoverDiscovery deployerFD = new DeployFlyoverDiscovery();
-        DeployFlyoverDiscovery.DeploymentResult memory fdResult = deployerFD
-            .deploy(defaultAdmin, cfg, deployment.collateralManagementProxy);
-        deployment.flyoverDiscoveryImpl = fdResult.implementation;
-        deployment.flyoverDiscoveryProxy = fdResult.proxy;
-        deployment.flyoverDiscoveryAdmin = fdResult.admin;
+        // 1) CollateralManagement
+        d.collateralManagementImpl = address(new CollateralManagementContract());
+        d.collateralManagementProxy = address(new TransparentUpgradeableProxy(
+            d.collateralManagementImpl,
+            d.proxyAdmin,
+            abi.encodeCall(
+                CollateralManagementContract.initialize,
+                (defaultAdmin, cfg.adminDelay, cfg.minimumCollateral, cfg.resignDelayBlocks, cfg.rewardPercentage)
+            )
+        ));
 
-        // 3) Deploy PegInContract (requires CollateralManagement)
-        console.log("");
-        console.log("=== Deploying PegInContract ===");
-        DeployPegIn deployerPI = new DeployPegIn();
-        DeployPegIn.DeploymentResult memory piResult = deployerPI.deploy(
-            defaultAdmin,
-            cfg,
-            deployment.collateralManagementProxy
-        );
-        deployment.pegInImpl = piResult.implementation;
-        deployment.pegInProxy = piResult.proxy;
-        deployment.pegInAdmin = piResult.admin;
+        // 2) FlyoverDiscovery
+        d.flyoverDiscoveryImpl = address(new FlyoverDiscovery());
+        d.flyoverDiscoveryProxy = address(new TransparentUpgradeableProxy(
+            d.flyoverDiscoveryImpl,
+            d.proxyAdmin,
+            abi.encodeCall(
+                FlyoverDiscovery.initialize,
+                (defaultAdmin, cfg.adminDelay, d.collateralManagementProxy)
+            )
+        ));
 
-        // 4) Deploy PegOutContract (requires CollateralManagement)
-        console.log("");
-        console.log("=== Deploying PegOutContract ===");
-        DeployPegOut deployerPO = new DeployPegOut();
-        DeployPegOut.DeploymentResult memory poResult = deployerPO.deploy(
-            defaultAdmin,
-            cfg,
-            deployment.collateralManagementProxy
-        );
-        deployment.pegOutImpl = poResult.implementation;
-        deployment.pegOutProxy = poResult.proxy;
-        deployment.pegOutAdmin = poResult.admin;
+        // 3) PegInContract
+        d.pegInImpl = address(new PegInContract());
+        d.pegInProxy = address(new TransparentUpgradeableProxy(
+            d.pegInImpl,
+            d.proxyAdmin,
+            abi.encodeCall(
+                PegInContract.initialize,
+                (defaultAdmin, payable(cfg.bridge), cfg.dustThreshold, cfg.minimumPegIn,
+                 d.collateralManagementProxy, cfg.mainnet, cfg.daoFeePercentage, cfg.daoFeeCollector)
+            )
+        ));
+
+        // 4) PegOutContract
+        d.pegOutImpl = address(new PegOutContract());
+        d.pegOutProxy = address(new TransparentUpgradeableProxy(
+            d.pegOutImpl,
+            d.proxyAdmin,
+            abi.encodeCall(
+                PegOutContract.initialize,
+                (defaultAdmin, payable(cfg.bridge), cfg.dustThreshold, d.collateralManagementProxy,
+                 cfg.mainnet, cfg.btcBlockTime, cfg.daoFeePercentage, cfg.daoFeeCollector)
+            )
+        ));
     }
 
-    /// @notice Sets up cross-contract roles required for the Flyover system
-    /// @param deployment The deployment result containing all contract addresses
-    function setupRoles(FlyoverDeployment memory deployment) public {
-        console.log("");
-        console.log("=== Setting up roles ===");
+    function _setupRoles(FlyoverDeployment memory d) private {
+        CollateralManagementContract cm = CollateralManagementContract(payable(d.collateralManagementProxy));
+        bytes32 adder = cm.COLLATERAL_ADDER();
+        bytes32 slasher = cm.COLLATERAL_SLASHER();
 
-        CollateralManagementContract cm = CollateralManagementContract(
-            payable(deployment.collateralManagementProxy)
-        );
-
-        // Grant COLLATERAL_ADDER to FlyoverDiscovery
-        // This allows FlyoverDiscovery to add collateral when LPs register
-        bytes32 collateralAdderRole = cm.COLLATERAL_ADDER();
-        cm.grantRole(collateralAdderRole, deployment.flyoverDiscoveryProxy);
-        console.log(
-            "Granted COLLATERAL_ADDER to FlyoverDiscovery:",
-            deployment.flyoverDiscoveryProxy
-        );
-
-        // Grant COLLATERAL_SLASHER to PegInContract
-        // This allows PegInContract to slash collateral when penalizing LPs
-        bytes32 collateralSlasherRole = cm.COLLATERAL_SLASHER();
-        cm.grantRole(collateralSlasherRole, deployment.pegInProxy);
-        console.log(
-            "Granted COLLATERAL_SLASHER to PegInContract:",
-            deployment.pegInProxy
-        );
-
-        // Grant COLLATERAL_SLASHER to PegOutContract
-        // This allows PegOutContract to slash collateral when penalizing LPs
-        cm.grantRole(collateralSlasherRole, deployment.pegOutProxy);
-        console.log(
-            "Granted COLLATERAL_SLASHER to PegOutContract:",
-            deployment.pegOutProxy
-        );
+        cm.grantRole(adder, d.flyoverDiscoveryProxy);
+        cm.grantRole(slasher, d.pegInProxy);
+        cm.grantRole(slasher, d.pegOutProxy);
     }
 
-    /// @notice Logs the deployment addresses
-    /// @param deployment The deployment result containing all contract addresses
-    function logDeployment(FlyoverDeployment memory deployment) internal view {
-        console.log("");
-        console.log("========================================");
-        console.log("        FLYOVER DEPLOYMENT SUMMARY       ");
-        console.log("========================================");
-        console.log("");
-        console.log("CollateralManagement:");
-        console.log(
-            "  Version:",
-            CollateralManagementContract(
-                payable(deployment.collateralManagementProxy)
-            ).VERSION()
-        );
-        console.log("  Implementation:", deployment.collateralManagementImpl);
-        console.log("  Proxy:", deployment.collateralManagementProxy);
-        console.log("  Admin:", deployment.collateralManagementAdmin);
-        console.log("");
-        console.log("FlyoverDiscovery:");
-        console.log(
-            "  Version:",
-            FlyoverDiscovery(deployment.flyoverDiscoveryProxy).VERSION()
-        );
-        console.log("  Implementation:", deployment.flyoverDiscoveryImpl);
-        console.log("  Proxy:", deployment.flyoverDiscoveryProxy);
-        console.log("  Admin:", deployment.flyoverDiscoveryAdmin);
-        console.log("");
-        console.log("PegInContract:");
-        console.log(
-            "  Version:",
-            PegInContract(payable(deployment.pegInProxy)).VERSION()
-        );
-        console.log("  Implementation:", deployment.pegInImpl);
-        console.log("  Proxy:", deployment.pegInProxy);
-        console.log("  Admin:", deployment.pegInAdmin);
-        console.log("");
-        console.log("PegOutContract:");
-        console.log(
-            "  Version:",
-            PegOutContract(payable(deployment.pegOutProxy)).VERSION()
-        );
-        console.log("  Implementation:", deployment.pegOutImpl);
-        console.log("  Proxy:", deployment.pegOutProxy);
-        console.log("  Admin:", deployment.pegOutAdmin);
-        console.log("");
-        console.log("========================================");
+    function _log(FlyoverDeployment memory d) private pure {
+        console.log("=== FLYOVER DEPLOYMENT ===");
+        console.log("ProxyAdmin:", d.proxyAdmin);
+        console.log("CollateralManagement impl:", d.collateralManagementImpl);
+        console.log("CollateralManagement proxy:", d.collateralManagementProxy);
+        console.log("FlyoverDiscovery impl:", d.flyoverDiscoveryImpl);
+        console.log("FlyoverDiscovery proxy:", d.flyoverDiscoveryProxy);
+        console.log("PegInContract impl:", d.pegInImpl);
+        console.log("PegInContract proxy:", d.pegInProxy);
+        console.log("PegOutContract impl:", d.pegOutImpl);
+        console.log("PegOutContract proxy:", d.pegOutProxy);
     }
 }
