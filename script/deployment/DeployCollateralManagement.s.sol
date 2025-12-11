@@ -35,14 +35,22 @@ contract DeployCollateralManagement is Script {
     ) private returns (DeploymentResult memory result) {
         result.implementation = address(new CollateralManagementContract());
         result.admin = address(new ProxyAdmin(defaultAdmin));
-        result.proxy = address(new TransparentUpgradeableProxy(
-            result.implementation,
-            result.admin,
-            abi.encodeCall(
-                CollateralManagementContract.initialize,
-                (defaultAdmin, cfg.adminDelay, cfg.minimumCollateral, cfg.resignDelayBlocks, cfg.rewardPercentage)
+        result.proxy = address(
+            new TransparentUpgradeableProxy(
+                result.implementation,
+                result.admin,
+                abi.encodeCall(
+                    CollateralManagementContract.initialize,
+                    (
+                        defaultAdmin,
+                        cfg.adminDelay,
+                        cfg.minimumCollateral,
+                        cfg.resignDelayBlocks,
+                        cfg.rewardPercentage
+                    )
+                )
             )
-        ));
+        );
     }
 
     function _log(DeploymentResult memory r) private pure {

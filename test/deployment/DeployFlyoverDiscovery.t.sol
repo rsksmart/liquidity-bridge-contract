@@ -28,16 +28,27 @@ contract DeployFlyoverDiscoveryTest is Test {
 
         address cmImpl = address(new CollateralManagementContract());
         address cmAdmin = address(new ProxyAdmin(deployer));
-        collateralManagementProxy = address(new TransparentUpgradeableProxy(
-            cmImpl,
-            cmAdmin,
-            abi.encodeCall(
-                CollateralManagementContract.initialize,
-                (deployer, cfg.adminDelay, cfg.minimumCollateral, cfg.resignDelayBlocks, cfg.rewardPercentage)
+        collateralManagementProxy = address(
+            new TransparentUpgradeableProxy(
+                cmImpl,
+                cmAdmin,
+                abi.encodeCall(
+                    CollateralManagementContract.initialize,
+                    (
+                        deployer,
+                        cfg.adminDelay,
+                        cfg.minimumCollateral,
+                        cfg.resignDelayBlocks,
+                        cfg.rewardPercentage
+                    )
+                )
             )
-        ));
+        );
 
-        console.log("Setup: CollateralManagement deployed at:", collateralManagementProxy);
+        console.log(
+            "Setup: CollateralManagement deployed at:",
+            collateralManagementProxy
+        );
     }
 
     function test_DeploymentFlow() public {
@@ -75,7 +86,9 @@ contract DeployFlyoverDiscoveryTest is Test {
         assertEq(fd.lastProviderId(), 0, "Initial provider ID should be 0");
         console.log("   Last Provider ID:", fd.lastProviderId());
 
-        console.log("\n[PASS] FlyoverDiscovery deployment flow executed successfully!");
+        console.log(
+            "\n[PASS] FlyoverDiscovery deployment flow executed successfully!"
+        );
     }
 
     function test_DeployUsingInlineDeployment() public {
@@ -87,11 +100,16 @@ contract DeployFlyoverDiscoveryTest is Test {
         // Inline deployment
         address impl = address(new FlyoverDiscovery());
         address admin = address(new ProxyAdmin(deployer));
-        address proxy = address(new TransparentUpgradeableProxy(
-            impl,
-            admin,
-            abi.encodeCall(FlyoverDiscovery.initialize, (deployer, cfg.adminDelay, collateralManagementProxy))
-        ));
+        address proxy = address(
+            new TransparentUpgradeableProxy(
+                impl,
+                admin,
+                abi.encodeCall(
+                    FlyoverDiscovery.initialize,
+                    (deployer, cfg.adminDelay, collateralManagementProxy)
+                )
+            )
+        );
 
         console.log("Deployment Result:");
         console.log("  Implementation:", impl);
@@ -118,21 +136,31 @@ contract DeployFlyoverDiscoveryTest is Test {
         // Deploy FlyoverDiscovery
         address impl = address(new FlyoverDiscovery());
         address admin = address(new ProxyAdmin(deployer));
-        address fdProxy = address(new TransparentUpgradeableProxy(
-            impl,
-            admin,
-            abi.encodeCall(FlyoverDiscovery.initialize, (deployer, cfg.adminDelay, collateralManagementProxy))
-        ));
+        address fdProxy = address(
+            new TransparentUpgradeableProxy(
+                impl,
+                admin,
+                abi.encodeCall(
+                    FlyoverDiscovery.initialize,
+                    (deployer, cfg.adminDelay, collateralManagementProxy)
+                )
+            )
+        );
 
         FlyoverDiscovery fd = FlyoverDiscovery(fdProxy);
-        CollateralManagementContract cm = CollateralManagementContract(payable(collateralManagementProxy));
+        CollateralManagementContract cm = CollateralManagementContract(
+            payable(collateralManagementProxy)
+        );
 
         // Grant COLLATERAL_ADDER role to FlyoverDiscovery
         bytes32 collateralAdderRole = cm.COLLATERAL_ADDER();
         cm.grantRole(collateralAdderRole, fdProxy);
 
         console.log("Granted COLLATERAL_ADDER to FlyoverDiscovery");
-        assertTrue(cm.hasRole(collateralAdderRole, fdProxy), "FlyoverDiscovery should have COLLATERAL_ADDER");
+        assertTrue(
+            cm.hasRole(collateralAdderRole, fdProxy),
+            "FlyoverDiscovery should have COLLATERAL_ADDER"
+        );
 
         console.log("\n[PASS] Integration with CollateralManagement verified!");
     }
@@ -146,17 +174,25 @@ contract DeployFlyoverDiscoveryTest is Test {
         // Inline deployment
         address impl = address(new FlyoverDiscovery());
         address admin = address(new ProxyAdmin(deployer));
-        address proxy = address(new TransparentUpgradeableProxy(
-            impl,
-            admin,
-            abi.encodeCall(FlyoverDiscovery.initialize, (deployer, cfg.adminDelay, collateralManagementProxy))
-        ));
+        address proxy = address(
+            new TransparentUpgradeableProxy(
+                impl,
+                admin,
+                abi.encodeCall(
+                    FlyoverDiscovery.initialize,
+                    (deployer, cfg.adminDelay, collateralManagementProxy)
+                )
+            )
+        );
 
         FlyoverDiscovery fd = FlyoverDiscovery(proxy);
 
         // Check deployer has DEFAULT_ADMIN_ROLE
         bytes32 defaultAdminRole = fd.DEFAULT_ADMIN_ROLE();
-        assertTrue(fd.hasRole(defaultAdminRole, deployer), "Deployer should have DEFAULT_ADMIN_ROLE");
+        assertTrue(
+            fd.hasRole(defaultAdminRole, deployer),
+            "Deployer should have DEFAULT_ADMIN_ROLE"
+        );
 
         console.log("  Deployer has DEFAULT_ADMIN_ROLE: true");
 

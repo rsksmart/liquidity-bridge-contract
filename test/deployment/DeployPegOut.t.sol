@@ -30,18 +30,37 @@ contract DeployPegOutTest is Test {
         address cmAdmin = address(new ProxyAdmin(deployer));
         bytes memory cmInitData = abi.encodeCall(
             CollateralManagementContract.initialize,
-            (deployer, cfg.adminDelay, cfg.minimumCollateral, cfg.resignDelayBlocks, cfg.rewardPercentage)
+            (
+                deployer,
+                cfg.adminDelay,
+                cfg.minimumCollateral,
+                cfg.resignDelayBlocks,
+                cfg.rewardPercentage
+            )
         );
-        collateralManagementProxy = address(new TransparentUpgradeableProxy(cmImpl, cmAdmin, cmInitData));
+        collateralManagementProxy = address(
+            new TransparentUpgradeableProxy(cmImpl, cmAdmin, cmInitData)
+        );
     }
 
-    function _deployPegOut(address deployer, HelperConfig.FlyoverConfig memory cfg) internal returns (address) {
+    function _deployPegOut(
+        address deployer,
+        HelperConfig.FlyoverConfig memory cfg
+    ) internal returns (address) {
         address impl = address(new PegOutContract());
         address admin = address(new ProxyAdmin(deployer));
         bytes memory initData = abi.encodeCall(
             PegOutContract.initialize,
-            (deployer, payable(address(bridgeMock)), cfg.dustThreshold, collateralManagementProxy,
-             cfg.mainnet, cfg.btcBlockTime, cfg.daoFeePercentage, cfg.daoFeeCollector)
+            (
+                deployer,
+                payable(address(bridgeMock)),
+                cfg.dustThreshold,
+                collateralManagementProxy,
+                cfg.mainnet,
+                cfg.btcBlockTime,
+                cfg.daoFeePercentage,
+                cfg.daoFeeCollector
+            )
         );
         return address(new TransparentUpgradeableProxy(impl, admin, initData));
     }
@@ -53,8 +72,16 @@ contract DeployPegOutTest is Test {
         address proxy = _deployPegOut(deployer, cfg);
         PegOutContract pegOut = PegOutContract(payable(proxy));
 
-        assertEq(pegOut.dustThreshold(), cfg.dustThreshold, "Dust threshold mismatch");
-        assertEq(pegOut.btcBlockTime(), cfg.btcBlockTime, "BTC block time mismatch");
+        assertEq(
+            pegOut.dustThreshold(),
+            cfg.dustThreshold,
+            "Dust threshold mismatch"
+        );
+        assertEq(
+            pegOut.btcBlockTime(),
+            cfg.btcBlockTime,
+            "BTC block time mismatch"
+        );
     }
 
     function test_DeployUsingInlineDeployment() public {
@@ -66,7 +93,11 @@ contract DeployPegOutTest is Test {
         assertTrue(proxy != address(0), "Proxy should not be zero");
 
         PegOutContract pegOut = PegOutContract(payable(proxy));
-        assertEq(pegOut.btcBlockTime(), cfg.btcBlockTime, "BTC block time mismatch");
+        assertEq(
+            pegOut.btcBlockTime(),
+            cfg.btcBlockTime,
+            "BTC block time mismatch"
+        );
     }
 
     function test_IntegrationWithCollateralManagement() public {
@@ -74,12 +105,17 @@ contract DeployPegOutTest is Test {
         address deployer = address(this);
 
         address poProxy = _deployPegOut(deployer, cfg);
-        CollateralManagementContract cm = CollateralManagementContract(payable(collateralManagementProxy));
+        CollateralManagementContract cm = CollateralManagementContract(
+            payable(collateralManagementProxy)
+        );
 
         bytes32 collateralSlasherRole = cm.COLLATERAL_SLASHER();
         cm.grantRole(collateralSlasherRole, poProxy);
 
-        assertTrue(cm.hasRole(collateralSlasherRole, poProxy), "PegOut should have COLLATERAL_SLASHER");
+        assertTrue(
+            cm.hasRole(collateralSlasherRole, poProxy),
+            "PegOut should have COLLATERAL_SLASHER"
+        );
     }
 
     function test_RolesAreSetCorrectly() public {
@@ -90,7 +126,10 @@ contract DeployPegOutTest is Test {
         PegOutContract pegOut = PegOutContract(payable(proxy));
 
         bytes32 defaultAdminRole = pegOut.DEFAULT_ADMIN_ROLE();
-        assertTrue(pegOut.hasRole(defaultAdminRole, deployer), "Deployer should have DEFAULT_ADMIN_ROLE");
+        assertTrue(
+            pegOut.hasRole(defaultAdminRole, deployer),
+            "Deployer should have DEFAULT_ADMIN_ROLE"
+        );
     }
 
     function test_DaoConfigurationSet() public {
@@ -100,7 +139,15 @@ contract DeployPegOutTest is Test {
         address proxy = _deployPegOut(deployer, cfg);
         PegOutContract pegOut = PegOutContract(payable(proxy));
 
-        assertEq(pegOut.getFeePercentage(), cfg.daoFeePercentage, "DAO fee percentage mismatch");
-        assertEq(pegOut.getFeeCollector(), cfg.daoFeeCollector, "DAO fee collector mismatch");
+        assertEq(
+            pegOut.getFeePercentage(),
+            cfg.daoFeePercentage,
+            "DAO fee percentage mismatch"
+        );
+        assertEq(
+            pegOut.getFeeCollector(),
+            cfg.daoFeeCollector,
+            "DAO fee collector mismatch"
+        );
     }
 }
