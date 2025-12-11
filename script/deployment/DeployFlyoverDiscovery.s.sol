@@ -2,16 +2,14 @@
 pragma solidity 0.8.25;
 
 import {Script, console} from "lib/forge-std/src/Script.sol";
-
 import {HelperConfig} from "../HelperConfig.s.sol";
-
 import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
 /// @title DeployFlyoverDiscovery
 /// @notice Deploys the FlyoverDiscovery contract with proxy pattern
-/// @dev Requires CollateralManagement to be deployed first
+/// @dev Requires COLLATERAL_MANAGEMENT_PROXY env var
 contract DeployFlyoverDiscovery is Script {
     struct DeploymentResult {
         address implementation;
@@ -19,79 +17,43 @@ contract DeployFlyoverDiscovery is Script {
         address admin;
     }
 
-    function run() external returns (DeploymentResult memory) {
+    function run() external returns (DeploymentResult memory result) {
         HelperConfig helper = new HelperConfig();
         HelperConfig.FlyoverConfig memory cfg = helper.getFlyoverConfig();
-
         uint256 deployerKey = helper.getDeployerPrivateKey();
         address deployer = vm.rememberKey(deployerKey);
 
-        // Get the CollateralManagement proxy address from environment
-        address collateralManagementProxy = vm.envAddress(
-            "COLLATERAL_MANAGEMENT_PROXY"
-        );
-        require(
-            collateralManagementProxy != address(0),
-            "COLLATERAL_MANAGEMENT_PROXY must be set"
-        );
+        address collateralManagementProxy = vm.envAddress("COLLATERAL_MANAGEMENT_PROXY");
+        require(collateralManagementProxy != address(0), "COLLATERAL_MANAGEMENT_PROXY required");
 
         vm.startBroadcast(deployerKey);
-
-        DeploymentResult memory result = deploy(
-            deployer,
-            cfg,
-            collateralManagementProxy
-        );
-
+        result = _deploy(deployer, cfg, collateralManagementProxy);
         vm.stopBroadcast();
 
-        return result;
+        _log(result);
     }
 
-    /// @notice Deploys FlyoverDiscovery with the given configuration
-    /// @param defaultAdmin The address that will be the default admin
-    /// @param cfg The Flyover configuration
-    /// @param collateralManagementProxy The address of the CollateralManagement proxy
-    /// @return result The deployment result containing implementation, proxy, and admin addresses
-    function deploy(
+    function _deploy(
         address defaultAdmin,
         HelperConfig.FlyoverConfig memory cfg,
         address collateralManagementProxy
-    ) public returns (DeploymentResult memory result) {
-        // 1) Deploy implementation
-        FlyoverDiscovery implementation = new FlyoverDiscovery();
-        console.log(
-            "FlyoverDiscovery implementation:",
-            address(implementation)
-        );
+    ) private returns (DeploymentResult memory result) {
+        result.implementation = address(new FlyoverDiscovery());
+        result.admin = address(new ProxyAdmin(defaultAdmin));
+        result.proxy = address(new TransparentUpgradeableProxy(
+            result.implementation,
+            result.admin,
+            abi.encodeCall(
+                FlyoverDiscovery.initialize,
+                (defaultAdmin, cfg.adminDelay, collateralManagementProxy)
+            )
+        ));
+    }
 
-        // 2) Deploy Proxy Admin
-        ProxyAdmin admin = new ProxyAdmin(defaultAdmin);
-        console.log("FlyoverDiscovery ProxyAdmin:", address(admin));
-
-        // 3) Prepare initializer calldata
-        bytes memory initData = abi.encodeCall(
-            FlyoverDiscovery.initialize,
-            (defaultAdmin, cfg.adminDelay, collateralManagementProxy)
-        );
-
-        // 4) Deploy TransparentUpgradeableProxy with initializer
-        TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
-            address(implementation),
-            address(admin),
-            initData
-        );
-        console.log("FlyoverDiscovery proxy:", address(proxy));
-
-        // Sanity check
-        FlyoverDiscovery fd = FlyoverDiscovery(address(proxy));
-        console.log("FlyoverDiscovery version:", fd.VERSION());
-        console.log("FlyoverDiscovery lastProviderId:", fd.lastProviderId());
-
-        result = DeploymentResult({
-            implementation: address(implementation),
-            proxy: address(proxy),
-            admin: address(admin)
-        });
+    function _log(DeploymentResult memory r) private pure {
+        console.log("=== FlyoverDiscovery Deployed ===");
+        console.log("Implementation:", r.implementation);
+        console.log("Proxy:", r.proxy);
+        console.log("ProxyAdmin:", r.admin);
     }
 }
