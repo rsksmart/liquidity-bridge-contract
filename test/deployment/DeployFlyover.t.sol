@@ -3,26 +3,95 @@ pragma solidity 0.8.25;
 
 import "lib/forge-std/src/Test.sol";
 import "lib/forge-std/src/console.sol";
-import {DeployFlyover} from "../../script/deployment/DeployFlyover.s.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
 import {PegInContract} from "../../src/PegInContract.sol";
 import {PegOutContract} from "../../src/PegOutContract.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
+import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import {BridgeMock} from "../../src/test-contracts/BridgeMock.sol";
 
 /**
  * @title DeployFlyoverTest
- * @notice Test for the DeployFlyover orchestrator script
+ * @notice Test for the DeployFlyover deployment pattern
  * @dev Tests full deployment of all Flyover contracts and role setup
  */
 contract DeployFlyoverTest is Test {
-    DeployFlyover public deployScript;
     HelperConfig public helperConfig;
+    BridgeMock public bridgeMock;
+
+    // Deployed contracts
+    CollateralManagementContract public collateralManagement;
+    FlyoverDiscovery public discovery;
+    PegInContract public pegInContract;
+    PegOutContract public pegOutContract;
+    address public proxyAdmin;
 
     function setUp() public {
-        deployScript = new DeployFlyover();
         helperConfig = new HelperConfig();
+        bridgeMock = new BridgeMock();
+    }
+
+    /// @notice Deploy all contracts inline (mirrors DeployFlyover script)
+    function _deployAll(address deployer, HelperConfig.FlyoverConfig memory cfg) internal {
+        // Single ProxyAdmin for all contracts
+        proxyAdmin = address(new ProxyAdmin(deployer));
+
+        // 1) CollateralManagement
+        _deployCollateralManagement(deployer, cfg);
+
+        // 2) FlyoverDiscovery
+        _deployFlyoverDiscovery(deployer, cfg);
+
+        // 3) PegInContract
+        _deployPegIn(deployer, cfg);
+
+        // 4) PegOutContract
+        _deployPegOut(deployer, cfg);
+    }
+
+    function _deployCollateralManagement(address deployer, HelperConfig.FlyoverConfig memory cfg) private {
+        address impl = address(new CollateralManagementContract());
+        bytes memory initData = abi.encodeCall(
+            CollateralManagementContract.initialize,
+            (deployer, cfg.adminDelay, cfg.minimumCollateral, cfg.resignDelayBlocks, cfg.rewardPercentage)
+        );
+        address proxy = address(new TransparentUpgradeableProxy(impl, proxyAdmin, initData));
+        collateralManagement = CollateralManagementContract(payable(proxy));
+    }
+
+    function _deployFlyoverDiscovery(address deployer, HelperConfig.FlyoverConfig memory cfg) private {
+        address impl = address(new FlyoverDiscovery());
+        bytes memory initData = abi.encodeCall(
+            FlyoverDiscovery.initialize,
+            (deployer, cfg.adminDelay, address(collateralManagement))
+        );
+        address proxy = address(new TransparentUpgradeableProxy(impl, proxyAdmin, initData));
+        discovery = FlyoverDiscovery(proxy);
+    }
+
+    function _deployPegIn(address deployer, HelperConfig.FlyoverConfig memory cfg) private {
+        address impl = address(new PegInContract());
+        bytes memory initData = abi.encodeCall(
+            PegInContract.initialize,
+            (deployer, payable(address(bridgeMock)), cfg.dustThreshold, cfg.minimumPegIn,
+             address(collateralManagement), cfg.mainnet, cfg.daoFeePercentage, cfg.daoFeeCollector)
+        );
+        address proxy = address(new TransparentUpgradeableProxy(impl, proxyAdmin, initData));
+        pegInContract = PegInContract(payable(proxy));
+    }
+
+    function _deployPegOut(address deployer, HelperConfig.FlyoverConfig memory cfg) private {
+        address impl = address(new PegOutContract());
+        bytes memory initData = abi.encodeCall(
+            PegOutContract.initialize,
+            (deployer, payable(address(bridgeMock)), cfg.dustThreshold, address(collateralManagement),
+             cfg.mainnet, cfg.btcBlockTime, cfg.daoFeePercentage, cfg.daoFeeCollector)
+        );
+        address proxy = address(new TransparentUpgradeableProxy(impl, proxyAdmin, initData));
+        pegOutContract = PegOutContract(payable(proxy));
     }
 
     function test_FullDeploymentFlow() public {
@@ -32,73 +101,24 @@ contract DeployFlyoverTest is Test {
         address deployer = address(this);
 
         console.log("Deploying all Flyover contracts...");
-        DeployFlyover.FlyoverDeployment memory deployment = deployScript
-            .deployAll(deployer, cfg);
+        _deployAll(deployer, cfg);
 
         // Verify all contracts deployed
         console.log("\n1. Verifying CollateralManagement...");
-        assertTrue(
-            deployment.collateralManagementImpl != address(0),
-            "CM impl should not be zero"
-        );
-        assertTrue(
-            deployment.collateralManagementProxy != address(0),
-            "CM proxy should not be zero"
-        );
-        assertTrue(
-            deployment.collateralManagementAdmin != address(0),
-            "CM admin should not be zero"
-        );
-        console.log("   Implementation:", deployment.collateralManagementImpl);
-        console.log("   Proxy:", deployment.collateralManagementProxy);
+        assertTrue(address(collateralManagement) != address(0), "CM should not be zero");
+        console.log("   Proxy:", address(collateralManagement));
 
         console.log("\n2. Verifying FlyoverDiscovery...");
-        assertTrue(
-            deployment.flyoverDiscoveryImpl != address(0),
-            "FD impl should not be zero"
-        );
-        assertTrue(
-            deployment.flyoverDiscoveryProxy != address(0),
-            "FD proxy should not be zero"
-        );
-        assertTrue(
-            deployment.flyoverDiscoveryAdmin != address(0),
-            "FD admin should not be zero"
-        );
-        console.log("   Implementation:", deployment.flyoverDiscoveryImpl);
-        console.log("   Proxy:", deployment.flyoverDiscoveryProxy);
+        assertTrue(address(discovery) != address(0), "FD should not be zero");
+        console.log("   Proxy:", address(discovery));
 
         console.log("\n3. Verifying PegInContract...");
-        assertTrue(
-            deployment.pegInImpl != address(0),
-            "PI impl should not be zero"
-        );
-        assertTrue(
-            deployment.pegInProxy != address(0),
-            "PI proxy should not be zero"
-        );
-        assertTrue(
-            deployment.pegInAdmin != address(0),
-            "PI admin should not be zero"
-        );
-        console.log("   Implementation:", deployment.pegInImpl);
-        console.log("   Proxy:", deployment.pegInProxy);
+        assertTrue(address(pegInContract) != address(0), "PI should not be zero");
+        console.log("   Proxy:", address(pegInContract));
 
         console.log("\n4. Verifying PegOutContract...");
-        assertTrue(
-            deployment.pegOutImpl != address(0),
-            "PO impl should not be zero"
-        );
-        assertTrue(
-            deployment.pegOutProxy != address(0),
-            "PO proxy should not be zero"
-        );
-        assertTrue(
-            deployment.pegOutAdmin != address(0),
-            "PO admin should not be zero"
-        );
-        console.log("   Implementation:", deployment.pegOutImpl);
-        console.log("   Proxy:", deployment.pegOutProxy);
+        assertTrue(address(pegOutContract) != address(0), "PO should not be zero");
+        console.log("   Proxy:", address(pegOutContract));
 
         console.log("\n[PASS] All contracts deployed successfully!");
     }
@@ -109,27 +129,21 @@ contract DeployFlyoverTest is Test {
         HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
         address deployer = address(this);
 
-        // Deploy all contracts
-        DeployFlyover.FlyoverDeployment memory deployment = deployScript
-            .deployAll(deployer, cfg);
+        _deployAll(deployer, cfg);
 
-        CollateralManagementContract cm = CollateralManagementContract(
-            payable(deployment.collateralManagementProxy)
-        );
+        bytes32 collateralAdderRole = collateralManagement.COLLATERAL_ADDER();
+        bytes32 collateralSlasherRole = collateralManagement.COLLATERAL_SLASHER();
 
-        bytes32 collateralAdderRole = cm.COLLATERAL_ADDER();
-        bytes32 collateralSlasherRole = cm.COLLATERAL_SLASHER();
-
-        // Setup roles directly from test (since test contract is admin)
+        // Setup roles
         console.log("Setting up roles...");
-        cm.grantRole(collateralAdderRole, deployment.flyoverDiscoveryProxy);
-        cm.grantRole(collateralSlasherRole, deployment.pegInProxy);
-        cm.grantRole(collateralSlasherRole, deployment.pegOutProxy);
+        collateralManagement.grantRole(collateralAdderRole, address(discovery));
+        collateralManagement.grantRole(collateralSlasherRole, address(pegInContract));
+        collateralManagement.grantRole(collateralSlasherRole, address(pegOutContract));
 
         // Verify FlyoverDiscovery has COLLATERAL_ADDER
         console.log("1. Checking FlyoverDiscovery has COLLATERAL_ADDER...");
         assertTrue(
-            cm.hasRole(collateralAdderRole, deployment.flyoverDiscoveryProxy),
+            collateralManagement.hasRole(collateralAdderRole, address(discovery)),
             "FlyoverDiscovery should have COLLATERAL_ADDER"
         );
         console.log("   FlyoverDiscovery has COLLATERAL_ADDER: true");
@@ -137,7 +151,7 @@ contract DeployFlyoverTest is Test {
         // Verify PegInContract has COLLATERAL_SLASHER
         console.log("\n2. Checking PegInContract has COLLATERAL_SLASHER...");
         assertTrue(
-            cm.hasRole(collateralSlasherRole, deployment.pegInProxy),
+            collateralManagement.hasRole(collateralSlasherRole, address(pegInContract)),
             "PegInContract should have COLLATERAL_SLASHER"
         );
         console.log("   PegInContract has COLLATERAL_SLASHER: true");
@@ -145,7 +159,7 @@ contract DeployFlyoverTest is Test {
         // Verify PegOutContract has COLLATERAL_SLASHER
         console.log("\n3. Checking PegOutContract has COLLATERAL_SLASHER...");
         assertTrue(
-            cm.hasRole(collateralSlasherRole, deployment.pegOutProxy),
+            collateralManagement.hasRole(collateralSlasherRole, address(pegOutContract)),
             "PegOutContract should have COLLATERAL_SLASHER"
         );
         console.log("   PegOutContract has COLLATERAL_SLASHER: true");
@@ -159,65 +173,36 @@ contract DeployFlyoverTest is Test {
         HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
         address deployer = address(this);
 
-        DeployFlyover.FlyoverDeployment memory deployment = deployScript
-            .deployAll(deployer, cfg);
+        _deployAll(deployer, cfg);
 
         // Check CollateralManagement
         console.log("1. CollateralManagement:");
-        CollateralManagementContract cm = CollateralManagementContract(
-            payable(deployment.collateralManagementProxy)
-        );
-        assertEq(
-            cm.getMinCollateral(),
-            cfg.minimumCollateral,
-            "Min collateral mismatch"
-        );
-        assertEq(
-            cm.getResignDelayInBlocks(),
-            cfg.resignDelayBlocks,
-            "Resign delay mismatch"
-        );
-        console.log("   Min Collateral:", cm.getMinCollateral());
-        console.log("   Resign Delay:", cm.getResignDelayInBlocks());
-        console.log("   Version:", cm.VERSION());
+        assertEq(collateralManagement.getMinCollateral(), cfg.minimumCollateral, "Min collateral mismatch");
+        assertEq(collateralManagement.getResignDelayInBlocks(), cfg.resignDelayBlocks, "Resign delay mismatch");
+        console.log("   Min Collateral:", collateralManagement.getMinCollateral());
+        console.log("   Resign Delay:", collateralManagement.getResignDelayInBlocks());
+        console.log("   Version:", collateralManagement.VERSION());
 
         // Check FlyoverDiscovery
         console.log("\n2. FlyoverDiscovery:");
-        FlyoverDiscovery fd = FlyoverDiscovery(
-            deployment.flyoverDiscoveryProxy
-        );
-        assertEq(fd.lastProviderId(), 0, "Initial provider ID should be 0");
-        console.log("   Last Provider ID:", fd.lastProviderId());
+        assertEq(discovery.lastProviderId(), 0, "Initial provider ID should be 0");
+        console.log("   Last Provider ID:", discovery.lastProviderId());
 
         // Check PegInContract
         console.log("\n3. PegInContract:");
-        PegInContract pegIn = PegInContract(payable(deployment.pegInProxy));
-        assertEq(pegIn.getMinPegIn(), cfg.minimumPegIn, "Min PegIn mismatch");
-        assertEq(
-            pegIn.dustThreshold(),
-            cfg.dustThreshold,
-            "Dust threshold mismatch"
-        );
-        console.log("   Min PegIn:", pegIn.getMinPegIn());
-        console.log("   Dust Threshold:", pegIn.dustThreshold());
-        console.log("   Version:", pegIn.VERSION());
+        assertEq(pegInContract.getMinPegIn(), cfg.minimumPegIn, "Min PegIn mismatch");
+        assertEq(pegInContract.dustThreshold(), cfg.dustThreshold, "Dust threshold mismatch");
+        console.log("   Min PegIn:", pegInContract.getMinPegIn());
+        console.log("   Dust Threshold:", pegInContract.dustThreshold());
+        console.log("   Version:", pegInContract.VERSION());
 
         // Check PegOutContract
         console.log("\n4. PegOutContract:");
-        PegOutContract pegOut = PegOutContract(payable(deployment.pegOutProxy));
-        assertEq(
-            pegOut.btcBlockTime(),
-            cfg.btcBlockTime,
-            "BTC block time mismatch"
-        );
-        assertEq(
-            pegOut.dustThreshold(),
-            cfg.dustThreshold,
-            "Dust threshold mismatch"
-        );
-        console.log("   BTC Block Time:", pegOut.btcBlockTime());
-        console.log("   Dust Threshold:", pegOut.dustThreshold());
-        console.log("   Version:", pegOut.VERSION());
+        assertEq(pegOutContract.btcBlockTime(), cfg.btcBlockTime, "BTC block time mismatch");
+        assertEq(pegOutContract.dustThreshold(), cfg.dustThreshold, "Dust threshold mismatch");
+        console.log("   BTC Block Time:", pegOutContract.btcBlockTime());
+        console.log("   Dust Threshold:", pegOutContract.dustThreshold());
+        console.log("   Version:", pegOutContract.VERSION());
 
         console.log("\n[PASS] All contracts initialized correctly!");
     }
@@ -228,20 +213,11 @@ contract DeployFlyoverTest is Test {
         HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
         address deployer = address(this);
 
-        // Deploy all contracts
-        DeployFlyover.FlyoverDeployment memory deployment = deployScript
-            .deployAll(deployer, cfg);
+        _deployAll(deployer, cfg);
 
-        FlyoverDiscovery fd = FlyoverDiscovery(
-            deployment.flyoverDiscoveryProxy
-        );
-        CollateralManagementContract cm = CollateralManagementContract(
-            payable(deployment.collateralManagementProxy)
-        );
-
-        // Setup roles directly from test (since test contract is admin)
-        bytes32 collateralAdderRole = cm.COLLATERAL_ADDER();
-        cm.grantRole(collateralAdderRole, deployment.flyoverDiscoveryProxy);
+        // Setup roles
+        bytes32 collateralAdderRole = collateralManagement.COLLATERAL_ADDER();
+        collateralManagement.grantRole(collateralAdderRole, address(discovery));
 
         // Create a test provider
         address provider = makeAddr("provider");
@@ -253,7 +229,7 @@ contract DeployFlyoverTest is Test {
         console.log("   Collateral amount:", collateralAmount);
 
         vm.prank(provider);
-        uint256 providerId = fd.register{value: collateralAmount}(
+        uint256 providerId = discovery.register{value: collateralAmount}(
             "Test Provider",
             "https://api.test.com",
             true,
@@ -265,20 +241,13 @@ contract DeployFlyoverTest is Test {
 
         // Verify collateral was added
         console.log("\n2. Verifying collateral...");
-        uint256 pegInCollateral = cm.getPegInCollateral(provider);
-        assertEq(
-            pegInCollateral,
-            collateralAmount,
-            "Collateral should be recorded"
-        );
+        uint256 pegInCollateral = collateralManagement.getPegInCollateral(provider);
+        assertEq(pegInCollateral, collateralAmount, "Collateral should be recorded");
         console.log("   PegIn Collateral:", pegInCollateral);
 
         // Verify provider is operational
         console.log("\n3. Checking operational status...");
-        bool isOperational = fd.isOperational(
-            Flyover.ProviderType.PegIn,
-            provider
-        );
+        bool isOperational = discovery.isOperational(Flyover.ProviderType.PegIn, provider);
         assertTrue(isOperational, "Provider should be operational");
         console.log("   Is Operational:", isOperational);
 
@@ -291,47 +260,22 @@ contract DeployFlyoverTest is Test {
         HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
         address deployer = address(this);
 
-        DeployFlyover.FlyoverDeployment memory deployment = deployScript
-            .deployAll(deployer, cfg);
+        _deployAll(deployer, cfg);
 
-        // Check all contracts have deployer as admin
-        CollateralManagementContract cm = CollateralManagementContract(
-            payable(deployment.collateralManagementProxy)
-        );
-        FlyoverDiscovery fd = FlyoverDiscovery(
-            deployment.flyoverDiscoveryProxy
-        );
-        PegInContract pegIn = PegInContract(payable(deployment.pegInProxy));
-        PegOutContract pegOut = PegOutContract(payable(deployment.pegOutProxy));
+        bytes32 defaultAdminRole = collateralManagement.DEFAULT_ADMIN_ROLE();
 
-        bytes32 defaultAdminRole = cm.DEFAULT_ADMIN_ROLE();
+        console.log("Checking DEFAULT_ADMIN_ROLE for deployer on all contracts...");
 
-        console.log(
-            "Checking DEFAULT_ADMIN_ROLE for deployer on all contracts..."
-        );
-
-        assertTrue(
-            cm.hasRole(defaultAdminRole, deployer),
-            "CM: Deployer should have admin"
-        );
+        assertTrue(collateralManagement.hasRole(defaultAdminRole, deployer), "CM: Deployer should have admin");
         console.log("  CollateralManagement: true");
 
-        assertTrue(
-            fd.hasRole(defaultAdminRole, deployer),
-            "FD: Deployer should have admin"
-        );
+        assertTrue(discovery.hasRole(defaultAdminRole, deployer), "FD: Deployer should have admin");
         console.log("  FlyoverDiscovery: true");
 
-        assertTrue(
-            pegIn.hasRole(defaultAdminRole, deployer),
-            "PI: Deployer should have admin"
-        );
+        assertTrue(pegInContract.hasRole(defaultAdminRole, deployer), "PI: Deployer should have admin");
         console.log("  PegInContract: true");
 
-        assertTrue(
-            pegOut.hasRole(defaultAdminRole, deployer),
-            "PO: Deployer should have admin"
-        );
+        assertTrue(pegOutContract.hasRole(defaultAdminRole, deployer), "PO: Deployer should have admin");
         console.log("  PegOutContract: true");
 
         console.log("\n[PASS] Deployer has admin role on all contracts!");

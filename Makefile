@@ -77,7 +77,7 @@ endif
 # Read library addresses from addresses.json using jq
 # Usage: $(call get_lib_address,network,library)
 define get_lib_address
-$(shell jq -r '.$(1).$(2).address // empty' addresses.json)
+$(shell jq -r '.["$(1)"]["$(2)"].address // empty' addresses.json 2>/dev/null)
 endef
 
 # Build library linking flags from addresses.json
