@@ -2,6 +2,7 @@ build
 src
 node_modules
 lib/
+broadcast/
 errorCodes.json
 coverage/
 coverage.json

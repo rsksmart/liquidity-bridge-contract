@@ -55,54 +55,88 @@ contract DeployFlyover is Script {
         d.proxyAdmin = address(new ProxyAdmin(defaultAdmin));
 
         // 1) CollateralManagement
-        d.collateralManagementImpl = address(new CollateralManagementContract());
-        d.collateralManagementProxy = address(new TransparentUpgradeableProxy(
-            d.collateralManagementImpl,
-            d.proxyAdmin,
-            abi.encodeCall(
-                CollateralManagementContract.initialize,
-                (defaultAdmin, cfg.adminDelay, cfg.minimumCollateral, cfg.resignDelayBlocks, cfg.rewardPercentage)
+        d.collateralManagementImpl = address(
+            new CollateralManagementContract()
+        );
+        d.collateralManagementProxy = address(
+            new TransparentUpgradeableProxy(
+                d.collateralManagementImpl,
+                d.proxyAdmin,
+                abi.encodeCall(
+                    CollateralManagementContract.initialize,
+                    (
+                        defaultAdmin,
+                        cfg.adminDelay,
+                        cfg.minimumCollateral,
+                        cfg.resignDelayBlocks,
+                        cfg.rewardPercentage
+                    )
+                )
             )
-        ));
+        );
 
         // 2) FlyoverDiscovery
         d.flyoverDiscoveryImpl = address(new FlyoverDiscovery());
-        d.flyoverDiscoveryProxy = address(new TransparentUpgradeableProxy(
-            d.flyoverDiscoveryImpl,
-            d.proxyAdmin,
-            abi.encodeCall(
-                FlyoverDiscovery.initialize,
-                (defaultAdmin, cfg.adminDelay, d.collateralManagementProxy)
+        d.flyoverDiscoveryProxy = address(
+            new TransparentUpgradeableProxy(
+                d.flyoverDiscoveryImpl,
+                d.proxyAdmin,
+                abi.encodeCall(
+                    FlyoverDiscovery.initialize,
+                    (defaultAdmin, cfg.adminDelay, d.collateralManagementProxy)
+                )
             )
-        ));
+        );
 
         // 3) PegInContract
         d.pegInImpl = address(new PegInContract());
-        d.pegInProxy = address(new TransparentUpgradeableProxy(
-            d.pegInImpl,
-            d.proxyAdmin,
-            abi.encodeCall(
-                PegInContract.initialize,
-                (defaultAdmin, payable(cfg.bridge), cfg.dustThreshold, cfg.minimumPegIn,
-                 d.collateralManagementProxy, cfg.mainnet, cfg.daoFeePercentage, cfg.daoFeeCollector)
+        d.pegInProxy = address(
+            new TransparentUpgradeableProxy(
+                d.pegInImpl,
+                d.proxyAdmin,
+                abi.encodeCall(
+                    PegInContract.initialize,
+                    (
+                        defaultAdmin,
+                        payable(cfg.bridge),
+                        cfg.dustThreshold,
+                        cfg.minimumPegIn,
+                        d.collateralManagementProxy,
+                        cfg.mainnet,
+                        cfg.daoFeePercentage,
+                        cfg.daoFeeCollector
+                    )
+                )
             )
-        ));
+        );
 
         // 4) PegOutContract
         d.pegOutImpl = address(new PegOutContract());
-        d.pegOutProxy = address(new TransparentUpgradeableProxy(
-            d.pegOutImpl,
-            d.proxyAdmin,
-            abi.encodeCall(
-                PegOutContract.initialize,
-                (defaultAdmin, payable(cfg.bridge), cfg.dustThreshold, d.collateralManagementProxy,
-                 cfg.mainnet, cfg.btcBlockTime, cfg.daoFeePercentage, cfg.daoFeeCollector)
+        d.pegOutProxy = address(
+            new TransparentUpgradeableProxy(
+                d.pegOutImpl,
+                d.proxyAdmin,
+                abi.encodeCall(
+                    PegOutContract.initialize,
+                    (
+                        defaultAdmin,
+                        payable(cfg.bridge),
+                        cfg.dustThreshold,
+                        d.collateralManagementProxy,
+                        cfg.mainnet,
+                        cfg.btcBlockTime,
+                        cfg.daoFeePercentage,
+                        cfg.daoFeeCollector
+                    )
+                )
             )
-        ));
+        );
     }
 
     function _setupRoles(FlyoverDeployment memory d) private {
-        CollateralManagementContract cm = CollateralManagementContract(payable(d.collateralManagementProxy));
+        CollateralManagementContract cm = CollateralManagementContract(
+            payable(d.collateralManagementProxy)
+        );
         bytes32 adder = cm.COLLATERAL_ADDER();
         bytes32 slasher = cm.COLLATERAL_SLASHER();
 

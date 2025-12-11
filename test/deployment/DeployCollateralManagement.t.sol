@@ -126,14 +126,22 @@ contract DeployCollateralManagementTest is Test {
         // Inline deployment (script.run() uses private _deploy internally)
         address impl = address(new CollateralManagementContract());
         address admin = address(new ProxyAdmin(deployer));
-        address proxy = address(new TransparentUpgradeableProxy(
-            impl,
-            admin,
-            abi.encodeCall(
-                CollateralManagementContract.initialize,
-                (deployer, cfg.adminDelay, cfg.minimumCollateral, cfg.resignDelayBlocks, cfg.rewardPercentage)
+        address proxy = address(
+            new TransparentUpgradeableProxy(
+                impl,
+                admin,
+                abi.encodeCall(
+                    CollateralManagementContract.initialize,
+                    (
+                        deployer,
+                        cfg.adminDelay,
+                        cfg.minimumCollateral,
+                        cfg.resignDelayBlocks,
+                        cfg.rewardPercentage
+                    )
+                )
             )
-        ));
+        );
 
         console.log("Deployment Result:");
         console.log("  Implementation:", impl);
@@ -168,14 +176,22 @@ contract DeployCollateralManagementTest is Test {
         // Inline deployment
         address impl = address(new CollateralManagementContract());
         address admin = address(new ProxyAdmin(deployer));
-        address proxy = address(new TransparentUpgradeableProxy(
-            impl,
-            admin,
-            abi.encodeCall(
-                CollateralManagementContract.initialize,
-                (deployer, cfg.adminDelay, cfg.minimumCollateral, cfg.resignDelayBlocks, cfg.rewardPercentage)
+        address proxy = address(
+            new TransparentUpgradeableProxy(
+                impl,
+                admin,
+                abi.encodeCall(
+                    CollateralManagementContract.initialize,
+                    (
+                        deployer,
+                        cfg.adminDelay,
+                        cfg.minimumCollateral,
+                        cfg.resignDelayBlocks,
+                        cfg.rewardPercentage
+                    )
+                )
             )
-        ));
+        );
         CollateralManagementContract cm = CollateralManagementContract(
             payable(proxy)
         );
