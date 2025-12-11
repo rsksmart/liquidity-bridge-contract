@@ -141,7 +141,6 @@ contract DeployPegInTest is Test {
             collateralManagementProxy
         );
 
-        PegInContract pegIn = PegInContract(payable(piResult.proxy));
         CollateralManagementContract cm = CollateralManagementContract(
             payable(collateralManagementProxy)
         );
