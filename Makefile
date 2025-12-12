@@ -52,6 +52,7 @@ LOCAL_CHAIN_ID := 1337
 MAINNET_KEY := $(MAINNET_SIGNER_PRIVATE_KEY)
 TESTNET_KEY := $(TESTNET_SIGNER_PRIVATE_KEY)
 DEV_KEY := $(DEV_SIGNER_PRIVATE_KEY)
+DEVELOPMENT_KEY := $(or $(DEVELOPMENT_SIGNER_PRIVATE_KEY),$(DEV_SIGNER_PRIVATE_KEY))
 
 # Forge command base
 FORGE := forge script
@@ -88,21 +89,23 @@ $(if $(call get_lib_address,$(1),BtcUtils),--libraries node_modules/@rsksmart/bt
 endef
 
 # Network-specific RPC and key
+# Note: development uses testnet RPC (same chain) but different library addresses
 define get_network_config
-$(if $(filter mainnet,$(1)),$(MAINNET_RPC),$(if $(filter testnet,$(1)),$(TESTNET_RPC),$(REGTEST_RPC)))
+$(if $(filter mainnet,$(1)),$(MAINNET_RPC),$(if $(filter testnet development,$(1)),$(TESTNET_RPC),$(REGTEST_RPC)))
 endef
 
 define get_network_key
-$(if $(filter mainnet,$(1)),$(MAINNET_KEY),$(if $(filter testnet,$(1)),$(TESTNET_KEY),$(DEV_KEY)))
+$(if $(filter mainnet,$(1)),$(MAINNET_KEY),$(if $(filter testnet,$(1)),$(TESTNET_KEY),$(if $(filter development,$(1)),$(DEVELOPMENT_KEY),$(DEV_KEY))))
 endef
 
 define get_chain_id
-$(if $(filter mainnet,$(1)),$(MAINNET_CHAIN_ID),$(if $(filter testnet,$(1)),$(TESTNET_CHAIN_ID),$(LOCAL_CHAIN_ID)))
+$(if $(filter mainnet,$(1)),$(MAINNET_CHAIN_ID),$(if $(filter testnet development,$(1)),$(TESTNET_CHAIN_ID),$(LOCAL_CHAIN_ID)))
 endef
 
 # Map simplified network names to RSK network names for forge script
+# development uses rskDevelopment addresses (different from rskTestnet)
 define get_rsk_network_name
-$(if $(filter mainnet,$(1)),rskMainnet,$(if $(filter testnet,$(1)),rskTestnet,rskRegtest))
+$(if $(filter mainnet,$(1)),rskMainnet,$(if $(filter testnet,$(1)),rskTestnet,$(if $(filter development,$(1)),rskDevelopment,rskRegtest)))
 endef
 
 # Fork options (for simulation/testing)
@@ -125,9 +128,10 @@ help:
 	@echo "Usage: make <target> [NETWORK=<network>] [FORK_BLOCK=<block>] [VERIFY=<true|false>] [BROADCAST=<true|false>]"
 	@echo ""
 	@echo "Networks:"
-	@echo "  mainnet  - RSK Mainnet (Chain ID: 30)"
-	@echo "  testnet  - RSK Testnet (Chain ID: 31)"
-	@echo "  dev      - Local development (Chain ID: 1337)"
+	@echo "  mainnet     - RSK Mainnet (Chain ID: 30)"
+	@echo "  testnet     - RSK Testnet (Chain ID: 31)"
+	@echo "  development - RSK Testnet with development library addresses (Chain ID: 31)"
+	@echo "  dev         - Local development (Chain ID: 1337)"
 	@echo ""
 	@echo "Targets:"
 	@echo ""
@@ -152,6 +156,14 @@ help:
 	@echo "  change-owner-broadcast - Transfer ownership to multisig (actual deployment)"
 	@echo "  deploy-lbc-high-gas-fork - Deploy with high gas limit (15M) (fork simulation)"
 	@echo "  deploy-lbc-high-gas-broadcast - Deploy with high gas limit (15M) (actual deployment)"
+	@echo ""
+	@echo "Development Network Deployment (testnet chain with rskDevelopment addresses):"
+	@echo "  development-fork-deploy           - Deploy LBC on development (fork simulation)"
+	@echo "  development-fork-deploy-broadcast - Deploy LBC on development (actual deployment)"
+	@echo "  development-deploy-flyover-fork   - Deploy Flyover on development (fork simulation)"
+	@echo "  development-deploy-flyover-broadcast - Deploy Flyover on development (actual deployment)"
+	@echo "  development-upgrade-lbc-fork      - Upgrade LBC on development (fork simulation)"
+	@echo "  development-upgrade-lbc-broadcast - Upgrade LBC on development (actual deployment)"
 	@echo ""
 	@echo "Task Scripts:"
 	@echo "  hash-quote               - Hash a PegIn or PegOut quote"
@@ -204,6 +216,13 @@ help:
 	@echo "  make deploy-lbc-fork NETWORK=testnet                   # Legacy LBC fork simulation"
 	@echo "  make deploy-lbc-broadcast NETWORK=testnet              # Legacy LBC actual deployment"
 	@echo "  make testnet-fork-deploy                               # Testnet fork simulation"
+	@echo ""
+	@echo "Development network examples (testnet chain with rskDevelopment addresses):"
+	@echo "  make development-fork-deploy                           # Development LBC fork simulation"
+	@echo "  make development-fork-deploy-broadcast                 # Development LBC actual deployment"
+	@echo "  make development-deploy-flyover-fork                   # Development Flyover fork simulation"
+	@echo "  make development-deploy-flyover-broadcast              # Development Flyover actual deployment"
+	@echo "  make deploy-lbc-fork NETWORK=development               # Same as development-fork-deploy"
 	@echo "Fuzz Tests:"
 	@echo "  test-fuzz             - Run all fuzz tests"
 	@echo "  test-fuzz-collateral  - Run collateral fuzz tests"
@@ -949,6 +968,52 @@ testnet-fork-deploy-broadcast:
 	@echo "Test deployment on testnet fork (ACTUAL DEPLOYMENT)..."
 	$(MAKE) deploy-lbc-broadcast NETWORK=testnet FORK_BLOCK=6020639 VERIFY=false
 
+# =============================================================================
+# DEVELOPMENT NETWORK DEPLOYMENT (Testnet chain with development library addresses)
+# =============================================================================
+
+# Development network fork deploy (simulation)
+.PHONY: development-fork-deploy
+development-fork-deploy:
+	@echo "Development network deployment (SIMULATION)..."
+	@echo "Using rskDevelopment library addresses on testnet chain"
+	$(MAKE) deploy-lbc-fork NETWORK=development VERIFY=false
+
+# Development network fork deploy (actual)
+.PHONY: development-fork-deploy-broadcast
+development-fork-deploy-broadcast:
+	@echo "Development network deployment (ACTUAL DEPLOYMENT)..."
+	@echo "Using rskDevelopment library addresses on testnet chain"
+	$(MAKE) deploy-lbc-broadcast NETWORK=development VERIFY=false
+
+# Deploy Flyover on development network (simulation)
+.PHONY: development-deploy-flyover-fork
+development-deploy-flyover-fork:
+	@echo "Deploying Flyover on development network (SIMULATION)..."
+	@echo "Using rskDevelopment library addresses on testnet chain"
+	$(MAKE) deploy-flyover-fork NETWORK=development
+
+# Deploy Flyover on development network (actual)
+.PHONY: development-deploy-flyover-broadcast
+development-deploy-flyover-broadcast:
+	@echo "Deploying Flyover on development network (ACTUAL DEPLOYMENT)..."
+	@echo "Using rskDevelopment library addresses on testnet chain"
+	$(MAKE) deploy-flyover-broadcast NETWORK=development
+
+# Upgrade LBC on development network (simulation)
+.PHONY: development-upgrade-lbc-fork
+development-upgrade-lbc-fork:
+	@echo "Upgrading LBC on development network (SIMULATION)..."
+	@echo "Using rskDevelopment library addresses on testnet chain"
+	$(MAKE) upgrade-lbc-fork NETWORK=development
+
+# Upgrade LBC on development network (actual)
+.PHONY: development-upgrade-lbc-broadcast
+development-upgrade-lbc-broadcast:
+	@echo "Upgrading LBC on development network (ACTUAL DEPLOYMENT)..."
+	@echo "Using rskDevelopment library addresses on testnet chain"
+	$(MAKE) upgrade-lbc-broadcast NETWORK=development
+
 # Mainnet fork deployment (simulation)
 .PHONY: mainnet-fork-deploy
 mainnet-fork-deploy:
@@ -1009,7 +1074,7 @@ docs:
 # Catch-all target for hash-quote arguments (pegin/pegout, network names, file paths)
 # This prevents make from complaining about unknown targets when using: make hash-quote pegin testnet
 ifneq (,$(findstring hash-quote,$(MAKECMDGOALS)))
-pegin pegout mainnet testnet local regtest rskMainnet rskTestnet rskRegtest rskDevelopment:
+pegin pegout mainnet testnet development local regtest rskMainnet rskTestnet rskRegtest rskDevelopment:
 	@:
 # Also catch file arguments (anything ending in .json)
 %.json:
