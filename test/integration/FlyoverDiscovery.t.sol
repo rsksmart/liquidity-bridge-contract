@@ -670,7 +670,11 @@ contract FlyoverDiscoveryIntegrationTest is Test {
 
         // All 8 should be listed initially
         Flyover.LiquidityProvider[] memory providers = discovery.getProviders();
-        assertEq(providers.length, 8, "All 8 providers should be listed initially");
+        assertEq(
+            providers.length,
+            8,
+            "All 8 providers should be listed initially"
+        );
 
         // LP2 - disable (not resigned)
         vm.prank(lp2);
@@ -736,7 +740,10 @@ contract FlyoverDiscoveryIntegrationTest is Test {
         }
 
         assertFalse(foundLp2, "LP2 should not be in listing (disabled)");
-        assertFalse(foundLp4, "LP4 should not be in listing (resigned and disabled)");
+        assertFalse(
+            foundLp4,
+            "LP4 should not be in listing (resigned and disabled)"
+        );
         assertFalse(foundLp5, "LP5 should not be in listing (resigned)");
         assertFalse(foundLp6, "LP6 should not be in listing (disabled)");
         assertFalse(foundLp8, "LP8 should not be in listing (resigned)");

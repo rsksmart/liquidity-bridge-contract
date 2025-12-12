@@ -212,6 +212,7 @@ abstract contract PegOutTestBase is Test {
     }
 
     /// @notice Generates a simple mock BTC transaction for testing
+
     /// @dev Uses FFI helper to generate BTC tx with P2PKH output (same as Hardhat tests)
     /// @param quote The PegOut quote
     /// @param quoteHash The hash of the quote
