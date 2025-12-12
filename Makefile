@@ -12,7 +12,7 @@ PRIORITY_GAS_PRICE ?= 0
 
 # Hash-quote defaults
 QUOTE_TYPE ?= pegin
-QUOTE_FILE ?= script/legacy/tasks/hash-quote.example.json
+HASH_QUOTE_FILE ?= script/legacy/tasks/hash-quote.example.json
 
 # Pause-system defaults
 PAUSE_REASON ?= Emergency maintenance
@@ -186,7 +186,14 @@ help:
 	@echo "  test-file         - Run a specific test file"
 	@echo "  test-func         - Run a specific test function"
 	@echo "  coverage          - Run tests with coverage"
-	@echo "  gas-report        - Generate gas report"
+	@echo ""
+	@echo "Fuzz Tests:"
+	@echo "  test-fuzz             - Run all fuzz tests"
+	@echo "  test-fuzz-collateral  - Run collateral fuzz tests"
+	@echo "  test-fuzz-discovery   - Run discovery fuzz tests"
+	@echo "  test-fuzz-pegin       - Run pegin fuzz tests"
+	@echo "  test-fuzz-pegout      - Run pegout fuzz tests"
+	@echo "  test-fuzz-libraries   - Run libraries fuzz tests"
 	@echo ""
 	@echo "Deployment examples:"
 	@echo "  make deploy-flyover-fork NETWORK=testnet               # Deploy with auto-linked libraries"
@@ -213,6 +220,7 @@ help:
 	@echo "  make upgrade-lbc-broadcast NETWORK=mainnet             # Actual upgrade"
 	@echo "  make hash-quote pegin testnet                      # Hash PegIn quote"
 	@echo "  make hash-quote pegout mainnet my-quote.json       # Hash PegOut with custom file"
+	@echo "  make hash-quote HASH_QUOTE_FILE=my-quote.json     # Hash with named file parameter"
 	@echo "  make pause-status NETWORK=testnet                  # Check pause status"
 	@echo "  make pause-system NETWORK=testnet PAUSE_REASON=\"Security incident\" # Pause (simulation)"
 	@echo "  make pause-system-broadcast NETWORK=mainnet PAUSE_REASON=\"Emergency\" # Pause mainnet"
@@ -518,7 +526,7 @@ get-versions:
 
 # Hash quote - supports both syntaxes:
 # make hash-quote pegin testnet
-# make hash-quote QUOTE_TYPE=pegin NETWORK=testnet QUOTE_FILE=file.json
+# make hash-quote QUOTE_TYPE=pegin NETWORK=testnet HASH_QUOTE_FILE=file.json
 .PHONY: hash-quote
 hash-quote:
 	@$(eval ARGS := $(filter-out $@,$(MAKECMDGOALS)))
@@ -527,7 +535,7 @@ hash-quote:
 	@$(eval FILE_ARG := $(word 3,$(ARGS)))
 	@$(eval FINAL_TYPE := $(if $(QUOTE_TYPE_ARG),$(QUOTE_TYPE_ARG),$(QUOTE_TYPE)))
 	@$(eval FINAL_NETWORK := $(if $(NETWORK_ARG),$(NETWORK_ARG),$(NETWORK)))
-	@$(eval FINAL_FILE := $(if $(FILE_ARG),$(FILE_ARG),$(QUOTE_FILE)))
+	@$(eval FINAL_FILE := $(if $(FILE_ARG),$(FILE_ARG),$(HASH_QUOTE_FILE)))
 	@if [ "$(FINAL_TYPE)" != "pegin" ] && [ "$(FINAL_TYPE)" != "pegout" ]; then \
 		echo "Error: Type must be 'pegin' or 'pegout'"; \
 		exit 1; \

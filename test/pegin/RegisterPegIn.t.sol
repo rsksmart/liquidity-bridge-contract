@@ -976,7 +976,6 @@ contract RegisterPegInTest is PegInTestBase {
     function test_RegisterPegIn_HandlesRefundFailureToReentrancyCaller()
         public
     {
-        // Replicates the "reentrancy" test which actually tests refund failure
         // ReentrancyCaller has no receive/fallback, so refund payment fails
 
         // Deploy ReentrancyCaller
