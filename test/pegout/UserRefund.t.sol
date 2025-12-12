@@ -2,11 +2,11 @@
 pragma solidity 0.8.25;
 
 import {PegOutTestBase} from "./PegOutTestBase.sol";
-import {IPegOut} from "../../contracts/interfaces/IPegOut.sol";
-import {Quotes} from "../../contracts/libraries/Quotes.sol";
-import {Flyover} from "../../contracts/libraries/Flyover.sol";
-import {ICollateralManagement} from "../../contracts/interfaces/ICollateralManagement.sol";
-import {PegOutChangeReceiver} from "../../contracts/test-contracts/PegOutChangeReceiver.sol";
+import {IPegOut} from "../../src/interfaces/IPegOut.sol";
+import {Quotes} from "../../src/libraries/Quotes.sol";
+import {Flyover} from "../../src/libraries/Flyover.sol";
+import {ICollateralManagement} from "../../src/interfaces/ICollateralManagement.sol";
+import {PegOutChangeReceiver} from "../../src/test-contracts/PegOutChangeReceiver.sol";
 
 /// @title UserRefund Tests for PegOut
 /// @notice Tests for the refundUserPegOut function
