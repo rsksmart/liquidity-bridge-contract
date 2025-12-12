@@ -26,6 +26,8 @@ PEGIN_QUOTE_FILE ?=
 PEGIN_SIGNATURE ?=
 PEGIN_TXID ?=
 
+# Flyover library addresses are read from addresses.json at build time
+
 # Environment file
 ENV_FILE ?= .env
 
@@ -71,6 +73,19 @@ endif
 ifeq ($(VERIFY),true)
     FORGE_OPTS += --verify
 endif
+
+# Read library addresses from addresses.json using jq
+# Usage: $(call get_lib_address,network,library)
+define get_lib_address
+$(shell jq -r '.["$(1)"]["$(2)"].address // empty' addresses.json 2>/dev/null)
+endef
+
+# Build library linking flags from addresses.json
+define get_library_flags
+$(if $(call get_lib_address,$(1),Quotes),--libraries src/libraries/Quotes.sol:Quotes:$(call get_lib_address,$(1),Quotes)) \
+$(if $(call get_lib_address,$(1),SignatureValidator),--libraries src/libraries/SignatureValidator.sol:SignatureValidator:$(call get_lib_address,$(1),SignatureValidator)) \
+$(if $(call get_lib_address,$(1),BtcUtils),--libraries node_modules/@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol:BtcUtils:$(call get_lib_address,$(1),BtcUtils))
+endef
 
 # Network-specific RPC and key
 define get_network_config
@@ -173,8 +188,9 @@ help:
 	@echo "  gas-report        - Generate gas report"
 	@echo ""
 	@echo "Deployment examples:"
-	@echo "  make deploy-flyover-fork NETWORK=testnet               # Deploy full Flyover system (simulation)"
+	@echo "  make deploy-flyover-fork NETWORK=testnet               # Deploy with auto-linked libraries"
 	@echo "  make deploy-flyover-broadcast NETWORK=testnet          # Deploy full Flyover system (actual)"
+	@echo "  (Libraries are auto-linked from addresses.json via foundry.toml profiles)"
 	@echo "  make deploy-pegin-fork NETWORK=testnet                 # Deploy PegIn only (simulation)"
 	@echo "  make deploy-collateral-fork NETWORK=testnet            # Deploy Collateral only (simulation)"
 	@echo "  make deploy-lbc-fork NETWORK=testnet                   # Legacy LBC fork simulation"
@@ -224,26 +240,38 @@ help:
 # =============================================================================
 
 # Deploy full Flyover system (fork simulation)
+# Libraries are auto-linked from addresses.json
 .PHONY: deploy-flyover-fork
 deploy-flyover-fork:
 	@echo "Deploying full Flyover system on $(NETWORK) (FORK SIMULATION)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@echo "Libraries from addresses.json ($(call get_rsk_network_name,$(NETWORK))):"
+	@echo "  Quotes: $(call get_lib_address,$(call get_rsk_network_name,$(NETWORK)),Quotes)"
+	@echo "  SignatureValidator: $(call get_lib_address,$(call get_rsk_network_name,$(NETWORK)),SignatureValidator)"
+	@echo "  BtcUtils: $(call get_lib_address,$(call get_rsk_network_name,$(NETWORK)),BtcUtils)"
 	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
 	$(FORGE) script/deployment/DeployFlyover.s.sol:DeployFlyover \
 		$(FORK_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
+		$(call get_library_flags,$(call get_rsk_network_name,$(NETWORK))) \
 		--gas-limit $(GAS_LIMIT) \
 		--legacy
 
 # Deploy full Flyover system (actual deployment)
+# Libraries are auto-linked from addresses.json
 .PHONY: deploy-flyover-broadcast
 deploy-flyover-broadcast:
 	@echo "Deploying full Flyover system on $(NETWORK) (ACTUAL DEPLOYMENT)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@echo "Libraries from addresses.json ($(call get_rsk_network_name,$(NETWORK))):"
+	@echo "  Quotes: $(call get_lib_address,$(call get_rsk_network_name,$(NETWORK)),Quotes)"
+	@echo "  SignatureValidator: $(call get_lib_address,$(call get_rsk_network_name,$(NETWORK)),SignatureValidator)"
+	@echo "  BtcUtils: $(call get_lib_address,$(call get_rsk_network_name,$(NETWORK)),BtcUtils)"
 	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
 	$(FORGE) script/deployment/DeployFlyover.s.sol:DeployFlyover \
 		$(RPC_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
+		$(call get_library_flags,$(call get_rsk_network_name,$(NETWORK))) \
 		--gas-limit $(GAS_LIMIT) \
 		--legacy \
 		--broadcast
