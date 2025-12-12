@@ -184,20 +184,8 @@ contract PegOutContract is
         uint256 merkleBranchPath,
         bytes32[] calldata merkleBranchHashes
     ) external nonReentrant whenNotPaused override {
-        if(!_collateralManagement.isRegistered(_PEG_TYPE, msg.sender)) {
-            revert Flyover.ProviderNotRegistered(msg.sender);
-        }
-        if (_isQuoteCompleted(quoteHash)) revert QuoteAlreadyCompleted(quoteHash);
-
-        Quotes.PegOutQuote memory quote = _pegOutQuotes[quoteHash];
-        if (quote.lbcAddress == address(0)) revert Flyover.QuoteNotFound(quoteHash);
-        if (quote.lpRskAddress != msg.sender) revert Flyover.InvalidSender(quote.lpRskAddress, msg.sender);
-
-        BtcUtils.TxRawOutput[] memory outputs = BtcUtils.getOutputs(btcTx);
-        _validateBtcTxNullData(outputs, quoteHash);
+        Quotes.PegOutQuote memory quote = _validatePegOutTransaction(quoteHash, btcTx);
         _validateBtcTxConfirmations(quote, btcTx, btcBlockHeaderHash, merkleBranchPath, merkleBranchHashes);
-        _validateBtcTxAmount(outputs, quote);
-        _validateBtcTxDestination(outputs, quote);
 
         delete _pegOutQuotes[quoteHash];
         _pegOutRegistry[quoteHash].completed = true;
@@ -237,6 +225,14 @@ contract PegOutContract is
         if (!sent) {
             revert Flyover.PaymentFailed(addressToTransfer, valueToTransfer, reason);
         }
+    }
+
+    /// @inheritdoc IPegOut
+    function validatePegout(
+        bytes32 quoteHash,
+        bytes calldata btcTx
+    ) external view override returns (Quotes.PegOutQuote memory quote) {
+        return _validatePegOutTransaction(quoteHash, btcTx);
     }
 
     /// @inheritdoc IPegOut
@@ -312,6 +308,30 @@ contract PegOutContract is
         }
 
         return false;
+    }
+
+    /// @notice This function performs common validations for peg out transactions without checking confirmations.
+    /// Used by both validatePegout (for unbroadcasted transactions) and refundPegOut (before confirmation check).
+    /// @param quoteHash the hash of the quote being validated
+    /// @param btcTx the Bitcoin transaction
+    /// @return quote the PegOutQuote associated with the transaction
+    function _validatePegOutTransaction(
+        bytes32 quoteHash,
+        bytes calldata btcTx
+    ) private view returns (Quotes.PegOutQuote memory quote) {
+        if(!_collateralManagement.isRegistered(_PEG_TYPE, msg.sender)) {
+            revert Flyover.ProviderNotRegistered(msg.sender);
+        }
+        if (_isQuoteCompleted(quoteHash)) revert QuoteAlreadyCompleted(quoteHash);
+
+        quote = _pegOutQuotes[quoteHash];
+        if (quote.lbcAddress == address(0)) revert Flyover.QuoteNotFound(quoteHash);
+        if (quote.lpRskAddress != msg.sender) revert Flyover.InvalidSender(quote.lpRskAddress, msg.sender);
+
+        BtcUtils.TxRawOutput[] memory outputs = BtcUtils.getOutputs(btcTx);
+        _validateBtcTxNullData(outputs, quoteHash);
+        _validateBtcTxAmount(outputs, quote);
+        _validateBtcTxDestination(outputs, quote);
     }
 
     /// @notice This function is used to validate the number of confirmations of the Bitcoin transaction.

@@ -3,7 +3,6 @@ pragma solidity 0.8.25;
 
 import "lib/forge-std/src/Test.sol";
 import "lib/forge-std/src/console.sol";
-import {DeployCollateralManagement} from "../../script/deployment/DeployCollateralManagement.s.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
@@ -11,15 +10,13 @@ import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.s
 
 /**
  * @title DeployCollateralManagementTest
- * @notice Test for the DeployCollateralManagement deployment script
+ * @notice Test for CollateralManagement deployment
  * @dev Tests the complete deployment flow with HelperConfig integration
  */
 contract DeployCollateralManagementTest is Test {
-    DeployCollateralManagement public deployScript;
     HelperConfig public helperConfig;
 
     function setUp() public {
-        deployScript = new DeployCollateralManagement();
         helperConfig = new HelperConfig();
     }
 
@@ -126,24 +123,38 @@ contract DeployCollateralManagementTest is Test {
         HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
         address deployer = address(this);
 
-        DeployCollateralManagement.DeploymentResult memory result = deployScript
-            .deploy(deployer, cfg);
+        // Inline deployment (script.run() uses private _deploy internally)
+        address impl = address(new CollateralManagementContract());
+        address admin = address(new ProxyAdmin(deployer));
+        address proxy = address(
+            new TransparentUpgradeableProxy(
+                impl,
+                admin,
+                abi.encodeCall(
+                    CollateralManagementContract.initialize,
+                    (
+                        deployer,
+                        cfg.adminDelay,
+                        cfg.minimumCollateral,
+                        cfg.resignDelayBlocks,
+                        cfg.rewardPercentage
+                    )
+                )
+            )
+        );
 
         console.log("Deployment Result:");
-        console.log("  Implementation:", result.implementation);
-        console.log("  Proxy:", result.proxy);
-        console.log("  Admin:", result.admin);
+        console.log("  Implementation:", impl);
+        console.log("  Proxy:", proxy);
+        console.log("  Admin:", admin);
 
-        assertTrue(
-            result.implementation != address(0),
-            "Implementation should not be zero"
-        );
-        assertTrue(result.proxy != address(0), "Proxy should not be zero");
-        assertTrue(result.admin != address(0), "Admin should not be zero");
+        assertTrue(impl != address(0), "Implementation should not be zero");
+        assertTrue(proxy != address(0), "Proxy should not be zero");
+        assertTrue(admin != address(0), "Admin should not be zero");
 
         // Verify proxy points to implementation
         CollateralManagementContract cm = CollateralManagementContract(
-            payable(result.proxy)
+            payable(proxy)
         );
         assertEq(
             cm.getMinCollateral(),
@@ -162,10 +173,27 @@ contract DeployCollateralManagementTest is Test {
         HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
         address deployer = address(this);
 
-        DeployCollateralManagement.DeploymentResult memory result = deployScript
-            .deploy(deployer, cfg);
+        // Inline deployment
+        address impl = address(new CollateralManagementContract());
+        address admin = address(new ProxyAdmin(deployer));
+        address proxy = address(
+            new TransparentUpgradeableProxy(
+                impl,
+                admin,
+                abi.encodeCall(
+                    CollateralManagementContract.initialize,
+                    (
+                        deployer,
+                        cfg.adminDelay,
+                        cfg.minimumCollateral,
+                        cfg.resignDelayBlocks,
+                        cfg.rewardPercentage
+                    )
+                )
+            )
+        );
         CollateralManagementContract cm = CollateralManagementContract(
-            payable(result.proxy)
+            payable(proxy)
         );
 
         // Check deployer has DEFAULT_ADMIN_ROLE
