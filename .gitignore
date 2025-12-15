@@ -18,7 +18,9 @@ node_modules
 # Foundry files
 /out
 /cache
-/broadcast
+broadcast/**
+!broadcast/**/
+!broadcast/**/31/**
 
 # TypeChain files
 /typechain
