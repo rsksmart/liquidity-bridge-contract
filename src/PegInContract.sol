@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
+import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCodes.sol";
 import {AccessControlDaoContributorUpgradeable} from "./DaoContributor.sol";
 import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {IBridge} from "./interfaces/IBridge.sol";
@@ -265,13 +266,16 @@ contract PegInContract is
                 quote.liquidityProviderBtcAddress
             )
         );
+        bytes1 OP_DROP = 0x75;
+        bytes1 OP_PUSHBYTES_32 = 0x20;
         bytes memory flyoverRedeemScript = bytes.concat(
-            hex"20",
+            OP_PUSHBYTES_32,
             derivationValue,
-            hex"75",
+            OP_DROP,
             _bridge.getActivePowpegRedeemScript()
         );
-        return BtcUtils.validateP2SHAdress(depositAddress, flyoverRedeemScript, _mainnet);
+        bytes memory segwitScript = bytes.concat(OpCodes.OP_0, OP_PUSHBYTES_32, sha256(flyoverRedeemScript));
+        return BtcUtils.validateP2SHAdress(depositAddress, segwitScript, _mainnet);
     }
 
     /// @inheritdoc IPegIn

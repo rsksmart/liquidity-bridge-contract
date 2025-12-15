@@ -38,17 +38,17 @@ contract DerivationAddressTest is Test {
 
     // Deposit addresses (mainnet and testnet for each test case)
     bytes constant MAINNET_DEPOSIT_ADDRESS_1 =
-        hex"05787226e17e0771b1321bb9af63487438adbe7dbf063a4a30";
+        hex"05fd66ed746654c97709049d7ef5ec4ffb86a7e477d1dafb9e";
     bytes constant TESTNET_DEPOSIT_ADDRESS_1 =
-        hex"c4787226e17e0771b1321bb9af63487438adbe7dbf9eeb4c7b";
+        hex"c4fd66ed746654c97709049d7ef5ec4ffb86a7e4778d0cf778";
     bytes constant MAINNET_DEPOSIT_ADDRESS_2 =
-        hex"0553244775d7f3b14d61bb60fcddd499c5c0d4486825ecbfe6";
+        hex"0572c6076074f27413f918b8d819975b845efebee17dea3d89";
     bytes constant TESTNET_DEPOSIT_ADDRESS_2 =
-        hex"c453244775d7f3b14d61bb60fcddd499c5c0d44868971874f6";
+        hex"c472c6076074f27413f918b8d819975b845efebee1bc40d6d0";
     bytes constant MAINNET_DEPOSIT_ADDRESS_3 =
-        hex"05dd20727f0c861b85abdd720c223ef304c42decb1e91a8fe3";
+        hex"0577beb10d4c6a68f83fe2302afae05687aac544239256892e";
     bytes constant TESTNET_DEPOSIT_ADDRESS_3 =
-        hex"c4dd20727f0c861b85abdd720c223ef304c42decb1d06d777d";
+        hex"c477beb10d4c6a68f83fe2302afae05687aac54423468daf19";
 
     address owner = address(1);
 

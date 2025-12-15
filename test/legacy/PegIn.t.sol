@@ -11,6 +11,7 @@ import {WalletMock} from "../../src/test-contracts/WalletMock.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCodes.sol";
 
 contract PegInTest is Test {
     using ECDSA for bytes32;
@@ -1541,10 +1542,11 @@ contract PegInTest is Test {
             hex"75",
             bridgeMock.getActivePowpegRedeemScript()
         );
+        bytes memory segwitScript1 = bytes.concat(OpCodes.OP_0, hex"20", sha256(flyoverRedeemScript1));
 
         // Calculate P2SH address from redeem script using FFI
         bytes memory expectedDepositAddr1 = _getP2SHAddressFromScript(
-            flyoverRedeemScript1,
+            segwitScript1,
             false
         );
         assertTrue(
@@ -1597,8 +1599,9 @@ contract PegInTest is Test {
             hex"75",
             bridgeMock.getActivePowpegRedeemScript()
         );
+        bytes memory segwitScript2 = bytes.concat(OpCodes.OP_0, hex"20", sha256(flyoverRedeemScript2));
         bytes memory expectedDepositAddr2 = _getP2SHAddressFromScript(
-            flyoverRedeemScript2,
+            segwitScript2,
             false
         );
         assertTrue(
@@ -1651,8 +1654,9 @@ contract PegInTest is Test {
             hex"75",
             bridgeMock.getActivePowpegRedeemScript()
         );
+        bytes memory segwitScript3 = bytes.concat(OpCodes.OP_0, hex"20", sha256(flyoverRedeemScript3));
         bytes memory expectedDepositAddr3 = _getP2SHAddressFromScript(
-            flyoverRedeemScript3,
+            segwitScript3,
             false
         );
         assertTrue(

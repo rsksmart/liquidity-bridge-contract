@@ -96,7 +96,7 @@ contract DeploymentTest is Test {
             payable(proxyAddress)
         );
         string memory version = lbcV2.version();
-        assertEq(version, "1.3.1", "Version should be 1.3.1");
+        assertEq(version, "1.3.2", "Version should be 1.3.2");
     }
 
     function test_ValidateMinimumCollateralArgInInitialize() public {
@@ -269,8 +269,8 @@ contract DeploymentTest is Test {
         // Verify implementation has version()
         assertEq(
             lbcV2Impl.version(),
-            "1.3.1",
-            "Implementation should have version 1.3.1"
+            "1.3.2",
+            "Implementation should have version 1.3.2"
         );
     }
 }
