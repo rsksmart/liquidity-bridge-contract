@@ -19,6 +19,7 @@ WORKDIR /home/node
 COPY --chown=node:node package.json \
     package-lock.json \
     deploy.sh \
+    .solhintignore \
     .solhint.json \
     .solhintignore \
     tsconfig.json \
