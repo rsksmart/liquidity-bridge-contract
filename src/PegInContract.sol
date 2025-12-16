@@ -266,8 +266,8 @@ contract PegInContract is
                 quote.liquidityProviderBtcAddress
             )
         );
-        bytes1 OP_DROP = 0x75;
-        bytes1 OP_PUSHBYTES_32 = 0x20;
+        bytes1 OP_DROP = 0x75; // solhint-disable-line
+        bytes1 OP_PUSHBYTES_32 = 0x20; // solhint-disable-line
         bytes memory flyoverRedeemScript = bytes.concat(
             OP_PUSHBYTES_32,
             derivationValue,

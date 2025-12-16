@@ -1542,7 +1542,11 @@ contract PegInTest is Test {
             hex"75",
             bridgeMock.getActivePowpegRedeemScript()
         );
-        bytes memory segwitScript1 = bytes.concat(OpCodes.OP_0, hex"20", sha256(flyoverRedeemScript1));
+        bytes memory segwitScript1 = bytes.concat(
+            OpCodes.OP_0,
+            hex"20",
+            sha256(flyoverRedeemScript1)
+        );
 
         // Calculate P2SH address from redeem script using FFI
         bytes memory expectedDepositAddr1 = _getP2SHAddressFromScript(
@@ -1599,7 +1603,11 @@ contract PegInTest is Test {
             hex"75",
             bridgeMock.getActivePowpegRedeemScript()
         );
-        bytes memory segwitScript2 = bytes.concat(OpCodes.OP_0, hex"20", sha256(flyoverRedeemScript2));
+        bytes memory segwitScript2 = bytes.concat(
+            OpCodes.OP_0,
+            hex"20",
+            sha256(flyoverRedeemScript2)
+        );
         bytes memory expectedDepositAddr2 = _getP2SHAddressFromScript(
             segwitScript2,
             false
@@ -1654,7 +1662,11 @@ contract PegInTest is Test {
             hex"75",
             bridgeMock.getActivePowpegRedeemScript()
         );
-        bytes memory segwitScript3 = bytes.concat(OpCodes.OP_0, hex"20", sha256(flyoverRedeemScript3));
+        bytes memory segwitScript3 = bytes.concat(
+            OpCodes.OP_0,
+            hex"20",
+            sha256(flyoverRedeemScript3)
+        );
         bytes memory expectedDepositAddr3 = _getP2SHAddressFromScript(
             segwitScript3,
             false
