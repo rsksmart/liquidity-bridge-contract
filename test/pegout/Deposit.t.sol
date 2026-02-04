@@ -425,7 +425,6 @@ contract DepositTest is PegOutTestBase {
                 callFee: 100000000000000,
                 penaltyFee: 10000000000000,
                 value: value,
-                productFeeAmount: 0,
                 gasFee: 100,
                 lbcAddress: address(pegOutContract),
                 lpRskAddress: lp,
@@ -448,7 +447,7 @@ contract DepositTest is PegOutTestBase {
         Quotes.PegOutQuote memory quote
     ) internal pure returns (uint256) {
         return
-            quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+            quote.value + quote.callFee + quote.gasFee;
     }
 
     function signQuote(

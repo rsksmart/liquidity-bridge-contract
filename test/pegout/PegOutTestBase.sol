@@ -69,9 +69,7 @@ abstract contract PegOutTestBase is Test {
                 TEST_DUST_THRESHOLD,
                 address(collateralManagement),
                 false, // mainnet
-                TEST_BTC_BLOCK_TIME,
-                0, // feePercentage
-                payable(ZERO_ADDRESS) // feeCollector
+                TEST_BTC_BLOCK_TIME
             )
         );
 

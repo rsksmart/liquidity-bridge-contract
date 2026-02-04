@@ -104,7 +104,6 @@ abstract contract PegInFuzzTestBase is PegInTestBase {
                 callFee: DEFAULT_CALL_FEE,
                 penaltyFee: DEFAULT_PENALTY_FEE,
                 value: value,
-                productFeeAmount: 0,
                 gasFee: DEFAULT_GAS_FEE,
                 fedBtcAddress: bytes20(testBtcAddress),
                 lbcAddress: address(pegInContract),
@@ -128,12 +127,12 @@ abstract contract PegInFuzzTestBase is PegInTestBase {
 
     /// @notice Calculates the total value needed for a PegIn quote
     /// @param quote The PegIn quote
-    /// @return The total value (value + callFee + productFeeAmount + gasFee)
+    /// @return The total value (value + callFee + gasFee)
     function getTotalQuoteValue(
         Quotes.PegInQuote memory quote
     ) internal pure returns (uint256) {
         return
-            quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+            quote.value + quote.callFee + quote.gasFee;
     }
 
     // ============ Signature Helpers ============

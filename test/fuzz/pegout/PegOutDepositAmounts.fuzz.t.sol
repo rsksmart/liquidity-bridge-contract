@@ -21,18 +21,15 @@ contract PegOutDepositAmountsFuzzTest is PegOutFuzzTestBase {
     function testFuzz_DepositPegOut_AcceptsExactPayment(
         uint128 value,
         uint128 callFee,
-        uint128 productFeeAmount,
         uint64 gasFee
     ) public {
         // Bound to reasonable values
         value = uint128(bound(value, 0.001 ether, 100 ether));
         callFee = uint128(bound(callFee, 0, 1 ether));
-        productFeeAmount = uint128(bound(productFeeAmount, 0, 1 ether));
         gasFee = uint64(bound(gasFee, 0, 0.01 ether));
 
         Quotes.PegOutQuote memory quote = createFuzzTestQuote(value);
         quote.callFee = callFee;
-        quote.productFeeAmount = productFeeAmount;
         quote.gasFee = gasFee;
 
         uint256 totalValue = getTotalQuoteValue(quote);

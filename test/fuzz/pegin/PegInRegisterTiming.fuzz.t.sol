@@ -505,10 +505,10 @@ contract PegInRegisterTimingFuzzTest is PegInFuzzTestBase {
             HEIGHT_MOCK
         );
 
-        // LP balance should increase by peginAmount minus productFeeAmount
+        // LP balance should increase by peginAmount
         assertEq(
             pegInContract.getBalance(fullLp),
-            lpBalanceBefore + peginAmount - quote.productFeeAmount,
+            lpBalanceBefore + peginAmount,
             "LP balance should increase"
         );
     }

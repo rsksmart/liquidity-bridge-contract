@@ -111,7 +111,6 @@ contract RefundUserPegoutTest is FlyoverTestBase {
 
         uint256 totalValue = quote.value +
             quote.callFee +
-            quote.productFeeAmount +
             quote.gasFee;
 
         mockPegOut.registerPegOut(
@@ -158,7 +157,6 @@ contract RefundUserPegoutTest is FlyoverTestBase {
 
         uint256 totalValue = quote.value +
             quote.callFee +
-            quote.productFeeAmount +
             quote.gasFee;
         mockPegOut.registerPegOut(
             quoteHash,
@@ -186,7 +184,6 @@ contract RefundUserPegoutTest is FlyoverTestBase {
 
         uint256 totalValue = quote.value +
             quote.callFee +
-            quote.productFeeAmount +
             quote.gasFee;
         mockPegOut.registerPegOut(
             quoteHash,

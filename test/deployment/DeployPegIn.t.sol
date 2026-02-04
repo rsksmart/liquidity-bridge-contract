@@ -57,9 +57,7 @@ contract DeployPegInTest is Test {
                 cfg.dustThreshold,
                 cfg.minimumPegIn,
                 collateralManagementProxy,
-                cfg.mainnet,
-                cfg.daoFeePercentage,
-                cfg.daoFeeCollector
+                cfg.mainnet
             )
         );
         return address(new TransparentUpgradeableProxy(impl, admin, initData));
@@ -124,22 +122,4 @@ contract DeployPegInTest is Test {
         );
     }
 
-    function test_DaoConfigurationSet() public {
-        HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
-        address deployer = address(this);
-
-        address proxy = _deployPegIn(deployer, cfg);
-        PegInContract pegIn = PegInContract(payable(proxy));
-
-        assertEq(
-            pegIn.getFeePercentage(),
-            cfg.daoFeePercentage,
-            "DAO fee percentage mismatch"
-        );
-        assertEq(
-            pegIn.getFeeCollector(),
-            cfg.daoFeeCollector,
-            "DAO fee collector mismatch"
-        );
-    }
 }

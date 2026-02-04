@@ -88,9 +88,7 @@ contract PauseTest is Test {
                                 2300 * 65164000,
                                 0.5 ether,
                                 address(collateralManagement),
-                                false,
-                                0,
-                                payable(address(0))
+                                false
                             )
                         )
                     )
@@ -112,9 +110,7 @@ contract PauseTest is Test {
                                 2300 * 65164000,
                                 address(collateralManagement),
                                 false,
-                                900,
-                                0,
-                                payable(address(0))
+                                900
                             )
                         )
                     )

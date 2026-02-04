@@ -21,7 +21,6 @@ contract HashingTest is PegOutTestBase {
             callFee: 300000000000000,
             penaltyFee: 10000000000000,
             value: 471000000000000000,
-            productFeeAmount: 0,
             gasFee: 5990000000000,
             lbcAddress: wrongContract,
             lpRskAddress: 0x82a06eBDB97776a2da4041dF8f2b2ea8D3257852,
@@ -111,14 +110,6 @@ contract HashingTest is PegOutTestBase {
         assertTrue(
             pegOutContract.hashPegOutQuote(modifiedQuote) != baseHash,
             "value should affect hash"
-        );
-
-        // Test productFeeAmount
-        modifiedQuote = baseQuote;
-        modifiedQuote.productFeeAmount = baseQuote.productFeeAmount + 1;
-        assertTrue(
-            pegOutContract.hashPegOutQuote(modifiedQuote) != baseHash,
-            "productFeeAmount should affect hash"
         );
 
         // Test gasFee
@@ -260,7 +251,6 @@ contract HashingTest is PegOutTestBase {
                 callFee: 300000000000000,
                 penaltyFee: 10000000000000,
                 value: 471000000000000000,
-                productFeeAmount: 0,
                 gasFee: 5990000000000,
                 lbcAddress: 0x4C2F7092C2aE51D986bEFEe378e50BD4dB99C901,
                 lpRskAddress: 0x82a06eBDB97776a2da4041dF8f2b2ea8D3257852,
@@ -291,7 +281,6 @@ contract HashingTest is PegOutTestBase {
                 callFee: 300000000000000,
                 penaltyFee: 10000000000000,
                 value: 27108379819732510,
-                productFeeAmount: 1,
                 gasFee: 11330000000000,
                 lbcAddress: 0x4C2F7092C2aE51D986bEFEe378e50BD4dB99C901,
                 lpRskAddress: 0x82a06eBDB97776a2da4041dF8f2b2ea8D3257852,
@@ -322,7 +311,6 @@ contract HashingTest is PegOutTestBase {
                 callFee: 300000000000000,
                 penaltyFee: 10000000000000,
                 value: 1045000000000000000,
-                productFeeAmount: 3,
                 gasFee: 3140000000000,
                 lbcAddress: 0x4C2F7092C2aE51D986bEFEe378e50BD4dB99C901,
                 lpRskAddress: 0x82a06eBDB97776a2da4041dF8f2b2ea8D3257852,

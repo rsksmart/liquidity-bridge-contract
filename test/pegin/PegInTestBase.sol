@@ -66,9 +66,7 @@ abstract contract PegInTestBase is Test {
                 TEST_DUST_THRESHOLD,
                 TEST_MIN_PEGIN,
                 address(collateralManagement),
-                false, // mainnet
-                0, // feePercentage
-                payable(ZERO_ADDRESS) // feeCollector
+                false // mainnet
             )
         );
 

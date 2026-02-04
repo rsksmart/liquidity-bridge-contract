@@ -66,27 +66,6 @@ contract ConfigurationTest is PegInTestBase {
 
         // Check owner
         assertEq(pegInContract.owner(), owner, "owner should match");
-
-        // Check feePercentage
-        assertEq(
-            pegInContract.getFeePercentage(),
-            0,
-            "feePercentage should be 0"
-        );
-
-        // Check feeCollector
-        assertEq(
-            pegInContract.getFeeCollector(),
-            ZERO_ADDRESS,
-            "feeCollector should be zero address"
-        );
-
-        // Check currentContribution
-        assertEq(
-            pegInContract.getCurrentContribution(),
-            0,
-            "currentContribution should be 0"
-        );
     }
 
     function test_Initialize_AllowsInitializeOnlyOnce() public {
@@ -97,9 +76,7 @@ contract ConfigurationTest is PegInTestBase {
             TEST_DUST_THRESHOLD,
             TEST_MIN_PEGIN,
             address(collateralManagement),
-            false,
-            0,
-            payable(ZERO_ADDRESS)
+            false
         );
     }
 
@@ -117,9 +94,7 @@ contract ConfigurationTest is PegInTestBase {
                 TEST_DUST_THRESHOLD,
                 TEST_MIN_PEGIN,
                 noCodeAddress, // Address with no code
-                false,
-                0,
-                payable(ZERO_ADDRESS)
+                false
             )
         );
 
