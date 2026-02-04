@@ -81,9 +81,8 @@ contract HashingTest is PegInTestBase {
     {
         Quotes.PegInQuote memory quote = createBasicPegInQuote();
         // Set values that sum to less than 0.5 ether (TEST_MIN_PEGIN)
-        quote.productFeeAmount = 99_999_999_999_999_999; // Just under 0.1 ether
-        quote.gasFee = 0.1 ether;
-        quote.callFee = 0.1 ether;
+        quote.gasFee = 99_999_999_999_999_999;
+        quote.callFee = 0.2 ether;
         quote.value = 0.2 ether;
         // Total = 0.49999... ether, which is less than TEST_MIN_PEGIN (0.5 ether)
 
@@ -259,14 +258,6 @@ contract HashingTest is PegInTestBase {
             "callOnRegister should affect hash"
         );
 
-        // Test productFeeAmount
-        modifiedQuote = baseQuote;
-        modifiedQuote.productFeeAmount = baseQuote.productFeeAmount + 1;
-        assertTrue(
-            pegInContract.hashPegInQuote(modifiedQuote) != baseHash,
-            "productFeeAmount should affect hash"
-        );
-
         // Test gasFee
         modifiedQuote = baseQuote;
         modifiedQuote.gasFee = baseQuote.gasFee + 1;
@@ -329,7 +320,6 @@ contract HashingTest is PegInTestBase {
                 callFee: 100000000000000,
                 penaltyFee: 10000000000000,
                 value: 1 ether,
-                productFeeAmount: 0,
                 gasFee: 100,
                 fedBtcAddress: bytes20(testBtcAddress),
                 lbcAddress: address(pegInContract),
@@ -362,7 +352,6 @@ contract HashingTest is PegInTestBase {
                 callFee: 100000000000000,
                 penaltyFee: 10000000000000,
                 value: 985215170000000000,
-                productFeeAmount: 0,
                 gasFee: 547377600000,
                 fedBtcAddress: bytes20(
                     0x6b9a1d6634133e163A35eC8d7b6f496C32Cc16b0
@@ -398,7 +387,6 @@ contract HashingTest is PegInTestBase {
                 callFee: 1478412310000000,
                 penaltyFee: 10000000000000,
                 value: 517700700000000000,
-                productFeeAmount: 0,
                 gasFee: 547377600000,
                 fedBtcAddress: bytes20(
                     0x6b9a1d6634133e163A35eC8d7b6f496C32Cc16b0
@@ -434,7 +422,6 @@ contract HashingTest is PegInTestBase {
                 callFee: 2009314000000000,
                 penaltyFee: 10000000000000,
                 value: 578580000000000000,
-                productFeeAmount: 0,
                 gasFee: 547377600000,
                 fedBtcAddress: bytes20(
                     0x6b9a1d6634133e163A35eC8d7b6f496C32Cc16b0

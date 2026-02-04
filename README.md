@@ -48,7 +48,6 @@ PegIn Quotes consist of:
         uint callTime;                          // the time (in seconds) that the LP has to perform the call on behalf of the user after the deposit achieves the number of confirmations
         uint depositConfirmations;              // the number of confirmations that the LP requires before making the call
         bool callOnRegister:                    // a boolean value indicating whether the callForUser can be called on registerPegIn.
-        uint256 productFeeAmount;               // the fee payed to the network DAO
         uint256 gasFee;                         // the fee payed to the LP to cover the gas of the RSK transaction
     }
 
@@ -72,7 +71,6 @@ PegOut Quotes consist of:
         uint transferTime;                      // the time (in seconds) that the LP has to transfer on behalf of the user after the deposit achieves the number of confirmations
         uint expireDate;                        // the timestamp to consider the quote expired
         uint expireBlock;                       // the block number to consider the quote expired
-        uint256 productFeeAmount;               // the fee payed to the network DAO
         uint256 gasFee;                         // the fee payed to the LP to cover the fee of the BTC transaction
     }
 

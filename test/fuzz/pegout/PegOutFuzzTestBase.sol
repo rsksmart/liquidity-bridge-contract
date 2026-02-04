@@ -71,7 +71,6 @@ abstract contract PegOutFuzzTestBase is PegOutTestBase {
                 callFee: DEFAULT_CALL_FEE,
                 penaltyFee: DEFAULT_PENALTY_FEE,
                 value: value,
-                productFeeAmount: 0,
                 gasFee: DEFAULT_GAS_FEE,
                 lbcAddress: address(pegOutContract),
                 lpRskAddress: pegOutLp,
@@ -133,7 +132,6 @@ abstract contract PegOutFuzzTestBase is PegOutTestBase {
                 callFee: DEFAULT_CALL_FEE,
                 penaltyFee: DEFAULT_PENALTY_FEE,
                 value: value,
-                productFeeAmount: 0,
                 gasFee: DEFAULT_GAS_FEE,
                 lbcAddress: address(pegOutContract),
                 lpRskAddress: pegOutLp,
@@ -157,12 +155,12 @@ abstract contract PegOutFuzzTestBase is PegOutTestBase {
 
     /// @notice Calculates the total value needed to deposit for a quote
     /// @param quote The PegOut quote
-    /// @return The total value (value + callFee + productFeeAmount + gasFee)
+    /// @return The total value (value + callFee + gasFee)
     function getTotalQuoteValue(
         Quotes.PegOutQuote memory quote
     ) internal pure returns (uint256) {
         return
-            quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+            quote.value + quote.callFee + quote.gasFee;
     }
 
     // ============ Signature Helpers ============

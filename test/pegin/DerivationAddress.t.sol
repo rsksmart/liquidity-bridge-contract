@@ -38,17 +38,17 @@ contract DerivationAddressTest is Test {
 
     // Deposit addresses (mainnet and testnet for each test case)
     bytes constant MAINNET_DEPOSIT_ADDRESS_1 =
-        hex"05fd66ed746654c97709049d7ef5ec4ffb86a7e477d1dafb9e";
+        hex"05a24b952b63a0827be2967967ea5df30a8c20e01bd6a7cea9";
     bytes constant TESTNET_DEPOSIT_ADDRESS_1 =
-        hex"c4fd66ed746654c97709049d7ef5ec4ffb86a7e4778d0cf778";
+        hex"c4a24b952b63a0827be2967967ea5df30a8c20e01b2c4fddd9";
     bytes constant MAINNET_DEPOSIT_ADDRESS_2 =
-        hex"0572c6076074f27413f918b8d819975b845efebee17dea3d89";
+        hex"054f84ccdfaf8402e3cfca08543956d4a77643c99a33fc2cbb";
     bytes constant TESTNET_DEPOSIT_ADDRESS_2 =
-        hex"c472c6076074f27413f918b8d819975b845efebee1bc40d6d0";
+        hex"c44f84ccdfaf8402e3cfca08543956d4a77643c99af5381c32";
     bytes constant MAINNET_DEPOSIT_ADDRESS_3 =
-        hex"0577beb10d4c6a68f83fe2302afae05687aac544239256892e";
+        hex"05b4f3f5265c941ae4bf646411956f29bff3fa8c52bcc30929";
     bytes constant TESTNET_DEPOSIT_ADDRESS_3 =
-        hex"c477beb10d4c6a68f83fe2302afae05687aac54423468daf19";
+        hex"c4b4f3f5265c941ae4bf646411956f29bff3fa8c52c33e94e8";
 
     address owner = address(1);
 
@@ -201,9 +201,7 @@ contract DerivationAddressTest is Test {
                 TEST_DUST_THRESHOLD,
                 TEST_MIN_PEGIN,
                 address(collateralManagement),
-                mainnet, // mainnet flag
-                0,
-                payable(ZERO_ADDRESS)
+                mainnet // mainnet flag
             )
         );
 
@@ -272,7 +270,6 @@ contract DerivationAddressTest is Test {
                 callFee: 100000000000000,
                 penaltyFee: 10000000000000,
                 value: 985215170000000000,
-                productFeeAmount: 0,
                 gasFee: 547377600000,
                 fedBtcAddress: FED_BTC_ADDRESS,
                 lbcAddress: lbcAddress,
@@ -303,7 +300,6 @@ contract DerivationAddressTest is Test {
                 callFee: 1478412310000000,
                 penaltyFee: 10000000000000,
                 value: 517700700000000000,
-                productFeeAmount: 0,
                 gasFee: 547377600000,
                 fedBtcAddress: FED_BTC_ADDRESS,
                 lbcAddress: lbcAddress,
@@ -334,7 +330,6 @@ contract DerivationAddressTest is Test {
                 callFee: 2009314000000000,
                 penaltyFee: 10000000000000,
                 value: 578580000000000000,
-                productFeeAmount: 0,
                 gasFee: 547377600000,
                 fedBtcAddress: FED_BTC_ADDRESS,
                 lbcAddress: lbcAddress,

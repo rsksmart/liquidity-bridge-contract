@@ -57,9 +57,7 @@ contract DeployPegOut is Script {
                         cfg.dustThreshold,
                         collateralManagementProxy,
                         cfg.mainnet,
-                        cfg.btcBlockTime,
-                        cfg.daoFeePercentage,
-                        cfg.daoFeeCollector
+                        cfg.btcBlockTime
                     )
                 )
             )

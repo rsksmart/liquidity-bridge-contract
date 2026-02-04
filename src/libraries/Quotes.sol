@@ -6,7 +6,6 @@ library Quotes {
         uint256 callFee;
         uint256 penaltyFee;
         uint256 value;
-        uint256 productFeeAmount;
         uint256 gasFee;
         bytes20 fedBtcAddress;
         address lbcAddress;
@@ -29,7 +28,6 @@ library Quotes {
         uint256 callFee;
         uint256 penaltyFee;
         uint256 value;
-        uint256 productFeeAmount;
         uint256 gasFee;
         address lbcAddress;
         address lpRskAddress;
@@ -56,7 +54,7 @@ library Quotes {
         uint transferredAmount
     ) external pure {
         uint agreedAmount = 0;
-        agreedAmount = quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+        agreedAmount = quote.value + quote.callFee + quote.gasFee;
 
         // Adjust for rounding when converting from wei to sats and back
         // This protects users from precision issues when client apps don't round properly
@@ -115,7 +113,6 @@ library Quotes {
                 quote.callTime,
                 quote.depositConfirmations,
                 quote.callOnRegister,
-                quote.productFeeAmount,
                 quote.gasFee
             );
     }
@@ -150,7 +147,6 @@ library Quotes {
                 quote.transferTime,
                 quote.expireDate,
                 quote.expireBlock,
-                quote.productFeeAmount,
                 quote.gasFee
             );
     }

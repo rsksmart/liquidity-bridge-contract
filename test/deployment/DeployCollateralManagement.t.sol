@@ -34,8 +34,6 @@ contract DeployCollateralManagementTest is Test {
         console.log("  Dust Threshold:", cfg.dustThreshold);
         console.log("  BTC Block Time:", cfg.btcBlockTime);
         console.log("  Mainnet:", cfg.mainnet);
-        console.log("  DAO Fee %:", cfg.daoFeePercentage);
-        console.log("  DAO Fee Collector:", cfg.daoFeeCollector);
         console.log("  Admin Delay:", cfg.adminDelay);
 
         // Validations

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
-import {AccessControlDaoContributorUpgradeable} from "./DaoContributor.sol";
 import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {IBridge} from "./interfaces/IBridge.sol";
 import {ICollateralManagement, CollateralManagementSet} from "./interfaces/ICollateralManagement.sol";
@@ -17,7 +16,7 @@ import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 /// @author Rootstock Labs
 contract PegOutContract is
     EmergencyPause,
-    AccessControlDaoContributorUpgradeable,
+    ReentrancyGuardUpgradeable,
     IPegOut
 {
 
@@ -73,7 +72,7 @@ contract PegOutContract is
         if(!_collateralManagement.isRegistered(_PEG_TYPE, quote.lpRskAddress)) {
             revert Flyover.ProviderNotRegistered(quote.lpRskAddress);
         }
-        uint256 requiredAmount = quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+        uint256 requiredAmount = quote.value + quote.callFee + quote.gasFee;
         if (msg.value < requiredAmount) {
             revert Flyover.InsufficientAmount(msg.value, requiredAmount);
         }
@@ -122,9 +121,6 @@ contract PegOutContract is
     /// @param collateralManagement the address of the Collateral Management contract
     /// @param mainnet whether the contract is on the mainnet or not
     /// @param btcBlockTime_ the average Bitcoin block time in seconds
-    /// @param daoFeePercentage the percentage of the peg out amount that goes to the DAO.
-    /// Use zero to disable the DAO integration feature
-    /// @param daoFeeCollector the address of the DAO fee collector
     // solhint-disable-next-line comprehensive-interface
     function initialize(
         address defaultAdmin,
@@ -132,13 +128,10 @@ contract PegOutContract is
         uint256 dustThreshold_,
         address collateralManagement,
         bool mainnet,
-        uint256 btcBlockTime_,
-        uint256 daoFeePercentage,
-        address payable daoFeeCollector
+        uint256 btcBlockTime_
     ) external initializer {
         if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
-        // Initialize DaoContributor (uses AccessControl from EmergencyPause)
-        __AccessControlDaoContributor_init(daoFeePercentage, daoFeeCollector, DEFAULT_ADMIN_ROLE);
+        __ReentrancyGuard_init();
         // Initialize EmergencyPause (includes AccessControl, Pausable, and grants PAUSER_ROLE)
         __EmergencyPause_init(0, defaultAdmin);
         _bridge = IBridge(bridge);
@@ -191,8 +184,6 @@ contract PegOutContract is
         _pegOutRegistry[quoteHash].completed = true;
         emit PegOutRefunded(quoteHash);
 
-        _addDaoContribution(quote.lpRskAddress, quote.productFeeAmount);
-
         if (_shouldPenalize(quote, quoteHash, btcBlockHeaderHash)) {
             _collateralManagement.slashPegOutCollateral(msg.sender, quote, quoteHash);
         }
@@ -212,7 +203,7 @@ contract PegOutContract is
         // solhint-disable-next-line gas-strict-inequalities
         if (quote.expireDate >= block.timestamp || quote.expireBlock >= block.number) revert QuoteNotExpired(quoteHash);
 
-        uint256 valueToTransfer = quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+        uint256 valueToTransfer = quote.value + quote.callFee + quote.gasFee;
         address addressToTransfer = quote.rskRefundAddress;
 
         delete _pegOutQuotes[quoteHash];
@@ -245,15 +236,6 @@ contract PegOutContract is
     /// @inheritdoc IPegOut
     function isQuoteCompleted(bytes32 quoteHash) external view override returns (bool) {
         return _isQuoteCompleted(quoteHash);
-    }
-
-    /// @dev Override _checkRole to use AccessControl from EmergencyPause
-    function _checkRole(bytes32 role)
-        internal
-        view
-        override(AccessControlDaoContributorUpgradeable, AccessControlUpgradeable)
-    {
-        super._checkRole(role);
     }
 
     /// @notice This function is used to hash a peg out quote
