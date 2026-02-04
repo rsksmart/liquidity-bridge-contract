@@ -445,9 +445,7 @@ contract RegisterPegInTest is PegInTestBase {
         bytes memory signature = signQuote(fullLp, quoteHash);
 
         // Calculate agreed amount with rounding (matches Quotes.checkAgreedAmount logic)
-        uint256 agreedAmount = quote.value +
-            quote.callFee +
-            quote.gasFee;
+        uint256 agreedAmount = quote.value + quote.callFee + quote.gasFee;
         uint256 SAT_TO_WEI_CONVERSION = 10 ** 10;
         if (
             agreedAmount > SAT_TO_WEI_CONVERSION &&
@@ -1267,9 +1265,7 @@ contract RegisterPegInTest is PegInTestBase {
         bytes32 quoteHash1 = pegInContract.hashPegInQuote(quote1);
 
         // Calculate total value of the quote
-        uint256 totalValue1 = quote1.value +
-            quote1.callFee +
-            quote1.gasFee;
+        uint256 totalValue1 = quote1.value + quote1.callFee + quote1.gasFee;
 
         // Real refund amount from mainnet (slightly different from expected), scaled by 100x
         // But it must be at least equal to totalValue to pass validation
@@ -1361,9 +1357,7 @@ contract RegisterPegInTest is PegInTestBase {
         bytes32 quoteHash2 = pegInContract.hashPegInQuote(quote2);
 
         // Calculate total value of the quote
-        uint256 totalValue2 = quote2.value +
-            quote2.callFee +
-            quote2.gasFee;
+        uint256 totalValue2 = quote2.value + quote2.callFee + quote2.gasFee;
 
         // Real refund amount from mainnet, scaled by 100x
         // But it must be at least equal to totalValue to pass validation
@@ -1476,8 +1470,7 @@ contract RegisterPegInTest is PegInTestBase {
     function getTotalValue(
         Quotes.PegInQuote memory quote
     ) internal pure returns (uint256) {
-        return
-            quote.value + quote.callFee + quote.gasFee;
+        return quote.value + quote.callFee + quote.gasFee;
     }
 
     function signQuote(

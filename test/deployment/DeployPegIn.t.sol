@@ -121,5 +121,4 @@ contract DeployPegInTest is Test {
             "Deployer should have DEFAULT_ADMIN_ROLE"
         );
     }
-
 }

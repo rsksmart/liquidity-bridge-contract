@@ -446,8 +446,7 @@ contract DepositTest is PegOutTestBase {
     function getTotalValue(
         Quotes.PegOutQuote memory quote
     ) internal pure returns (uint256) {
-        return
-            quote.value + quote.callFee + quote.gasFee;
+        return quote.value + quote.callFee + quote.gasFee;
     }
 
     function signQuote(

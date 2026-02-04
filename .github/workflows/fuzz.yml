@@ -1,19 +1,19 @@
 name: Fuzz test smart contracts
 
 on:
-    workflow_dispatch:
-    push:
-        branches:
-            - QA-Test
-            - Stable-Test
-            - master
-            - 'v*.*.*'
-    pull_request:
-        branches:
-            - QA-Test
-            - Stable-Test
-            - master
-            - 'v*.*.*'
+  workflow_dispatch:
+  push:
+    branches:
+      - QA-Test
+      - Stable-Test
+      - master
+      - "v*.*.*"
+  pull_request:
+    branches:
+      - QA-Test
+      - Stable-Test
+      - master
+      - "v*.*.*"
 
 permissions:
   contents: read
