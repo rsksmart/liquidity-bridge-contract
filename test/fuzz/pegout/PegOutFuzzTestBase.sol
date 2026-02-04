@@ -159,8 +159,7 @@ abstract contract PegOutFuzzTestBase is PegOutTestBase {
     function getTotalQuoteValue(
         Quotes.PegOutQuote memory quote
     ) internal pure returns (uint256) {
-        return
-            quote.value + quote.callFee + quote.gasFee;
+        return quote.value + quote.callFee + quote.gasFee;
     }
 
     // ============ Signature Helpers ============
