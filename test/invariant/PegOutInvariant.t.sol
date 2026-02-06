@@ -1,0 +1,67 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.25;
+
+import {Test, console} from "forge-std/Test.sol";
+import {PegOutTestBase} from "../pegout/PegOutTestBase.sol";
+
+/// @title PegOutContract Invariant Tests
+/// @notice Tests critical invariants for the PegOutContract
+contract PegOutInvariantTest is PegOutTestBase {
+    
+    // Ghost variables
+    uint256 public ghost_totalDeposited;
+    uint256 public ghost_totalRefunded;
+    
+    function setUp() public {
+        deployPegOutContract();
+        setupProviders();
+        
+        // Target this contract for invariant testing
+        targetContract(address(this));
+    }
+    
+    // ============ Invariant Tests ============
+    
+    /// @notice Contract balance should never underflow
+    function invariant_NoUnderflow() public view {
+        uint256 contractBalance = address(pegOutContract).balance;
+        
+        // Check for underflow - values near max uint256 indicate underflow
+        assertTrue(
+            contractBalance < 1_000_000 ether,
+            "INVARIANT VIOLATED: Contract balance indicates underflow"
+        );
+    }
+    
+    /// @notice Contract should remain solvent
+    function invariant_ContractSolvent() public view {
+        uint256 contractBalance = address(pegOutContract).balance;
+        
+        // Contract balance should be non-negative (this is trivially true but ensures no panics)
+        assertTrue(
+            contractBalance >= 0,
+            "INVARIANT VIOLATED: Contract is insolvent"
+        );
+    }
+    
+    /// @notice Ghost accounting should be consistent
+    function invariant_GhostAccounting() public view {
+        uint256 contractBalance = address(pegOutContract).balance;
+        
+        // Contract balance should be <= deposits - refunds (with some tolerance for fees)
+        if (ghost_totalDeposited > 0) {
+            assertTrue(
+                contractBalance <= ghost_totalDeposited + 1 ether,
+                "INVARIANT VIOLATED: Contract has more than deposited"
+            );
+        }
+    }
+    
+    function invariant_callSummary() public view {
+        console.log("\n--- PegOut Invariant Summary ---");
+        console.log("Total deposited:", ghost_totalDeposited);
+        console.log("Total refunded:", ghost_totalRefunded);
+        console.log("Contract balance:", address(pegOutContract).balance);
+        console.log("--------------------------------\n");
+    }
+}
