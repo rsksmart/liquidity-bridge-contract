@@ -12,33 +12,20 @@ library SignatureValidator {
     /**
         @dev Verfies signature against address
         @param addr The signing address
-        @param quoteHash The hash of the signed data
+        @param eip712Hash The EIP712 hash of the signed data, this contract expects
+        it to be already prefixed with the EIP712 domain separator
         @param signature The signature containing v, r and s
         @return True if the signature is valid, false otherwise.
      */
-    function verify(address addr, bytes32 quoteHash, bytes memory signature) public pure returns (bool) {
+    function verify(address addr, bytes32 eip712Hash, bytes memory signature) public pure returns (bool) {
 
         if (addr == address(0)) {
             revert ZeroAddress();
         }
 
         if (signature.length != 65) {
-            revert IncorrectSignature(addr, quoteHash, signature);
+            revert IncorrectSignature(addr, eip712Hash, signature);
         }
-
-
-        bytes32 r;
-        bytes32 s;
-        uint8 v;
-
-        assembly {
-            r := mload(add(signature, 0x20))
-            s := mload(add(signature, 0x40))
-            v := byte(0, mload(add(signature, 0x60)))
-        }
-        // TODO use EIP712 compatible format instead
-        bytes memory prefix = "\x19Ethereum Signed Message:\n32";
-        bytes32 prefixedHash = keccak256(abi.encodePacked(prefix, quoteHash));
-        return prefixedHash.recover(v, r, s) == addr;
+        return  eip712Hash.recover(signature) == addr;
     }
 }
