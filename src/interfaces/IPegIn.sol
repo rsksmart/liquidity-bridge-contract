@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
+import {IERC5267} from "@openzeppelin/contracts/interfaces/IERC5267.sol";
 import {Quotes} from "../libraries/Quotes.sol";
 import {IPausable} from "./IPausable.sol";
 
 /// @title PegIn interface
 /// @notice This interface is used to expose the required functions to provide the Flyover peg in service
-interface IPegIn is IPausable {
+interface IPegIn is IPausable, IERC5267 {
 
     /// @notice The states of a peg in quote
     /// @dev The quote set to CALL_DONE when the callForUser function is called
@@ -159,6 +160,11 @@ interface IPegIn is IPausable {
     /// @param quote The quote of the peg in
     /// @return quoteHash The hash of the quote
     function hashPegInQuote(Quotes.PegInQuote calldata quote) external view returns (bytes32);
+
+    /// @notice This view is used to get the hash of a peg in quote using EIP712 specification
+    /// @param quote The quote of the peg in
+    /// @return hashStruct The hash struct to be combined with the domain separator
+    function hashPegInQuoteEIP712(Quotes.PegInQuote calldata quote) external view returns (bytes32);
 
     /// @notice This function is used to get the minimum peg in amount allowed by the protocol
     /// @return minPegIn The minimum peg in amount

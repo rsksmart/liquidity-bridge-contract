@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
+import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
@@ -17,6 +18,7 @@ import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 contract PegOutContract is
     EmergencyPause,
     ReentrancyGuardUpgradeable,
+    EIP712Upgradeable,
     IPegOut
 {
     /// @notice This struct is used to store the information of a peg out
@@ -30,6 +32,8 @@ contract PegOutContract is
 
     /// @notice The version of the contract
     string constant public VERSION = "1.0.0";
+    /// @notice The name of the contract (used for EIP712)
+    string constant public NAME = "PegOutContract";
     Flyover.ProviderType constant private _PEG_TYPE = Flyover.ProviderType.PegOut;
     // Index of the BTC output that must pay quote.depositAddress during peg-out refund validation.
     uint256 constant private _PAY_TO_ADDRESS_OUTPUT = 0;
@@ -90,10 +94,11 @@ contract PegOutContract is
             revert QuoteExpiredByBlocks(quote.expireBlock);
         }
 
-        bytes32 quoteHash = _hashPegOutQuote(quote);
-        if (!SignatureValidator.verify(quote.lpRskAddress, quoteHash, signature)) {
-            revert SignatureValidator.IncorrectSignature(quote.lpRskAddress, quoteHash, signature);
+        bytes32 eip712Hash = _hashPegOutQuoteEIP712(quote);
+        if (!SignatureValidator.verify(quote.lpRskAddress, eip712Hash, signature)) {
+            revert SignatureValidator.IncorrectSignature(quote.lpRskAddress, eip712Hash, signature);
         }
+        bytes32 quoteHash = _hashPegOutQuote(quote);
 
         Quotes.PegOutQuote storage registeredQuote = _pegOutQuotes[quoteHash];
 
@@ -139,6 +144,7 @@ contract PegOutContract is
     ) external initializer {
         if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
         __ReentrancyGuard_init();
+        __EIP712_init(NAME, VERSION);
         // Initialize EmergencyPause (includes AccessControl, Pausable, and grants PAUSER_ROLE)
         __EmergencyPause_init(0, defaultAdmin);
         _bridge = IBridge(bridge);
@@ -256,6 +262,13 @@ contract PegOutContract is
     }
 
     /// @inheritdoc IPegOut
+    function hashPegOutQuoteEIP712(
+        Quotes.PegOutQuote calldata quote
+    ) external view override returns (bytes32) {
+        return _hashPegOutQuoteEIP712(quote);
+    }
+
+    /// @inheritdoc IPegOut
     function isQuoteCompleted(bytes32 quoteHash) external view override returns (bool) {
         return _isQuoteCompleted(quoteHash);
     }
@@ -305,10 +318,25 @@ contract PegOutContract is
     function _hashPegOutQuote(
         Quotes.PegOutQuote calldata quote
     ) private view returns (bytes32) {
+        _validatePegOutQuote(quote);
+        return keccak256(Quotes.encodePegOutQuote(quote));
+    }
+
+    /// @notice This function is used to hash a peg out quote using EIP712 specification
+    /// @dev The function also validates the quote belongs to this contract
+    /// @param quote the peg out quote to hash
+    /// @return quoteHash the hash of the peg out quote
+    function _hashPegOutQuoteEIP712(Quotes.PegOutQuote calldata quote) private view returns (bytes32) {
+        _validatePegOutQuote(quote);
+        return _hashTypedDataV4(Quotes.hashPegOutQuoteEIP712(quote));
+    }
+
+    /// @notice This function is used to validate a peg out quote before hashing it
+    /// @param quote The peg out quote to validate
+    function _validatePegOutQuote(Quotes.PegOutQuote calldata quote) private view {
         if (address(this) != quote.lbcAddress) {
             revert Flyover.IncorrectContract(address(this), quote.lbcAddress);
         }
-        return keccak256(Quotes.encodePegOutQuote(quote));
     }
 
     /// @notice This function is used to check if a quote has been completed (refunded by any party)

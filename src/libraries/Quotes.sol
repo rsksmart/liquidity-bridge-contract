@@ -47,6 +47,22 @@ library Quotes {
 
     uint256 public constant SAT_TO_WEI_CONVERSION = 10**10;
 
+    /// @notice The type hash of the PegInQuote struct for EIP712
+    /// @dev Due to the number of fields present in the struct, we'll just use the hash of the quote and the
+    /// address of the liquidity provider offering it to calculate the EIP712 hash. In this way we avoid issues
+    /// with stack depth limits and future modifications to the type hash based on changes in the struct.
+    /// @dev keccak256("PegInQuote(address liquidityProvider, bytes32 quoteHash)")
+    bytes32 public constant PEG_IN_QUOTE_TYPE_HASH = 0x04b6a5fb6a85d659a648dd600fb93f123bec1a7d0ae71b7c33b1d850b3a6da05;
+
+    /// @notice The type hash of the PegOutQuote struct for EIP712
+    /// @dev Due to the number of fields present in the struct, we'll just use the hash of the quote and the
+    /// address of the liquidity provider offering it to calculate the EIP712 hash. In this way we avoid issues
+    /// with stack depth limits and future modifications to the type hash based on changes in the struct.
+    /// @dev keccak256("PegOutQuote(address liquidityProvider, bytes32 quoteHash)")
+    // TODO validar en jira
+    bytes32 public constant PEG_OUT_QUOTE_TYPE_HASH =
+        0x91061380a398473c20ee77839e0df2d1d1cf5dcc79ae90e660f8c6973d17765f;
+
     error AmountTooLow(uint256 value, uint256 target);
 
     function checkAgreedAmount(
@@ -66,6 +82,34 @@ library Quotes {
         if (agreedAmount > transferredAmount) {
             revert AmountTooLow(transferredAmount, agreedAmount);
         }
+    }
+
+    /// @notice This function is used to get the hashStruct of a peg in quote using EIP712 specification
+    /// @dev The hashStruct should be later combined with the domain separator to get the final hash
+    /// @param quote The peg in quote to hash
+    /// @return hashStruct The hash struct to be combined with the domain separator
+    function hashPegInQuoteEIP712(
+        PegInQuote calldata quote
+    ) external pure returns (bytes32) {
+        return keccak256(abi.encode(
+            PEG_IN_QUOTE_TYPE_HASH,
+            quote.liquidityProviderRskAddress,
+            keccak256(abi.encode(_encodePart1(quote), _encodePart2(quote)))
+        ));
+    }
+
+    /// @notice This function is used to get the hashStruct of a peg out quote using EIP712 specification
+    /// @dev The hashStruct should be later combined with the domain separator to get the final hash
+    /// @param quote The peg out quote to hash
+    /// @return hashStruct The hash struct to be combined with the domain separator
+    function hashPegOutQuoteEIP712(
+        PegOutQuote calldata quote
+    ) external pure returns (bytes32) {
+        return keccak256(abi.encode(
+            PEG_OUT_QUOTE_TYPE_HASH,
+            quote.lpRskAddress,
+            keccak256(abi.encode(_encodePegOutPart1(quote), _encodePegOutPart2(quote)))
+        ));
     }
 
     function encodeQuote(
