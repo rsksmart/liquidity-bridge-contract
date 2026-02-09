@@ -136,13 +136,13 @@ abstract contract PegInFuzzTestBase is PegInTestBase {
 
     // ============ Signature Helpers ============
 
-    /// @notice Signs a quote hash with the appropriate LP private key
+    /// @notice Signs a quote with the appropriate LP private key
     /// @param signer The signer address (must be one of the registered LPs)
-    /// @param quoteHash The hash of the quote to sign
+    /// @param quote The quote to sign
     /// @return signature The EIP-191 signature
     function signFuzzQuote(
         address signer,
-        bytes32 quoteHash
+        Quotes.PegInQuote memory quote
     ) internal view returns (bytes memory) {
         uint256 privateKey;
         if (signer == fullLp) {
@@ -155,13 +155,31 @@ abstract contract PegInFuzzTestBase is PegInTestBase {
             revert("Unknown signer");
         }
 
-        bytes32 ethSignedMessageHash = keccak256(
-            abi.encodePacked("\x19Ethereum Signed Message:\n32", quoteHash)
-        );
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
-            privateKey,
-            ethSignedMessageHash
-        );
+        bytes32 eip712Hash = pegInContract.hashPegInQuoteEIP712(quote);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, eip712Hash);
+        return abi.encodePacked(r, s, v);
+    }
+
+    /// @notice Signs a message hash with the appropriate LP private key
+    /// @param signer The signer address (must be one of the registered LPs)
+    /// @param messageHash The message hash to sign
+    /// @return signature The signature of the message hash
+    function signMessageHash(
+        address signer,
+        bytes32 messageHash
+    ) internal view returns (bytes memory) {
+        uint256 privateKey;
+        if (signer == fullLp) {
+            privateKey = fullLpKey;
+        } else if (signer == pegInLp) {
+            privateKey = pegInLpKey;
+        } else if (signer == pegOutLp) {
+            privateKey = pegOutLpKey;
+        } else {
+            revert("Unknown signer");
+        }
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, messageHash);
         return abi.encodePacked(r, s, v);
     }
 

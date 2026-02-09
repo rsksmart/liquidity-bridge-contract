@@ -51,17 +51,16 @@ library Quotes {
     /// @dev Due to the number of fields present in the struct, we'll just use the hash of the quote and the
     /// address of the liquidity provider offering it to calculate the EIP712 hash. In this way we avoid issues
     /// with stack depth limits and future modifications to the type hash based on changes in the struct.
-    /// @dev keccak256("PegInQuote(address liquidityProvider, bytes32 quoteHash)")
-    bytes32 public constant PEG_IN_QUOTE_TYPE_HASH = 0x04b6a5fb6a85d659a648dd600fb93f123bec1a7d0ae71b7c33b1d850b3a6da05;
+    /// @dev keccak256("PegInQuote(address liquidityProvider,bytes32 quoteHash)")
+    bytes32 public constant PEG_IN_QUOTE_TYPE_HASH = 0x82b0b35cb5a2b2130657be6794570d328b06b7687bdff463bce4a0cc24a880a2;
 
     /// @notice The type hash of the PegOutQuote struct for EIP712
     /// @dev Due to the number of fields present in the struct, we'll just use the hash of the quote and the
     /// address of the liquidity provider offering it to calculate the EIP712 hash. In this way we avoid issues
     /// with stack depth limits and future modifications to the type hash based on changes in the struct.
-    /// @dev keccak256("PegOutQuote(address liquidityProvider, bytes32 quoteHash)")
-    // TODO validar en jira
+    /// @dev keccak256("PegOutQuote(address liquidityProvider,bytes32 quoteHash)")
     bytes32 public constant PEG_OUT_QUOTE_TYPE_HASH =
-        0x91061380a398473c20ee77839e0df2d1d1cf5dcc79ae90e660f8c6973d17765f;
+        0x940deda477f28e6fd80f8307aea1edb500dbd4ee20815878162fec9001fab898;
 
     error AmountTooLow(uint256 value, uint256 target);
 

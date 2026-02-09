@@ -166,11 +166,11 @@ abstract contract PegOutFuzzTestBase is PegOutTestBase {
 
     /// @notice Signs a quote hash with the appropriate LP private key
     /// @param signer The signer address (must be one of the registered LPs)
-    /// @param quoteHash The hash of the quote to sign
+    /// @param quote The quote to sign
     /// @return signature The EIP-191 signature
     function signFuzzQuote(
         address signer,
-        bytes32 quoteHash
+        Quotes.PegOutQuote memory quote
     ) internal view returns (bytes memory) {
         uint256 privateKey;
         if (signer == fullLp) {
@@ -183,13 +183,8 @@ abstract contract PegOutFuzzTestBase is PegOutTestBase {
             revert("Unknown signer");
         }
 
-        bytes32 ethSignedMessageHash = keccak256(
-            abi.encodePacked("\x19Ethereum Signed Message:\n32", quoteHash)
-        );
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
-            privateKey,
-            ethSignedMessageHash
-        );
+        bytes32 eip712Hash = pegOutContract.hashPegOutQuoteEIP712(quote);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, eip712Hash);
         return abi.encodePacked(r, s, v);
     }
 
@@ -229,8 +224,7 @@ abstract contract PegOutFuzzTestBase is PegOutTestBase {
         uint256 value
     ) internal returns (Quotes.PegOutQuote memory) {
         Quotes.PegOutQuote memory quote = createFuzzTestQuote(value);
-        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signFuzzQuote(pegOutLp, quoteHash);
+        bytes memory signature = signFuzzQuote(pegOutLp, quote);
 
         vm.prank(fuzzUser);
         pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(
