@@ -520,7 +520,7 @@ contract LpRefundTest is PegOutTestBase {
             "p2pkh"
         );
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(pegOutLp, quoteHash);
+        bytes memory signature = signQuote(pegOutLp, quote);
 
         vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
@@ -558,7 +558,7 @@ contract LpRefundTest is PegOutTestBase {
             "p2sh"
         );
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(pegOutLp, quoteHash);
+        bytes memory signature = signQuote(pegOutLp, quote);
 
         vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
@@ -596,7 +596,7 @@ contract LpRefundTest is PegOutTestBase {
             "p2wpkh"
         );
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(pegOutLp, quoteHash);
+        bytes memory signature = signQuote(pegOutLp, quote);
 
         vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
@@ -634,7 +634,7 @@ contract LpRefundTest is PegOutTestBase {
             "p2wsh"
         );
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(pegOutLp, quoteHash);
+        bytes memory signature = signQuote(pegOutLp, quote);
 
         vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
@@ -672,7 +672,7 @@ contract LpRefundTest is PegOutTestBase {
             "p2tr"
         );
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(pegOutLp, quoteHash);
+        bytes memory signature = signQuote(pegOutLp, quote);
 
         vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
@@ -975,7 +975,7 @@ contract LpRefundTest is PegOutTestBase {
             pegOutLp
         );
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(pegOutLp, quoteHash);
+        bytes memory signature = signQuote(pegOutLp, quote);
 
         vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
@@ -1063,8 +1063,7 @@ contract LpRefundTest is PegOutTestBase {
             1 ether,
             pegOutLp
         );
-        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(pegOutLp, quoteHash);
+        bytes memory signature = signQuote(pegOutLp, quote);
 
         vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
@@ -1138,7 +1137,7 @@ contract LpRefundTest is PegOutTestBase {
 
     function signQuote(
         address signer,
-        bytes32 quoteHash
+        Quotes.PegOutQuote memory quote
     ) internal view returns (bytes memory) {
         uint256 privateKey;
         if (signer == fullLp) {
@@ -1151,13 +1150,8 @@ contract LpRefundTest is PegOutTestBase {
             revert("Unknown signer");
         }
 
-        bytes32 ethSignedMessageHash = keccak256(
-            abi.encodePacked("\x19Ethereum Signed Message:\n32", quoteHash)
-        );
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
-            privateKey,
-            ethSignedMessageHash
-        );
+        bytes32 eip712Hash = pegOutContract.hashPegOutQuoteEIP712(quote);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, eip712Hash);
         return abi.encodePacked(r, s, v);
     }
 }

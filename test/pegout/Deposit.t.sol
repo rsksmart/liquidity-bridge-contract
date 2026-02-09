@@ -32,8 +32,7 @@ contract DepositTest is PegOutTestBase {
             1.03 ether,
             notLp
         );
-        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(notLp, quoteHash);
+        bytes memory signature = signQuote(notLp, quote);
 
         vm.prank(user);
         vm.expectRevert(
@@ -53,8 +52,7 @@ contract DepositTest is PegOutTestBase {
             1.03 ether,
             pegInLp
         );
-        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(pegInLp, quoteHash);
+        bytes memory signature = signQuote(pegInLp, quote);
 
         vm.prank(user);
         vm.expectRevert(
@@ -77,8 +75,7 @@ contract DepositTest is PegOutTestBase {
         uint256 totalVal = getTotalValue(quote);
         uint256 sentAmount = totalVal - 1;
 
-        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         vm.prank(user);
         vm.expectRevert(
@@ -104,8 +101,7 @@ contract DepositTest is PegOutTestBase {
         quote.depositDateLimit = 1000000; // EXPIRED (< current time)
         quote.expireDate = 3000000; // Still valid (> current time)
 
-        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         vm.prank(user);
         vm.expectRevert(
@@ -134,8 +130,7 @@ contract DepositTest is PegOutTestBase {
         quote.depositDateLimit = 3000000; // Still valid (> current time)
         quote.expireDate = 1000000; // EXPIRED (< current time)
 
-        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         vm.prank(user);
         vm.expectRevert(
@@ -161,8 +156,7 @@ contract DepositTest is PegOutTestBase {
         quote.expireBlock = uint32(currentBlock + 3);
         quote.expireDate = uint32(block.timestamp + 20000);
 
-        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         // Mine blocks to expire the quote
         vm.roll(currentBlock + 4);
@@ -185,17 +179,16 @@ contract DepositTest is PegOutTestBase {
             1.03 ether,
             pegOutLp
         );
-        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
 
-        // Sign with wrong LP
-        bytes memory wrongSignature = signQuote(fullLp, quoteHash);
+        bytes32 eip712Hash = pegOutContract.hashPegOutQuoteEIP712(quote);
+        bytes memory wrongSignature = signQuote(fullLp, quote);
 
         vm.prank(user);
         vm.expectRevert(
             abi.encodeWithSelector(
                 SignatureValidator.IncorrectSignature.selector,
                 pegOutLp,
-                quoteHash,
+                eip712Hash,
                 wrongSignature
             )
         );
@@ -212,7 +205,7 @@ contract DepositTest is PegOutTestBase {
             pegOutLp
         );
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(pegOutLp, quoteHash);
+        bytes memory signature = signQuote(pegOutLp, quote);
         uint256 totalVal = getTotalValue(quote);
 
         // Step 1: Deposit the quote
@@ -258,7 +251,7 @@ contract DepositTest is PegOutTestBase {
             pegOutLp
         );
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(pegOutLp, quoteHash);
+        bytes memory signature = signQuote(pegOutLp, quote);
         uint256 totalVal = getTotalValue(quote);
 
         // First deposit succeeds
@@ -289,7 +282,7 @@ contract DepositTest is PegOutTestBase {
         uint256 paidAmount = totalVal + 0.00000009 ether;
 
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(pegOutLp, quoteHash);
+        bytes memory signature = signQuote(pegOutLp, quote);
 
         uint256 userBalanceBefore = user.balance;
         uint256 contractBalanceBefore = address(pegOutContract).balance;
@@ -331,7 +324,7 @@ contract DepositTest is PegOutTestBase {
         uint256 changeAmount = paidAmount - totalVal;
 
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(pegOutLp, quoteHash);
+        bytes memory signature = signQuote(pegOutLp, quote);
 
         uint256 userBalanceBefore = user.balance;
 
@@ -372,8 +365,7 @@ contract DepositTest is PegOutTestBase {
         uint256 totalVal = getTotalValue(quote);
         uint256 paidAmount = totalVal + 0.5 ether; // Overpay significantly
 
-        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         // Deposit should revert when trying to pay change
         vm.prank(user);
@@ -390,8 +382,7 @@ contract DepositTest is PegOutTestBase {
 
         // Deploy receiver that will attempt reentrancy during change payment
         PegOutChangeReceiver changeReceiver = new PegOutChangeReceiver();
-        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         // Set up receiver to attempt reentrancy by calling depositPegOut again
         vm.prank(address(this));
@@ -451,7 +442,7 @@ contract DepositTest is PegOutTestBase {
 
     function signQuote(
         address signer,
-        bytes32 quoteHash
+        Quotes.PegOutQuote memory quote
     ) internal returns (bytes memory) {
         // Get private key for the signer
         uint256 privateKey;
@@ -466,14 +457,8 @@ contract DepositTest is PegOutTestBase {
             (, privateKey) = makeAddrAndKey("tempSigner");
         }
 
-        // Sign the hash using Ethereum signed message format
-        bytes32 ethSignedMessageHash = keccak256(
-            abi.encodePacked("\x19Ethereum Signed Message:\n32", quoteHash)
-        );
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
-            privateKey,
-            ethSignedMessageHash
-        );
+        bytes32 eip712Hash = pegOutContract.hashPegOutQuoteEIP712(quote);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, eip712Hash);
         return abi.encodePacked(r, s, v);
     }
 }
