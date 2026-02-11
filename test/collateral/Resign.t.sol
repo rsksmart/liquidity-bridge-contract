@@ -329,6 +329,34 @@ contract ResignTest is CollateralTestBase {
         collateralManagement.withdrawCollateral();
     }
 
+    function test_WithdrawCollateral_RevertsWithInvalidAddressWhenRecipientIsZeroAddress()
+        public
+    {
+        uint256 pegInCollateral = collateralManagement.getPegInCollateral(pegInLp);
+        vm.prank(pegInLp);
+        collateralManagement.resign();
+
+        vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS);
+
+        vm.prank(pegInLp);
+        vm.expectRevert(
+            abi.encodeWithSelector(Flyover.InvalidAddress.selector, address(0))
+        );
+        collateralManagement.withdrawCollateral(payable(address(0)));
+
+        // State should be unchanged
+        assertEq(
+            collateralManagement.getResignationBlock(pegInLp),
+            block.number - TEST_RESIGN_DELAY_BLOCKS,
+            "Resignation block should be unchanged"
+        );
+        assertEq(
+            collateralManagement.getPegInCollateral(pegInLp),
+            pegInCollateral,
+            "Collateral should be unchanged"
+        );
+    }
+
     function test_WithdrawCollateral_AllowsProvidersToWithdrawCollateral()
         public
     {

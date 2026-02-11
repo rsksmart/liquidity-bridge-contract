@@ -274,6 +274,7 @@ contract CollateralManagementContract is
     }
 
     function _withdrawRewardsTo(address payable to) private {
+        if (to == address(0)) revert Flyover.InvalidAddress(to);
         address addr = msg.sender;
         uint256 rewards = _rewards[addr];
         if (rewards < 1) revert NothingToWithdraw(addr);
@@ -284,6 +285,7 @@ contract CollateralManagementContract is
     }
 
     function _withdrawCollateralTo(address payable to) private {
+        if (to == address(0)) revert Flyover.InvalidAddress(to);
         address providerAddress = msg.sender;
         uint256 resignationBlock = _resignationBlockNum[providerAddress];
         if (resignationBlock < 1) revert NotResigned(providerAddress);
