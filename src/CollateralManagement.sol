@@ -202,7 +202,7 @@ contract CollateralManagementContract is
     }
 
     /// @inheritdoc ICollateralManagement
-    function withdrawRewards() external override {
+    function withdrawRewards() external nonReentrant override {
         address addr = msg.sender;
         uint256 rewards = _rewards[addr];
         if (rewards < 1) revert NothingToWithdraw(addr);
