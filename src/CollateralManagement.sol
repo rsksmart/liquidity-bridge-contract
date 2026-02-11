@@ -279,7 +279,7 @@ contract CollateralManagementContract is
         uint256 rewards = _rewards[addr];
         if (rewards < 1) revert NothingToWithdraw(addr);
         _rewards[addr] = 0;
-        emit RewardsWithdrawn(addr, rewards);
+        emit RewardsWithdrawn(to, rewards);
         (bool success,) = to.call{value: rewards}("");
         if (!success) revert WithdrawalFailed(to, rewards);
     }
@@ -299,7 +299,7 @@ contract CollateralManagementContract is
         _pegInCollateral[providerAddress] = 0;
         _resignationBlockNum[providerAddress] = 0;
 
-        emit WithdrawCollateral(providerAddress, amount);
+        emit WithdrawCollateral(to, amount);
         (bool success,) = to.call{value: amount}("");
         if (!success) revert WithdrawalFailed(to, amount);
     }

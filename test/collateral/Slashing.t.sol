@@ -321,6 +321,60 @@ contract SlashingTest is CollateralTestBase {
         );
     }
 
+    function test_WithdrawRewards_AllowsWithdrawToDifferentRecipient() public {
+        Quotes.PegInQuote memory pegInQuote = createPegInQuote();
+        Quotes.PegOutQuote memory pegOutQuote = createPegOutQuote();
+        uint256 totalReward = getRewardForQuote(
+            pegInQuote.penaltyFee,
+            TEST_REWARD_PERCENTAGE
+        ) + getRewardForQuote(pegOutQuote.penaltyFee, TEST_REWARD_PERCENTAGE);
+
+        vm.startPrank(slasher);
+        collateralManagement.slashPegInCollateral(
+            punisher,
+            pegInQuote,
+            quoteHash
+        );
+        collateralManagement.slashPegOutCollateral(
+            punisher,
+            pegOutQuote,
+            quoteHash
+        );
+        vm.stopPrank();
+
+        address recipient = makeAddr("rewardsRecipient");
+        vm.deal(recipient, 0);
+        uint256 recipientBalanceBefore = recipient.balance;
+        uint256 punisherBalanceBefore = punisher.balance;
+
+        vm.prank(punisher);
+        vm.expectEmit(true, true, false, true);
+        emit ICollateralManagement.RewardsWithdrawn(punisher, totalReward);
+        collateralManagement.withdrawRewards(payable(recipient));
+
+        // (1) Funds arrive at to
+        assertEq(
+            recipient.balance,
+            recipientBalanceBefore + totalReward,
+            "Recipient should receive the withdrawn rewards"
+        );
+        assertEq(
+            punisher.balance,
+            punisherBalanceBefore,
+            "Caller (punisher) should not receive the funds; they went to recipient"
+        );
+
+        // (2) Caller's state is cleared
+        assertEq(
+            collateralManagement.getRewards(punisher),
+            0,
+            "Punisher rewards should be reset to 0"
+        );
+
+        // (3) Event semantics: RewardsWithdrawn(addr, amount) documents who withdrew and how much
+        // (already asserted via vm.expectEmit above)
+    }
+
     function test_WithdrawRewards_RevertsIfNoRewardToWithdraw() public {
         Quotes.PegInQuote memory pegInQuote = createPegInQuote();
         Quotes.PegOutQuote memory pegOutQuote = createPegOutQuote();
