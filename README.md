@@ -398,9 +398,10 @@ This project uses **Foundry** for smart contract development and deployment. We 
 #### Quick Start
 
 ```bash
-# Setup environment
+# Setup environment (depending on your python installation, you might need to create a virtualenv before)
 cp example.env .env
 make install
+npm ci
 make build
 
 # Test deployment (simulation)
