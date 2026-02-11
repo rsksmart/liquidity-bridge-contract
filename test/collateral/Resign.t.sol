@@ -378,7 +378,7 @@ contract ResignTest is CollateralTestBase {
 
         vm.prank(pegInLp);
         vm.expectEmit(true, true, false, true);
-        emit ICollateralManagement.WithdrawCollateral(pegInLp, pegInCollateral);
+        emit ICollateralManagement.WithdrawCollateral(recipient, pegInCollateral);
         collateralManagement.withdrawCollateral(payable(recipient));
 
         // (1) Funds arrive at to
