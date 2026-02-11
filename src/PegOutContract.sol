@@ -172,7 +172,8 @@ contract PegOutContract is
     }
 
     /// @inheritdoc IPegOut
-    function withdraw(address payable addr, uint256 amount) external nonReentrant override  {
+    function withdraw(address payable addr, uint256 amount) external nonReentrant override {
+        if (addr == address(0)) revert Flyover.InvalidAddress(addr);
         uint256 balance = _balances[msg.sender];
         if (balance < amount) {
             revert Flyover.NoBalance(amount, balance);

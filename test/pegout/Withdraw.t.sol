@@ -99,6 +99,9 @@ contract WithdrawTest is PegOutTestBase {
         PegOutChangeReceiver receiverWithBalance = new PegOutChangeReceiver();
         uint256 amount = _creditBalanceToReceiver(receiverWithBalance, 1 ether);
 
+        // Allow the contract to accept ETH without reentering (receive() would otherwise call depositPegOut)
+        receiverWithBalance.setAcceptFunds(true);
+
         uint256 receiverBalanceBefore = address(receiverWithBalance).balance;
 
         // Withdraw to self (same address as balance owner)
@@ -126,6 +129,26 @@ contract WithdrawTest is PegOutTestBase {
             abi.encodeWithSelector(Flyover.NoBalance.selector, 1 ether, 0)
         );
         pegOutContract.withdraw(payable(someone), 1 ether);
+    }
+
+    function test_Withdraw_RevertsWithInvalidAddressWhenRecipientIsZeroAddress()
+        public
+    {
+        PegOutChangeReceiver receiverWithBalance = new PegOutChangeReceiver();
+        uint256 amount = _creditBalanceToReceiver(receiverWithBalance, 1 ether);
+
+        vm.prank(address(receiverWithBalance));
+        vm.expectRevert(
+            abi.encodeWithSelector(Flyover.InvalidAddress.selector, address(0))
+        );
+        pegOutContract.withdraw(payable(address(0)), amount);
+
+        // Balance should be unchanged
+        assertEq(
+            pegOutContract.getBalance(address(receiverWithBalance)),
+            amount,
+            "Balance should remain"
+        );
     }
 
     function test_Withdraw_RevertsWithPaymentFailedWhenRecipientRejects()
