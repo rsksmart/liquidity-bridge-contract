@@ -349,7 +349,7 @@ contract SlashingTest is CollateralTestBase {
 
         vm.prank(punisher);
         vm.expectEmit(true, true, false, true);
-        emit ICollateralManagement.RewardsWithdrawn(punisher, totalReward);
+        emit ICollateralManagement.RewardsWithdrawn(recipient, totalReward);
         collateralManagement.withdrawRewards(payable(recipient));
 
         // (1) Funds arrive at to
