@@ -378,7 +378,11 @@ contract ResignTest is CollateralTestBase {
 
         vm.prank(pegInLp);
         vm.expectEmit(true, true, false, true);
-        emit ICollateralManagement.WithdrawCollateral(recipient, pegInCollateral);
+        emit ICollateralManagement.WithdrawCollateral(
+            pegInLp,
+            recipient,
+            pegInCollateral
+        );
         collateralManagement.withdrawCollateral(payable(recipient));
 
         // (1) Funds arrive at to
@@ -405,7 +409,7 @@ contract ResignTest is CollateralTestBase {
             "Resignation block should be reset"
         );
 
-        // (3) Event semantics: WithdrawCollateral(addr, amount) documents who withdrew and how much
+        // (3) Event semantics: WithdrawCollateral(caller, recipient, amount) documents who withdrew (caller), where the funds were sent (recipient), and how much
         // (already asserted via vm.expectEmit above)
     }
 
@@ -441,6 +445,7 @@ contract ResignTest is CollateralTestBase {
         vm.prank(pegInLp);
         vm.expectEmit(true, true, false, true);
         emit ICollateralManagement.WithdrawCollateral(
+            pegInLp,
             pegInLp,
             expectedWithdrawal
         );
@@ -489,6 +494,7 @@ contract ResignTest is CollateralTestBase {
         vm.prank(pegOutLp);
         vm.expectEmit(true, true, false, true);
         emit ICollateralManagement.WithdrawCollateral(
+            pegOutLp,
             pegOutLp,
             expectedWithdrawal
         );
@@ -550,6 +556,7 @@ contract ResignTest is CollateralTestBase {
         vm.prank(fullLp);
         vm.expectEmit(true, true, false, true);
         emit ICollateralManagement.WithdrawCollateral(
+            fullLp,
             fullLp,
             expectedWithdrawal
         );

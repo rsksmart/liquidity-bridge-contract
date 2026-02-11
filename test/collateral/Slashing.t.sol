@@ -296,7 +296,11 @@ contract SlashingTest is CollateralTestBase {
 
         vm.prank(punisher);
         vm.expectEmit(true, true, false, true);
-        emit ICollateralManagement.RewardsWithdrawn(punisher, totalReward);
+        emit ICollateralManagement.RewardsWithdrawn(
+            punisher,
+            punisher,
+            totalReward
+        );
         collateralManagement.withdrawRewards();
 
         // Verify balance increased
@@ -349,7 +353,11 @@ contract SlashingTest is CollateralTestBase {
 
         vm.prank(punisher);
         vm.expectEmit(true, true, false, true);
-        emit ICollateralManagement.RewardsWithdrawn(recipient, totalReward);
+        emit ICollateralManagement.RewardsWithdrawn(
+            punisher,
+            recipient,
+            totalReward
+        );
         collateralManagement.withdrawRewards(payable(recipient));
 
         // (1) Funds arrive at to
@@ -371,7 +379,7 @@ contract SlashingTest is CollateralTestBase {
             "Punisher rewards should be reset to 0"
         );
 
-        // (3) Event semantics: RewardsWithdrawn(addr, amount) documents who withdrew and how much
+        // (3) Event semantics: RewardsWithdrawn(caller, recipient, amount) documents who withdrew (caller), where the funds were sent (recipient), and how much
         // (already asserted via vm.expectEmit above)
     }
 
