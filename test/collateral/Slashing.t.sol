@@ -350,6 +350,41 @@ contract SlashingTest is CollateralTestBase {
         collateralManagement.withdrawRewards();
     }
 
+    function test_WithdrawRewards_RevertsWithInvalidAddressWhenRecipientIsZeroAddress()
+        public
+    {
+        Quotes.PegInQuote memory pegInQuote = createPegInQuote();
+        Quotes.PegOutQuote memory pegOutQuote = createPegOutQuote();
+
+        vm.startPrank(slasher);
+        collateralManagement.slashPegInCollateral(
+            punisher,
+            pegInQuote,
+            quoteHash
+        );
+        collateralManagement.slashPegOutCollateral(
+            punisher,
+            pegOutQuote,
+            quoteHash
+        );
+        vm.stopPrank();
+
+        uint256 rewardsBefore = collateralManagement.getRewards(punisher);
+
+        vm.prank(punisher);
+        vm.expectRevert(
+            abi.encodeWithSelector(Flyover.InvalidAddress.selector, address(0))
+        );
+        collateralManagement.withdrawRewards(payable(address(0)));
+
+        // Rewards should be unchanged
+        assertEq(
+            collateralManagement.getRewards(punisher),
+            rewardsBefore,
+            "Rewards should be unchanged"
+        );
+    }
+
     function test_WithdrawRewards_RevertsIfWithdrawExternalCallFails() public {
         Quotes.PegInQuote memory pegInQuote = createPegInQuote();
         Quotes.PegOutQuote memory pegOutQuote = createPegOutQuote();
