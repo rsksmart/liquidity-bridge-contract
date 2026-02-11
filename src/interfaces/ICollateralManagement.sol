@@ -124,13 +124,25 @@ interface ICollateralManagement is IPausable {
         bytes32 quoteHash
     ) external;
 
-    /// @notice Withdraws rewards from the contract. This implies that the caller has
-    /// been a punisher at some point in time.
+    /// @notice Withdraws rewards from the contract. Sends to the caller. Use withdrawRewards(address payable to)
+    /// to send to a different address (e.g. if the caller cannot receive ETH).
     function withdrawRewards() external;
 
-    /// @notice Withdraws collateral from the contract. This requires the liquidity provider
-    /// to have resigned and the resignation delay to have passed.
+    /// @notice Withdraws rewards from the contract to the given address. The caller must have
+    /// accumulated rewards as a punisher. If the transfer fails, the call reverts and state is
+    /// unchanged; the caller can retry with a different recipient (e.g. an EOA).
+    /// @param to The address that will receive the withdrawn rewards
+    function withdrawRewards(address payable to) external;
+
+    /// @notice Withdraws collateral from the contract. Sends to the caller. Use withdrawCollateral(address payable to)
+    /// to send to a different address (e.g. if the caller cannot receive ETH).
     function withdrawCollateral() external;
+
+    /// @notice Withdraws collateral from the contract to the given address. Requires the caller
+    /// to have resigned and the resignation delay to have passed. If the transfer fails, the call
+    /// reverts and state is unchanged; the caller can retry with a different recipient.
+    /// @param to The address that will receive the withdrawn collateral
+    function withdrawCollateral(address payable to) external;
 
     /// @notice Resigns a liquidity provider
     function resign() external;

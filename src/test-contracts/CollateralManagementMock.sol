@@ -39,7 +39,15 @@ contract CollateralManagementMock is ICollateralManagement {
         emit RewardsWithdrawn(address(0), 0);
     }
 
+    function withdrawRewards(address payable) external {
+        emit RewardsWithdrawn(address(0), 0);
+    }
+
     function withdrawCollateral() external {
+        emit WithdrawCollateral(address(0), 0);
+    }
+
+    function withdrawCollateral(address payable) external {
         emit WithdrawCollateral(address(0), 0);
     }
 
