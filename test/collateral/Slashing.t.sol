@@ -377,7 +377,7 @@ contract SlashingTest is CollateralTestBase {
 
         // Try to withdraw via wallet mock - should emit TransactionRejected
         bytes memory withdrawData = abi.encodeWithSelector(
-            collateralManagement.withdrawRewards.selector
+            bytes4(keccak256("withdrawRewards()"))
         );
 
         vm.expectEmit(true, true, false, false);

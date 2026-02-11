@@ -527,9 +527,9 @@ contract ResignTest is CollateralTestBase {
         // Set wallet to reject funds
         walletMock.setRejectFunds(true);
 
-        // Try to withdraw - should emit TransactionRejected event
+        // Try to withdraw - should emit TransactionRejected event (no-arg overload)
         bytes memory withdrawData = abi.encodeWithSelector(
-            collateralManagement.withdrawCollateral.selector
+            bytes4(keccak256("withdrawCollateral()"))
         );
 
         // The withdrawal should fail and emit TransactionRejected
