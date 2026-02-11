@@ -398,7 +398,8 @@ This project uses **Foundry** for smart contract development and deployment. We 
 #### Quick Start
 
 ```bash
-# Setup environment (depending on your python installation, you might need to create a virtualenv before)
+# Setup environment
+# Optional: create and activate a Python virtualenv before installing
 cp example.env .env
 make install
 npm ci
