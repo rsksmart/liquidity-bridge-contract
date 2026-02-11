@@ -332,7 +332,9 @@ contract ResignTest is CollateralTestBase {
     function test_WithdrawCollateral_RevertsWithInvalidAddressWhenRecipientIsZeroAddress()
         public
     {
-        uint256 pegInCollateral = collateralManagement.getPegInCollateral(pegInLp);
+        uint256 pegInCollateral = collateralManagement.getPegInCollateral(
+            pegInLp
+        );
         vm.prank(pegInLp);
         collateralManagement.resign();
 
@@ -355,6 +357,56 @@ contract ResignTest is CollateralTestBase {
             pegInCollateral,
             "Collateral should be unchanged"
         );
+    }
+
+    function test_WithdrawCollateral_AllowsWithdrawToDifferentRecipient()
+        public
+    {
+        uint256 pegInCollateral = collateralManagement.getPegInCollateral(
+            pegInLp
+        );
+
+        vm.prank(pegInLp);
+        collateralManagement.resign();
+
+        vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS);
+
+        address recipient = makeAddr("collateralRecipient");
+        vm.deal(recipient, 0);
+        uint256 recipientBalanceBefore = recipient.balance;
+        uint256 pegInLpBalanceBefore = pegInLp.balance;
+
+        vm.prank(pegInLp);
+        vm.expectEmit(true, true, false, true);
+        emit ICollateralManagement.WithdrawCollateral(pegInLp, pegInCollateral);
+        collateralManagement.withdrawCollateral(payable(recipient));
+
+        // (1) Funds arrive at to
+        assertEq(
+            recipient.balance,
+            recipientBalanceBefore + pegInCollateral,
+            "Recipient should receive the withdrawn collateral"
+        );
+        assertEq(
+            pegInLp.balance,
+            pegInLpBalanceBefore,
+            "Caller (provider) should not receive the funds; they went to recipient"
+        );
+
+        // (2) Caller's state is cleared
+        assertEq(
+            collateralManagement.getPegInCollateral(pegInLp),
+            0,
+            "PegIn collateral should be 0"
+        );
+        assertEq(
+            collateralManagement.getResignationBlock(pegInLp),
+            0,
+            "Resignation block should be reset"
+        );
+
+        // (3) Event semantics: WithdrawCollateral(addr, amount) documents who withdrew and how much
+        // (already asserted via vm.expectEmit above)
     }
 
     function test_WithdrawCollateral_AllowsProvidersToWithdrawCollateral()
