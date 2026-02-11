@@ -110,7 +110,9 @@ contract UserRefundTest is PegOutTestBase {
         pegOutContract.refundUserPegOut(quoteHash);
     }
 
-    function test_RefundUserPegOut_RevertsIfPaymentToUserFails() public {
+    function test_RefundUserPegOut_CreditsBalanceWhenPaymentToUserFails()
+        public
+    {
         // Deploy a contract that will reject payments
         PegOutChangeReceiver changeReceiver = new PegOutChangeReceiver();
 
@@ -145,21 +147,28 @@ contract UserRefundTest is PegOutTestBase {
         vm.roll(block.number + BLOCKS_UNTIL_EXPIRATION + 1);
         vm.warp(block.timestamp + SECONDS_UNTIL_EXPIRATION + 1);
 
-        // Should revert with PaymentFailed
+        uint256 totalQuoteValue = getTotalValue(quote);
+
+        // Refund should succeed and credit balance to the refund address (changeReceiver)
         vm.prank(user);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Flyover.PaymentFailed.selector,
-                quote.rskRefundAddress,
-                getTotalValue(quote),
-                abi.encodeWithSelector(PegOutChangeReceiver.SomeError.selector)
-            )
-        );
         pegOutContract.refundUserPegOut(quoteHash);
+
+        // Quote is completed
+        assertTrue(
+            pegOutContract.isQuoteCompleted(quoteHash),
+            "Quote should be marked as completed"
+        );
+
+        // Refund address should have the full amount in internal balance
+        assertEq(
+            pegOutContract.getBalance(address(changeReceiver)),
+            totalQuoteValue,
+            "Refund address should have credited balance"
+        );
     }
 
-    function test_RefundUserPegOut_NotAllowReentrancy() public {
-        // Deploy a contract that will attempt reentrancy
+    function test_RefundUserPegOut_CreditsBalanceWhenReceiverReverts() public {
+        // Deploy a contract that will attempt reentrancy (receive will call back into pegOut)
         PegOutChangeReceiver changeReceiver = new PegOutChangeReceiver();
 
         Quotes.PegOutQuote memory quote = createTestPegOutQuote(
@@ -175,7 +184,7 @@ contract UserRefundTest is PegOutTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(fullLp, quoteHash);
 
-        // Don't make it fail, but set up reentrancy attack
+        // Don't make it fail, but set up reentrancy attack (receive calls depositPegOut)
         changeReceiver.setFail(false);
         changeReceiver.setPegOut(quote, signature);
 
@@ -190,19 +199,23 @@ contract UserRefundTest is PegOutTestBase {
         vm.roll(block.number + 6); // Must be > expireBlock (which is block.number + 5)
         vm.warp(block.timestamp + 21); // Must be > expireDate (which is block.timestamp + 20)
 
-        // The reentrancy attempt should fail
+        uint256 totalQuoteValue = getTotalValue(quote);
+
+        // The transfer fails (receiver reverts or reentrancy guard triggers), so we credit balance instead of reverting
         vm.prank(user);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Flyover.PaymentFailed.selector,
-                quote.rskRefundAddress,
-                getTotalValue(quote),
-                abi.encodeWithSelector(
-                    bytes4(keccak256("ReentrancyGuardReentrantCall()"))
-                )
-            )
-        );
         pegOutContract.refundUserPegOut(quoteHash);
+
+        assertTrue(
+            pegOutContract.isQuoteCompleted(quoteHash),
+            "Quote should be marked as completed"
+        );
+
+        // Refund address should have the amount in internal balance
+        assertEq(
+            pegOutContract.getBalance(address(changeReceiver)),
+            totalQuoteValue,
+            "Refund address should have credited balance when transfer failed"
+        );
     }
 
     function test_RefundUserPegOut_ExecutesRefundAndSlashesLP() public {

@@ -42,6 +42,7 @@ contract PegOutContract is
 
     mapping(bytes32 => Quotes.PegOutQuote) private _pegOutQuotes;
     mapping(bytes32 => PegOutRecord) private _pegOutRegistry;
+    mapping(address => uint256) private _balances;
 
     /// @notice The dust threshold for the peg out. If the difference between the amount paid and the amount required
     /// is more than this value, the difference goes back to the user's wallet
@@ -58,6 +59,7 @@ contract PegOutContract is
     /// @param oldTime the old Bitcoin block time
     /// @param newTime the new Bitcoin block time
     event BtcBlockTimeSet(uint256 indexed oldTime, uint256 indexed newTime);
+
 
     // solhint-disable-next-line comprehensive-interface
     receive() external payable {
@@ -170,6 +172,20 @@ contract PegOutContract is
     }
 
     /// @inheritdoc IPegOut
+    function withdraw(address payable addr, uint256 amount) external nonReentrant override  {
+        uint256 balance = _balances[msg.sender];
+        if (balance < amount) {
+            revert Flyover.NoBalance(amount, balance);
+        }
+        _decreaseBalance(msg.sender, amount);
+        emit Withdrawal(msg.sender, addr, amount);
+        (bool success, bytes memory reason) = addr.call{value: amount}("");
+        if (!success) {
+            revert Flyover.PaymentFailed(addr, amount, reason);
+        }
+    }
+
+    /// @inheritdoc IPegOut
     function refundPegOut(
         bytes32 quoteHash,
         bytes calldata btcTx,
@@ -189,9 +205,9 @@ contract PegOutContract is
         }
 
         uint256 refundAmount = quote.value + quote.callFee + quote.gasFee;
-        (bool sent, bytes memory reason) = quote.lpRskAddress.call{value: refundAmount}("");
+        (bool sent,) = quote.lpRskAddress.call{value: refundAmount}("");
         if (!sent) {
-            revert Flyover.PaymentFailed(quote.lpRskAddress, refundAmount, reason);
+            _increaseBalance(quote.lpRskAddress, refundAmount);
         }
     }
 
@@ -212,9 +228,9 @@ contract PegOutContract is
         emit PegOutUserRefunded(quoteHash, addressToTransfer, valueToTransfer);
         _collateralManagement.slashPegOutCollateral(msg.sender, quote, quoteHash);
 
-        (bool sent, bytes memory reason) = addressToTransfer.call{value: valueToTransfer}("");
+        (bool sent,) = addressToTransfer.call{value: valueToTransfer}("");
         if (!sent) {
-            revert Flyover.PaymentFailed(addressToTransfer, valueToTransfer, reason);
+            _increaseBalance(addressToTransfer, valueToTransfer);
         }
     }
 
@@ -238,6 +254,44 @@ contract PegOutContract is
         return _isQuoteCompleted(quoteHash);
     }
 
+    /// @inheritdoc IPegOut
+    function getBalance(address addr) external view override returns (uint256) {
+        if (_reentrancyGuardEntered()) revert ReentrancyGuardReentrantCall();
+        return _balances[addr];
+    }
+
+    /// @dev Override _checkRole to use AccessControl from EmergencyPause
+    function _checkRole(bytes32 role)
+        internal
+        view
+        override(AccessControlDaoContributorUpgradeable, AccessControlUpgradeable)
+    {
+        super._checkRole(role);
+    }
+
+    /// @notice This function is used to increase the balance of an account
+    /// @dev This function must remain private. Any exposure can lead to a loss of funds.
+    /// It is responsibility of the caller to ensure that the account is a liquidity provider
+    /// @param dest The address of account
+    /// @param amount The amount of balance to increase
+    function _increaseBalance(address dest, uint256 amount) private {
+        if (amount > 0) {
+            _balances[dest] += amount;
+            emit BalanceIncrease(dest, amount);
+        }
+    }
+
+    /// @notice This function is used to decrease the balance of an account
+    /// @dev This function must remain private. Any exposure can lead to a loss of funds.
+    /// It is responsibility of the caller to ensure that the account is a liquidity provider
+    /// @param dest The address of account
+    /// @param amount The amount of balance to decrease
+    function _decreaseBalance(address dest, uint256 amount) private {
+        if (amount > 0) {
+            _balances[dest] -= amount;
+            emit BalanceDecrease(dest, amount);
+        }
+    }
     /// @notice This function is used to hash a peg out quote
     /// @dev The function also validates the quote belongs to this contract
     /// @param quote the peg out quote to hash
