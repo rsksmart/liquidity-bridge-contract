@@ -170,12 +170,14 @@ contract HashingTest is PegInTestBase {
         // Test chainId
         modifiedQuote = baseQuote;
         modifiedQuote.chainId = baseQuote.chainId + 1;
+        uint originalChainId = block.chainid;
         vm.chainId(modifiedQuote.chainId); // to prevent the hash from failing
         assertTrue(
             pegInContract.hashPegInQuote(modifiedQuote) != baseHash,
             "chainId should affect hash"
         );
-
+        vm.chainId(originalChainId);
+        modifiedQuote.chainId = originalChainId;
         // Test callFee
         modifiedQuote = baseQuote;
         modifiedQuote.callFee = baseQuote.callFee + 1;

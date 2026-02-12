@@ -169,7 +169,7 @@ abstract contract PegOutFuzzTestBase is PegOutTestBase {
     /// @notice Signs a quote hash with the appropriate LP private key
     /// @param signer The signer address (must be one of the registered LPs)
     /// @param quote The quote to sign
-    /// @return signature The EIP-191 signature
+    /// @return signature The EIP-712 typed-data signature for the quote
     function signFuzzQuote(
         address signer,
         Quotes.PegOutQuote memory quote
