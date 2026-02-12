@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 library Quotes {
     struct PegInQuote {
+        uint256 chainId;
         uint256 callFee;
         uint256 penaltyFee;
         uint256 value;
@@ -25,6 +26,7 @@ library Quotes {
     }
 
     struct PegOutQuote {
+        uint256 chainId;
         uint256 callFee;
         uint256 penaltyFee;
         uint256 value;
@@ -130,6 +132,7 @@ library Quotes {
     ) private pure returns (bytes memory) {
         return
             abi.encode(
+                quote.chainId,
                 quote.fedBtcAddress,
                 quote.lbcAddress,
                 quote.liquidityProviderRskAddress,
@@ -165,6 +168,7 @@ library Quotes {
     ) private pure returns (bytes memory) {
         return
             abi.encode(
+                quote.chainId,
                 quote.lbcAddress,
                 quote.lpRskAddress,
                 quote.btcRefundAddress,

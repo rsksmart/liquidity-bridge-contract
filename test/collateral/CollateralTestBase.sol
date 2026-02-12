@@ -119,7 +119,7 @@ abstract contract CollateralTestBase is Test {
     /// @notice Helper to create an empty PegIn quote
     function getEmptyPegInQuote()
         internal
-        pure
+        view
         returns (Quotes.PegInQuote memory)
     {
         bytes memory emptyBytes = new bytes(0);
@@ -127,6 +127,7 @@ abstract contract CollateralTestBase is Test {
 
         return
             Quotes.PegInQuote({
+                chainId: block.chainid,
                 callFee: 0,
                 penaltyFee: 0,
                 value: 0,
@@ -152,13 +153,14 @@ abstract contract CollateralTestBase is Test {
     /// @notice Helper to create an empty PegOut quote
     function getEmptyPegOutQuote()
         internal
-        pure
+        view
         returns (Quotes.PegOutQuote memory)
     {
         bytes memory testAddress = new bytes(20);
 
         return
             Quotes.PegOutQuote({
+                chainId: block.chainid,
                 callFee: 0,
                 penaltyFee: 0,
                 value: 0,

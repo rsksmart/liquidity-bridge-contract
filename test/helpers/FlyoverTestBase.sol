@@ -475,7 +475,7 @@ abstract contract FlyoverTestBase is Test {
     /// @notice Create an empty PegIn quote for testing
     function getEmptyPegInQuote()
         internal
-        pure
+        view
         returns (Quotes.PegInQuote memory)
     {
         bytes memory emptyBytes = new bytes(0);
@@ -483,6 +483,7 @@ abstract contract FlyoverTestBase is Test {
 
         return
             Quotes.PegInQuote({
+                chainId: block.chainid,
                 callFee: 0,
                 penaltyFee: 0,
                 value: 0,
@@ -508,13 +509,14 @@ abstract contract FlyoverTestBase is Test {
     /// @notice Create an empty PegOut quote for testing
     function getEmptyPegOutQuote()
         internal
-        pure
+        view
         returns (Quotes.PegOutQuote memory)
     {
         bytes memory testAddress = new bytes(20);
 
         return
             Quotes.PegOutQuote({
+                chainId: block.chainid,
                 callFee: 0,
                 penaltyFee: 0,
                 value: 0,
@@ -547,6 +549,7 @@ abstract contract FlyoverTestBase is Test {
 
         return
             Quotes.PegInQuote({
+                chainId: block.chainid,
                 callFee: 100000000000000,
                 penaltyFee: 10000000000000,
                 value: 0.5 ether,
@@ -582,6 +585,7 @@ abstract contract FlyoverTestBase is Test {
 
         return
             Quotes.PegOutQuote({
+                chainId: block.chainid,
                 callFee: 100000000000000,
                 penaltyFee: 10000000000000,
                 value: 0.5 ether,

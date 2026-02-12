@@ -101,6 +101,7 @@ abstract contract PegInFuzzTestBase is PegInTestBase {
 
         return
             Quotes.PegInQuote({
+                chainId: block.chainid,
                 callFee: DEFAULT_CALL_FEE,
                 penaltyFee: DEFAULT_PENALTY_FEE,
                 value: value,

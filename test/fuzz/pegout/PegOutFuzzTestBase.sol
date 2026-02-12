@@ -68,6 +68,7 @@ abstract contract PegOutFuzzTestBase is PegOutTestBase {
 
         return
             Quotes.PegOutQuote({
+                chainId: block.chainid,
                 callFee: DEFAULT_CALL_FEE,
                 penaltyFee: DEFAULT_PENALTY_FEE,
                 value: value,
@@ -129,6 +130,7 @@ abstract contract PegOutFuzzTestBase is PegOutTestBase {
 
         return
             Quotes.PegOutQuote({
+                chainId: block.chainid,
                 callFee: DEFAULT_CALL_FEE,
                 penaltyFee: DEFAULT_PENALTY_FEE,
                 value: value,
