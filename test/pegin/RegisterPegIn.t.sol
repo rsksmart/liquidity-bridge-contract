@@ -94,7 +94,6 @@ contract RegisterPegInTest is PegInTestBase {
 
     function test_RegisterPegIn_RevertsIfHeightIsBiggerThanSupported() public {
         Quotes.PegInQuote memory quote = createTestQuote(1 ether);
-        bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
         bytes memory signature = signQuote(fullLp, quote);
 
         // Call for user first
@@ -1232,6 +1231,7 @@ contract RegisterPegInTest is PegInTestBase {
 
         // Use fullLp so we can generate a valid signature
         Quotes.PegInQuote memory quote1 = Quotes.PegInQuote({
+            chainId: block.chainid,
             fedBtcAddress: fedBtcAddr,
             lbcAddress: address(pegInContract), // Updated to match deployed contract
             liquidityProviderRskAddress: fullLp,
@@ -1324,6 +1324,7 @@ contract RegisterPegInTest is PegInTestBase {
             memory userBtcAddr2 = hex"0013c5b9da8f2f01c8ae8bcf0ff05c1d9c81d73d02";
 
         Quotes.PegInQuote memory quote2 = Quotes.PegInQuote({
+            chainId: block.chainid,
             fedBtcAddress: bytes20(fedBtcAddr),
             lbcAddress: address(pegInContract),
             liquidityProviderRskAddress: fullLp,
@@ -1439,6 +1440,7 @@ contract RegisterPegInTest is PegInTestBase {
 
         return
             Quotes.PegInQuote({
+                chainId: block.chainid,
                 callFee: 100000000000000,
                 penaltyFee: 10000000000000,
                 value: value,

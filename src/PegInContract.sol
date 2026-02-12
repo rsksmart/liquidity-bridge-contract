@@ -516,6 +516,9 @@ contract PegInContract is
     }
 
     function _validatePegInQuote(Quotes.PegInQuote calldata quote) private view {
+        if (quote.chainId != block.chainid) {
+            revert Flyover.InvalidChainId(block.chainid, quote.chainId);
+        }
         if (address(this) != quote.lbcAddress) {
             revert Flyover.IncorrectContract(address(this), quote.lbcAddress);
         }

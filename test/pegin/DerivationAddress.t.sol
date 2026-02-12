@@ -38,17 +38,17 @@ contract DerivationAddressTest is Test {
 
     // Deposit addresses (mainnet and testnet for each test case)
     bytes constant MAINNET_DEPOSIT_ADDRESS_1 =
-        hex"05a24b952b63a0827be2967967ea5df30a8c20e01bd6a7cea9";
+        hex"05c93c3553c0f288e2390f0b0ea4192457c3a8c4e534963c55";
     bytes constant TESTNET_DEPOSIT_ADDRESS_1 =
-        hex"c4a24b952b63a0827be2967967ea5df30a8c20e01b2c4fddd9";
+        hex"c4c93c3553c0f288e2390f0b0ea4192457c3a8c4e57f0fd8ff";
     bytes constant MAINNET_DEPOSIT_ADDRESS_2 =
-        hex"054f84ccdfaf8402e3cfca08543956d4a77643c99a33fc2cbb";
+        hex"057fd692c0a900d497fa104ea5c0ec8bc93972d23ccf917ecf";
     bytes constant TESTNET_DEPOSIT_ADDRESS_2 =
-        hex"c44f84ccdfaf8402e3cfca08543956d4a77643c99af5381c32";
+        hex"c47fd692c0a900d497fa104ea5c0ec8bc93972d23ccbd23ea5";
     bytes constant MAINNET_DEPOSIT_ADDRESS_3 =
-        hex"05b4f3f5265c941ae4bf646411956f29bff3fa8c52bcc30929";
+        hex"0585417b12e5387b07e5796da23feac0e4840da9763def19df";
     bytes constant TESTNET_DEPOSIT_ADDRESS_3 =
-        hex"c4b4f3f5265c941ae4bf646411956f29bff3fa8c52c33e94e8";
+        hex"c485417b12e5387b07e5796da23feac0e4840da97652a1a047";
 
     address owner = address(1);
 
@@ -264,9 +264,10 @@ contract DerivationAddressTest is Test {
     /// @notice Creates test quote 1 (nonce: 3635227228603468300)
     function createTestQuote1(
         address lbcAddress
-    ) internal pure returns (Quotes.PegInQuote memory) {
+    ) internal view returns (Quotes.PegInQuote memory) {
         return
             Quotes.PegInQuote({
+                chainId: block.chainid,
                 callFee: 100000000000000,
                 penaltyFee: 10000000000000,
                 value: 985215170000000000,
@@ -294,9 +295,10 @@ contract DerivationAddressTest is Test {
     /// @notice Creates test quote 2 (nonce: 6080686644105603000)
     function createTestQuote2(
         address lbcAddress
-    ) internal pure returns (Quotes.PegInQuote memory) {
+    ) internal view returns (Quotes.PegInQuote memory) {
         return
             Quotes.PegInQuote({
+                chainId: block.chainid,
                 callFee: 1478412310000000,
                 penaltyFee: 10000000000000,
                 value: 517700700000000000,
@@ -324,9 +326,10 @@ contract DerivationAddressTest is Test {
     /// @notice Creates test quote 3 (nonce: 7756734892733337000)
     function createTestQuote3(
         address lbcAddress
-    ) internal pure returns (Quotes.PegInQuote memory) {
+    ) internal view returns (Quotes.PegInQuote memory) {
         return
             Quotes.PegInQuote({
+                chainId: block.chainid,
                 callFee: 2009314000000000,
                 penaltyFee: 10000000000000,
                 value: 578580000000000000,

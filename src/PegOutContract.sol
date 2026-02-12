@@ -274,6 +274,9 @@ contract PegOutContract is
     /// @notice This function is used to validate a peg out quote before hashing it
     /// @param quote The peg out quote to validate
     function _validatePegOutQuote(Quotes.PegOutQuote calldata quote) private view {
+        if (quote.chainId != block.chainid) {
+            revert Flyover.InvalidChainId(block.chainid, quote.chainId);
+        }
         if (address(this) != quote.lbcAddress) {
             revert Flyover.IncorrectContract(address(this), quote.lbcAddress);
         }

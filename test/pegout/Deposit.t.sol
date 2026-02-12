@@ -413,6 +413,7 @@ contract DepositTest is PegOutTestBase {
 
         return
             Quotes.PegOutQuote({
+                chainId: block.chainid,
                 callFee: 100000000000000,
                 penaltyFee: 10000000000000,
                 value: value,
