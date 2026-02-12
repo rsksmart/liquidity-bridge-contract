@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import {PegOutTestBase} from "./PegOutTestBase.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
+import {console} from "forge-std/console.sol";
 
 contract HashingTest is PegOutTestBase {
     function setUp() public {
@@ -110,11 +111,14 @@ contract HashingTest is PegOutTestBase {
         // Test chainId
         modifiedQuote = baseQuote;
         modifiedQuote.chainId = baseQuote.chainId + 1;
+        uint originalChainId = block.chainid;
         vm.chainId(modifiedQuote.chainId); // to prevent the hash from failing
         assertTrue(
             pegOutContract.hashPegOutQuote(modifiedQuote) != baseHash,
             "chainId should affect hash"
         );
+        modifiedQuote.chainId = originalChainId;
+        vm.chainId(originalChainId);
 
         // Test callFee
         modifiedQuote = baseQuote;

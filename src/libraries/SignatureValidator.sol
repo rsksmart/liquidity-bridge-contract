@@ -8,9 +8,10 @@ library SignatureValidator {
     using ECDSA for bytes32;
 
     error IncorrectSignature(address expectedAddress, bytes32 usedHash, bytes signature);
+    error SignatureCheckError(uint8 errorType, bytes32 errorArg);
     error ZeroAddress();
     /**
-        @dev Verfies signature against address
+        @dev Verifies signature against address
         @param addr The signing address
         @param messageHash The hash of the signed message, the SignatureValidator won't perform any
         modification on the message. If this is used for EIP712, this contract expects it to be the
@@ -27,6 +28,10 @@ library SignatureValidator {
         if (signature.length != 65) {
             revert IncorrectSignature(addr, messageHash, signature);
         }
-        return  messageHash.recover(signature) == addr;
+        (address recovered, ECDSA.RecoverError err, bytes32 errorArg) = messageHash.tryRecover(signature);
+        if (err != ECDSA.RecoverError.NoError) {
+            revert SignatureCheckError(uint8(err), errorArg);
+        }
+        return recovered == addr;
     }
 }
