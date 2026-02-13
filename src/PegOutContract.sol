@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
+import {
+    AccessControlDefaultAdminRulesUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
 import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {IBridge} from "./interfaces/IBridge.sol";
 import {ICollateralManagement, CollateralManagementSet} from "./interfaces/ICollateralManagement.sol";
+import {IPauseRegistry} from "./interfaces/IPauseRegistry.sol";
 import {IPegOut} from "./interfaces/IPegOut.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 import {Quotes} from "./libraries/Quotes.sol";
@@ -16,6 +20,7 @@ import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 /// @notice This contract is used to handle the peg out of the RSK network to the Bitcoin network
 /// @author Rootstock Labs
 contract PegOutContract is
+    AccessControlDefaultAdminRulesUpgradeable,
     EmergencyPause,
     ReentrancyGuardUpgradeable,
     EIP712Upgradeable,
@@ -126,6 +131,7 @@ contract PegOutContract is
     /// @param collateralManagement the address of the Collateral Management contract
     /// @param mainnet whether the contract is on the mainnet or not
     /// @param btcBlockTime_ the average Bitcoin block time in seconds
+    /// @param pauseRegistry the central PauseRegistry for pause state
     // solhint-disable-next-line comprehensive-interface
     function initialize(
         address defaultAdmin,
@@ -133,13 +139,15 @@ contract PegOutContract is
         uint256 dustThreshold_,
         address collateralManagement,
         bool mainnet,
-        uint256 btcBlockTime_
+        uint256 btcBlockTime_,
+        IPauseRegistry pauseRegistry
     ) external initializer {
         if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
+        if (address(pauseRegistry).code.length == 0) revert Flyover.NoContract(address(pauseRegistry));
+        __AccessControlDefaultAdminRules_init(0, defaultAdmin);
         __ReentrancyGuard_init();
         __EIP712_init(NAME, VERSION);
-        // Initialize EmergencyPause (includes AccessControl, Pausable, and grants PAUSER_ROLE)
-        __EmergencyPause_init(0, defaultAdmin);
+        __EmergencyPause_init(pauseRegistry);
         _bridge = IBridge(bridge);
         _collateralManagement = ICollateralManagement(collateralManagement);
         _mainnet = mainnet;
@@ -182,7 +190,7 @@ contract PegOutContract is
         bytes32 btcBlockHeaderHash,
         uint256 merkleBranchPath,
         bytes32[] calldata merkleBranchHashes
-    ) external nonReentrant whenNotPaused override {
+    ) external nonReentrant override {
         Quotes.PegOutQuote memory quote = _validatePegOutTransaction(quoteHash, btcTx);
         _validateBtcTxConfirmations(quote, btcTx, btcBlockHeaderHash, merkleBranchPath, merkleBranchHashes);
 
@@ -202,7 +210,7 @@ contract PegOutContract is
     }
 
     /// @inheritdoc IPegOut
-    function refundUserPegOut(bytes32 quoteHash) external nonReentrant whenNotPaused override {
+    function refundUserPegOut(bytes32 quoteHash) external nonReentrant override {
         Quotes.PegOutQuote memory quote = _pegOutQuotes[quoteHash];
 
         if (quote.lbcAddress == address(0)) revert Flyover.QuoteNotFound(quoteHash);

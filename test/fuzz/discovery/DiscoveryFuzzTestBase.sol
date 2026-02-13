@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import {Test, console} from "forge-std/Test.sol";
 import {FlyoverDiscovery} from "../../../src/FlyoverDiscovery.sol";
 import {CollateralManagementContract} from "../../../src/CollateralManagement.sol";
+import {PauseRegistry} from "../../../src/PauseRegistry.sol";
 import {ICollateralManagement} from "../../../src/interfaces/ICollateralManagement.sol";
 import {IFlyoverDiscovery} from "../../../src/interfaces/IFlyoverDiscovery.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
@@ -12,6 +13,7 @@ import {Flyover} from "../../../src/libraries/Flyover.sol";
 /// @title Base contract for FlyoverDiscovery fuzz tests
 /// @notice Provides shared deployment logic and helpers for fuzz testing
 abstract contract DiscoveryFuzzTestBase is Test {
+    PauseRegistry public pauseRegistry;
     FlyoverDiscovery public discovery;
     CollateralManagementContract public collateralManagement;
 
@@ -55,6 +57,14 @@ abstract contract DiscoveryFuzzTestBase is Test {
         owner = makeAddr("owner");
         vm.deal(owner, 100 ether);
 
+        // Deploy PauseRegistry
+        PauseRegistry prImpl = new PauseRegistry();
+        ERC1967Proxy prProxy = new ERC1967Proxy(
+            address(prImpl),
+            abi.encodeCall(prImpl.initialize, (0, owner))
+        );
+        pauseRegistry = PauseRegistry(payable(address(prProxy)));
+
         // Deploy CollateralManagement
         CollateralManagementContract cmImplementation = new CollateralManagementContract();
         bytes memory cmInitData = abi.encodeCall(
@@ -64,7 +74,8 @@ abstract contract DiscoveryFuzzTestBase is Test {
                 TEST_DEFAULT_ADMIN_DELAY,
                 TEST_MIN_COLLATERAL,
                 TEST_RESIGN_DELAY_BLOCKS,
-                TEST_REWARD_PERCENTAGE
+                TEST_REWARD_PERCENTAGE,
+                pauseRegistry
             )
         );
         ERC1967Proxy cmProxy = new ERC1967Proxy(
@@ -79,7 +90,12 @@ abstract contract DiscoveryFuzzTestBase is Test {
         FlyoverDiscovery discoveryImplementation = new FlyoverDiscovery();
         bytes memory discoveryInitData = abi.encodeCall(
             FlyoverDiscovery.initialize,
-            (owner, uint48(INITIAL_DELAY), address(collateralManagement))
+            (
+                owner,
+                uint48(INITIAL_DELAY),
+                address(collateralManagement),
+                pauseRegistry
+            )
         );
         ERC1967Proxy discoveryProxy = new ERC1967Proxy(
             address(discoveryImplementation),

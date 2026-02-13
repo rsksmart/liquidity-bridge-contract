@@ -52,7 +52,8 @@ contract ConfigurationTest is PegOutTestBase {
             TEST_DUST_THRESHOLD,
             address(collateralManagement),
             false,
-            TEST_BTC_BLOCK_TIME
+            TEST_BTC_BLOCK_TIME,
+            pauseRegistry
         );
     }
 
@@ -70,7 +71,8 @@ contract ConfigurationTest is PegOutTestBase {
                 TEST_DUST_THRESHOLD,
                 noCodeAddress, // Address with no code
                 false,
-                TEST_BTC_BLOCK_TIME
+                TEST_BTC_BLOCK_TIME,
+                pauseRegistry
             )
         );
 
@@ -159,7 +161,8 @@ contract ConfigurationTest is PegOutTestBase {
                 TEST_DEFAULT_ADMIN_DELAY,
                 TEST_MIN_COLLATERAL,
                 TEST_RESIGN_DELAY_BLOCKS,
-                TEST_REWARD_PERCENTAGE
+                TEST_REWARD_PERCENTAGE,
+                pauseRegistry
             )
         );
         ERC1967Proxy otherProxy = new ERC1967Proxy(address(otherCM), initData);
@@ -207,7 +210,8 @@ contract ConfigurationTest is PegOutTestBase {
                 TEST_DEFAULT_ADMIN_DELAY,
                 TEST_MIN_COLLATERAL,
                 TEST_RESIGN_DELAY_BLOCKS,
-                TEST_REWARD_PERCENTAGE
+                TEST_REWARD_PERCENTAGE,
+                pauseRegistry
             )
         );
         ERC1967Proxy otherProxy = new ERC1967Proxy(address(otherCM), initData);

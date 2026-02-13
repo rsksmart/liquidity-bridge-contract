@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
+import {
+    AccessControlDefaultAdminRulesUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
 import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
@@ -8,6 +11,7 @@ import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCod
 import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {IBridge} from "./interfaces/IBridge.sol";
 import {ICollateralManagement, CollateralManagementSet} from "./interfaces/ICollateralManagement.sol";
+import {IPauseRegistry} from "./interfaces/IPauseRegistry.sol";
 import {IPegIn} from "./interfaces/IPegIn.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 import {Quotes} from "./libraries/Quotes.sol";
@@ -18,6 +22,7 @@ import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 /// @dev All non pure/view functions in this contract should be marked as nonReentrant
 /// @author Rootstock Labs
 contract PegInContract is
+    AccessControlDefaultAdminRulesUpgradeable,
     EmergencyPause,
     ReentrancyGuardUpgradeable,
     EIP712Upgradeable,
@@ -83,6 +88,7 @@ contract PegInContract is
     /// @param minPegIn the minimum peg in amount supported by the bridge
     /// @param collateralManagement the address of the Collateral Management contract
     /// @param mainnet whether the contract is on the mainnet or not
+    /// @param pauseRegistry the central PauseRegistry for pause state
     // solhint-disable-next-line comprehensive-interface
     function initialize(
         address defaultAdmin,
@@ -90,13 +96,15 @@ contract PegInContract is
         uint256 dustThreshold_,
         uint256 minPegIn,
         address collateralManagement,
-        bool mainnet
+        bool mainnet,
+        IPauseRegistry pauseRegistry
     ) external initializer {
         if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
+        if (address(pauseRegistry).code.length == 0) revert Flyover.NoContract(address(pauseRegistry));
+        __AccessControlDefaultAdminRules_init(0, defaultAdmin);
         __ReentrancyGuard_init();
         __EIP712_init(NAME, VERSION);
-        // Initialize EmergencyPause (includes AccessControl, Pausable, and grants PAUSER_ROLE)
-        __EmergencyPause_init(0, defaultAdmin);
+        __EmergencyPause_init(pauseRegistry);
         _bridge = IBridge(bridge);
         _collateralManagement = ICollateralManagement(collateralManagement);
         _mainnet = mainnet;
@@ -157,7 +165,7 @@ contract PegInContract is
     /// @inheritdoc IPegIn
     function callForUser(
         Quotes.PegInQuote calldata quote
-    ) external payable nonReentrant whenNotPaused override returns (bool) {
+    ) external payable nonReentrant override returns (bool) {
         if(!_collateralManagement.isRegistered(_PEG_TYPE, msg.sender)) {
             revert Flyover.ProviderNotRegistered(msg.sender);
         }
@@ -212,7 +220,7 @@ contract PegInContract is
         bytes calldata btcRawTransaction,
         bytes calldata partialMerkleTree,
         uint256 height
-    ) external nonReentrant whenNotPaused override returns (int256) {
+    ) external nonReentrant override returns (int256) {
         bytes32 quoteHash = _hashPegInQuote(quote);
         _validateRegisterParams(quote, quoteHash, height, signature);
         int256 registerResult = _registerBridge(quote, btcRawTransaction, partialMerkleTree, height, quoteHash);

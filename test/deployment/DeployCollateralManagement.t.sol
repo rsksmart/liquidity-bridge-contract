@@ -5,6 +5,7 @@ import "lib/forge-std/src/Test.sol";
 import "lib/forge-std/src/console.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
+import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
@@ -63,6 +64,16 @@ contract DeployCollateralManagementTest is Test {
         ProxyAdmin admin = new ProxyAdmin(deployer);
         console.log("   Admin deployed at:", address(admin));
 
+        console.log("\n2b. Deploying PauseRegistry...");
+        PauseRegistry prImpl = new PauseRegistry();
+        address pauseRegistryProxy = address(
+            new TransparentUpgradeableProxy(
+                address(prImpl),
+                address(admin),
+                abi.encodeCall(prImpl.initialize, (0, deployer))
+            )
+        );
+
         console.log("\n3. Preparing initializer calldata...");
         bytes memory initData = abi.encodeCall(
             CollateralManagementContract.initialize,
@@ -71,7 +82,8 @@ contract DeployCollateralManagementTest is Test {
                 cfg.adminDelay,
                 cfg.minimumCollateral,
                 cfg.resignDelayBlocks,
-                cfg.rewardPercentage
+                cfg.rewardPercentage,
+                PauseRegistry(pauseRegistryProxy)
             )
         );
         console.log("   Init data length:", initData.length);
@@ -122,8 +134,16 @@ contract DeployCollateralManagementTest is Test {
         address deployer = address(this);
 
         // Inline deployment (script.run() uses private _deploy internally)
-        address impl = address(new CollateralManagementContract());
         address admin = address(new ProxyAdmin(deployer));
+        PauseRegistry prImpl = new PauseRegistry();
+        address pauseRegistryProxy = address(
+            new TransparentUpgradeableProxy(
+                address(prImpl),
+                admin,
+                abi.encodeCall(prImpl.initialize, (0, deployer))
+            )
+        );
+        address impl = address(new CollateralManagementContract());
         address proxy = address(
             new TransparentUpgradeableProxy(
                 impl,
@@ -135,7 +155,8 @@ contract DeployCollateralManagementTest is Test {
                         cfg.adminDelay,
                         cfg.minimumCollateral,
                         cfg.resignDelayBlocks,
-                        cfg.rewardPercentage
+                        cfg.rewardPercentage,
+                        PauseRegistry(pauseRegistryProxy)
                     )
                 )
             )
@@ -172,8 +193,16 @@ contract DeployCollateralManagementTest is Test {
         address deployer = address(this);
 
         // Inline deployment
-        address impl = address(new CollateralManagementContract());
         address admin = address(new ProxyAdmin(deployer));
+        PauseRegistry prImpl = new PauseRegistry();
+        address pauseRegistryProxy = address(
+            new TransparentUpgradeableProxy(
+                address(prImpl),
+                admin,
+                abi.encodeCall(prImpl.initialize, (0, deployer))
+            )
+        );
+        address impl = address(new CollateralManagementContract());
         address proxy = address(
             new TransparentUpgradeableProxy(
                 impl,
@@ -185,7 +214,8 @@ contract DeployCollateralManagementTest is Test {
                         cfg.adminDelay,
                         cfg.minimumCollateral,
                         cfg.resignDelayBlocks,
-                        cfg.rewardPercentage
+                        cfg.rewardPercentage,
+                        PauseRegistry(pauseRegistryProxy)
                     )
                 )
             )
