@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import {Test, console} from "forge-std/Test.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {ICollateralManagement} from "../../src/interfaces/ICollateralManagement.sol";
+import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
@@ -49,6 +50,14 @@ contract AdditionTest is Test {
         vm.deal(registeredPegOutAccount, 100 ether);
         vm.deal(notRegisteredAccount2, 100 ether);
 
+        // Deploy PauseRegistry
+        PauseRegistry prImpl = new PauseRegistry();
+        ERC1967Proxy prProxy = new ERC1967Proxy(
+            address(prImpl),
+            abi.encodeCall(prImpl.initialize, (0, owner))
+        );
+        PauseRegistry pr = PauseRegistry(payable(address(prProxy)));
+
         // Deploy implementation
         CollateralManagementContract implementation = new CollateralManagementContract();
 
@@ -60,7 +69,8 @@ contract AdditionTest is Test {
                 TEST_DEFAULT_ADMIN_DELAY,
                 TEST_MIN_COLLATERAL,
                 TEST_RESIGN_DELAY_BLOCKS,
-                TEST_REWARD_PERCENTAGE
+                TEST_REWARD_PERCENTAGE,
+                pr
             )
         );
 

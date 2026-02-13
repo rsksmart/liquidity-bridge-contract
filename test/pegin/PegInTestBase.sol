@@ -5,6 +5,7 @@ import {Test, console} from "forge-std/Test.sol";
 import {PegInContract} from "../../src/PegInContract.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
+import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {BridgeMock} from "../../src/test-contracts/BridgeMock.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
@@ -13,6 +14,7 @@ import {Flyover} from "../../src/libraries/Flyover.sol";
 /// @title Base contract for PegIn tests
 /// @notice Provides shared deployment and setup logic for PegIn tests
 abstract contract PegInTestBase is Test {
+    PauseRegistry public pauseRegistry;
     PegInContract public pegInContract;
     CollateralManagementContract public collateralManagement;
     FlyoverDiscovery public discovery;
@@ -66,7 +68,8 @@ abstract contract PegInTestBase is Test {
                 TEST_DUST_THRESHOLD,
                 TEST_MIN_PEGIN,
                 address(collateralManagement),
-                false // mainnet
+                false, // mainnet
+                pauseRegistry
             )
         );
 
@@ -84,6 +87,13 @@ abstract contract PegInTestBase is Test {
     }
 
     function deployCollateralManagement() internal {
+        PauseRegistry prImpl = new PauseRegistry();
+        ERC1967Proxy prProxy = new ERC1967Proxy(
+            address(prImpl),
+            abi.encodeCall(prImpl.initialize, (0, owner))
+        );
+        pauseRegistry = PauseRegistry(payable(address(prProxy)));
+
         CollateralManagementContract cmImplementation = new CollateralManagementContract();
 
         bytes memory cmInitData = abi.encodeCall(
@@ -93,7 +103,8 @@ abstract contract PegInTestBase is Test {
                 TEST_DEFAULT_ADMIN_DELAY,
                 TEST_MIN_COLLATERAL,
                 TEST_RESIGN_DELAY_BLOCKS,
-                TEST_REWARD_PERCENTAGE
+                TEST_REWARD_PERCENTAGE,
+                pauseRegistry
             )
         );
 
@@ -122,7 +133,8 @@ abstract contract PegInTestBase is Test {
             (
                 owner,
                 uint48(DISCOVERY_INITIAL_DELAY),
-                address(collateralManagement)
+                address(collateralManagement),
+                pauseRegistry
             )
         );
 

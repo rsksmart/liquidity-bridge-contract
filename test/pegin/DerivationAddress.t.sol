@@ -5,6 +5,7 @@ import {Test, console} from "forge-std/Test.sol";
 import {PegInContract} from "../../src/PegInContract.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
+import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {BridgeMock} from "../../src/test-contracts/BridgeMock.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
@@ -38,25 +39,26 @@ contract DerivationAddressTest is Test {
 
     // Deposit addresses (mainnet and testnet for each test case)
     bytes constant MAINNET_DEPOSIT_ADDRESS_1 =
-        hex"05c93c3553c0f288e2390f0b0ea4192457c3a8c4e534963c55";
+        hex"05a028a93b57d3ae056504de4ccedbe45349f728708f508621";
     bytes constant TESTNET_DEPOSIT_ADDRESS_1 =
-        hex"c4c93c3553c0f288e2390f0b0ea4192457c3a8c4e57f0fd8ff";
+        hex"c4a028a93b57d3ae056504de4ccedbe45349f72870077cc2a3";
     bytes constant MAINNET_DEPOSIT_ADDRESS_2 =
-        hex"057fd692c0a900d497fa104ea5c0ec8bc93972d23ccf917ecf";
+        hex"05f3d8cc0272674bf44b53d1a2c4012a35b8161dfec4f77bd2";
     bytes constant TESTNET_DEPOSIT_ADDRESS_2 =
-        hex"c47fd692c0a900d497fa104ea5c0ec8bc93972d23ccbd23ea5";
+        hex"c4f3d8cc0272674bf44b53d1a2c4012a35b8161dfea43d7a4c";
     bytes constant MAINNET_DEPOSIT_ADDRESS_3 =
-        hex"0585417b12e5387b07e5796da23feac0e4840da9763def19df";
+        hex"0560478d263979f125a4b0fa58a0fc2238eca545ab2f3c1de5";
     bytes constant TESTNET_DEPOSIT_ADDRESS_3 =
-        hex"c485417b12e5387b07e5796da23feac0e4840da97652a1a047";
+        hex"c460478d263979f125a4b0fa58a0fc2238eca545abe95f5e84";
 
     address owner = address(1);
+    PauseRegistry internal _pauseRegistry;
 
     // Foundry deterministic deployment addresses (with real CollateralManagement)
     address constant FOUNDRY_MAINNET_CONTRACT =
-        0x1d1499e622D69689cdf9004d05Ec547d650Ff211;
+        0x03A6a84cD762D9707A21605b548aaaB891562aAb;
     address constant FOUNDRY_TESTNET_CONTRACT =
-        0x1d1499e622D69689cdf9004d05Ec547d650Ff211;
+        0x03A6a84cD762D9707A21605b548aaaB891562aAb;
 
     // ============ hashPegInQuote function tests ============
 
@@ -201,7 +203,8 @@ contract DerivationAddressTest is Test {
                 TEST_DUST_THRESHOLD,
                 TEST_MIN_PEGIN,
                 address(collateralManagement),
-                mainnet // mainnet flag
+                mainnet, // mainnet flag
+                _pauseRegistry
             )
         );
 
@@ -217,6 +220,14 @@ contract DerivationAddressTest is Test {
         internal
         returns (CollateralManagementContract)
     {
+        // Deploy PauseRegistry
+        PauseRegistry prImpl = new PauseRegistry();
+        ERC1967Proxy prProxy = new ERC1967Proxy(
+            address(prImpl),
+            abi.encodeCall(prImpl.initialize, (0, owner))
+        );
+        _pauseRegistry = PauseRegistry(payable(address(prProxy)));
+
         // Deploy CollateralManagement first (matching PegInTestBase pattern)
         CollateralManagementContract cmImplementation = new CollateralManagementContract();
         bytes memory cmInitData = abi.encodeCall(
@@ -226,7 +237,8 @@ contract DerivationAddressTest is Test {
                 TEST_DEFAULT_ADMIN_DELAY,
                 TEST_MIN_COLLATERAL,
                 TEST_RESIGN_DELAY_BLOCKS,
-                TEST_REWARD_PERCENTAGE
+                TEST_REWARD_PERCENTAGE,
+                _pauseRegistry
             )
         );
 
@@ -243,7 +255,12 @@ contract DerivationAddressTest is Test {
         FlyoverDiscovery discoveryImplementation = new FlyoverDiscovery();
         bytes memory discoveryInitData = abi.encodeCall(
             FlyoverDiscovery.initialize,
-            (owner, uint48(DISCOVERY_INITIAL_DELAY), address(cm))
+            (
+                owner,
+                uint48(DISCOVERY_INITIAL_DELAY),
+                address(cm),
+                _pauseRegistry
+            )
         );
 
         ERC1967Proxy discoveryProxy = new ERC1967Proxy(
