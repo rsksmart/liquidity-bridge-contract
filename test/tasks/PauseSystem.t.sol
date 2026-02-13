@@ -91,7 +91,7 @@ contract PauseSystemTest is FlyoverTestBase {
         (bool p2, , ) = mockPegOut.pauseStatus();
         (bool c1, , ) = mockCollateral.pauseStatus();
 
-        assertFalse(d1 && p1 && p2 && c1, "None should be paused initially");
+        assertFalse(d1 || p1 || p2 || c1, "None should be paused initially");
 
         string memory reason = "Test emergency pause";
         mockRegistry.pause(reason);
@@ -140,7 +140,7 @@ contract PauseSystemTest is FlyoverTestBase {
         (bool p2, string memory p2Reason, ) = mockPegOut.pauseStatus();
         (bool c1, string memory cReason, ) = mockCollateral.pauseStatus();
 
-        assertFalse(d1 && p1 && p2 && c1, "All should be unpaused");
+        assertFalse(d1 || p1 || p2 || c1, "All should be unpaused");
         assertEq(dReason, "", "Discovery reason should be cleared");
         assertEq(pReason, "", "PegIn reason should be cleared");
         assertEq(p2Reason, "", "PegOut reason should be cleared");
@@ -214,7 +214,7 @@ contract PauseSystemTest is FlyoverTestBase {
         (bool p2, , ) = mockPegOut.pauseStatus();
         (bool c1, , ) = mockCollateral.pauseStatus();
 
-        assertFalse(d1 && p1 && p2 && c1, "All should report unpaused");
+        assertFalse(d1 || p1 || p2 || c1, "All should report unpaused");
 
         console.log("\n[PASS] unpauseAll script function works correctly!");
     }

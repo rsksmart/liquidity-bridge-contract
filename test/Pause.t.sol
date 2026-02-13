@@ -175,7 +175,7 @@ contract PauseTest is Test {
 
         (bool isPausedPI, string memory reasonPI, ) = pegInContract
             .pauseStatus();
-        (bool isPausedPO, string memory reasonPO, ) = pegInContract
+        (bool isPausedPO, string memory reasonPO, ) = pegOutContract
             .pauseStatus();
         (bool isPausedD, string memory reasonD, ) = flyoverDiscovery
             .pauseStatus();
@@ -199,7 +199,7 @@ contract PauseTest is Test {
         pauseRegistry.pause("Test");
 
         (bool isPausedPI, , ) = pegInContract.pauseStatus();
-        (bool isPausedPO, , ) = pegInContract.pauseStatus();
+        (bool isPausedPO, , ) = pegOutContract.pauseStatus();
         (bool isPausedD, , ) = flyoverDiscovery.pauseStatus();
         (bool isPausedC, , ) = collateralManagement.pauseStatus();
         assertTrue(isPausedD);
