@@ -90,6 +90,8 @@ interface ICollateralManagement is IPausable {
     /// @notice Slashes peg in collateral from a liquidity provider. The slashed amount
     /// is the penalty fee of the quote. Depending on the reward percentage, the punisher
     /// will receive a reward. The rest of the penalty fee remains in the contract.
+    /// In case of non integer reward, the remainder of the calculation will stay in
+    /// the protocol as penalties.
     /// @param punisher The address of the punisher
     /// @param quote The quote of the peg in collateral
     /// @param quoteHash The hash of the quote
@@ -114,6 +116,8 @@ interface ICollateralManagement is IPausable {
     /// @notice Slashes peg out collateral from a liquidity provider. The slashed amount
     /// is the penalty fee of the quote. Depending on the reward percentage, the punisher
     /// will receive a reward. The rest of the penalty fee remains in the contract.
+    /// In case of non integer reward, the remainder of the calculation will stay in
+    /// the protocol as penalties.
     /// @param punisher The address of the punisher
     /// @param quote The quote of the peg out collateral
     /// @param quoteHash The hash of the quote
