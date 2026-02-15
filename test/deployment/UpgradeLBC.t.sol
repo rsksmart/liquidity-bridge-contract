@@ -10,6 +10,7 @@ import {LiquidityBridgeContractV2} from "../../src/legacy/LiquidityBridgeContrac
 import {LiquidityBridgeContractProxy} from "../../src/legacy/LiquidityBridgeContractProxy.sol";
 import {LiquidityBridgeContractAdmin} from "../../src/legacy/LiquidityBridgeContractAdmin.sol";
 import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
 
 /**
  * @title UpgradeLBCTest
@@ -226,5 +227,90 @@ contract UpgradeLBCTest is Test {
 
         console.log("\n[PASS] V2 functions callable after upgrade!");
         console.log("[PASS] UpgradeLBC.s.sol script pattern validated!");
+    }
+
+    function test_UpgradeIsDelayedByTimelock() public {
+        bytes32 adminSlot = bytes32(
+            uint256(keccak256("eip1967.proxy.admin")) - 1
+        );
+        address proxyAdminAddress = address(
+            uint160(uint256(vm.load(address(proxy), adminSlot)))
+        );
+        LiquidityBridgeContractAdmin actualAdmin = LiquidityBridgeContractAdmin(
+            proxyAdminAddress
+        );
+
+        address proposer = makeAddr("proposer");
+        address executor = makeAddr("executor");
+        uint256 minDelay = 7 days;
+        address[] memory proposers = new address[](1);
+        proposers[0] = proposer;
+        address[] memory executors = new address[](1);
+        executors[0] = executor;
+        TimelockController timelock = new TimelockController(
+            minDelay,
+            proposers,
+            executors,
+            address(0)
+        );
+
+        // Timelock must own ProxyAdmin to enforce delayed upgrades.
+        vm.prank(actualAdmin.owner());
+        actualAdmin.transferOwnership(address(timelock));
+        assertEq(actualAdmin.owner(), address(timelock), "timelock not owner");
+
+        lbcV2Impl = new LiquidityBridgeContractV2();
+
+        bytes32 implSlot = bytes32(
+            uint256(keccak256("eip1967.proxy.implementation")) - 1
+        );
+        address oldImpl = address(
+            uint160(uint256(vm.load(address(proxy), implSlot)))
+        );
+
+        bytes memory upgradePayload = abi.encodeWithSignature(
+            "upgradeAndCall(address,address,bytes)",
+            address(proxy),
+            address(lbcV2Impl),
+            bytes("")
+        );
+        bytes32 predecessor = bytes32(0);
+        bytes32 salt = keccak256("upgrade-op");
+
+        vm.prank(proposer);
+        timelock.schedule(
+            address(actualAdmin),
+            0,
+            upgradePayload,
+            predecessor,
+            salt,
+            minDelay
+        );
+
+        vm.prank(executor);
+        vm.expectRevert();
+        timelock.execute(
+            address(actualAdmin),
+            0,
+            upgradePayload,
+            predecessor,
+            salt
+        );
+
+        vm.warp(block.timestamp + minDelay);
+        vm.prank(executor);
+        timelock.execute(
+            address(actualAdmin),
+            0,
+            upgradePayload,
+            predecessor,
+            salt
+        );
+
+        address newImpl = address(
+            uint160(uint256(vm.load(address(proxy), implSlot)))
+        );
+        assertEq(newImpl, address(lbcV2Impl), "upgrade did not execute");
+        assertTrue(newImpl != oldImpl, "implementation did not change");
     }
 }
