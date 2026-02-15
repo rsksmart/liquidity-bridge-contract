@@ -125,7 +125,11 @@ interface IPegOut is IPausable {
     /// @notice This function is used by the liquidity provider to recover the funds spent on the peg out service plus
     /// their fee for the service. It proves the inclusion of the transaction paying to the user in the Bitcoin network
     /// @param quoteHash hash of the quote being refunded
-    /// @param btcTx the bitcoin raw transaction without the witness
+    /// @param btcTx the Bitcoin raw transaction without witness data. It must include
+    /// the required outputs in this EXACT order(otherwise the LP risks losing its funds and getting its collateral slashed):
+    /// - output 0: payment to quote.depositAddress
+    /// - output 1: OP_RETURN storing the quoteHash
+    /// The contract validates these outputs by fixed indices during peg-out refunds.
     /// @param btcBlockHeaderHash header hash of the block where the transaction was included
     /// @param merkleBranchPath index of the leaf that is being proved to be included in the merkle tree
     /// @param merkleBranchHashes hashes of the merkle branch to get to the merkle root using the leaf being proved
