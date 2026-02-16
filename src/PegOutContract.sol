@@ -19,7 +19,6 @@ contract PegOutContract is
     ReentrancyGuardUpgradeable,
     IPegOut
 {
-
     /// @notice This struct is used to store the information of a peg out
     /// @param completed whether the peg out has been completed or not,
     /// completed means the peg out was paid and refunded (to any party)
@@ -62,6 +61,10 @@ contract PegOutContract is
     /// @param newTime the new Bitcoin block time
     event BtcBlockTimeSet(uint256 indexed oldTime, uint256 indexed newTime);
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
 
     // solhint-disable-next-line comprehensive-interface
     receive() external payable {

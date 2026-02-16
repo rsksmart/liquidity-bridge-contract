@@ -26,6 +26,11 @@ contract FlyoverDiscovery is
     ICollateralManagement private _collateralManagement;
     uint public lastProviderId;
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     // ------------------------------------------------------------
     // FlyoverDiscovery Public Functions and Modifiers
     // ------------------------------------------------------------

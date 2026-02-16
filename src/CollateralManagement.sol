@@ -62,6 +62,11 @@ contract CollateralManagementContract is
         _;
     }
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     // solhint-disable-next-line comprehensive-interface
     receive() external payable {
         revert Flyover.PaymentNotAllowed();
