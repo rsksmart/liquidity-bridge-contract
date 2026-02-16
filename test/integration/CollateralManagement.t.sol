@@ -354,11 +354,14 @@ contract CollateralManagementIntegrationTest is Test {
             Flyover.ProviderType.PegOut
         );
 
-        // Appears in listing again with new ID
+        // Appears in listing again reusing the same provider ID
         providers = discovery.getProviders();
         assertEq(providers.length, 1);
-        assertEq(providers[0].id, 2);
-        assertEq(providers[0].name, "LP Second");
+        assertEq(providers[0].id, 1);
+        assertEq(
+            keccak256(bytes(providers[0].name)),
+            keccak256(bytes("LP Second"))
+        );
         assertEq(
             uint8(providers[0].providerType),
             uint8(Flyover.ProviderType.PegOut)
