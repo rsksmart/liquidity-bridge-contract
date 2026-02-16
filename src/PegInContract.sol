@@ -22,7 +22,6 @@ contract PegInContract is
     AccessControlDaoContributorUpgradeable,
     IPegIn
 {
-
     /// @notice This struct is used to store the information of a call on behalf of the user
     /// @param timestamp The timestamp of the call
     /// @param success Whether the call was successful or not
@@ -65,6 +64,11 @@ contract PegInContract is
     /// @param oldMinPegIn The old minimum peg in amount
     /// @param newMinPegIn The new minimum peg in amount
     event MinPegInSet(uint256 indexed oldMinPegIn, uint256 indexed newMinPegIn);
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
 
     // solhint-disable-next-line comprehensive-interface
     receive() external payable {
