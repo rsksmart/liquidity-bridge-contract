@@ -14,11 +14,6 @@ import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol
  */
 
 contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
-    /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
-        _disableInitializers();
-    }
-
     uint16 constant public MAX_CALL_GAS_COST = 35000;
     uint16 constant public MAX_REFUND_GAS_LIMIT = 2300;
 

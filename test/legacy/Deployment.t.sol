@@ -19,24 +19,6 @@ contract DeploymentTest is Test {
         bool shouldSucceed;
     }
 
-    function test_ImplementationInitialize_RevertsForLiquidityBridgeContract()
-        public
-    {
-        LiquidityBridgeContract implementation = new LiquidityBridgeContract();
-
-        vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
-        implementation.initialize(
-            payable(BRIDGE_ADDRESS),
-            0.03 ether,
-            1,
-            50,
-            60,
-            1,
-            1,
-            false
-        );
-    }
-
     function test_ImplementationInitialize_RevertsForLiquidityBridgeContractV2()
         public
     {
