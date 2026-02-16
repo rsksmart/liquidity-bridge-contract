@@ -103,7 +103,8 @@ interface IPegOut is IPausable, IDaoContributor {
     /// their fee for the service. It proves the inclusion of the transaction paying to the user in the Bitcoin network
     /// @param quoteHash hash of the quote being refunded
     /// @param btcTx the Bitcoin raw transaction without witness data. It must include
-    /// the required outputs in this EXACT order(otherwise the LP risks losing its funds and getting its collateral slashed):
+    /// the required outputs in this EXACT order
+    /// (otherwise the LP risks losing its funds and getting its collateral slashed):
     /// - output 0: payment to quote.depositAddress
     /// - output 1: OP_RETURN storing the quoteHash
     /// The contract validates these outputs by fixed indices during peg-out refunds.
