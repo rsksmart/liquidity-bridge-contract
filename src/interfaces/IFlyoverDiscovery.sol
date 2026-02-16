@@ -10,14 +10,14 @@ interface IFlyoverDiscovery is IPausable {
     event ProviderStatusSet(uint indexed id, bool indexed status);
 
     error NotAuthorized(address from);
-    error NotEOA(address from);
     error InvalidProviderData(string name, string apiBaseUrl);
     error InvalidProviderType(Flyover.ProviderType providerType);
     error AlreadyRegistered(address from);
     error InsufficientCollateral(uint amount);
 
     /// @notice Registers the caller as a Liquidity Provider
-    /// @dev Reverts if caller is not an EOA, already resigned, provides invalid data, invalid type, or lacks collateral
+    /// @dev Reverts if caller is not authorized, already resigned, provides invalid data,
+    /// invalid type, or lacks collateral
     /// @param name Human-readable LP name
     /// @param apiBaseUrl Base URL of the LP public API
     /// @param status Initial status flag (enabled/disabled)
