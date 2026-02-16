@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import {CollateralTestBase} from "./CollateralTestBase.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 
 contract ConfigurationTest is CollateralTestBase {
@@ -86,6 +87,19 @@ contract ConfigurationTest is CollateralTestBase {
     function test_Initialize_AllowsInitializeOnlyOnce() public {
         vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
         collateralManagement.initialize(
+            owner,
+            TEST_DEFAULT_ADMIN_DELAY,
+            TEST_MIN_COLLATERAL,
+            TEST_RESIGN_DELAY_BLOCKS,
+            TEST_REWARD_PERCENTAGE
+        );
+    }
+
+    function test_Initialize_RevertsWhenCalledOnImplementation() public {
+        CollateralManagementContract implementation = new CollateralManagementContract();
+
+        vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
+        implementation.initialize(
             owner,
             TEST_DEFAULT_ADMIN_DELAY,
             TEST_MIN_COLLATERAL,

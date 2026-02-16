@@ -79,6 +79,22 @@ contract ConfigurationTest is PegOutTestBase {
         );
     }
 
+    function test_Initialize_RevertsWhenCalledOnImplementation() public {
+        PegOutContract implementation = new PegOutContract();
+
+        vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
+        implementation.initialize(
+            owner,
+            payable(address(bridgeMock)),
+            TEST_DUST_THRESHOLD,
+            address(collateralManagement),
+            false,
+            TEST_BTC_BLOCK_TIME,
+            0,
+            payable(ZERO_ADDRESS)
+        );
+    }
+
     function test_Initialize_RevertsIfNoCodeInCollateralManagement() public {
         address noCodeAddress = makeAddr("noCodeAddress");
 
