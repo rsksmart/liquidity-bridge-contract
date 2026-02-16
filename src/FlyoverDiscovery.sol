@@ -175,7 +175,7 @@ contract FlyoverDiscovery is
     }
 
     /// @notice Validates registration parameters and requirements
-    /// @dev Checks EOA status, data validity, provider type, registration status, and collateral requirements
+    /// @dev Checks caller authorization, data validity, provider type, registration status, and collateral requirements
     /// @param name The provider name to validate
     /// @param apiBaseUrl The provider API URL to validate
     /// @param providerType The provider type to validate
@@ -188,7 +188,7 @@ contract FlyoverDiscovery is
         address providerAddress,
         uint256 collateralAmount
     ) private view {
-        if (providerAddress != msg.sender || providerAddress.code.length != 0) revert NotEOA(providerAddress);
+        if (providerAddress != msg.sender) revert NotAuthorized(msg.sender);
 
         if (
             bytes(name).length < 1 ||
