@@ -697,6 +697,71 @@ contract RegisterPegInTest is PegInTestBase {
         );
     }
 
+    function test_RegisterPegIn_ZeroValueQuoteWithCallOnRegister()
+        public
+    {
+        // Create quote with value=0 - fees must meet minimum (callFee + productFeeAmount + gasFee >= _minPegIn)
+        Quotes.PegInQuote memory quote = createTestQuote(TEST_MIN_PEGIN);
+        quote.value = 0;
+        quote.callFee = TEST_MIN_PEGIN; // Ensures total >= _minPegIn for validation
+        quote.productFeeAmount = 0;
+        quote.gasFee = 100;
+        quote.callOnRegister = true;
+
+        bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
+        bytes memory signature = signQuote(fullLp, quoteHash);
+
+        uint256 peginAmount = getTotalValue(quote);
+
+        // Setup BTC block headers
+        bytes memory firstHeader = createBtcBlockHeader(
+            uint32(block.timestamp) + 300
+        );
+        bytes memory nConfHeader = createBtcBlockHeader(
+            uint32(block.timestamp) + 600
+        );
+
+        // Setup bridge
+        vm.deal(address(bridgeMock), peginAmount);
+        bridgeMock.setPegin{value: peginAmount}(quoteHash);
+        bridgeMock.setHeader(HEIGHT_MOCK, firstHeader);
+        bridgeMock.setHeader(
+            HEIGHT_MOCK + uint256(quote.depositConfirmations) - 1,
+            nConfHeader
+        );
+
+        // Don't call callForUser - registerPegIn will execute _registerCallNotDone
+        // When quote.value=0, refundAmount >= quote.value is true (0 >= 0), so call is attempted
+        uint256 userBalanceBefore = user.balance;
+
+        // Must not revert - previously reverted due to underflow in quote.value - 1
+        vm.prank(registerCaller);
+        vm.expectEmit(true, true, false, false);
+        emit IPegIn.CallForUser(
+            registerCaller,
+            user,
+            quoteHash,
+            quote.gasLimit,
+            quote.value,
+            quote.data,
+            true
+        );
+        pegInContract.registerPegIn(
+            quote,
+            signature,
+            RAW_TX_MOCK,
+            PMT_MOCK,
+            HEIGHT_MOCK
+        );
+
+        // User receives full peginAmount (value=0 + callFee + gasFee + productFeeAmount)
+        assertEq(
+            user.balance,
+            userBalanceBefore + peginAmount,
+            "User should receive full pegin amount when value is 0"
+        );
+    }
+
     function test_RegisterPegIn_ExecutesCallForUserIfCallOnRegisterIsTrue()
         public
     {
