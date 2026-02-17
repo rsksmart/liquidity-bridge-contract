@@ -76,6 +76,11 @@ interface ICollateralManagement is IPausable {
     /// @param from The address of the liquidity provider
     error NothingToWithdraw(address from);
 
+    /// @notice Emitted when reward percentage exceeds the allowed maximum
+    /// @param maxRewardPercentage The maximum allowed reward percentage (basis points)
+    /// @param passedRewardPercentage The provided reward percentage (basis points)
+    error InvalidRewardPercentage(uint256 maxRewardPercentage, uint256 passedRewardPercentage);
+
     /// @notice Adds peg in collateral to an account
     /// @param addr The address of the account
     /// @dev This function requires the COLLATERAL_ADDER role
