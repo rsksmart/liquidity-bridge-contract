@@ -182,13 +182,13 @@ contract PegInContract is
         if (gasleft() < quote.gasLimit + _MAX_CALL_GAS_COST) {
             revert InsufficientGas(gasleft(), quote.gasLimit + _MAX_CALL_GAS_COST);
         }
-        _callRegistry[quoteHash].timestamp = block.timestamp;
-        _processedQuotes[quoteHash] = PegInStates.CALL_DONE;
-
         (bool success,) = quote.contractAddress.call{
             gas: quote.gasLimit,
             value: quote.value
         }(quote.data);
+
+        _callRegistry[quoteHash].timestamp = block.timestamp;
+        _processedQuotes[quoteHash] = PegInStates.CALL_DONE;
 
         if (success) {
             _callRegistry[quoteHash].success = true;
