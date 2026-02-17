@@ -101,6 +101,9 @@ contract CollateralManagementContract is
         uint256 resignDelayInBlocks,
         uint256 rewardPercentage
     ) external initializer {
+        if (rewardPercentage > TOTAL_REWARD_PERCENTAGE) {
+            revert InvalidRewardPercentage(TOTAL_REWARD_PERCENTAGE, rewardPercentage);
+        }
         __ReentrancyGuard_init();
         // Initialize EmergencyPause (includes AccessControl, Pausable, and grants PAUSER_ROLE)
         __EmergencyPause_init(initialDelay, defaultAdmin);
@@ -129,6 +132,9 @@ contract CollateralManagementContract is
     /// @param rewardPercentage The new reward percentage
     // solhint-disable-next-line comprehensive-interface
     function setRewardPercentage(uint256 rewardPercentage) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (rewardPercentage > TOTAL_REWARD_PERCENTAGE) {
+            revert InvalidRewardPercentage(TOTAL_REWARD_PERCENTAGE, rewardPercentage);
+        }
         emit RewardPercentageSet(_rewardPercentage, rewardPercentage);
         _rewardPercentage = rewardPercentage;
     }
