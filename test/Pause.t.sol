@@ -5,15 +5,19 @@ import "forge-std/Test.sol";
 import {FlyoverDiscovery} from "src/FlyoverDiscovery.sol";
 import {CollateralManagementContract} from "src/CollateralManagement.sol";
 import {ICollateralManagement} from "src/interfaces/ICollateralManagement.sol";
+import {PauseRegistry} from "src/PauseRegistry.sol";
 import {PegInContract} from "src/PegInContract.sol";
 import {PegOutContract} from "src/PegOutContract.sol";
 import {BridgeMock} from "src/test-contracts/BridgeMock.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Flyover} from "src/libraries/Flyover.sol";
+import {IPauseRegistry} from "src/interfaces/IPauseRegistry.sol";
+import {Quotes} from "src/libraries/Quotes.sol";
 
 /// @title System-wide Pause Functionality Tests
 /// @notice Tests that verify pause/unpause operations across all contracts in the system
 contract PauseTest is Test {
+    PauseRegistry public pauseRegistry;
     FlyoverDiscovery public flyoverDiscovery;
     CollateralManagementContract public collateralManagement;
     PegInContract public pegInContract;
@@ -44,6 +48,18 @@ contract PauseTest is Test {
     function _deployContracts() internal {
         bridgeMock = new BridgeMock();
 
+        PauseRegistry prImpl = new PauseRegistry();
+        pauseRegistry = PauseRegistry(
+            payable(
+                address(
+                    new ERC1967Proxy(
+                        address(prImpl),
+                        abi.encodeCall(prImpl.initialize, (0, owner))
+                    )
+                )
+            )
+        );
+
         CollateralManagementContract cmImpl = new CollateralManagementContract();
         collateralManagement = CollateralManagementContract(
             payable(
@@ -52,7 +68,14 @@ contract PauseTest is Test {
                         address(cmImpl),
                         abi.encodeCall(
                             cmImpl.initialize,
-                            (owner, 30, TEST_MIN_COLLATERAL, 500, 1000)
+                            (
+                                owner,
+                                30,
+                                TEST_MIN_COLLATERAL,
+                                500,
+                                1000,
+                                pauseRegistry
+                            )
                         )
                     )
                 )
@@ -67,7 +90,12 @@ contract PauseTest is Test {
                         address(dImpl),
                         abi.encodeCall(
                             dImpl.initialize,
-                            (owner, 5000, address(collateralManagement))
+                            (
+                                owner,
+                                5000,
+                                address(collateralManagement),
+                                pauseRegistry
+                            )
                         )
                     )
                 )
@@ -88,7 +116,8 @@ contract PauseTest is Test {
                                 2300 * 65164000,
                                 0.5 ether,
                                 address(collateralManagement),
-                                false
+                                false,
+                                pauseRegistry
                             )
                         )
                     )
@@ -110,7 +139,8 @@ contract PauseTest is Test {
                                 2300 * 65164000,
                                 address(collateralManagement),
                                 false,
-                                900
+                                900,
+                                pauseRegistry
                             )
                         )
                     )
@@ -134,18 +164,19 @@ contract PauseTest is Test {
     }
 
     function _grantPauserRole() internal {
-        flyoverDiscovery.grantRole(PAUSER_ROLE, pauser);
-        collateralManagement.grantRole(PAUSER_ROLE, pauser);
+        pauseRegistry.grantRole(PAUSER_ROLE, pauser);
     }
 
     function test_CanPauseAllContractsSimultaneously() public {
         _grantPauserRole();
 
-        vm.startPrank(pauser);
-        flyoverDiscovery.pause("Emergency system-wide pause");
-        collateralManagement.pause("Emergency system-wide pause");
-        vm.stopPrank();
+        vm.prank(pauser);
+        pauseRegistry.pause("Emergency system-wide pause");
 
+        (bool isPausedPI, string memory reasonPI, ) = pegInContract
+            .pauseStatus();
+        (bool isPausedPO, string memory reasonPO, ) = pegOutContract
+            .pauseStatus();
         (bool isPausedD, string memory reasonD, ) = flyoverDiscovery
             .pauseStatus();
         (bool isPausedC, string memory reasonC, ) = collateralManagement
@@ -155,31 +186,43 @@ contract PauseTest is Test {
         assertEq(reasonD, "Emergency system-wide pause");
         assertTrue(isPausedC);
         assertEq(reasonC, "Emergency system-wide pause");
+        assertTrue(isPausedPI);
+        assertEq(reasonPI, "Emergency system-wide pause");
+        assertTrue(isPausedPO);
+        assertEq(reasonPO, "Emergency system-wide pause");
     }
 
     function test_CanUnpauseAllContractsSimultaneously() public {
         _grantPauserRole();
 
-        vm.startPrank(pauser);
-        flyoverDiscovery.pause("Test");
-        collateralManagement.pause("Test");
-        vm.stopPrank();
+        vm.prank(pauser);
+        pauseRegistry.pause("Test");
 
+        (bool isPausedPI, , ) = pegInContract.pauseStatus();
+        (bool isPausedPO, , ) = pegOutContract.pauseStatus();
         (bool isPausedD, , ) = flyoverDiscovery.pauseStatus();
         (bool isPausedC, , ) = collateralManagement.pauseStatus();
         assertTrue(isPausedD);
         assertTrue(isPausedC);
+        assertTrue(isPausedPI);
+        assertTrue(isPausedPO);
 
-        vm.startPrank(pauser);
-        flyoverDiscovery.unpause();
-        collateralManagement.unpause();
-        vm.stopPrank();
+        vm.prank(pauser);
+        pauseRegistry.unpause();
 
         string memory reasonD;
         string memory reasonC;
+        string memory reasonPI;
+        string memory reasonPO;
         (isPausedD, reasonD, ) = flyoverDiscovery.pauseStatus();
         (isPausedC, reasonC, ) = collateralManagement.pauseStatus();
+        (isPausedPI, reasonPI, ) = pegInContract.pauseStatus();
+        (isPausedPO, reasonPO, ) = pegOutContract.pauseStatus();
 
+        assertFalse(isPausedPI);
+        assertEq(reasonPI, "");
+        assertFalse(isPausedPO);
+        assertEq(reasonPO, "");
         assertFalse(isPausedD);
         assertEq(reasonD, "");
         assertFalse(isPausedC);
@@ -189,16 +232,18 @@ contract PauseTest is Test {
     function test_TracksPauseTimestampsConsistentlyAcrossContracts() public {
         _grantPauserRole();
 
-        vm.startPrank(pauser);
-        flyoverDiscovery.pause("Timestamp test");
-        collateralManagement.pause("Timestamp test");
-        vm.stopPrank();
+        vm.prank(pauser);
+        pauseRegistry.pause("Timestamp test");
 
         (, , uint256 timeD) = flyoverDiscovery.pauseStatus();
         (, , uint256 timeC) = collateralManagement.pauseStatus();
+        (, , uint256 timePI) = pegInContract.pauseStatus();
+        (, , uint256 timePO) = pegOutContract.pauseStatus();
 
-        assertTrue(timeD > 0 && timeC > 0);
+        assertTrue(timeD > 0 && timeC > 0 && timePI > 0 && timePO > 0);
         assertEq(timeD, timeC);
+        assertEq(timePI, timeD);
+        assertEq(timePO, timePI);
     }
 
     function test_BlocksCriticalOperationsAcrossAllContractsWhenPaused()
@@ -206,10 +251,8 @@ contract PauseTest is Test {
     {
         _grantPauserRole();
 
-        vm.startPrank(pauser);
-        flyoverDiscovery.pause("Emergency");
-        collateralManagement.pause("Emergency");
-        vm.stopPrank();
+        vm.prank(pauser);
+        pauseRegistry.pause("Emergency");
 
         vm.prank(signers[1]);
         vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
@@ -227,6 +270,13 @@ contract PauseTest is Test {
 
         vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
         collateralManagement.addPegInCollateralTo{value: 1 ether}(signers[1]);
+
+        vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
+        pegInContract.deposit{value: 1 ether}();
+
+        Quotes.PegOutQuote memory quote;
+        vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
+        pegOutContract.depositPegOut{value: 1 ether}(quote, hex"010203");
     }
 
     function test_AllowsViewFunctionsToContinueWorkingWhenPaused() public view {
@@ -251,11 +301,9 @@ contract PauseTest is Test {
         uint256 providerId = flyoverDiscovery.getProvidersId();
         assertEq(providerId, 1, "Provider should be registered");
 
-        // Pause the contracts
-        vm.startPrank(pauser);
-        flyoverDiscovery.pause("Emergency");
-        collateralManagement.pause("Emergency");
-        vm.stopPrank();
+        // Pause via central registry
+        vm.prank(pauser);
+        pauseRegistry.pause("Emergency");
 
         // Verify contracts are paused
         (bool isPausedD, , ) = flyoverDiscovery.pauseStatus();
@@ -311,25 +359,29 @@ contract PauseTest is Test {
     function test_RestoresFullFunctionalityAfterSystemWideUnpause() public {
         _grantPauserRole();
 
-        vm.startPrank(pauser);
-        flyoverDiscovery.pause("Test");
-        collateralManagement.pause("Test");
-        vm.stopPrank();
+        vm.prank(pauser);
+        pauseRegistry.pause("Test");
 
         (bool isPausedD, , ) = flyoverDiscovery.pauseStatus();
         (bool isPausedC, , ) = collateralManagement.pauseStatus();
+        (bool isPausedPI, , ) = pegInContract.pauseStatus();
+        (bool isPausedPO, , ) = pegOutContract.pauseStatus();
         assertTrue(isPausedD);
         assertTrue(isPausedC);
+        assertTrue(isPausedPI);
+        assertTrue(isPausedPO);
 
-        vm.startPrank(pauser);
-        flyoverDiscovery.unpause();
-        collateralManagement.unpause();
-        vm.stopPrank();
+        vm.prank(pauser);
+        pauseRegistry.unpause();
 
         (isPausedD, , ) = flyoverDiscovery.pauseStatus();
         (isPausedC, , ) = collateralManagement.pauseStatus();
+        (isPausedPI, , ) = pegInContract.pauseStatus();
+        (isPausedPO, , ) = pegOutContract.pauseStatus();
         assertFalse(isPausedD);
         assertFalse(isPausedC);
+        assertFalse(isPausedPI);
+        assertFalse(isPausedPO);
 
         vm.prank(signers[1]);
         flyoverDiscovery.register{value: 1 ether}(
@@ -353,18 +405,21 @@ contract PauseTest is Test {
         );
     }
 
-    function test_HandlesWhereSomeContractsFailToPause() public {
+    function test_PauseOncePausesAllContracts() public {
         _grantPauserRole();
 
-        vm.startPrank(pauser);
-        flyoverDiscovery.pause("Partial pause");
-        collateralManagement.pause("Partial pause");
-        vm.stopPrank();
+        vm.prank(pauser);
+        pauseRegistry.pause("System-wide pause");
 
         (bool isPausedD, , ) = flyoverDiscovery.pauseStatus();
         (bool isPausedC, , ) = collateralManagement.pauseStatus();
+        (bool isPausedPI, , ) = pegInContract.pauseStatus();
+        (bool isPausedPO, , ) = pegOutContract.pauseStatus();
 
-        assertTrue(isPausedD || isPausedC);
+        assertTrue(isPausedD, "Discovery should be paused");
+        assertTrue(isPausedC, "Collateral should be paused");
+        assertTrue(isPausedPI, "PegIn should be paused");
+        assertTrue(isPausedPO, "PegOut should be paused");
     }
 
     function test_CanPerformEmergencyPauseWithCustomReason() public {
@@ -373,25 +428,25 @@ contract PauseTest is Test {
         string
             memory reason = "Critical security vulnerability detected - immediate pause required";
 
-        vm.startPrank(pauser);
-        flyoverDiscovery.pause(reason);
-        collateralManagement.pause(reason);
-        vm.stopPrank();
+        vm.prank(pauser);
+        pauseRegistry.pause(reason);
 
         (, string memory reasonD, ) = flyoverDiscovery.pauseStatus();
         (, string memory reasonC, ) = collateralManagement.pauseStatus();
+        (, string memory reasonPI, ) = pegInContract.pauseStatus();
+        (, string memory reasonPO, ) = pegOutContract.pauseStatus();
 
         assertEq(reasonD, reason);
         assertEq(reasonC, reason);
+        assertEq(reasonPI, reason);
+        assertEq(reasonPO, reason);
     }
 
     function test_MaintainsPauseStateAcrossMultipleOperations() public {
         _grantPauserRole();
 
-        vm.startPrank(pauser);
-        flyoverDiscovery.pause("Multiple ops");
-        collateralManagement.pause("Multiple ops");
-        vm.stopPrank();
+        vm.prank(pauser);
+        pauseRegistry.pause("Multiple ops");
 
         vm.startPrank(signers[1]);
 
@@ -415,8 +470,12 @@ contract PauseTest is Test {
 
         (bool isPausedD, , ) = flyoverDiscovery.pauseStatus();
         (bool isPausedC, , ) = collateralManagement.pauseStatus();
+        (bool isPausedPI, , ) = pegInContract.pauseStatus();
+        (bool isPausedPO, , ) = pegOutContract.pauseStatus();
 
         assertTrue(isPausedD);
         assertTrue(isPausedC);
+        assertTrue(isPausedPI);
+        assertTrue(isPausedPO);
     }
 }

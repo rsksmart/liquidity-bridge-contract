@@ -3,15 +3,20 @@ pragma solidity 0.8.25;
 
 /* solhint-disable comprehensive-interface */
 
+import {
+    AccessControlDefaultAdminRulesUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
 import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {ICollateralManagement} from "./interfaces/ICollateralManagement.sol";
 import {IFlyoverDiscovery} from "./interfaces/IFlyoverDiscovery.sol";
+import {IPauseRegistry} from "./interfaces/IPauseRegistry.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 
 /// @title FlyoverDiscovery
 /// @notice Registry and discovery of Liquidity Providers (LPs) for Flyover
 /// @dev Keeps LP metadata and consults `ICollateralManagement` to decide listing and operational status
 contract FlyoverDiscovery is
+    AccessControlDefaultAdminRulesUpgradeable,
     EmergencyPause,
     IFlyoverDiscovery
 {
@@ -35,14 +40,17 @@ contract FlyoverDiscovery is
     /// @param defaultAdmin The Default Admin and initial owner address
     /// @param initialDelay The initial admin delay for `EmergencyPause`
     /// @param collateralManagement The address of the `ICollateralManagement` contract
+    /// @param pauseRegistry The central PauseRegistry for pause state
     function initialize(
         address defaultAdmin,
         uint48 initialDelay,
-        address collateralManagement
+        address collateralManagement,
+        IPauseRegistry pauseRegistry
     ) external initializer {
         if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
-        // Initialize EmergencyPause (includes AccessControl, Pausable, and grants PAUSER_ROLE)
-        __EmergencyPause_init(initialDelay, defaultAdmin);
+        if (address(pauseRegistry).code.length == 0) revert Flyover.NoContract(address(pauseRegistry));
+        __AccessControlDefaultAdminRules_init(initialDelay, defaultAdmin);
+        __EmergencyPause_init(pauseRegistry);
         _collateralManagement = ICollateralManagement(collateralManagement);
     }
 

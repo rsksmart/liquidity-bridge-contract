@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
+import {
+    AccessControlDefaultAdminRulesUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {ICollateralManagement} from "./interfaces/ICollateralManagement.sol";
+import {IPauseRegistry} from "./interfaces/IPauseRegistry.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 import {Quotes} from "./libraries/Quotes.sol";
 
@@ -13,6 +17,7 @@ import {Quotes} from "./libraries/Quotes.sol";
 /// This involves adding, slashing, resigning and withdrawing collateral.
 /// @author Rootstock Labs
 contract CollateralManagementContract is
+    AccessControlDefaultAdminRulesUpgradeable,
     ReentrancyGuardUpgradeable,
     EmergencyPause,
     ICollateralManagement
@@ -93,17 +98,20 @@ contract CollateralManagementContract is
     /// @param minCollateral The minimum collateral required for a liquidity provider **per operation**
     /// @param resignDelayInBlocks The delay in blocks before a liquidity provider can withdraw their collateral
     /// @param rewardPercentage The reward percentage from the penalty fee of the quotes that the punisher will receive
+    /// @param pauseRegistry The central PauseRegistry for pause state
     // solhint-disable-next-line comprehensive-interface
     function initialize(
         address defaultAdmin,
         uint48 initialDelay,
         uint256 minCollateral,
         uint256 resignDelayInBlocks,
-        uint256 rewardPercentage
+        uint256 rewardPercentage,
+        IPauseRegistry pauseRegistry
     ) external initializer {
+        if (address(pauseRegistry).code.length == 0) revert Flyover.NoContract(address(pauseRegistry));
+        __AccessControlDefaultAdminRules_init(initialDelay, defaultAdmin);
         __ReentrancyGuard_init();
-        // Initialize EmergencyPause (includes AccessControl, Pausable, and grants PAUSER_ROLE)
-        __EmergencyPause_init(initialDelay, defaultAdmin);
+        __EmergencyPause_init(pauseRegistry);
         _minCollateral = minCollateral;
         _resignDelayInBlocks = resignDelayInBlocks;
         _rewardPercentage = rewardPercentage;
@@ -138,7 +146,7 @@ contract CollateralManagementContract is
         address punisher,
         Quotes.PegInQuote calldata quote,
         bytes32 quoteHash
-    ) external whenNotPaused onlyRole(COLLATERAL_SLASHER) override {
+    ) external onlyRole(COLLATERAL_SLASHER) override {
         uint256 penalty = Math.min(
             quote.penaltyFee,
             _pegInCollateral[quote.liquidityProviderRskAddress]
@@ -162,7 +170,7 @@ contract CollateralManagementContract is
         address punisher,
         Quotes.PegOutQuote calldata quote,
         bytes32 quoteHash
-    ) external whenNotPaused onlyRole(COLLATERAL_SLASHER) override {
+    ) external onlyRole(COLLATERAL_SLASHER) override {
         uint penalty = Math.min(
             quote.penaltyFee,
             _pegOutCollateral[quote.lpRskAddress]
@@ -213,7 +221,7 @@ contract CollateralManagementContract is
     }
 
     /// @inheritdoc ICollateralManagement
-    function resign() external whenNotPaused override {
+    function resign() external override {
         address providerAddress = msg.sender;
         if (_resignationBlockNum[providerAddress] != 0) revert AlreadyResigned(providerAddress);
         if (_pegInCollateral[providerAddress] < 1 && _pegOutCollateral[providerAddress] < 1) {
