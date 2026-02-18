@@ -7,32 +7,35 @@ import {PegOutTestBase} from "../pegout/PegOutTestBase.sol";
 /// @title PegOutContract Invariant Tests
 /// @notice Tests critical invariants for the PegOutContract
 contract PegOutInvariantTest is PegOutTestBase {
-    
+
     // Ghost variables
     uint256 public ghost_totalDeposited;
     uint256 public ghost_totalRefunded;
-    
+
     function setUp() public {
         deployPegOutContract();
         setupProviders();
-        
-        // Target this contract for invariant testing
-        targetContract(address(this));
+
+        bytes4[] memory selectors = new bytes4[](3);
+        selectors[0] = this.invariant_NoUnderflow.selector;
+        selectors[1] = this.invariant_ContractSolvent.selector;
+        selectors[2] = this.invariant_GhostAccounting.selector;
+        targetSelector(FuzzSelector({addr: address(this), selectors: selectors}));
     }
-    
+
     // ============ Invariant Tests ============
-    
+
     /// @notice Contract balance should never underflow
     function invariant_NoUnderflow() public view {
         uint256 contractBalance = address(pegOutContract).balance;
-        
+
         // Check for underflow - values near max uint256 indicate underflow
         assertTrue(
             contractBalance < 1_000_000 ether,
             "INVARIANT VIOLATED: Contract balance indicates underflow"
         );
     }
-    
+
     /// @notice Contract should remain solvent
     function invariant_ContractSolvent() public view {
         uint256 contractBalance = address(pegOutContract).balance;
@@ -50,11 +53,11 @@ contract PegOutInvariantTest is PegOutTestBase {
             assertTrue(false, "INVARIANT VIOLATED: Refunded exceeds deposited");
         }
     }
-    
+
     /// @notice Ghost accounting should be consistent
     function invariant_GhostAccounting() public view {
         uint256 contractBalance = address(pegOutContract).balance;
-        
+
         // Contract balance should be <= deposits - refunds (with some tolerance for fees)
         if (ghost_totalDeposited > 0) {
             assertTrue(
@@ -63,7 +66,7 @@ contract PegOutInvariantTest is PegOutTestBase {
             );
         }
     }
-    
+
     function invariant_callSummary() public view {
         console.log("\n--- PegOut Invariant Summary ---");
         console.log("Total deposited:", ghost_totalDeposited);
