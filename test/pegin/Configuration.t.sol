@@ -103,6 +103,22 @@ contract ConfigurationTest is PegInTestBase {
         );
     }
 
+    function test_Initialize_RevertsWhenCalledOnImplementation() public {
+        PegInContract implementation = new PegInContract();
+
+        vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
+        implementation.initialize(
+            owner,
+            payable(address(bridgeMock)),
+            TEST_DUST_THRESHOLD,
+            TEST_MIN_PEGIN,
+            address(collateralManagement),
+            false,
+            0,
+            payable(ZERO_ADDRESS)
+        );
+    }
+
     function test_Initialize_RevertsIfNoCodeInCollateralManagement() public {
         address noCodeAddress = makeAddr("noCodeAddress");
 
