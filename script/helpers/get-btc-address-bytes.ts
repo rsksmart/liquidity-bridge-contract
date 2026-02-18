@@ -25,6 +25,32 @@ const TEST_ADDRESSES = {
   p2tr: "tb1ptt2hnzgzfhrfdyfz02l02wam6exd0mzuunfdgqg3ttt9yagp6daslx6grp", // Testnet P2TR
 };
 
+function to5BitWords(bytes: Buffer): Buffer {
+  const BECH32_WORD_SIZE = 5;
+  const BYTE_SIZE = 8;
+  const MAX_VALUE = 31;
+
+  let currentValue = 0;
+  let bitCount = 0;
+  const result: number[] = [];
+
+  for (const byte of bytes) {
+    currentValue = (currentValue << BYTE_SIZE) | byte;
+    bitCount += BYTE_SIZE;
+
+    while (bitCount >= BECH32_WORD_SIZE) {
+      bitCount -= BECH32_WORD_SIZE;
+      result.push((currentValue >> bitCount) & MAX_VALUE);
+    }
+  }
+
+  if (bitCount > 0) {
+    result.push((currentValue << (BECH32_WORD_SIZE - bitCount)) & MAX_VALUE);
+  }
+
+  return Buffer.from(result);
+}
+
 function getAddressBytes(addressType: BtcAddressType): string {
   const address = TEST_ADDRESSES[addressType];
 
@@ -40,7 +66,10 @@ function getAddressBytes(addressType: BtcAddressType): string {
       const decoded = bech32.decode(address);
       // decoded.words[0] is the witness version, skip it
       const witnessData = Buffer.from(bech32.fromWords(decoded.words.slice(1)));
-      const result = Buffer.concat([Buffer.from([0x00]), witnessData]);
+      // witnessData is the raw 20-byte hash
+      // Convert to format contract expects: version byte + 5-bit words
+      const words5Bit = to5BitWords(witnessData);
+      const result = Buffer.concat([Buffer.from([0x00]), words5Bit]);
       return result.toString("hex");
     }
     case "p2wsh": {
@@ -48,7 +77,9 @@ function getAddressBytes(addressType: BtcAddressType): string {
       const decoded = bech32.decode(address);
       // decoded.words[0] is the witness version, skip it
       const witnessData = Buffer.from(bech32.fromWords(decoded.words.slice(1)));
-      const result = Buffer.concat([Buffer.from([0x00]), witnessData]);
+      // witnessData is the raw 32-byte hash
+      const words5Bit = to5BitWords(witnessData);
+      const result = Buffer.concat([Buffer.from([0x00]), words5Bit]);
       return result.toString("hex");
     }
     case "p2tr": {
@@ -58,7 +89,9 @@ function getAddressBytes(addressType: BtcAddressType): string {
       const witnessData = Buffer.from(
         bech32m.fromWords(decoded.words.slice(1))
       );
-      const result = Buffer.concat([Buffer.from([0x01]), witnessData]);
+      // witnessData is the raw 32-byte x-only pubkey
+      const words5Bit = to5BitWords(witnessData);
+      const result = Buffer.concat([Buffer.from([0x01]), words5Bit]);
       return result.toString("hex");
     }
     default:
