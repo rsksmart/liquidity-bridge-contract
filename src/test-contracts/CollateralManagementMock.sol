@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {EmergencyPause} from "../EmergencyPause/EmergencyPause.sol";
 import {ICollateralManagement} from "../interfaces/ICollateralManagement.sol";
 import {Flyover} from "../libraries/Flyover.sol";
 import {Quotes} from "../libraries/Quotes.sol";
@@ -95,16 +94,8 @@ contract CollateralManagementMock is ICollateralManagement {
         return true;
     }
 
-    function pause(string calldata reason) public {
-        emit EmergencyPause.EmergencyPaused(msg.sender, reason);
-    }
-
-    function unpause() public {
-        emit EmergencyPause.EmergencyUnpaused(msg.sender);
-    }
-
     function pauseStatus()
-        public
+        external
         pure
         returns (bool isPaused, string memory reason, uint64 since)
     {

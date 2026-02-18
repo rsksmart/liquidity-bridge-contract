@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import "forge-std/Test.sol";
 import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
+import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
@@ -11,6 +12,7 @@ import {Quotes} from "../../src/libraries/Quotes.sol";
 /// @title FlyoverDiscovery Integration Tests
 /// @notice Tests cross-contract interactions between FlyoverDiscovery and CollateralManagement
 contract FlyoverDiscoveryIntegrationTest is Test {
+    PauseRegistry public pauseRegistry;
     FlyoverDiscovery public discovery;
     CollateralManagementContract public collateralManagement;
 
@@ -31,14 +33,14 @@ contract FlyoverDiscoveryIntegrationTest is Test {
 
     function getEmptyPegInQuote()
         internal
-        pure
+        view
         returns (Quotes.PegInQuote memory)
     {
         return
             Quotes.PegInQuote({
+                chainId: block.chainid,
                 callFee: 0,
                 value: 0,
-                productFeeAmount: 0,
                 gasFee: 0,
                 agreementTimestamp: 0,
                 timeForDeposit: 0,
@@ -69,11 +71,26 @@ contract FlyoverDiscoveryIntegrationTest is Test {
             signers.push(signer);
         }
 
+        // Deploy PauseRegistry
+        PauseRegistry prImpl = new PauseRegistry();
+        ERC1967Proxy prProxy = new ERC1967Proxy(
+            address(prImpl),
+            abi.encodeCall(prImpl.initialize, (0, owner))
+        );
+        pauseRegistry = PauseRegistry(payable(address(prProxy)));
+
         // Deploy CollateralManagement
         CollateralManagementContract cmImpl = new CollateralManagementContract();
         bytes memory cmInitData = abi.encodeCall(
             CollateralManagementContract.initialize,
-            (owner, 30, MIN_COLLATERAL, RESIGN_DELAY_BLOCKS, 1000)
+            (
+                owner,
+                30,
+                MIN_COLLATERAL,
+                RESIGN_DELAY_BLOCKS,
+                1000,
+                pauseRegistry
+            )
         );
         ERC1967Proxy cmProxy = new ERC1967Proxy(address(cmImpl), cmInitData);
         collateralManagement = CollateralManagementContract(
@@ -84,7 +101,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
         FlyoverDiscovery discoveryImpl = new FlyoverDiscovery();
         bytes memory discoveryInitData = abi.encodeCall(
             FlyoverDiscovery.initialize,
-            (owner, 5000, address(collateralManagement))
+            (owner, 5000, address(collateralManagement), pauseRegistry)
         );
         ERC1967Proxy discoveryProxy = new ERC1967Proxy(
             address(discoveryImpl),

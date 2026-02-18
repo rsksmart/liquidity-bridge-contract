@@ -4,7 +4,7 @@ pragma experimental ABIEncoderV2;
 
 import "../interfaces/IBridge.sol";
 import "./QuotesV2.sol";
-import "../libraries/SignatureValidator.sol";
+import "./SignatureValidator.sol";
 import "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import "@rsksmart/btc-transaction-solidity-helper/contracts/OpCodes.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";

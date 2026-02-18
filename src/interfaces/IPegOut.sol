@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
+import {IERC5267} from "@openzeppelin/contracts/interfaces/IERC5267.sol";
 import {Quotes} from "../libraries/Quotes.sol";
-import {IDaoContributor} from "./IDaoContributor.sol";
 import {IPausable} from "./IPausable.sol";
 
 /// @title PegOut interface
 /// @notice This interface is used to expose the required functions to provide the Flyover peg out service
-interface IPegOut is IPausable, IDaoContributor {
+interface IPegOut is IPausable, IERC5267 {
 
     /// @notice Emitted when a peg out is refunded to the liquidity
     /// provider after successfully providing the service
@@ -47,6 +47,22 @@ interface IPegOut is IPausable, IDaoContributor {
         uint256 indexed timestamp,
         uint256 amount
     );
+
+    /// @notice Emitted when the balance of a liquidity provider increases
+    /// @param dest The address of the liquidity provider
+    /// @param amount The amount of the increase
+    event BalanceIncrease(address indexed dest, uint256 indexed amount);
+
+    /// @notice Emitted when the balance of a liquidity provider decreases
+    /// @param dest The address of the liquidity provider
+    /// @param amount The amount of the decrease
+    event BalanceDecrease(address indexed dest, uint256 indexed amount);
+
+    /// @notice Emitted when an account withdraws funds from the contract
+    /// @param from The address making the withdrawal
+    /// @param to The address receiving the withdrawal
+    /// @param amount The amount of the withdrawal
+    event Withdrawal(address indexed from, address indexed to, uint256 indexed amount);
 
     /// @notice This error is emitted when the quote has expired by the number of blocks
     /// @param expireBlock the number of blocks the quote has expired
@@ -93,6 +109,14 @@ interface IPegOut is IPausable, IDaoContributor {
     /// @param quoteHash the hash of the quote that is not expired
     error QuoteNotExpired(bytes32 quoteHash);
 
+
+    /// @notice This function is used to withdraw funds from the contract
+    /// @dev This is usually used if some payment failed and the funds need to be returned to a different address.
+    /// The amount will be subtracted from the sender's balance.
+    /// @param addr The address that will receive the withdrawn funds
+    /// @param amount The amount of the withdrawal
+    function withdraw(address payable addr, uint256 amount) external;
+
     /// @notice This is the function used to pay for a peg out quote. This is the only correct function to execute
     /// such payment, sending money directly to the contract does not work
     /// @param quote The quote that is being paid
@@ -130,6 +154,11 @@ interface IPegOut is IPausable, IDaoContributor {
     /// @param quote the quote to hash
     function hashPegOutQuote(Quotes.PegOutQuote calldata quote) external view returns (bytes32);
 
+    /// @notice This view is used to get the hash of a peg out quote using EIP712 specification
+    /// @param quote The quote of the peg out
+    /// @return hashStruct The hash struct to be combined with the domain separator
+    function hashPegOutQuoteEIP712(Quotes.PegOutQuote calldata quote) external view returns (bytes32);
+
     /// @notice This view is used to check if a quote has been completed. Completed means it was paid and refunded
     /// doesn't matter if the refund was to the liquidity provider (success) or to the user (failure)
     /// @param quoteHash the hash of the quote to check
@@ -145,4 +174,9 @@ interface IPegOut is IPausable, IDaoContributor {
         external
         view
         returns (Quotes.PegOutQuote memory quote);
+
+    /// @notice This function is used to get the balance of an address
+    /// @param addr The address to get the balance of
+    /// @return balance The balance of the address
+    function getBalance(address addr) external view returns (uint256);
 }

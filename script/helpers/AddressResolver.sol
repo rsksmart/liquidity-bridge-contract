@@ -88,6 +88,12 @@ library AddressResolverLib {
                 "CollateralManagement"
             );
     }
+
+    /// @notice Get PauseRegistry contract address
+    function getPauseRegistryAddress(Vm vm) internal view returns (address) {
+        return
+            getContractAddress(vm, "PAUSE_REGISTRY_ADDRESS", "PauseRegistry");
+    }
 }
 
 /**
@@ -119,5 +125,9 @@ abstract contract AddressResolver {
 
     function getCollateralManagementAddress() internal view returns (address) {
         return AddressResolverLib.getCollateralManagementAddress(VM);
+    }
+
+    function getPauseRegistryAddress() internal view returns (address) {
+        return AddressResolverLib.getPauseRegistryAddress(VM);
     }
 }

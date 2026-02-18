@@ -27,7 +27,7 @@ contract PegOutPayer {
     }
 
     function executePegOut(QuotesV2.PegOutQuote calldata quote, bytes calldata signature) external {
-        uint256 total = quote.value + quote.gasFee + quote.callFee + quote.productFeeAmount;
+        uint256 total = quote.value + quote.gasFee + quote.callFee;
         if (address(this).balance < total) {
             revert InsufficientBalance(address(this).balance, total);
         }
