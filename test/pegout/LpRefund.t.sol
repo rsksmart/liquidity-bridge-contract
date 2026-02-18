@@ -928,7 +928,6 @@ contract LpRefundTest is PegOutTestBase {
         assertEq(returnedQuote.value, quote.value);
         assertEq(returnedQuote.callFee, quote.callFee);
         assertEq(returnedQuote.gasFee, quote.gasFee);
-        assertEq(returnedQuote.productFeeAmount, quote.productFeeAmount);
         assertEq(returnedQuote.lpRskAddress, quote.lpRskAddress);
         assertEq(returnedQuote.rskRefundAddress, quote.rskRefundAddress);
         assertEq(returnedQuote.lbcAddress, quote.lbcAddress);
@@ -1097,7 +1096,6 @@ contract LpRefundTest is PegOutTestBase {
                 callFee: 100000000000000,
                 penaltyFee: 10000000000000,
                 value: value,
-                productFeeAmount: (value * 2) / 100,
                 gasFee: 100,
                 lbcAddress: address(pegOutContract),
                 lpRskAddress: lp,
@@ -1135,8 +1133,7 @@ contract LpRefundTest is PegOutTestBase {
     function getTotalValue(
         Quotes.PegOutQuote memory quote
     ) internal pure returns (uint256) {
-        return
-            quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+        return quote.value + quote.callFee + quote.gasFee;
     }
 
     function signQuote(

@@ -2,12 +2,11 @@
 pragma solidity 0.8.25;
 
 import {Quotes} from "../libraries/Quotes.sol";
-import {IDaoContributor} from "./IDaoContributor.sol";
 import {IPausable} from "./IPausable.sol";
 
 /// @title PegOut interface
 /// @notice This interface is used to expose the required functions to provide the Flyover peg out service
-interface IPegOut is IPausable, IDaoContributor {
+interface IPegOut is IPausable {
 
     /// @notice Emitted when a peg out is refunded to the liquidity
     /// provider after successfully providing the service

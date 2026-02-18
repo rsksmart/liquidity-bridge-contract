@@ -57,9 +57,7 @@ contract DeployPegOutTest is Test {
                 cfg.dustThreshold,
                 collateralManagementProxy,
                 cfg.mainnet,
-                cfg.btcBlockTime,
-                cfg.daoFeePercentage,
-                cfg.daoFeeCollector
+                cfg.btcBlockTime
             )
         );
         return address(new TransparentUpgradeableProxy(impl, admin, initData));
@@ -129,25 +127,6 @@ contract DeployPegOutTest is Test {
         assertTrue(
             pegOut.hasRole(defaultAdminRole, deployer),
             "Deployer should have DEFAULT_ADMIN_ROLE"
-        );
-    }
-
-    function test_DaoConfigurationSet() public {
-        HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
-        address deployer = address(this);
-
-        address proxy = _deployPegOut(deployer, cfg);
-        PegOutContract pegOut = PegOutContract(payable(proxy));
-
-        assertEq(
-            pegOut.getFeePercentage(),
-            cfg.daoFeePercentage,
-            "DAO fee percentage mismatch"
-        );
-        assertEq(
-            pegOut.getFeeCollector(),
-            cfg.daoFeeCollector,
-            "DAO fee collector mismatch"
         );
     }
 }

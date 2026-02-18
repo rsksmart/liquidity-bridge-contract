@@ -42,27 +42,6 @@ contract ConfigurationTest is PegOutTestBase {
 
         // Check owner
         assertEq(pegOutContract.owner(), owner, "owner should match");
-
-        // Check feePercentage
-        assertEq(
-            pegOutContract.getFeePercentage(),
-            0,
-            "feePercentage should be 0"
-        );
-
-        // Check feeCollector
-        assertEq(
-            pegOutContract.getFeeCollector(),
-            ZERO_ADDRESS,
-            "feeCollector should be zero address"
-        );
-
-        // Check currentContribution
-        assertEq(
-            pegOutContract.getCurrentContribution(),
-            0,
-            "currentContribution should be 0"
-        );
     }
 
     function test_Initialize_AllowsInitializeOnlyOnce() public {
@@ -73,9 +52,7 @@ contract ConfigurationTest is PegOutTestBase {
             TEST_DUST_THRESHOLD,
             address(collateralManagement),
             false,
-            TEST_BTC_BLOCK_TIME,
-            0,
-            payable(ZERO_ADDRESS)
+            TEST_BTC_BLOCK_TIME
         );
     }
 
@@ -89,9 +66,7 @@ contract ConfigurationTest is PegOutTestBase {
             TEST_DUST_THRESHOLD,
             address(collateralManagement),
             false,
-            TEST_BTC_BLOCK_TIME,
-            0,
-            payable(ZERO_ADDRESS)
+            TEST_BTC_BLOCK_TIME
         );
     }
 
@@ -109,9 +84,7 @@ contract ConfigurationTest is PegOutTestBase {
                 TEST_DUST_THRESHOLD,
                 noCodeAddress, // Address with no code
                 false,
-                TEST_BTC_BLOCK_TIME,
-                0,
-                payable(ZERO_ADDRESS)
+                TEST_BTC_BLOCK_TIME
             )
         );
 

@@ -102,9 +102,7 @@ contract DeployFlyover is Script {
                         cfg.dustThreshold,
                         cfg.minimumPegIn,
                         d.collateralManagementProxy,
-                        cfg.mainnet,
-                        cfg.daoFeePercentage,
-                        cfg.daoFeeCollector
+                        cfg.mainnet
                     )
                 )
             )
@@ -124,9 +122,7 @@ contract DeployFlyover is Script {
                         cfg.dustThreshold,
                         d.collateralManagementProxy,
                         cfg.mainnet,
-                        cfg.btcBlockTime,
-                        cfg.daoFeePercentage,
-                        cfg.daoFeeCollector
+                        cfg.btcBlockTime
                     )
                 )
             )

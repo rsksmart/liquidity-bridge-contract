@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCodes.sol";
-import {AccessControlDaoContributorUpgradeable} from "./DaoContributor.sol";
 import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {IBridge} from "./interfaces/IBridge.sol";
 import {ICollateralManagement, CollateralManagementSet} from "./interfaces/ICollateralManagement.sol";
@@ -19,7 +18,7 @@ import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 /// @author Rootstock Labs
 contract PegInContract is
     EmergencyPause,
-    AccessControlDaoContributorUpgradeable,
+    ReentrancyGuardUpgradeable,
     IPegIn
 {
     /// @notice This struct is used to store the information of a call on behalf of the user
@@ -84,9 +83,6 @@ contract PegInContract is
     /// @param minPegIn the minimum peg in amount supported by the bridge
     /// @param collateralManagement the address of the Collateral Management contract
     /// @param mainnet whether the contract is on the mainnet or not
-    /// @param daoFeePercentage the percentage of the peg in amount that goes to the DAO.
-    /// Use zero to disable the DAO integration feature
-    /// @param daoFeeCollector the address of the DAO fee collector
     // solhint-disable-next-line comprehensive-interface
     function initialize(
         address defaultAdmin,
@@ -94,13 +90,10 @@ contract PegInContract is
         uint256 dustThreshold_,
         uint256 minPegIn,
         address collateralManagement,
-        bool mainnet,
-        uint256 daoFeePercentage,
-        address payable daoFeeCollector
+        bool mainnet
     ) external initializer {
         if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
-        // Initialize DaoContributor (uses AccessControl from EmergencyPause)
-        __AccessControlDaoContributor_init(daoFeePercentage, daoFeeCollector, DEFAULT_ADMIN_ROLE);
+        __ReentrancyGuard_init();
         // Initialize EmergencyPause (includes AccessControl, Pausable, and grants PAUSER_ROLE)
         __EmergencyPause_init(0, defaultAdmin);
         _bridge = IBridge(bridge);
@@ -302,15 +295,6 @@ contract PegInContract is
         return _processedQuotes[quoteHash];
     }
 
-    /// @dev Override _checkRole to use AccessControl from EmergencyPause
-    function _checkRole(bytes32 role)
-        internal
-        view
-        override(AccessControlDaoContributorUpgradeable, AccessControlUpgradeable)
-    {
-        super._checkRole(role);
-    }
-
     /// @notice This function is used to increase the balance of an account
     /// @dev This function must remain private. Any exposure can lead to a loss of funds.
     /// It is responsibility of the caller to ensure that the account is a liquidity provider
@@ -389,9 +373,8 @@ contract PegInContract is
             refundAmount = _min(transferredAmount, quote.callFee + quote.gasFee);
         }
         _increaseBalance(quote.liquidityProviderRskAddress, refundAmount);
-        _addDaoContribution(quote.liquidityProviderRskAddress, quote.productFeeAmount);
 
-        uint remainingAmount = transferredAmount - refundAmount - quote.productFeeAmount;
+        uint remainingAmount = transferredAmount - refundAmount;
         if (remainingAmount > dustThreshold) {
             // refund rskRefundAddress, if remaining amount greater than dust
             (bool success,) = quote.rskRefundAddress.call{
@@ -518,7 +501,7 @@ contract PegInContract is
         if (quote.liquidityProviderBtcAddress.length != _REFUND_ADDRESS_LENGTH) {
             revert InvalidRefundAddress(quote.liquidityProviderBtcAddress);
         }
-        uint256 total = quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+        uint256 total = quote.value + quote.callFee + quote.gasFee;
         if (total < _minPegIn) {
             revert AmountUnderMinimum(_minPegIn);
         }
@@ -541,7 +524,7 @@ contract PegInContract is
         uint256 height
     ) private view returns (bool) {
         // do not penalize if deposit amount is insufficient
-        uint256 quoteTotal = quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+        uint256 quoteTotal = quote.value + quote.callFee + quote.gasFee;
         if (amount > 0 && uint256(amount) < quoteTotal) {
             return false;
         }

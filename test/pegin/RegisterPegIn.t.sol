@@ -8,7 +8,6 @@ import {Flyover} from "../../src/libraries/Flyover.sol";
 import {SignatureValidator} from "../../src/libraries/SignatureValidator.sol";
 import {WalletMock} from "../../src/test-contracts/WalletMock.sol";
 import {ReentrancyCaller} from "../../src/test-contracts/ReentrancyCaller.sol";
-import {AccessControlDaoContributorUpgradeable} from "../../src/DaoContributor.sol";
 
 /// @title RegisterPegIn Tests
 /// @notice Tests for the registerPegIn function - the core of the PegIn flow
@@ -277,7 +276,7 @@ contract RegisterPegInTest is PegInTestBase {
         // Verify LP balance increased by pegin amount (minus product fee)
         assertEq(
             pegInContract.getBalance(fullLp),
-            lpBalanceBefore + peginAmount - quote.productFeeAmount,
+            lpBalanceBefore + peginAmount,
             "LP balance should increase"
         );
 
@@ -435,7 +434,7 @@ contract RegisterPegInTest is PegInTestBase {
         // Verify LP balance increased by peginAmount (minus product fee)
         assertEq(
             pegInContract.getBalance(fullLp),
-            lpBalanceBefore + peginAmount - quote.productFeeAmount,
+            lpBalanceBefore + peginAmount,
             "LP balance should increase by pegin amount"
         );
     }
@@ -446,10 +445,7 @@ contract RegisterPegInTest is PegInTestBase {
         bytes memory signature = signQuote(fullLp, quoteHash);
 
         // Calculate agreed amount with rounding (matches Quotes.checkAgreedAmount logic)
-        uint256 agreedAmount = quote.value +
-            quote.callFee +
-            quote.productFeeAmount +
-            quote.gasFee;
+        uint256 agreedAmount = quote.value + quote.callFee + quote.gasFee;
         uint256 SAT_TO_WEI_CONVERSION = 10 ** 10;
         if (
             agreedAmount > SAT_TO_WEI_CONVERSION &&
@@ -610,7 +606,6 @@ contract RegisterPegInTest is PegInTestBase {
 
     function test_RegisterPegIn_PenalizesLPIfCallForUserNotMadeOnTime() public {
         Quotes.PegInQuote memory quote = createTestQuote(1.2 ether);
-        quote.productFeeAmount = (quote.value * 3) / 100; // 3% product fee
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
         bytes memory signature = signQuote(fullLp, quoteHash);
 
@@ -749,7 +744,7 @@ contract RegisterPegInTest is PegInTestBase {
 
         // When callOnRegister is executed and LP is penalized:
         // - User receives quote.value from callForUser execution
-        // - User receives refund of callFee + gasFee + productFeeAmount
+        // - User receives refund of callFee + gasFee
         // Total: user gets full peginAmount
         uint256 expectedTotal = peginAmount;
 
@@ -826,7 +821,6 @@ contract RegisterPegInTest is PegInTestBase {
     function test_RegisterPegIn_RefundsUserIfCallWasDoneButFailed() public {
         // Create a quote with a contract that rejects payments as destination
         Quotes.PegInQuote memory quote = createTestQuote(1.2 ether);
-        quote.productFeeAmount = (quote.value * 2) / 100; // 2% product fee
 
         // Deploy WalletMock that will reject the payment
         WalletMock wallet = new WalletMock();
@@ -871,15 +865,10 @@ contract RegisterPegInTest is PegInTestBase {
 
         uint256 userBalanceBefore = user.balance;
 
-        // Register - should emit PegInRegistered, DaoContribution and Refund events
+        // Register - should emit PegInRegistered and Refund events
         vm.prank(fullLp);
         vm.expectEmit(true, true, false, true);
         emit IPegIn.PegInRegistered(quoteHash, peginAmount);
-        vm.expectEmit(true, true, false, true);
-        emit AccessControlDaoContributorUpgradeable.DaoContribution(
-            fullLp,
-            quote.productFeeAmount
-        );
         vm.expectEmit(true, true, true, true);
         emit IPegIn.Refund(
             user,
@@ -905,7 +894,6 @@ contract RegisterPegInTest is PegInTestBase {
 
     function test_RegisterPegIn_RefundsLPIfChangePaymentToUserFails() public {
         Quotes.PegInQuote memory quote = createTestQuote(1.2 ether);
-        quote.productFeeAmount = (quote.value * 2) / 100; // 2% product fee
 
         // Deploy WalletMock as refund address that will reject
         WalletMock refundWallet = new WalletMock();
@@ -945,11 +933,6 @@ contract RegisterPegInTest is PegInTestBase {
         vm.prank(fullLp);
         vm.expectEmit(true, true, false, true);
         emit IPegIn.PegInRegistered(quoteHash, peginAmount + extraPaid);
-        vm.expectEmit(true, true, false, true);
-        emit AccessControlDaoContributorUpgradeable.DaoContribution(
-            fullLp,
-            quote.productFeeAmount
-        );
         vm.expectEmit(true, true, true, true);
         emit IPegIn.Refund(
             payable(address(refundWallet)),
@@ -968,7 +951,7 @@ contract RegisterPegInTest is PegInTestBase {
         // Verify LP got the full amount (including failed change)
         assertEq(
             pegInContract.getBalance(fullLp),
-            lpBalanceBefore + peginAmount + extraPaid - quote.productFeeAmount,
+            lpBalanceBefore + peginAmount + extraPaid,
             "LP should receive all funds when change payment fails"
         );
     }
@@ -1275,7 +1258,6 @@ contract RegisterPegInTest is PegInTestBase {
             callTime: 7200,
             depositConfirmations: 2,
             callOnRegister: false,
-            productFeeAmount: 0,
             gasFee: 1354759560000 * regtestMultiplier
         });
 
@@ -1283,10 +1265,7 @@ contract RegisterPegInTest is PegInTestBase {
         bytes32 quoteHash1 = pegInContract.hashPegInQuote(quote1);
 
         // Calculate total value of the quote
-        uint256 totalValue1 = quote1.value +
-            quote1.callFee +
-            quote1.productFeeAmount +
-            quote1.gasFee;
+        uint256 totalValue1 = quote1.value + quote1.callFee + quote1.gasFee;
 
         // Real refund amount from mainnet (slightly different from expected), scaled by 100x
         // But it must be at least equal to totalValue to pass validation
@@ -1371,7 +1350,6 @@ contract RegisterPegInTest is PegInTestBase {
             callTime: 7200,
             depositConfirmations: 2,
             callOnRegister: false,
-            productFeeAmount: 0,
             gasFee: 1341211956000 * regtestMultiplier
         });
 
@@ -1379,10 +1357,7 @@ contract RegisterPegInTest is PegInTestBase {
         bytes32 quoteHash2 = pegInContract.hashPegInQuote(quote2);
 
         // Calculate total value of the quote
-        uint256 totalValue2 = quote2.value +
-            quote2.callFee +
-            quote2.productFeeAmount +
-            quote2.gasFee;
+        uint256 totalValue2 = quote2.value + quote2.callFee + quote2.gasFee;
 
         // Real refund amount from mainnet, scaled by 100x
         // But it must be at least equal to totalValue to pass validation
@@ -1473,7 +1448,6 @@ contract RegisterPegInTest is PegInTestBase {
                 callFee: 100000000000000,
                 penaltyFee: 10000000000000,
                 value: value,
-                productFeeAmount: 0,
                 gasFee: 100,
                 fedBtcAddress: bytes20(testBtcAddress),
                 lbcAddress: address(pegInContract),
@@ -1496,8 +1470,7 @@ contract RegisterPegInTest is PegInTestBase {
     function getTotalValue(
         Quotes.PegInQuote memory quote
     ) internal pure returns (uint256) {
-        return
-            quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+        return quote.value + quote.callFee + quote.gasFee;
     }
 
     function signQuote(

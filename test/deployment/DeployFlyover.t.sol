@@ -104,9 +104,7 @@ contract DeployFlyoverTest is Test {
                 cfg.dustThreshold,
                 cfg.minimumPegIn,
                 address(collateralManagement),
-                cfg.mainnet,
-                cfg.daoFeePercentage,
-                cfg.daoFeeCollector
+                cfg.mainnet
             )
         );
         address proxy = address(
@@ -128,9 +126,7 @@ contract DeployFlyoverTest is Test {
                 cfg.dustThreshold,
                 address(collateralManagement),
                 cfg.mainnet,
-                cfg.btcBlockTime,
-                cfg.daoFeePercentage,
-                cfg.daoFeeCollector
+                cfg.btcBlockTime
             )
         );
         address proxy = address(

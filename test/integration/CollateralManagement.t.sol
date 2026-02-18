@@ -80,7 +80,6 @@ contract CollateralManagementIntegrationTest is Test {
             Quotes.PegInQuote({
                 callFee: 0,
                 value: 0,
-                productFeeAmount: 0,
                 gasFee: 0,
                 agreementTimestamp: 0,
                 timeForDeposit: 0,

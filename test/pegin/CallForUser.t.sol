@@ -679,7 +679,6 @@ contract CallForUserTest is PegInTestBase {
                 callFee: 100000000000000,
                 penaltyFee: 10000000000000,
                 value: value,
-                productFeeAmount: 0,
                 gasFee: 100,
                 fedBtcAddress: bytes20(testBtcAddress),
                 lbcAddress: address(pegInContract),

@@ -57,9 +57,7 @@ contract DeployPegIn is Script {
                         cfg.dustThreshold,
                         cfg.minimumPegIn,
                         collateralManagementProxy,
-                        cfg.mainnet,
-                        cfg.daoFeePercentage,
-                        cfg.daoFeeCollector
+                        cfg.mainnet
                     )
                 )
             )

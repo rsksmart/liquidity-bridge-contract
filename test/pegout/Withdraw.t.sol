@@ -268,7 +268,6 @@ contract WithdrawTest is PegOutTestBase {
                 callFee: 100000000000000,
                 penaltyFee: 10000000000000,
                 value: value,
-                productFeeAmount: (value * 2) / 100,
                 gasFee: 100,
                 lbcAddress: address(pegOutContract),
                 lpRskAddress: lp,
@@ -303,8 +302,7 @@ contract WithdrawTest is PegOutTestBase {
     function getTotalValue(
         Quotes.PegOutQuote memory quote
     ) internal pure returns (uint256) {
-        return
-            quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+        return quote.value + quote.callFee + quote.gasFee;
     }
 
     function signQuote(

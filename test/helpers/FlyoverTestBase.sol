@@ -199,9 +199,7 @@ abstract contract FlyoverTestBase is Test {
                 cfg.dustThreshold,
                 cfg.minimumPegIn,
                 address(collateralManagement),
-                cfg.mainnet,
-                cfg.daoFeePercentage,
-                cfg.daoFeeCollector
+                cfg.mainnet
             )
         );
         address proxy = address(
@@ -237,9 +235,7 @@ abstract contract FlyoverTestBase is Test {
                 cfg.dustThreshold,
                 address(collateralManagement),
                 cfg.mainnet,
-                cfg.btcBlockTime,
-                cfg.daoFeePercentage,
-                cfg.daoFeeCollector
+                cfg.btcBlockTime
             )
         );
         address proxy = address(
@@ -316,9 +312,7 @@ abstract contract FlyoverTestBase is Test {
                     cfg.dustThreshold,
                     cfg.minimumPegIn,
                     cmProxy,
-                    cfg.mainnet,
-                    cfg.daoFeePercentage,
-                    cfg.daoFeeCollector
+                    cfg.mainnet
                 )
             );
             address piProxy = address(
@@ -338,9 +332,7 @@ abstract contract FlyoverTestBase is Test {
                     cfg.dustThreshold,
                     cmProxy,
                     cfg.mainnet,
-                    cfg.btcBlockTime,
-                    cfg.daoFeePercentage,
-                    cfg.daoFeeCollector
+                    cfg.btcBlockTime
                 )
             );
             address poProxy = address(
@@ -494,7 +486,6 @@ abstract contract FlyoverTestBase is Test {
                 callFee: 0,
                 penaltyFee: 0,
                 value: 0,
-                productFeeAmount: 0,
                 gasFee: 0,
                 fedBtcAddress: bytes20(testAddress),
                 lbcAddress: ZERO_ADDRESS,
@@ -527,7 +518,6 @@ abstract contract FlyoverTestBase is Test {
                 callFee: 0,
                 penaltyFee: 0,
                 value: 0,
-                productFeeAmount: 0,
                 gasFee: 0,
                 lbcAddress: ZERO_ADDRESS,
                 lpRskAddress: ZERO_ADDRESS,
@@ -560,7 +550,6 @@ abstract contract FlyoverTestBase is Test {
                 callFee: 100000000000000,
                 penaltyFee: 10000000000000,
                 value: 0.5 ether,
-                productFeeAmount: 0,
                 gasFee: 100,
                 fedBtcAddress: bytes20(
                     hex"0000000000000000000000000000000000000000"
@@ -596,7 +585,6 @@ abstract contract FlyoverTestBase is Test {
                 callFee: 100000000000000,
                 penaltyFee: 10000000000000,
                 value: 0.5 ether,
-                productFeeAmount: 0,
                 gasFee: 100,
                 lbcAddress: lbcAddress,
                 lpRskAddress: lpAddress,
@@ -735,8 +723,6 @@ abstract contract FlyoverTestBase is Test {
                 dustThreshold: TEST_DUST_THRESHOLD_PEGIN,
                 btcBlockTime: TEST_BTC_BLOCK_TIME,
                 mainnet: false,
-                daoFeePercentage: 0,
-                daoFeeCollector: payable(ZERO_ADDRESS),
                 adminDelay: TEST_DEFAULT_ADMIN_DELAY
             });
     }
