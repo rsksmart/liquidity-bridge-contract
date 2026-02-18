@@ -266,15 +266,13 @@ contract PegInContract is
                 quote.liquidityProviderBtcAddress
             )
         );
-        bytes1 OP_DROP = 0x75; // solhint-disable-line
-        bytes1 OP_PUSHBYTES_32 = 0x20; // solhint-disable-line
         bytes memory flyoverRedeemScript = bytes.concat(
-            OP_PUSHBYTES_32,
+            OpCodes.OP_PUSHBYTES_32,
             derivationValue,
-            OP_DROP,
+            OpCodes.OP_DROP,
             _bridge.getActivePowpegRedeemScript()
         );
-        bytes memory segwitScript = bytes.concat(OpCodes.OP_0, OP_PUSHBYTES_32, sha256(flyoverRedeemScript));
+        bytes memory segwitScript = bytes.concat(OpCodes.OP_0, OpCodes.OP_PUSHBYTES_32, sha256(flyoverRedeemScript));
         return BtcUtils.validateP2SHAdress(depositAddress, segwitScript, _mainnet);
     }
 
