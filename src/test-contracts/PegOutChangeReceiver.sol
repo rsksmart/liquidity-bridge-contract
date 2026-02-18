@@ -10,6 +10,7 @@ contract PegOutChangeReceiver {
     Quotes.PegOutQuote private _quote;
     bytes private _signature;
     bool private _fail;
+    bool private _acceptFunds;
 
     error SomeError();
 
@@ -19,6 +20,9 @@ contract PegOutChangeReceiver {
 
     // solhint-disable-next-line
     receive() external payable {
+        if (_acceptFunds) {
+            return;
+        }
         if (_fail) {
             revert SomeError();
         }
@@ -28,6 +32,12 @@ contract PegOutChangeReceiver {
     // solhint-disable-next-line comprehensive-interface
     function setFail(bool fail) external {
         _fail = fail;
+    }
+
+    /// @notice When true, receive() accepts ETH without reverting or reentering (for withdraw-to-self tests)
+    // solhint-disable-next-line comprehensive-interface
+    function setAcceptFunds(bool accept) external {
+        _acceptFunds = accept;
     }
 
     // solhint-disable-next-line comprehensive-interface
