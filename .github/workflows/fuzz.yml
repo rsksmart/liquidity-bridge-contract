@@ -51,3 +51,6 @@ jobs:
 
       - name: Fuzz test smart contracts
         run: npm run test:fuzz
+
+      - name: Invariant test smart contracts
+        run: npm run test:invariant
