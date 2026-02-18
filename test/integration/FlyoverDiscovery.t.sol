@@ -576,6 +576,64 @@ contract FlyoverDiscoveryIntegrationTest is Test {
         assertFalse(discovery.isOperational(Flyover.ProviderType.PegIn, lp2));
     }
 
+    function test_ShouldReuseSameIdAndUpdateCurrentDataWhenSameAddressReRegisters()
+        public
+    {
+        address lp = signers[signers.length - 1];
+
+        vm.prank(lp);
+        uint firstId = discovery.register{value: MIN_COLLATERAL}(
+            "LP v1",
+            "url-v1",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+        assertEq(firstId, 1);
+        assertEq(discovery.getProvidersId(), 1);
+
+        vm.prank(lp);
+        collateralManagement.resign();
+
+        vm.roll(block.number + RESIGN_DELAY_BLOCKS);
+
+        vm.prank(lp);
+        collateralManagement.withdrawCollateral();
+
+        vm.prank(lp);
+        uint secondId = discovery.register{value: MIN_COLLATERAL}(
+            "LP v2",
+            "url-v2",
+            true,
+            Flyover.ProviderType.PegOut
+        );
+
+        assertEq(secondId, 1);
+        assertEq(discovery.getProvidersId(), 1);
+
+        Flyover.LiquidityProvider memory provider = discovery.getProvider(lp);
+        assertEq(provider.id, 1);
+        assertEq(keccak256(bytes(provider.name)), keccak256(bytes("LP v2")));
+        assertEq(
+            keccak256(bytes(provider.apiBaseUrl)),
+            keccak256(bytes("url-v2"))
+        );
+        assertEq(
+            uint8(provider.providerType),
+            uint8(Flyover.ProviderType.PegOut)
+        );
+
+        vm.prank(lp);
+        discovery.updateProvider("LP final", "url-final");
+
+        provider = discovery.getProvider(lp);
+        assertEq(provider.id, 1);
+        assertEq(keccak256(bytes(provider.name)), keccak256(bytes("LP final")));
+        assertEq(
+            keccak256(bytes(provider.apiBaseUrl)),
+            keccak256(bytes("url-final"))
+        );
+    }
+
     // ============ Complex Multi-Provider Scenario ============
 
     function test_ShouldListOnlyEnabledAndNonResignedProvidersInComplexScenario()
