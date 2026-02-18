@@ -36,12 +36,19 @@ contract PegOutInvariantTest is PegOutTestBase {
     /// @notice Contract should remain solvent
     function invariant_ContractSolvent() public view {
         uint256 contractBalance = address(pegOutContract).balance;
-        
-        // Contract balance should be non-negative (this is trivially true but ensures no panics)
-        assertTrue(
-            contractBalance >= 0,
-            "INVARIANT VIOLATED: Contract is insolvent"
-        );
+
+        // The contract's balance must cover its net obligations:
+        // obligations = total deposited - total refunded.
+        if (ghost_totalDeposited >= ghost_totalRefunded) {
+            uint256 obligations = ghost_totalDeposited - ghost_totalRefunded;
+            assertTrue(
+                contractBalance >= obligations,
+                "INVARIANT VIOLATED: Contract balance below obligations"
+            );
+        } else {
+            // Ghost accounting itself is inconsistent: more refunded than deposited.
+            assertTrue(false, "INVARIANT VIOLATED: Refunded exceeds deposited");
+        }
     }
     
     /// @notice Ghost accounting should be consistent
