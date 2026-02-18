@@ -55,7 +55,7 @@ contract UserRefundTest is PegOutTestBase {
         );
 
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         // Deposit the quote
         vm.prank(user);
@@ -90,7 +90,7 @@ contract UserRefundTest is PegOutTestBase {
         );
 
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         // Deposit the quote
         vm.prank(user);
@@ -131,7 +131,7 @@ contract UserRefundTest is PegOutTestBase {
         );
 
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         // Make the receiver fail on payment
         changeReceiver.setFail(true);
@@ -182,7 +182,7 @@ contract UserRefundTest is PegOutTestBase {
         quote.expireBlock = uint32(block.number) + 5;
 
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         // Don't make it fail, but set up reentrancy attack (receive calls depositPegOut)
         changeReceiver.setFail(false);
@@ -234,7 +234,7 @@ contract UserRefundTest is PegOutTestBase {
         );
 
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         // Deposit the quote
         vm.prank(user);
@@ -312,6 +312,7 @@ contract UserRefundTest is PegOutTestBase {
 
         return
             Quotes.PegOutQuote({
+                chainId: block.chainid,
                 callFee: 100000000000000,
                 penaltyFee: 10000000000000,
                 value: value,
@@ -354,7 +355,7 @@ contract UserRefundTest is PegOutTestBase {
 
     function signQuote(
         address signer,
-        bytes32 quoteHash
+        Quotes.PegOutQuote memory quote
     ) internal view returns (bytes memory) {
         uint256 privateKey;
         if (signer == fullLp) {
@@ -367,13 +368,8 @@ contract UserRefundTest is PegOutTestBase {
             revert("Unknown signer");
         }
 
-        bytes32 ethSignedMessageHash = keccak256(
-            abi.encodePacked("\x19Ethereum Signed Message:\n32", quoteHash)
-        );
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
-            privateKey,
-            ethSignedMessageHash
-        );
+        bytes32 eip712Hash = pegOutContract.hashPegOutQuoteEIP712(quote);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, eip712Hash);
         return abi.encodePacked(r, s, v);
     }
 }

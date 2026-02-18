@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 library Quotes {
     struct PegInQuote {
+        uint256 chainId;
         uint256 callFee;
         uint256 penaltyFee;
         uint256 value;
@@ -25,6 +26,7 @@ library Quotes {
     }
 
     struct PegOutQuote {
+        uint256 chainId;
         uint256 callFee;
         uint256 penaltyFee;
         uint256 value;
@@ -47,6 +49,21 @@ library Quotes {
 
     uint256 public constant SAT_TO_WEI_CONVERSION = 10**10;
 
+    /// @notice The type hash of the PegInQuote struct for EIP712
+    /// @dev Due to the number of fields present in the struct, we'll just use the hash of the quote and the
+    /// address of the liquidity provider offering it to calculate the EIP712 hash. In this way we avoid issues
+    /// with stack depth limits and future modifications to the type hash based on changes in the struct.
+    /// @dev keccak256("PegInQuote(address liquidityProvider,bytes32 quoteHash)")
+    bytes32 public constant PEG_IN_QUOTE_TYPE_HASH = 0x82b0b35cb5a2b2130657be6794570d328b06b7687bdff463bce4a0cc24a880a2;
+
+    /// @notice The type hash of the PegOutQuote struct for EIP712
+    /// @dev Due to the number of fields present in the struct, we'll just use the hash of the quote and the
+    /// address of the liquidity provider offering it to calculate the EIP712 hash. In this way we avoid issues
+    /// with stack depth limits and future modifications to the type hash based on changes in the struct.
+    /// @dev keccak256("PegOutQuote(address liquidityProvider,bytes32 quoteHash)")
+    bytes32 public constant PEG_OUT_QUOTE_TYPE_HASH =
+        0x940deda477f28e6fd80f8307aea1edb500dbd4ee20815878162fec9001fab898;
+
     error AmountTooLow(uint256 value, uint256 target);
 
     function checkAgreedAmount(
@@ -68,6 +85,34 @@ library Quotes {
         }
     }
 
+    /// @notice This function is used to get the hashStruct of a peg in quote using EIP712 specification
+    /// @dev The hashStruct should be later combined with the domain separator to get the final hash
+    /// @param quote The peg in quote to hash
+    /// @return hashStruct The hash struct to be combined with the domain separator
+    function hashPegInQuoteEIP712(
+        PegInQuote calldata quote
+    ) external pure returns (bytes32) {
+        return keccak256(abi.encode(
+            PEG_IN_QUOTE_TYPE_HASH,
+            quote.liquidityProviderRskAddress,
+            keccak256(abi.encode(_encodePart1(quote), _encodePart2(quote)))
+        ));
+    }
+
+    /// @notice This function is used to get the hashStruct of a peg out quote using EIP712 specification
+    /// @dev The hashStruct should be later combined with the domain separator to get the final hash
+    /// @param quote The peg out quote to hash
+    /// @return hashStruct The hash struct to be combined with the domain separator
+    function hashPegOutQuoteEIP712(
+        PegOutQuote calldata quote
+    ) external pure returns (bytes32) {
+        return keccak256(abi.encode(
+            PEG_OUT_QUOTE_TYPE_HASH,
+            quote.lpRskAddress,
+            keccak256(abi.encode(_encodePegOutPart1(quote), _encodePegOutPart2(quote)))
+        ));
+    }
+
     function encodeQuote(
         PegInQuote calldata quote
     ) external pure returns (bytes memory) {
@@ -87,6 +132,7 @@ library Quotes {
     ) private pure returns (bytes memory) {
         return
             abi.encode(
+                quote.chainId,
                 quote.fedBtcAddress,
                 quote.lbcAddress,
                 quote.liquidityProviderRskAddress,
@@ -122,6 +168,7 @@ library Quotes {
     ) private pure returns (bytes memory) {
         return
             abi.encode(
+                quote.chainId,
                 quote.lbcAddress,
                 quote.lpRskAddress,
                 quote.btcRefundAddress,

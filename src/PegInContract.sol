@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
+import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCodes.sol";
@@ -19,6 +20,7 @@ import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 contract PegInContract is
     EmergencyPause,
     ReentrancyGuardUpgradeable,
+    EIP712Upgradeable,
     IPegIn
 {
     /// @notice This struct is used to store the information of a call on behalf of the user
@@ -31,6 +33,8 @@ contract PegInContract is
 
     /// @notice The version of the contract
     string constant public VERSION = "1.0.0";
+    /// @notice The name of the contract (used for EIP712)
+    string constant public NAME = "PegInContract";
     Flyover.ProviderType constant private _PEG_TYPE = Flyover.ProviderType.PegIn;
     uint256 constant private _REFUND_ADDRESS_LENGTH = 21;
 
@@ -94,6 +98,7 @@ contract PegInContract is
     ) external initializer {
         if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
         __ReentrancyGuard_init();
+        __EIP712_init(NAME, VERSION);
         // Initialize EmergencyPause (includes AccessControl, Pausable, and grants PAUSER_ROLE)
         __EmergencyPause_init(0, defaultAdmin);
         _bridge = IBridge(bridge);
@@ -290,6 +295,11 @@ contract PegInContract is
     }
 
     /// @inheritdoc IPegIn
+    function hashPegInQuoteEIP712(Quotes.PegInQuote calldata quote) external view override returns (bytes32) {
+        return _hashPegInQuoteEIP712(quote);
+    }
+
+    /// @inheritdoc IPegIn
     function getQuoteStatus(bytes32 quoteHash) external view override returns (PegInStates) {
         if (_reentrancyGuardEntered()) revert ReentrancyGuardReentrantCall();
         return _processedQuotes[quoteHash];
@@ -469,8 +479,9 @@ contract PegInContract is
         if (_processedQuotes[quoteHash] == PegInStates.PROCESSED_QUOTE) {
             revert QuoteAlreadyProcessed(quoteHash);
         }
-        if (!SignatureValidator.verify(quote.liquidityProviderRskAddress, quoteHash, signature)) {
-            revert SignatureValidator.IncorrectSignature(quote.liquidityProviderRskAddress, quoteHash, signature);
+        bytes32 eip712hash = _hashPegInQuoteEIP712(quote);
+        if (!SignatureValidator.verify(quote.liquidityProviderRskAddress, eip712hash, signature)) {
+            revert SignatureValidator.IncorrectSignature(quote.liquidityProviderRskAddress, eip712hash, signature);
         }
         // the actual type in the RSKj node source code is a java int which is equivalent to int32
         if (height > uint256(int(type(int32).max)) - 1) {
@@ -489,6 +500,29 @@ contract PegInContract is
     /// @param quote The peg in quote
     /// @return quoteHash The hash of the quote
     function _hashPegInQuote(Quotes.PegInQuote calldata quote) private view returns (bytes32) {
+        _validatePegInQuote(quote);
+        return keccak256(Quotes.encodeQuote(quote));
+    }
+
+    /// @notice This function is used to hash a peg in quote using EIP712 specification
+    /// @dev The function also validates the following:
+    /// - The quote belongs to this contract
+    /// - The quote destination is not the bridge contract
+    /// - The quote BTC refund address is valid
+    /// - The quote liquidity provider BTC address is valid
+    /// - The quote total amount is greater than the bridge minimum peg in amount
+    /// - The sum of the timestamp values is not greater than the maximum uint32 value
+    /// @param quote The peg in quote
+    /// @return quoteHash The hash struct to be combined with the domain separator
+    function _hashPegInQuoteEIP712(Quotes.PegInQuote calldata quote) private view returns (bytes32) {
+        _validatePegInQuote(quote);
+        return _hashTypedDataV4(Quotes.hashPegInQuoteEIP712(quote));
+    }
+
+    function _validatePegInQuote(Quotes.PegInQuote calldata quote) private view {
+        if (quote.chainId != block.chainid) {
+            revert Flyover.InvalidChainId(block.chainid, quote.chainId);
+        }
         if (address(this) != quote.lbcAddress) {
             revert Flyover.IncorrectContract(address(this), quote.lbcAddress);
         }
@@ -508,7 +542,6 @@ contract PegInContract is
         if (type(uint32).max < uint64(quote.agreementTimestamp) + uint64(quote.timeForDeposit)) {
             revert Flyover.Overflow(type(uint32).max);
         }
-        return keccak256(Quotes.encodeQuote(quote));
     }
 
     /// @notice This function is used to determine if the liquidity provider should be penalized

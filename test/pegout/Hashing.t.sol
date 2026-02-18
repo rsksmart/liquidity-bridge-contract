@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import {PegOutTestBase} from "./PegOutTestBase.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
+import {console} from "forge-std/console.sol";
 
 contract HashingTest is PegOutTestBase {
     function setUp() public {
@@ -12,12 +13,31 @@ contract HashingTest is PegOutTestBase {
 
     // ============ hashPegOutQuote function tests ============
 
+    function test_HashPegOutQuote_RevertsIfQuoteChainIdIsFromAnotherNetwork()
+        public
+    {
+        Quotes.PegOutQuote memory quote = createSpecificPegOutQuote1();
+        quote.lbcAddress = address(pegOutContract);
+        uint256 wrongChainId = block.chainid == 1 ? 31337 : 1;
+        quote.chainId = wrongChainId;
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Flyover.InvalidChainId.selector,
+                block.chainid,
+                wrongChainId
+            )
+        );
+        pegOutContract.hashPegOutQuote(quote);
+    }
+
     function test_HashPegOutQuote_RevertsIfQuoteBelongsToOtherContract()
         public
     {
         address wrongContract = 0xAA9cAf1e3967600578727F975F283446A3Da6612;
 
         Quotes.PegOutQuote memory quote = Quotes.PegOutQuote({
+            chainId: block.chainid,
             callFee: 300000000000000,
             penaltyFee: 10000000000000,
             value: 471000000000000000,
@@ -79,7 +99,7 @@ contract HashingTest is PegOutTestBase {
         assertTrue(hash1a != hash3, "Changing quote value should change hash");
     }
 
-    function test_HashPegOutQuote_IncludesAllFieldsInHash() public view {
+    function test_HashPegOutQuote_IncludesAllFieldsInHash() public {
         // This test ensures every field in PegOutQuote affects the hash
         // If a new field is added but not included in the hash function, this test will fail
         Quotes.PegOutQuote memory baseQuote = createSpecificPegOutQuote1();
@@ -87,6 +107,18 @@ contract HashingTest is PegOutTestBase {
         bytes32 baseHash = pegOutContract.hashPegOutQuote(baseQuote);
 
         Quotes.PegOutQuote memory modifiedQuote;
+
+        // Test chainId
+        modifiedQuote = baseQuote;
+        modifiedQuote.chainId = baseQuote.chainId + 1;
+        uint originalChainId = block.chainid;
+        vm.chainId(modifiedQuote.chainId); // to prevent the hash from failing
+        assertTrue(
+            pegOutContract.hashPegOutQuote(modifiedQuote) != baseHash,
+            "chainId should affect hash"
+        );
+        modifiedQuote.chainId = originalChainId;
+        vm.chainId(originalChainId);
 
         // Test callFee
         modifiedQuote = baseQuote;
@@ -241,13 +273,14 @@ contract HashingTest is PegOutTestBase {
 
     function createSpecificPegOutQuote1()
         internal
-        pure
+        view
         returns (Quotes.PegOutQuote memory)
     {
         bytes memory testBtcAddress = new bytes(21);
 
         return
             Quotes.PegOutQuote({
+                chainId: block.chainid,
                 callFee: 300000000000000,
                 penaltyFee: 10000000000000,
                 value: 471000000000000000,
@@ -271,13 +304,14 @@ contract HashingTest is PegOutTestBase {
 
     function createSpecificPegOutQuote2()
         internal
-        pure
+        view
         returns (Quotes.PegOutQuote memory)
     {
         bytes memory testBtcAddress = new bytes(21);
 
         return
             Quotes.PegOutQuote({
+                chainId: block.chainid,
                 callFee: 300000000000000,
                 penaltyFee: 10000000000000,
                 value: 27108379819732510,
@@ -301,13 +335,14 @@ contract HashingTest is PegOutTestBase {
 
     function createSpecificPegOutQuote3()
         internal
-        pure
+        view
         returns (Quotes.PegOutQuote memory)
     {
         bytes memory testBtcAddress = new bytes(21);
 
         return
             Quotes.PegOutQuote({
+                chainId: block.chainid,
                 callFee: 300000000000000,
                 penaltyFee: 10000000000000,
                 value: 1045000000000000000,

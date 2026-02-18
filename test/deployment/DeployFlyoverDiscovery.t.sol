@@ -147,7 +147,6 @@ contract DeployFlyoverDiscoveryTest is Test {
             )
         );
 
-        FlyoverDiscovery fd = FlyoverDiscovery(fdProxy);
         CollateralManagementContract cm = CollateralManagementContract(
             payable(collateralManagementProxy)
         );

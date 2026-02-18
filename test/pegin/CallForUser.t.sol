@@ -676,6 +676,7 @@ contract CallForUserTest is PegInTestBase {
 
         return
             Quotes.PegInQuote({
+                chainId: block.chainid,
                 callFee: 100000000000000,
                 penaltyFee: 10000000000000,
                 value: value,

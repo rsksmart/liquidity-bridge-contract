@@ -31,11 +31,12 @@ contract FlyoverDiscoveryIntegrationTest is Test {
 
     function getEmptyPegInQuote()
         internal
-        pure
+        view
         returns (Quotes.PegInQuote memory)
     {
         return
             Quotes.PegInQuote({
+                chainId: block.chainid,
                 callFee: 0,
                 value: 0,
                 gasFee: 0,
