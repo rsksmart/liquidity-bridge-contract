@@ -119,6 +119,7 @@ contract LiquidityBridgeContractV2 is OwnableUpgradeable, ReentrancyGuardUpgrade
     mapping(bytes32 => uint8) private processedQuotes;
     mapping(bytes32 => QuotesV2.PegOutQuote) private registeredPegoutQuotes;
     mapping(bytes32 => PegoutRecord) private pegoutRegistry;
+    mapping(address => uint256) private providerIdByAddress;
 
     uint256 public productFeePercentage;
     address public daoFeeCollectorAddress;
@@ -239,17 +240,23 @@ contract LiquidityBridgeContractV2 is OwnableUpgradeable, ReentrancyGuardUpgrade
             pegoutCollateral[msg.sender] = halfMsgValue;
         }
 
-        providerId++;
-        liquidityProviders[providerId] = LiquidityProvider({
-            id: providerId,
+        uint256 currentProviderId = providerIdByAddress[msg.sender];
+        if (currentProviderId == 0) {
+            providerId++;
+            currentProviderId = providerId;
+            providerIdByAddress[msg.sender] = currentProviderId;
+        }
+
+        liquidityProviders[currentProviderId] = LiquidityProvider({
+            id: currentProviderId,
             provider: msg.sender,
             name: _name,
             apiBaseUrl: _apiBaseUrl,
             status: _status,
             providerType: _providerType
         });
-        emit Register(providerId, msg.sender, msg.value);
-        return (providerId);
+        emit Register(currentProviderId, msg.sender, msg.value);
+        return currentProviderId;
     }
 
     function getProviders() external view returns (LiquidityProvider[] memory) {
@@ -273,12 +280,9 @@ contract LiquidityBridgeContractV2 is OwnableUpgradeable, ReentrancyGuardUpgrade
     }
 
     function getProvider(address providerAddress) public view returns (LiquidityProvider memory) {
-        for (uint i = 1; i <= providerId; i++) {
-            if (liquidityProviders[i].provider == providerAddress) {
-                return liquidityProviders[i];
-            }
-        }
-        revert("LBC001");
+        uint256 currentProviderId = providerIdByAddress[providerAddress];
+        if (currentProviderId == 0) revert("LBC001");
+        return liquidityProviders[currentProviderId];
     }
 
     function shouldBeListed(LiquidityProvider storage lp) private view returns(bool){
@@ -968,16 +972,12 @@ contract LiquidityBridgeContractV2 is OwnableUpgradeable, ReentrancyGuardUpgrade
 
     function updateProvider(string memory _name, string memory _url) external {
         require(bytes(_name).length > 0 && bytes(_url).length > 0, "LBC076");
-        LiquidityProvider storage lp;
-        for (uint i = 1; i <= providerId; i++) {
-            lp = liquidityProviders[i];
-            if (msg.sender == lp.provider) {
-                lp.name = _name;
-                lp.apiBaseUrl = _url;
-                emit ProviderUpdate(msg.sender, lp.name, lp.apiBaseUrl);
-                return;
-            }
-        }
-        revert("LBC001");
+        uint256 currentProviderId = providerIdByAddress[msg.sender];
+        if (currentProviderId == 0) revert("LBC001");
+
+        LiquidityProvider storage lp = liquidityProviders[currentProviderId];
+        lp.name = _name;
+        lp.apiBaseUrl = _url;
+        emit ProviderUpdate(msg.sender, lp.name, lp.apiBaseUrl);
     }
 }
