@@ -430,7 +430,7 @@ contract PegInContract is
     ) private {
         uint refundAmount = transferredAmount;
 
-        if (quote.callOnRegister && refundAmount > quote.value - 1) {
+        if (quote.callOnRegister && refundAmount >= quote.value) { // solhint-disable-line gas-strict-inequalities
             (bool callSuccess,) = quote.contractAddress.call{
                 gas: quote.gasLimit,
                 value: quote.value
