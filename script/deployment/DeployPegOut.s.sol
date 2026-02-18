@@ -4,12 +4,13 @@ pragma solidity 0.8.25;
 import {Script, console} from "lib/forge-std/src/Script.sol";
 import {HelperConfig} from "../HelperConfig.s.sol";
 import {PegOutContract} from "../../src/PegOutContract.sol";
+import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
 /// @title DeployPegOut
 /// @notice Deploys the PegOutContract with proxy pattern
-/// @dev Requires COLLATERAL_MANAGEMENT_PROXY env var
+/// @dev Requires COLLATERAL_MANAGEMENT_PROXY and PAUSE_REGISTRY_PROXY env vars
 contract DeployPegOut is Script {
     struct DeploymentResult {
         address implementation;
@@ -26,13 +27,23 @@ contract DeployPegOut is Script {
         address collateralManagementProxy = vm.envAddress(
             "COLLATERAL_MANAGEMENT_PROXY"
         );
+        address pauseRegistryProxy = vm.envAddress("PAUSE_REGISTRY_PROXY");
         require(
             collateralManagementProxy != address(0),
             "COLLATERAL_MANAGEMENT_PROXY required"
         );
+        require(
+            pauseRegistryProxy != address(0),
+            "PAUSE_REGISTRY_PROXY required"
+        );
 
         vm.startBroadcast(deployerKey);
-        result = _deploy(deployer, cfg, collateralManagementProxy);
+        result = _deploy(
+            deployer,
+            cfg,
+            collateralManagementProxy,
+            pauseRegistryProxy
+        );
         vm.stopBroadcast();
 
         _log(result);
@@ -41,7 +52,8 @@ contract DeployPegOut is Script {
     function _deploy(
         address defaultAdmin,
         HelperConfig.FlyoverConfig memory cfg,
-        address collateralManagementProxy
+        address collateralManagementProxy,
+        address pauseRegistryProxy
     ) private returns (DeploymentResult memory result) {
         result.implementation = address(new PegOutContract());
         result.admin = address(new ProxyAdmin(defaultAdmin));
@@ -57,7 +69,8 @@ contract DeployPegOut is Script {
                         cfg.dustThreshold,
                         collateralManagementProxy,
                         cfg.mainnet,
-                        cfg.btcBlockTime
+                        cfg.btcBlockTime,
+                        PauseRegistry(pauseRegistryProxy)
                     )
                 )
             )

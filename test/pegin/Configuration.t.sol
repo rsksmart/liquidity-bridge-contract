@@ -76,7 +76,8 @@ contract ConfigurationTest is PegInTestBase {
             TEST_DUST_THRESHOLD,
             TEST_MIN_PEGIN,
             address(collateralManagement),
-            false
+            false,
+            pauseRegistry
         );
     }
 
@@ -108,7 +109,8 @@ contract ConfigurationTest is PegInTestBase {
                 TEST_DUST_THRESHOLD,
                 TEST_MIN_PEGIN,
                 noCodeAddress, // Address with no code
-                false
+                false,
+                pauseRegistry
             )
         );
 
@@ -164,7 +166,8 @@ contract ConfigurationTest is PegInTestBase {
                 TEST_DEFAULT_ADMIN_DELAY,
                 TEST_MIN_COLLATERAL,
                 TEST_RESIGN_DELAY_BLOCKS,
-                TEST_REWARD_PERCENTAGE
+                TEST_REWARD_PERCENTAGE,
+                pauseRegistry
             )
         );
         ERC1967Proxy otherProxy = new ERC1967Proxy(address(otherCM), initData);
@@ -212,7 +215,8 @@ contract ConfigurationTest is PegInTestBase {
                 TEST_DEFAULT_ADMIN_DELAY,
                 TEST_MIN_COLLATERAL,
                 TEST_RESIGN_DELAY_BLOCKS,
-                TEST_REWARD_PERCENTAGE
+                TEST_REWARD_PERCENTAGE,
+                pauseRegistry
             )
         );
         ERC1967Proxy otherProxy = new ERC1967Proxy(address(otherCM), initData);
