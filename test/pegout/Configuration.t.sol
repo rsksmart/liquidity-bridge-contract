@@ -42,27 +42,6 @@ contract ConfigurationTest is PegOutTestBase {
 
         // Check owner
         assertEq(pegOutContract.owner(), owner, "owner should match");
-
-        // Check feePercentage
-        assertEq(
-            pegOutContract.getFeePercentage(),
-            0,
-            "feePercentage should be 0"
-        );
-
-        // Check feeCollector
-        assertEq(
-            pegOutContract.getFeeCollector(),
-            ZERO_ADDRESS,
-            "feeCollector should be zero address"
-        );
-
-        // Check currentContribution
-        assertEq(
-            pegOutContract.getCurrentContribution(),
-            0,
-            "currentContribution should be 0"
-        );
     }
 
     function test_Initialize_AllowsInitializeOnlyOnce() public {
@@ -74,8 +53,22 @@ contract ConfigurationTest is PegOutTestBase {
             address(collateralManagement),
             false,
             TEST_BTC_BLOCK_TIME,
-            0,
-            payable(ZERO_ADDRESS)
+            pauseRegistry
+        );
+    }
+
+    function test_Initialize_RevertsWhenCalledOnImplementation() public {
+        PegOutContract implementation = new PegOutContract();
+
+        vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
+        implementation.initialize(
+            owner,
+            payable(address(bridgeMock)),
+            TEST_DUST_THRESHOLD,
+            address(collateralManagement),
+            false,
+            TEST_BTC_BLOCK_TIME,
+            pauseRegistry
         );
     }
 
@@ -94,8 +87,7 @@ contract ConfigurationTest is PegOutTestBase {
                 noCodeAddress, // Address with no code
                 false,
                 TEST_BTC_BLOCK_TIME,
-                0,
-                payable(ZERO_ADDRESS)
+                pauseRegistry
             )
         );
 
@@ -184,7 +176,8 @@ contract ConfigurationTest is PegOutTestBase {
                 TEST_DEFAULT_ADMIN_DELAY,
                 TEST_MIN_COLLATERAL,
                 TEST_RESIGN_DELAY_BLOCKS,
-                TEST_REWARD_PERCENTAGE
+                TEST_REWARD_PERCENTAGE,
+                pauseRegistry
             )
         );
         ERC1967Proxy otherProxy = new ERC1967Proxy(address(otherCM), initData);
@@ -232,7 +225,8 @@ contract ConfigurationTest is PegOutTestBase {
                 TEST_DEFAULT_ADMIN_DELAY,
                 TEST_MIN_COLLATERAL,
                 TEST_RESIGN_DELAY_BLOCKS,
-                TEST_REWARD_PERCENTAGE
+                TEST_REWARD_PERCENTAGE,
+                pauseRegistry
             )
         );
         ERC1967Proxy otherProxy = new ERC1967Proxy(address(otherCM), initData);

@@ -7,6 +7,7 @@ import {HelperConfig} from "../HelperConfig.s.sol";
 
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
+import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {PegInContract} from "../../src/PegInContract.sol";
 import {PegOutContract} from "../../src/PegOutContract.sol";
 
@@ -18,6 +19,7 @@ import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.s
 /// @dev Gas optimized: single ProxyAdmin, inlined deployment logic, linked libraries
 contract DeployFlyover is Script {
     struct FlyoverDeployment {
+        address pauseRegistryProxy;
         address collateralManagementImpl;
         address collateralManagementProxy;
         address flyoverDiscoveryImpl;
@@ -54,6 +56,16 @@ contract DeployFlyover is Script {
         // Single ProxyAdmin for all contracts
         d.proxyAdmin = address(new ProxyAdmin(defaultAdmin));
 
+        // 0) PauseRegistry (shared by all)
+        PauseRegistry prImpl = new PauseRegistry();
+        d.pauseRegistryProxy = address(
+            new TransparentUpgradeableProxy(
+                address(prImpl),
+                d.proxyAdmin,
+                abi.encodeCall(prImpl.initialize, (0, defaultAdmin))
+            )
+        );
+
         // 1) CollateralManagement
         d.collateralManagementImpl = address(
             new CollateralManagementContract()
@@ -69,7 +81,8 @@ contract DeployFlyover is Script {
                         cfg.adminDelay,
                         cfg.minimumCollateral,
                         cfg.resignDelayBlocks,
-                        cfg.rewardPercentage
+                        cfg.rewardPercentage,
+                        PauseRegistry(d.pauseRegistryProxy)
                     )
                 )
             )
@@ -83,7 +96,12 @@ contract DeployFlyover is Script {
                 d.proxyAdmin,
                 abi.encodeCall(
                     FlyoverDiscovery.initialize,
-                    (defaultAdmin, cfg.adminDelay, d.collateralManagementProxy)
+                    (
+                        defaultAdmin,
+                        cfg.adminDelay,
+                        d.collateralManagementProxy,
+                        PauseRegistry(d.pauseRegistryProxy)
+                    )
                 )
             )
         );
@@ -103,8 +121,7 @@ contract DeployFlyover is Script {
                         cfg.minimumPegIn,
                         d.collateralManagementProxy,
                         cfg.mainnet,
-                        cfg.daoFeePercentage,
-                        cfg.daoFeeCollector
+                        PauseRegistry(d.pauseRegistryProxy)
                     )
                 )
             )
@@ -125,8 +142,7 @@ contract DeployFlyover is Script {
                         d.collateralManagementProxy,
                         cfg.mainnet,
                         cfg.btcBlockTime,
-                        cfg.daoFeePercentage,
-                        cfg.daoFeeCollector
+                        PauseRegistry(d.pauseRegistryProxy)
                     )
                 )
             )
@@ -148,6 +164,7 @@ contract DeployFlyover is Script {
     function _log(FlyoverDeployment memory d) private pure {
         console.log("=== FLYOVER DEPLOYMENT ===");
         console.log("ProxyAdmin:", d.proxyAdmin);
+        console.log("PauseRegistry proxy:", d.pauseRegistryProxy);
         console.log("CollateralManagement impl:", d.collateralManagementImpl);
         console.log("CollateralManagement proxy:", d.collateralManagementProxy);
         console.log("FlyoverDiscovery impl:", d.flyoverDiscoveryImpl);

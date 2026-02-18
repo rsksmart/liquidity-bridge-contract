@@ -2,6 +2,7 @@
 pragma solidity 0.8.25;
 
 import {DiscoveryTestBase} from "./DiscoveryTestBase.sol";
+import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
 import {IFlyoverDiscovery} from "../../src/interfaces/IFlyoverDiscovery.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 import {RegisterCaller} from "../../src/test/RegisterCaller.sol";
@@ -12,6 +13,18 @@ contract RegistrationTest is DiscoveryTestBase {
     }
 
     // ============ Registration tests ============
+
+    function test_Initialize_RevertsWhenCalledOnImplementation() public {
+        FlyoverDiscovery implementation = new FlyoverDiscovery();
+
+        vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
+        implementation.initialize(
+            owner,
+            0,
+            address(collateralManagement),
+            pauseRegistry
+        );
+    }
 
     function test_Register_RegistersProvidersAndIncrementsLastProviderId()
         public

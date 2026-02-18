@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import {Test, console} from "forge-std/Test.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {ICollateralManagement} from "../../src/interfaces/ICollateralManagement.sol";
+import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
@@ -12,6 +13,7 @@ import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol"
 /// @title Base contract for CollateralManagement tests
 /// @notice Provides shared deployment and setup logic
 abstract contract CollateralTestBase is Test {
+    PauseRegistry public pauseRegistry;
     CollateralManagementContract public collateralManagement;
 
     address public owner;
@@ -41,6 +43,14 @@ abstract contract CollateralTestBase is Test {
         // Fund owner
         vm.deal(owner, 100 ether);
 
+        // Deploy PauseRegistry first
+        PauseRegistry prImpl = new PauseRegistry();
+        ERC1967Proxy prProxy = new ERC1967Proxy(
+            address(prImpl),
+            abi.encodeCall(prImpl.initialize, (0, owner))
+        );
+        pauseRegistry = PauseRegistry(payable(address(prProxy)));
+
         // Deploy implementation
         CollateralManagementContract implementation = new CollateralManagementContract();
 
@@ -52,7 +62,8 @@ abstract contract CollateralTestBase is Test {
                 TEST_DEFAULT_ADMIN_DELAY,
                 TEST_MIN_COLLATERAL,
                 TEST_RESIGN_DELAY_BLOCKS,
-                TEST_REWARD_PERCENTAGE
+                TEST_REWARD_PERCENTAGE,
+                pauseRegistry
             )
         );
 
@@ -119,7 +130,7 @@ abstract contract CollateralTestBase is Test {
     /// @notice Helper to create an empty PegIn quote
     function getEmptyPegInQuote()
         internal
-        pure
+        view
         returns (Quotes.PegInQuote memory)
     {
         bytes memory emptyBytes = new bytes(0);
@@ -127,10 +138,10 @@ abstract contract CollateralTestBase is Test {
 
         return
             Quotes.PegInQuote({
+                chainId: block.chainid,
                 callFee: 0,
                 penaltyFee: 0,
                 value: 0,
-                productFeeAmount: 0,
                 gasFee: 0,
                 fedBtcAddress: bytes20(testAddress),
                 lbcAddress: ZERO_ADDRESS,
@@ -153,17 +164,17 @@ abstract contract CollateralTestBase is Test {
     /// @notice Helper to create an empty PegOut quote
     function getEmptyPegOutQuote()
         internal
-        pure
+        view
         returns (Quotes.PegOutQuote memory)
     {
         bytes memory testAddress = new bytes(20);
 
         return
             Quotes.PegOutQuote({
+                chainId: block.chainid,
                 callFee: 0,
                 penaltyFee: 0,
                 value: 0,
-                productFeeAmount: 0,
                 gasFee: 0,
                 lbcAddress: ZERO_ADDRESS,
                 lpRskAddress: ZERO_ADDRESS,

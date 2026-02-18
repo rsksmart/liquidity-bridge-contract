@@ -6,6 +6,7 @@ import "lib/forge-std/src/console.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
+import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
@@ -18,16 +19,26 @@ contract DeployFlyoverDiscoveryTest is Test {
     HelperConfig public helperConfig;
 
     address public collateralManagementProxy;
+    address public pauseRegistryProxy;
 
     function setUp() public {
         helperConfig = new HelperConfig();
 
-        // Deploy CollateralManagement first (dependency)
+        // Deploy PauseRegistry and CollateralManagement first (dependency)
         HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
         address deployer = address(this);
+        address cmAdmin = address(new ProxyAdmin(deployer));
+
+        PauseRegistry prImpl = new PauseRegistry();
+        pauseRegistryProxy = address(
+            new TransparentUpgradeableProxy(
+                address(prImpl),
+                cmAdmin,
+                abi.encodeCall(prImpl.initialize, (0, deployer))
+            )
+        );
 
         address cmImpl = address(new CollateralManagementContract());
-        address cmAdmin = address(new ProxyAdmin(deployer));
         collateralManagementProxy = address(
             new TransparentUpgradeableProxy(
                 cmImpl,
@@ -39,7 +50,8 @@ contract DeployFlyoverDiscoveryTest is Test {
                         cfg.adminDelay,
                         cfg.minimumCollateral,
                         cfg.resignDelayBlocks,
-                        cfg.rewardPercentage
+                        cfg.rewardPercentage,
+                        PauseRegistry(pauseRegistryProxy)
                     )
                 )
             )
@@ -68,7 +80,12 @@ contract DeployFlyoverDiscoveryTest is Test {
         console.log("\n3. Preparing initializer calldata...");
         bytes memory initData = abi.encodeCall(
             FlyoverDiscovery.initialize,
-            (deployer, cfg.adminDelay, collateralManagementProxy)
+            (
+                deployer,
+                cfg.adminDelay,
+                collateralManagementProxy,
+                PauseRegistry(pauseRegistryProxy)
+            )
         );
         console.log("   Init data length:", initData.length);
 
@@ -106,7 +123,12 @@ contract DeployFlyoverDiscoveryTest is Test {
                 admin,
                 abi.encodeCall(
                     FlyoverDiscovery.initialize,
-                    (deployer, cfg.adminDelay, collateralManagementProxy)
+                    (
+                        deployer,
+                        cfg.adminDelay,
+                        collateralManagementProxy,
+                        PauseRegistry(pauseRegistryProxy)
+                    )
                 )
             )
         );
@@ -142,12 +164,16 @@ contract DeployFlyoverDiscoveryTest is Test {
                 admin,
                 abi.encodeCall(
                     FlyoverDiscovery.initialize,
-                    (deployer, cfg.adminDelay, collateralManagementProxy)
+                    (
+                        deployer,
+                        cfg.adminDelay,
+                        collateralManagementProxy,
+                        PauseRegistry(pauseRegistryProxy)
+                    )
                 )
             )
         );
 
-        FlyoverDiscovery fd = FlyoverDiscovery(fdProxy);
         CollateralManagementContract cm = CollateralManagementContract(
             payable(collateralManagementProxy)
         );
@@ -180,7 +206,12 @@ contract DeployFlyoverDiscoveryTest is Test {
                 admin,
                 abi.encodeCall(
                     FlyoverDiscovery.initialize,
-                    (deployer, cfg.adminDelay, collateralManagementProxy)
+                    (
+                        deployer,
+                        cfg.adminDelay,
+                        collateralManagementProxy,
+                        PauseRegistry(pauseRegistryProxy)
+                    )
                 )
             )
         );
