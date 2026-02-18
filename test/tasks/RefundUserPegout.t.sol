@@ -109,10 +109,7 @@ contract RefundUserPegoutTest is FlyoverTestBase {
         console.log("Quote hash:");
         console.logBytes32(quoteHash);
 
-        uint256 totalValue = quote.value +
-            quote.callFee +
-            quote.productFeeAmount +
-            quote.gasFee;
+        uint256 totalValue = quote.value + quote.callFee + quote.gasFee;
 
         mockPegOut.registerPegOut(
             quoteHash,
@@ -156,10 +153,7 @@ contract RefundUserPegoutTest is FlyoverTestBase {
         );
         bytes32 quoteHash = mockPegOut.hashPegOutQuote(quote);
 
-        uint256 totalValue = quote.value +
-            quote.callFee +
-            quote.productFeeAmount +
-            quote.gasFee;
+        uint256 totalValue = quote.value + quote.callFee + quote.gasFee;
         mockPegOut.registerPegOut(
             quoteHash,
             user,
@@ -184,10 +178,7 @@ contract RefundUserPegoutTest is FlyoverTestBase {
         );
         bytes32 quoteHash = mockPegOut.hashPegOutQuote(quote);
 
-        uint256 totalValue = quote.value +
-            quote.callFee +
-            quote.productFeeAmount +
-            quote.gasFee;
+        uint256 totalValue = quote.value + quote.callFee + quote.gasFee;
         mockPegOut.registerPegOut(
             quoteHash,
             user,

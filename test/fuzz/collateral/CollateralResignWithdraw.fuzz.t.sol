@@ -57,7 +57,11 @@ contract CollateralResignWithdrawFuzzTest is CollateralFuzzTestBase {
 
         vm.prank(pegInLp);
         vm.expectEmit(true, true, false, true);
-        emit ICollateralManagement.WithdrawCollateral(pegInLp, expectedAmount);
+        emit ICollateralManagement.WithdrawCollateral(
+            pegInLp,
+            pegInLp,
+            expectedAmount
+        );
         collateralManagement.withdrawCollateral();
 
         assertEq(
@@ -99,6 +103,7 @@ contract CollateralResignWithdrawFuzzTest is CollateralFuzzTestBase {
         vm.prank(pegInLp);
         vm.expectEmit(true, true, false, true);
         emit ICollateralManagement.WithdrawCollateral(
+            pegInLp,
             pegInLp,
             expectedWithdrawal
         );
