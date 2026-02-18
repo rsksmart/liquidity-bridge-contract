@@ -24,28 +24,6 @@ const weiToSat = (wei: bigint) =>
     ? wei / WEI_TO_SAT_CONVERSION
     : wei / WEI_TO_SAT_CONVERSION + 1n;
 
-// Convert 5-bit words back to 8-bit bytes
-function from5BitWords(words: Uint8Array): Uint8Array {
-  const BECH32_WORD_SIZE = 5;
-  const BYTE_SIZE = 8;
-
-  let currentValue = 0;
-  let bitCount = 0;
-  const result: number[] = [];
-
-  for (const word of words) {
-    currentValue = (currentValue << BECH32_WORD_SIZE) | word;
-    bitCount += BECH32_WORD_SIZE;
-
-    while (bitCount >= BYTE_SIZE) {
-      bitCount -= BYTE_SIZE;
-      result.push((currentValue >> bitCount) & 0xff);
-    }
-  }
-
-  return new Uint8Array(result);
-}
-
 function generateRawTx(
   quoteHash: string,
   depositAddress: string,
@@ -90,21 +68,21 @@ function generateRawTx(
       // OP_0 <20 bytes>
       // Address is in bech32 format: witness version + 5-bit words
       // Convert 5-bit words back to raw 20-byte hash
-      wpkhHash = from5BitWords(addressBytes.slice(1));
+      wpkhHash = addressBytes.slice(1);
       outputScript = [0x00, 0x14, ...wpkhHash];
       break;
     case "p2wsh":
       // OP_0 <32 bytes>
       // Address is in bech32 format: witness version + 5-bit words
       // Convert 5-bit words back to raw 32-byte hash
-      wshHash = from5BitWords(addressBytes.slice(1));
+      wshHash = addressBytes.slice(1);
       outputScript = [0x00, 0x20, ...wshHash];
       break;
     case "p2tr":
       // OP_1 <32 bytes>
       // Address is in bech32m format: witness version + 5-bit words
       // Convert 5-bit words back to raw 32-byte pubkey
-      trPubkey = from5BitWords(addressBytes.slice(1));
+      trPubkey = addressBytes.slice(1);
       outputScript = [0x51, 0x20, ...trPubkey];
       break;
     default:

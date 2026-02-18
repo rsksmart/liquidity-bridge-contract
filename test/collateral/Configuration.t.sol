@@ -92,7 +92,22 @@ contract ConfigurationTest is CollateralTestBase {
             TEST_DEFAULT_ADMIN_DELAY,
             TEST_MIN_COLLATERAL,
             TEST_RESIGN_DELAY_BLOCKS,
-            TEST_REWARD_PERCENTAGE
+            TEST_REWARD_PERCENTAGE,
+            pauseRegistry
+        );
+    }
+
+    function test_Initialize_RevertsWhenCalledOnImplementation() public {
+        CollateralManagementContract implementation = new CollateralManagementContract();
+
+        vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
+        implementation.initialize(
+            owner,
+            TEST_DEFAULT_ADMIN_DELAY,
+            TEST_MIN_COLLATERAL,
+            TEST_RESIGN_DELAY_BLOCKS,
+            TEST_REWARD_PERCENTAGE,
+            pauseRegistry
         );
     }
 
@@ -109,7 +124,8 @@ contract ConfigurationTest is CollateralTestBase {
                 TEST_DEFAULT_ADMIN_DELAY,
                 TEST_MIN_COLLATERAL,
                 TEST_RESIGN_DELAY_BLOCKS,
-                invalidRewardPercentage
+                invalidRewardPercentage,
+                pauseRegistry
             )
         );
 
@@ -134,7 +150,8 @@ contract ConfigurationTest is CollateralTestBase {
                 TEST_DEFAULT_ADMIN_DELAY,
                 TEST_MIN_COLLATERAL,
                 TEST_RESIGN_DELAY_BLOCKS,
-                maxRewardPercentage
+                maxRewardPercentage,
+                pauseRegistry
             )
         );
 

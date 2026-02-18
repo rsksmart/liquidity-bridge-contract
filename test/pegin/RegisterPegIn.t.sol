@@ -8,7 +8,6 @@ import {Flyover} from "../../src/libraries/Flyover.sol";
 import {SignatureValidator} from "../../src/libraries/SignatureValidator.sol";
 import {WalletMock} from "../../src/test-contracts/WalletMock.sol";
 import {ReentrancyCaller} from "../../src/test-contracts/ReentrancyCaller.sol";
-import {AccessControlDaoContributorUpgradeable} from "../../src/DaoContributor.sol";
 
 /// @title RegisterPegIn Tests
 /// @notice Tests for the registerPegIn function - the core of the PegIn flow
@@ -50,8 +49,7 @@ contract RegisterPegInTest is PegInTestBase {
 
     function test_RegisterPegIn_RevertsIfQuoteNotInCALL_DONEState() public {
         Quotes.PegInQuote memory quote = createTestQuote(1 ether);
-        bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         // Try to register without calling callForUser first (quote is UNPROCESSED)
         // The contract checks: if (_processedQuotes[quoteHash] != PegInStates.CALL_DONE) revert
@@ -68,20 +66,20 @@ contract RegisterPegInTest is PegInTestBase {
 
     function test_RegisterPegIn_RevertsIfSignatureIsInvalid() public {
         Quotes.PegInQuote memory quote = createTestQuote(1 ether);
-        bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
+        bytes32 eip712Hash = pegInContract.hashPegInQuoteEIP712(quote);
 
         // Call for user first to set state to CALL_DONE
         vm.prank(fullLp);
         pegInContract.callForUser{value: 1 ether}(quote);
 
         // Try to register with wrong signature
-        bytes memory wrongSignature = signQuote(pegInLp, quoteHash);
+        bytes memory wrongSignature = signQuote(pegInLp, quote);
 
         vm.expectRevert(
             abi.encodeWithSelector(
                 SignatureValidator.IncorrectSignature.selector,
                 fullLp,
-                quoteHash,
+                eip712Hash,
                 wrongSignature
             )
         );
@@ -96,8 +94,7 @@ contract RegisterPegInTest is PegInTestBase {
 
     function test_RegisterPegIn_RevertsIfHeightIsBiggerThanSupported() public {
         Quotes.PegInQuote memory quote = createTestQuote(1 ether);
-        bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         // Call for user first
         vm.prank(fullLp);
@@ -122,7 +119,7 @@ contract RegisterPegInTest is PegInTestBase {
     function test_RegisterPegIn_RevertsIfQuoteAlreadyProcessed() public {
         Quotes.PegInQuote memory quote = createTestQuote(1.2 ether);
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         // Setup BTC block headers
         uint32 firstConfTime = uint32(block.timestamp) + 300;
@@ -173,8 +170,7 @@ contract RegisterPegInTest is PegInTestBase {
 
     function test_RegisterPegIn_RevertsIfNotEnoughConfirmations() public {
         Quotes.PegInQuote memory quote = createTestQuote(1.2 ether);
-        bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         // Setup bridge to return error for insufficient confirmations
         int256 BRIDGE_UNPROCESSABLE_ERROR = -303;
@@ -200,8 +196,7 @@ contract RegisterPegInTest is PegInTestBase {
 
     function test_RegisterPegIn_RevertsOnUnexpectedBridgeError() public {
         Quotes.PegInQuote memory quote = createTestQuote(1.2 ether);
-        bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         // Setup bridge to return unexpected error
         int256 ERROR_CODE = -505;
@@ -233,7 +228,7 @@ contract RegisterPegInTest is PegInTestBase {
     {
         Quotes.PegInQuote memory quote = createTestQuote(1.2 ether);
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         uint256 peginAmount = getTotalValue(quote);
 
@@ -277,7 +272,7 @@ contract RegisterPegInTest is PegInTestBase {
         // Verify LP balance increased by pegin amount (minus product fee)
         assertEq(
             pegInContract.getBalance(fullLp),
-            lpBalanceBefore + peginAmount - quote.productFeeAmount,
+            lpBalanceBefore + peginAmount,
             "LP balance should increase"
         );
 
@@ -292,7 +287,7 @@ contract RegisterPegInTest is PegInTestBase {
     function test_RegisterPegIn_EmitsBridgeCapExceededForUserRefund() public {
         Quotes.PegInQuote memory quote = createTestQuote(1.2 ether);
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         // Setup BTC block headers
         bytes memory firstHeader = createBtcBlockHeader(
@@ -338,7 +333,7 @@ contract RegisterPegInTest is PegInTestBase {
     function test_RegisterPegIn_EmitsBridgeCapExceededForLPRefund() public {
         Quotes.PegInQuote memory quote = createTestQuote(1.2 ether);
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         // Setup BTC block headers
         bytes memory firstHeader = createBtcBlockHeader(
@@ -384,7 +379,7 @@ contract RegisterPegInTest is PegInTestBase {
     function test_RegisterPegIn_RefundsLPWhenUserOverpaid() public {
         Quotes.PegInQuote memory quote = createTestQuote(1.2 ether);
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         uint256 peginAmount = getTotalValue(quote);
         uint256 extraPaid = 5.5 ether;
@@ -435,7 +430,7 @@ contract RegisterPegInTest is PegInTestBase {
         // Verify LP balance increased by peginAmount (minus product fee)
         assertEq(
             pegInContract.getBalance(fullLp),
-            lpBalanceBefore + peginAmount - quote.productFeeAmount,
+            lpBalanceBefore + peginAmount,
             "LP balance should increase by pegin amount"
         );
     }
@@ -443,13 +438,10 @@ contract RegisterPegInTest is PegInTestBase {
     function test_RegisterPegIn_RevertsWhenUserUnderpaid() public {
         Quotes.PegInQuote memory quote = createTestQuote(1.2 ether);
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         // Calculate agreed amount with rounding (matches Quotes.checkAgreedAmount logic)
-        uint256 agreedAmount = quote.value +
-            quote.callFee +
-            quote.productFeeAmount +
-            quote.gasFee;
+        uint256 agreedAmount = quote.value + quote.callFee + quote.gasFee;
         uint256 SAT_TO_WEI_CONVERSION = 10 ** 10;
         if (
             agreedAmount > SAT_TO_WEI_CONVERSION &&
@@ -502,7 +494,7 @@ contract RegisterPegInTest is PegInTestBase {
     {
         Quotes.PegInQuote memory quote = createTestQuote(1.2 ether);
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         uint256 peginAmount = getTotalValue(quote);
 
@@ -557,7 +549,7 @@ contract RegisterPegInTest is PegInTestBase {
     {
         Quotes.PegInQuote memory quote = createTestQuote(1.2 ether);
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         uint256 peginAmount = getTotalValue(quote);
 
@@ -610,9 +602,8 @@ contract RegisterPegInTest is PegInTestBase {
 
     function test_RegisterPegIn_PenalizesLPIfCallForUserNotMadeOnTime() public {
         Quotes.PegInQuote memory quote = createTestQuote(1.2 ether);
-        quote.productFeeAmount = (quote.value * 3) / 100; // 3% product fee
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         uint256 peginAmount = getTotalValue(quote);
 
@@ -664,7 +655,7 @@ contract RegisterPegInTest is PegInTestBase {
     {
         Quotes.PegInQuote memory quote = createTestQuote(1.2 ether);
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         uint256 peginAmount = getTotalValue(quote) - 0.1 ether; // Way too low
 
@@ -703,7 +694,7 @@ contract RegisterPegInTest is PegInTestBase {
         Quotes.PegInQuote memory quote = createTestQuote(1.2 ether);
         quote.callOnRegister = true; // Enable callOnRegister
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         uint256 peginAmount = getTotalValue(quote);
 
@@ -749,7 +740,7 @@ contract RegisterPegInTest is PegInTestBase {
 
         // When callOnRegister is executed and LP is penalized:
         // - User receives quote.value from callForUser execution
-        // - User receives refund of callFee + gasFee + productFeeAmount
+        // - User receives refund of callFee + gasFee
         // Total: user gets full peginAmount
         uint256 expectedTotal = peginAmount;
 
@@ -772,7 +763,7 @@ contract RegisterPegInTest is PegInTestBase {
         quote.contractAddress = address(wallet);
 
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         uint256 peginAmount = getTotalValue(quote);
 
@@ -826,7 +817,6 @@ contract RegisterPegInTest is PegInTestBase {
     function test_RegisterPegIn_RefundsUserIfCallWasDoneButFailed() public {
         // Create a quote with a contract that rejects payments as destination
         Quotes.PegInQuote memory quote = createTestQuote(1.2 ether);
-        quote.productFeeAmount = (quote.value * 2) / 100; // 2% product fee
 
         // Deploy WalletMock that will reject the payment
         WalletMock wallet = new WalletMock();
@@ -834,7 +824,7 @@ contract RegisterPegInTest is PegInTestBase {
         quote.contractAddress = address(wallet);
 
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         uint256 peginAmount = getTotalValue(quote);
 
@@ -871,15 +861,10 @@ contract RegisterPegInTest is PegInTestBase {
 
         uint256 userBalanceBefore = user.balance;
 
-        // Register - should emit PegInRegistered, DaoContribution and Refund events
+        // Register - should emit PegInRegistered and Refund events
         vm.prank(fullLp);
         vm.expectEmit(true, true, false, true);
         emit IPegIn.PegInRegistered(quoteHash, peginAmount);
-        vm.expectEmit(true, true, false, true);
-        emit AccessControlDaoContributorUpgradeable.DaoContribution(
-            fullLp,
-            quote.productFeeAmount
-        );
         vm.expectEmit(true, true, true, true);
         emit IPegIn.Refund(
             user,
@@ -905,7 +890,6 @@ contract RegisterPegInTest is PegInTestBase {
 
     function test_RegisterPegIn_RefundsLPIfChangePaymentToUserFails() public {
         Quotes.PegInQuote memory quote = createTestQuote(1.2 ether);
-        quote.productFeeAmount = (quote.value * 2) / 100; // 2% product fee
 
         // Deploy WalletMock as refund address that will reject
         WalletMock refundWallet = new WalletMock();
@@ -913,7 +897,7 @@ contract RegisterPegInTest is PegInTestBase {
         quote.rskRefundAddress = payable(address(refundWallet));
 
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         uint256 peginAmount = getTotalValue(quote);
         uint256 extraPaid = 5.5 ether;
@@ -945,11 +929,6 @@ contract RegisterPegInTest is PegInTestBase {
         vm.prank(fullLp);
         vm.expectEmit(true, true, false, true);
         emit IPegIn.PegInRegistered(quoteHash, peginAmount + extraPaid);
-        vm.expectEmit(true, true, false, true);
-        emit AccessControlDaoContributorUpgradeable.DaoContribution(
-            fullLp,
-            quote.productFeeAmount
-        );
         vm.expectEmit(true, true, true, true);
         emit IPegIn.Refund(
             payable(address(refundWallet)),
@@ -968,7 +947,7 @@ contract RegisterPegInTest is PegInTestBase {
         // Verify LP got the full amount (including failed change)
         assertEq(
             pegInContract.getBalance(fullLp),
-            lpBalanceBefore + peginAmount + extraPaid - quote.productFeeAmount,
+            lpBalanceBefore + peginAmount + extraPaid,
             "LP should receive all funds when change payment fails"
         );
     }
@@ -984,8 +963,7 @@ contract RegisterPegInTest is PegInTestBase {
 
         // Create and set up reentrant call data (not used since no receive())
         Quotes.PegInQuote memory reentrantQuote = createTestQuote(1 ether);
-        bytes32 reentrantHash = pegInContract.hashPegInQuote(reentrantQuote);
-        bytes memory reentrantSignature = signQuote(fullLp, reentrantHash);
+        bytes memory reentrantSignature = signQuote(fullLp, reentrantQuote);
         bytes memory reentrantData = abi.encodeWithSelector(
             pegInContract.registerPegIn.selector,
             reentrantQuote,
@@ -1000,7 +978,7 @@ contract RegisterPegInTest is PegInTestBase {
         Quotes.PegInQuote memory quote = createTestQuote(1.2 ether);
         quote.rskRefundAddress = payable(reentrantAddress);
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         uint256 peginAmount = getTotalValue(quote);
 
@@ -1065,8 +1043,7 @@ contract RegisterPegInTest is PegInTestBase {
 
         // Create a secondary quote for the reentrant call
         Quotes.PegInQuote memory reentrantQuote = createTestQuote(1 ether);
-        bytes32 reentrantHash = pegInContract.hashPegInQuote(reentrantQuote);
-        bytes memory reentrantSignature = signQuote(fullLp, reentrantHash);
+        bytes memory reentrantSignature = signQuote(fullLp, reentrantQuote);
 
         // Set up the reentrant call data
         bytes memory reentrantData = abi.encodeWithSelector(
@@ -1083,7 +1060,7 @@ contract RegisterPegInTest is PegInTestBase {
         Quotes.PegInQuote memory quote = createTestQuote(1.2 ether);
         quote.rskRefundAddress = payable(reentrantAddress);
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         uint256 peginAmount = getTotalValue(quote);
         uint256 extraPaid = 1 ether; // User overpays
@@ -1149,8 +1126,7 @@ contract RegisterPegInTest is PegInTestBase {
 
         // Create a secondary quote for the reentrant call
         Quotes.PegInQuote memory reentrantQuote = createTestQuote(1 ether);
-        bytes32 reentrantHash = pegInContract.hashPegInQuote(reentrantQuote);
-        bytes memory reentrantSignature = signQuote(fullLp, reentrantHash);
+        bytes memory reentrantSignature = signQuote(fullLp, reentrantQuote);
 
         // Set up the reentrant call data
         bytes memory reentrantData = abi.encodeWithSelector(
@@ -1176,7 +1152,7 @@ contract RegisterPegInTest is PegInTestBase {
         quote.gasLimit = 200000; // Need more gas for the reentrant attempt
 
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
 
         uint256 peginAmount = getTotalValue(quote);
 
@@ -1255,6 +1231,7 @@ contract RegisterPegInTest is PegInTestBase {
 
         // Use fullLp so we can generate a valid signature
         Quotes.PegInQuote memory quote1 = Quotes.PegInQuote({
+            chainId: block.chainid,
             fedBtcAddress: fedBtcAddr,
             lbcAddress: address(pegInContract), // Updated to match deployed contract
             liquidityProviderRskAddress: fullLp,
@@ -1275,7 +1252,6 @@ contract RegisterPegInTest is PegInTestBase {
             callTime: 7200,
             depositConfirmations: 2,
             callOnRegister: false,
-            productFeeAmount: 0,
             gasFee: 1354759560000 * regtestMultiplier
         });
 
@@ -1283,10 +1259,7 @@ contract RegisterPegInTest is PegInTestBase {
         bytes32 quoteHash1 = pegInContract.hashPegInQuote(quote1);
 
         // Calculate total value of the quote
-        uint256 totalValue1 = quote1.value +
-            quote1.callFee +
-            quote1.productFeeAmount +
-            quote1.gasFee;
+        uint256 totalValue1 = quote1.value + quote1.callFee + quote1.gasFee;
 
         // Real refund amount from mainnet (slightly different from expected), scaled by 100x
         // But it must be at least equal to totalValue to pass validation
@@ -1308,7 +1281,7 @@ contract RegisterPegInTest is PegInTestBase {
 
         // Register - should refund without penalizing
         // Generate valid signature for the quote hash
-        bytes memory signature1 = signQuote(fullLp, quoteHash1);
+        bytes memory signature1 = signQuote(fullLp, quote1);
 
         uint256 refundBalanceBefore = quote1.rskRefundAddress.balance;
 
@@ -1351,6 +1324,7 @@ contract RegisterPegInTest is PegInTestBase {
             memory userBtcAddr2 = hex"0013c5b9da8f2f01c8ae8bcf0ff05c1d9c81d73d02";
 
         Quotes.PegInQuote memory quote2 = Quotes.PegInQuote({
+            chainId: block.chainid,
             fedBtcAddress: bytes20(fedBtcAddr),
             lbcAddress: address(pegInContract),
             liquidityProviderRskAddress: fullLp,
@@ -1371,7 +1345,6 @@ contract RegisterPegInTest is PegInTestBase {
             callTime: 7200,
             depositConfirmations: 2,
             callOnRegister: false,
-            productFeeAmount: 0,
             gasFee: 1341211956000 * regtestMultiplier
         });
 
@@ -1379,10 +1352,7 @@ contract RegisterPegInTest is PegInTestBase {
         bytes32 quoteHash2 = pegInContract.hashPegInQuote(quote2);
 
         // Calculate total value of the quote
-        uint256 totalValue2 = quote2.value +
-            quote2.callFee +
-            quote2.productFeeAmount +
-            quote2.gasFee;
+        uint256 totalValue2 = quote2.value + quote2.callFee + quote2.gasFee;
 
         // Real refund amount from mainnet, scaled by 100x
         // But it must be at least equal to totalValue to pass validation
@@ -1399,7 +1369,7 @@ contract RegisterPegInTest is PegInTestBase {
 
         // Register
         // Generate valid signature for the modified quote hash
-        bytes memory signature2 = signQuote(fullLp, quoteHash2);
+        bytes memory signature2 = signQuote(fullLp, quote2);
 
         vm.prank(fullLp);
         vm.expectEmit(true, true, false, true);
@@ -1470,10 +1440,10 @@ contract RegisterPegInTest is PegInTestBase {
 
         return
             Quotes.PegInQuote({
+                chainId: block.chainid,
                 callFee: 100000000000000,
                 penaltyFee: 10000000000000,
                 value: value,
-                productFeeAmount: 0,
                 gasFee: 100,
                 fedBtcAddress: bytes20(testBtcAddress),
                 lbcAddress: address(pegInContract),
@@ -1496,13 +1466,12 @@ contract RegisterPegInTest is PegInTestBase {
     function getTotalValue(
         Quotes.PegInQuote memory quote
     ) internal pure returns (uint256) {
-        return
-            quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+        return quote.value + quote.callFee + quote.gasFee;
     }
 
     function signQuote(
         address signer,
-        bytes32 quoteHash
+        Quotes.PegInQuote memory quote
     ) internal view returns (bytes memory) {
         // Get private key for the signer
         uint256 privateKey;
@@ -1516,14 +1485,8 @@ contract RegisterPegInTest is PegInTestBase {
             revert("Unknown signer");
         }
 
-        // Sign the hash using Ethereum signed message format
-        bytes32 ethSignedMessageHash = keccak256(
-            abi.encodePacked("\x19Ethereum Signed Message:\n32", quoteHash)
-        );
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
-            privateKey,
-            ethSignedMessageHash
-        );
+        bytes32 eip712Hash = pegInContract.hashPegInQuoteEIP712(quote);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, eip712Hash);
         return abi.encodePacked(r, s, v);
     }
 

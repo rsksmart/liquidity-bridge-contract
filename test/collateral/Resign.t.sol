@@ -329,6 +329,90 @@ contract ResignTest is CollateralTestBase {
         collateralManagement.withdrawCollateral();
     }
 
+    function test_WithdrawCollateral_RevertsWithInvalidAddressWhenRecipientIsZeroAddress()
+        public
+    {
+        uint256 pegInCollateral = collateralManagement.getPegInCollateral(
+            pegInLp
+        );
+        vm.prank(pegInLp);
+        collateralManagement.resign();
+
+        vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS);
+
+        vm.prank(pegInLp);
+        vm.expectRevert(
+            abi.encodeWithSelector(Flyover.InvalidAddress.selector, address(0))
+        );
+        collateralManagement.withdrawCollateral(payable(address(0)));
+
+        // State should be unchanged
+        assertEq(
+            collateralManagement.getResignationBlock(pegInLp),
+            block.number - TEST_RESIGN_DELAY_BLOCKS,
+            "Resignation block should be unchanged"
+        );
+        assertEq(
+            collateralManagement.getPegInCollateral(pegInLp),
+            pegInCollateral,
+            "Collateral should be unchanged"
+        );
+    }
+
+    function test_WithdrawCollateral_AllowsWithdrawToDifferentRecipient()
+        public
+    {
+        uint256 pegInCollateral = collateralManagement.getPegInCollateral(
+            pegInLp
+        );
+
+        vm.prank(pegInLp);
+        collateralManagement.resign();
+
+        vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS);
+
+        address recipient = makeAddr("collateralRecipient");
+        vm.deal(recipient, 0);
+        uint256 recipientBalanceBefore = recipient.balance;
+        uint256 pegInLpBalanceBefore = pegInLp.balance;
+
+        vm.prank(pegInLp);
+        vm.expectEmit(true, true, false, true);
+        emit ICollateralManagement.WithdrawCollateral(
+            pegInLp,
+            recipient,
+            pegInCollateral
+        );
+        collateralManagement.withdrawCollateral(payable(recipient));
+
+        // (1) Funds arrive at to
+        assertEq(
+            recipient.balance,
+            recipientBalanceBefore + pegInCollateral,
+            "Recipient should receive the withdrawn collateral"
+        );
+        assertEq(
+            pegInLp.balance,
+            pegInLpBalanceBefore,
+            "Caller (provider) should not receive the funds; they went to recipient"
+        );
+
+        // (2) Caller's state is cleared
+        assertEq(
+            collateralManagement.getPegInCollateral(pegInLp),
+            0,
+            "PegIn collateral should be 0"
+        );
+        assertEq(
+            collateralManagement.getResignationBlock(pegInLp),
+            0,
+            "Resignation block should be reset"
+        );
+
+        // (3) Event semantics: WithdrawCollateral(caller, recipient, amount) documents who withdrew (caller), where the funds were sent (recipient), and how much
+        // (already asserted via vm.expectEmit above)
+    }
+
     function test_WithdrawCollateral_AllowsProvidersToWithdrawCollateral()
         public
     {
@@ -361,6 +445,7 @@ contract ResignTest is CollateralTestBase {
         vm.prank(pegInLp);
         vm.expectEmit(true, true, false, true);
         emit ICollateralManagement.WithdrawCollateral(
+            pegInLp,
             pegInLp,
             expectedWithdrawal
         );
@@ -409,6 +494,7 @@ contract ResignTest is CollateralTestBase {
         vm.prank(pegOutLp);
         vm.expectEmit(true, true, false, true);
         emit ICollateralManagement.WithdrawCollateral(
+            pegOutLp,
             pegOutLp,
             expectedWithdrawal
         );
@@ -471,6 +557,7 @@ contract ResignTest is CollateralTestBase {
         vm.expectEmit(true, true, false, true);
         emit ICollateralManagement.WithdrawCollateral(
             fullLp,
+            fullLp,
             expectedWithdrawal
         );
         collateralManagement.withdrawCollateral();
@@ -527,9 +614,9 @@ contract ResignTest is CollateralTestBase {
         // Set wallet to reject funds
         walletMock.setRejectFunds(true);
 
-        // Try to withdraw - should emit TransactionRejected event
+        // Try to withdraw - should emit TransactionRejected event (no-arg overload)
         bytes memory withdrawData = abi.encodeWithSelector(
-            collateralManagement.withdrawCollateral.selector
+            bytes4(keccak256("withdrawCollateral()"))
         );
 
         // The withdrawal should fail and emit TransactionRejected

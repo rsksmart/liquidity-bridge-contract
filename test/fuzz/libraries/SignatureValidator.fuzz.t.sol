@@ -33,7 +33,11 @@ contract SignatureValidatorFuzzTest is Test {
         );
         bytes memory signature = abi.encodePacked(r, s, v);
 
-        bool result = signatureValidator.verify(signer, messageHash, signature);
+        bool result = signatureValidator.verify(
+            signer,
+            ethSignedMessageHash,
+            signature
+        );
         assertTrue(result, "Valid signature should verify");
     }
 
@@ -284,10 +288,18 @@ contract SignatureValidatorFuzzTest is Test {
 
             // Signature 1 should verify for addr1, not addr2
             assertTrue(
-                signatureValidator.verify(addr1, messageHash, signature)
+                signatureValidator.verify(
+                    addr1,
+                    ethSignedMessageHash,
+                    signature
+                )
             );
             assertFalse(
-                signatureValidator.verify(addr2, messageHash, signature)
+                signatureValidator.verify(
+                    addr2,
+                    ethSignedMessageHash,
+                    signature
+                )
             );
         }
 
@@ -301,10 +313,18 @@ contract SignatureValidatorFuzzTest is Test {
 
             // Signature 2 should verify for addr2, not addr1
             assertTrue(
-                signatureValidator.verify(addr2, messageHash, signature)
+                signatureValidator.verify(
+                    addr2,
+                    ethSignedMessageHash,
+                    signature
+                )
             );
             assertFalse(
-                signatureValidator.verify(addr1, messageHash, signature)
+                signatureValidator.verify(
+                    addr1,
+                    ethSignedMessageHash,
+                    signature
+                )
             );
         }
     }

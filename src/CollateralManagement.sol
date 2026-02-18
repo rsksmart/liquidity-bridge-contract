@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
+import {
+    AccessControlDefaultAdminRulesUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {ICollateralManagement} from "./interfaces/ICollateralManagement.sol";
+import {IPauseRegistry} from "./interfaces/IPauseRegistry.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 import {Quotes} from "./libraries/Quotes.sol";
 
@@ -13,6 +17,7 @@ import {Quotes} from "./libraries/Quotes.sol";
 /// This involves adding, slashing, resigning and withdrawing collateral.
 /// @author Rootstock Labs
 contract CollateralManagementContract is
+    AccessControlDefaultAdminRulesUpgradeable,
     ReentrancyGuardUpgradeable,
     EmergencyPause,
     ICollateralManagement
@@ -62,6 +67,11 @@ contract CollateralManagementContract is
         _;
     }
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     // solhint-disable-next-line comprehensive-interface
     receive() external payable {
         revert Flyover.PaymentNotAllowed();
@@ -93,20 +103,23 @@ contract CollateralManagementContract is
     /// @param minCollateral The minimum collateral required for a liquidity provider **per operation**
     /// @param resignDelayInBlocks The delay in blocks before a liquidity provider can withdraw their collateral
     /// @param rewardPercentage The reward percentage from the penalty fee of the quotes that the punisher will receive
+    /// @param pauseRegistry The central PauseRegistry for pause state
     // solhint-disable-next-line comprehensive-interface
     function initialize(
         address defaultAdmin,
         uint48 initialDelay,
         uint256 minCollateral,
         uint256 resignDelayInBlocks,
-        uint256 rewardPercentage
+        uint256 rewardPercentage,
+        IPauseRegistry pauseRegistry
     ) external initializer {
         if (rewardPercentage > TOTAL_REWARD_PERCENTAGE) {
             revert InvalidRewardPercentage(TOTAL_REWARD_PERCENTAGE, rewardPercentage);
         }
+        if (address(pauseRegistry).code.length == 0) revert Flyover.NoContract(address(pauseRegistry));
+        __AccessControlDefaultAdminRules_init(initialDelay, defaultAdmin);
         __ReentrancyGuard_init();
-        // Initialize EmergencyPause (includes AccessControl, Pausable, and grants PAUSER_ROLE)
-        __EmergencyPause_init(initialDelay, defaultAdmin);
+        __EmergencyPause_init(pauseRegistry);
         _minCollateral = minCollateral;
         _resignDelayInBlocks = resignDelayInBlocks;
         _rewardPercentage = rewardPercentage;
@@ -144,7 +157,7 @@ contract CollateralManagementContract is
         address punisher,
         Quotes.PegInQuote calldata quote,
         bytes32 quoteHash
-    ) external whenNotPaused onlyRole(COLLATERAL_SLASHER) override {
+    ) external onlyRole(COLLATERAL_SLASHER) override {
         uint256 penalty = Math.min(
             quote.penaltyFee,
             _pegInCollateral[quote.liquidityProviderRskAddress]
@@ -168,7 +181,7 @@ contract CollateralManagementContract is
         address punisher,
         Quotes.PegOutQuote calldata quote,
         bytes32 quoteHash
-    ) external whenNotPaused onlyRole(COLLATERAL_SLASHER) override {
+    ) external onlyRole(COLLATERAL_SLASHER) override {
         uint penalty = Math.min(
             quote.penaltyFee,
             _pegOutCollateral[quote.lpRskAddress]
@@ -189,37 +202,26 @@ contract CollateralManagementContract is
 
     /// @inheritdoc ICollateralManagement
     function withdrawCollateral() external nonReentrant override {
-        address providerAddress = msg.sender;
-        uint resignationBlock = _resignationBlockNum[providerAddress];
-        if (resignationBlock < 1) revert NotResigned(providerAddress);
-        if (block.number - resignationBlock < _resignDelayInBlocks) {
-            revert ResignationDelayNotMet(providerAddress, resignationBlock, _resignDelayInBlocks);
-        }
-
-        uint256 amount = _pegOutCollateral[providerAddress] + _pegInCollateral[providerAddress];
-        if (amount < 1) revert NothingToWithdraw(providerAddress);
-        _pegOutCollateral[providerAddress] = 0;
-        _pegInCollateral[providerAddress] = 0;
-        _resignationBlockNum[providerAddress] = 0;
-
-        emit WithdrawCollateral(providerAddress, amount);
-        (bool success,) = providerAddress.call{value: amount}("");
-        if (!success) revert WithdrawalFailed(providerAddress, amount);
+        _withdrawCollateralTo(payable(msg.sender));
     }
 
     /// @inheritdoc ICollateralManagement
-    function withdrawRewards() external override {
-        address addr = msg.sender;
-        uint256 rewards = _rewards[addr];
-        if (rewards < 1) revert NothingToWithdraw(addr);
-        _rewards[addr] = 0;
-        emit RewardsWithdrawn(addr, rewards);
-        (bool success,) = addr.call{value: rewards}("");
-        if (!success) revert WithdrawalFailed(addr, rewards);
+    function withdrawCollateral(address payable to) external nonReentrant override {
+        _withdrawCollateralTo(to);
     }
 
     /// @inheritdoc ICollateralManagement
-    function resign() external whenNotPaused override {
+    function withdrawRewards() external nonReentrant override {
+        _withdrawRewardsTo(payable(msg.sender));
+    }
+
+    /// @inheritdoc ICollateralManagement
+    function withdrawRewards(address payable to) external nonReentrant override {
+        _withdrawRewardsTo(to);
+    }
+
+    /// @inheritdoc ICollateralManagement
+    function resign() external override {
         address providerAddress = msg.sender;
         if (_resignationBlockNum[providerAddress] != 0) revert AlreadyResigned(providerAddress);
         if (_pegInCollateral[providerAddress] < 1 && _pegOutCollateral[providerAddress] < 1) {
@@ -288,6 +290,37 @@ contract CollateralManagementContract is
     /// @inheritdoc ICollateralManagement
     function getPenalties() external view override returns (uint256) {
         return _penalties;
+    }
+
+    function _withdrawRewardsTo(address payable to) private {
+        if (to == address(0)) revert Flyover.InvalidAddress(to);
+        address addr = msg.sender;
+        uint256 rewards = _rewards[addr];
+        if (rewards < 1) revert NothingToWithdraw(addr);
+        _rewards[addr] = 0;
+        emit RewardsWithdrawn(addr, to, rewards);
+        (bool success,) = to.call{value: rewards}("");
+        if (!success) revert WithdrawalFailed(to, rewards);
+    }
+
+    function _withdrawCollateralTo(address payable to) private {
+        if (to == address(0)) revert Flyover.InvalidAddress(to);
+        address providerAddress = msg.sender;
+        uint256 resignationBlock = _resignationBlockNum[providerAddress];
+        if (resignationBlock < 1) revert NotResigned(providerAddress);
+        if (block.number - resignationBlock < _resignDelayInBlocks) {
+            revert ResignationDelayNotMet(providerAddress, resignationBlock, _resignDelayInBlocks);
+        }
+
+        uint256 amount = _pegOutCollateral[providerAddress] + _pegInCollateral[providerAddress];
+        if (amount < 1) revert NothingToWithdraw(providerAddress);
+        _pegOutCollateral[providerAddress] = 0;
+        _pegInCollateral[providerAddress] = 0;
+        _resignationBlockNum[providerAddress] = 0;
+
+        emit WithdrawCollateral(providerAddress, to, amount);
+        (bool success,) = to.call{value: amount}("");
+        if (!success) revert WithdrawalFailed(to, amount);
     }
 
     /// @notice Adds peg in collateral to an account

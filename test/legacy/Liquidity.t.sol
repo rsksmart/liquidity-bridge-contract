@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 import {LiquidityBridgeContractV2} from "../../src/legacy/LiquidityBridgeContractV2.sol";
 import {QuotesV2} from "../../src/legacy/QuotesV2.sol";
 import {BridgeMock} from "../../src/test-contracts/BridgeMock.sol";
-import {SignatureValidator} from "../../src/libraries/SignatureValidator.sol";
+import {SignatureValidator} from "../../src/legacy/SignatureValidator.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";

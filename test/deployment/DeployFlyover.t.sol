@@ -6,6 +6,7 @@ import "lib/forge-std/src/console.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
+import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {PegInContract} from "../../src/PegInContract.sol";
 import {PegOutContract} from "../../src/PegOutContract.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
@@ -23,6 +24,7 @@ contract DeployFlyoverTest is Test {
     BridgeMock public bridgeMock;
 
     // Deployed contracts
+    address public pauseRegistryProxy;
     CollateralManagementContract public collateralManagement;
     FlyoverDiscovery public discovery;
     PegInContract public pegInContract;
@@ -59,6 +61,14 @@ contract DeployFlyoverTest is Test {
         address deployer,
         HelperConfig.FlyoverConfig memory cfg
     ) private {
+        PauseRegistry prImpl = new PauseRegistry();
+        pauseRegistryProxy = address(
+            new TransparentUpgradeableProxy(
+                address(prImpl),
+                proxyAdmin,
+                abi.encodeCall(prImpl.initialize, (0, deployer))
+            )
+        );
         address impl = address(new CollateralManagementContract());
         bytes memory initData = abi.encodeCall(
             CollateralManagementContract.initialize,
@@ -67,7 +77,8 @@ contract DeployFlyoverTest is Test {
                 cfg.adminDelay,
                 cfg.minimumCollateral,
                 cfg.resignDelayBlocks,
-                cfg.rewardPercentage
+                cfg.rewardPercentage,
+                PauseRegistry(pauseRegistryProxy)
             )
         );
         address proxy = address(
@@ -83,7 +94,12 @@ contract DeployFlyoverTest is Test {
         address impl = address(new FlyoverDiscovery());
         bytes memory initData = abi.encodeCall(
             FlyoverDiscovery.initialize,
-            (deployer, cfg.adminDelay, address(collateralManagement))
+            (
+                deployer,
+                cfg.adminDelay,
+                address(collateralManagement),
+                PauseRegistry(pauseRegistryProxy)
+            )
         );
         address proxy = address(
             new TransparentUpgradeableProxy(impl, proxyAdmin, initData)
@@ -105,8 +121,7 @@ contract DeployFlyoverTest is Test {
                 cfg.minimumPegIn,
                 address(collateralManagement),
                 cfg.mainnet,
-                cfg.daoFeePercentage,
-                cfg.daoFeeCollector
+                PauseRegistry(pauseRegistryProxy)
             )
         );
         address proxy = address(
@@ -129,8 +144,7 @@ contract DeployFlyoverTest is Test {
                 address(collateralManagement),
                 cfg.mainnet,
                 cfg.btcBlockTime,
-                cfg.daoFeePercentage,
-                cfg.daoFeeCollector
+                PauseRegistry(pauseRegistryProxy)
             )
         );
         address proxy = address(

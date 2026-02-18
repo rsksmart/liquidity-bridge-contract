@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import {PegOutTestBase} from "./PegOutTestBase.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
+import {console} from "forge-std/console.sol";
 
 contract HashingTest is PegOutTestBase {
     function setUp() public {
@@ -12,16 +13,34 @@ contract HashingTest is PegOutTestBase {
 
     // ============ hashPegOutQuote function tests ============
 
+    function test_HashPegOutQuote_RevertsIfQuoteChainIdIsFromAnotherNetwork()
+        public
+    {
+        Quotes.PegOutQuote memory quote = createSpecificPegOutQuote1();
+        quote.lbcAddress = address(pegOutContract);
+        uint256 wrongChainId = block.chainid == 1 ? 31337 : 1;
+        quote.chainId = wrongChainId;
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Flyover.InvalidChainId.selector,
+                block.chainid,
+                wrongChainId
+            )
+        );
+        pegOutContract.hashPegOutQuote(quote);
+    }
+
     function test_HashPegOutQuote_RevertsIfQuoteBelongsToOtherContract()
         public
     {
         address wrongContract = 0xAA9cAf1e3967600578727F975F283446A3Da6612;
 
         Quotes.PegOutQuote memory quote = Quotes.PegOutQuote({
+            chainId: block.chainid,
             callFee: 300000000000000,
             penaltyFee: 10000000000000,
             value: 471000000000000000,
-            productFeeAmount: 0,
             gasFee: 5990000000000,
             lbcAddress: wrongContract,
             lpRskAddress: 0x82a06eBDB97776a2da4041dF8f2b2ea8D3257852,
@@ -80,7 +99,7 @@ contract HashingTest is PegOutTestBase {
         assertTrue(hash1a != hash3, "Changing quote value should change hash");
     }
 
-    function test_HashPegOutQuote_IncludesAllFieldsInHash() public view {
+    function test_HashPegOutQuote_IncludesAllFieldsInHash() public {
         // This test ensures every field in PegOutQuote affects the hash
         // If a new field is added but not included in the hash function, this test will fail
         Quotes.PegOutQuote memory baseQuote = createSpecificPegOutQuote1();
@@ -88,6 +107,18 @@ contract HashingTest is PegOutTestBase {
         bytes32 baseHash = pegOutContract.hashPegOutQuote(baseQuote);
 
         Quotes.PegOutQuote memory modifiedQuote;
+
+        // Test chainId
+        modifiedQuote = baseQuote;
+        modifiedQuote.chainId = baseQuote.chainId + 1;
+        uint originalChainId = block.chainid;
+        vm.chainId(modifiedQuote.chainId); // to prevent the hash from failing
+        assertTrue(
+            pegOutContract.hashPegOutQuote(modifiedQuote) != baseHash,
+            "chainId should affect hash"
+        );
+        modifiedQuote.chainId = originalChainId;
+        vm.chainId(originalChainId);
 
         // Test callFee
         modifiedQuote = baseQuote;
@@ -111,14 +142,6 @@ contract HashingTest is PegOutTestBase {
         assertTrue(
             pegOutContract.hashPegOutQuote(modifiedQuote) != baseHash,
             "value should affect hash"
-        );
-
-        // Test productFeeAmount
-        modifiedQuote = baseQuote;
-        modifiedQuote.productFeeAmount = baseQuote.productFeeAmount + 1;
-        assertTrue(
-            pegOutContract.hashPegOutQuote(modifiedQuote) != baseHash,
-            "productFeeAmount should affect hash"
         );
 
         // Test gasFee
@@ -250,17 +273,17 @@ contract HashingTest is PegOutTestBase {
 
     function createSpecificPegOutQuote1()
         internal
-        pure
+        view
         returns (Quotes.PegOutQuote memory)
     {
         bytes memory testBtcAddress = new bytes(21);
 
         return
             Quotes.PegOutQuote({
+                chainId: block.chainid,
                 callFee: 300000000000000,
                 penaltyFee: 10000000000000,
                 value: 471000000000000000,
-                productFeeAmount: 0,
                 gasFee: 5990000000000,
                 lbcAddress: 0x4C2F7092C2aE51D986bEFEe378e50BD4dB99C901,
                 lpRskAddress: 0x82a06eBDB97776a2da4041dF8f2b2ea8D3257852,
@@ -281,17 +304,17 @@ contract HashingTest is PegOutTestBase {
 
     function createSpecificPegOutQuote2()
         internal
-        pure
+        view
         returns (Quotes.PegOutQuote memory)
     {
         bytes memory testBtcAddress = new bytes(21);
 
         return
             Quotes.PegOutQuote({
+                chainId: block.chainid,
                 callFee: 300000000000000,
                 penaltyFee: 10000000000000,
                 value: 27108379819732510,
-                productFeeAmount: 1,
                 gasFee: 11330000000000,
                 lbcAddress: 0x4C2F7092C2aE51D986bEFEe378e50BD4dB99C901,
                 lpRskAddress: 0x82a06eBDB97776a2da4041dF8f2b2ea8D3257852,
@@ -312,17 +335,17 @@ contract HashingTest is PegOutTestBase {
 
     function createSpecificPegOutQuote3()
         internal
-        pure
+        view
         returns (Quotes.PegOutQuote memory)
     {
         bytes memory testBtcAddress = new bytes(21);
 
         return
             Quotes.PegOutQuote({
+                chainId: block.chainid,
                 callFee: 300000000000000,
                 penaltyFee: 10000000000000,
                 value: 1045000000000000000,
-                productFeeAmount: 3,
                 gasFee: 3140000000000,
                 lbcAddress: 0x4C2F7092C2aE51D986bEFEe378e50BD4dB99C901,
                 lpRskAddress: 0x82a06eBDB97776a2da4041dF8f2b2ea8D3257852,
