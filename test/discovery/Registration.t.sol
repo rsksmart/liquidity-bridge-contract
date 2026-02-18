@@ -18,7 +18,12 @@ contract RegistrationTest is DiscoveryTestBase {
         FlyoverDiscovery implementation = new FlyoverDiscovery();
 
         vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
-        implementation.initialize(owner, 0, address(collateralManagement));
+        implementation.initialize(
+            owner,
+            0,
+            address(collateralManagement),
+            pauseRegistry
+        );
     }
 
     function test_Register_RegistersProvidersAndIncrementsLastProviderId()

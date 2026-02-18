@@ -67,7 +67,8 @@ contract ConfigurationTest is PegOutTestBase {
             TEST_DUST_THRESHOLD,
             address(collateralManagement),
             false,
-            TEST_BTC_BLOCK_TIME
+            TEST_BTC_BLOCK_TIME,
+            pauseRegistry
         );
     }
 

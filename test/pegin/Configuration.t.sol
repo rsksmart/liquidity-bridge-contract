@@ -91,7 +91,8 @@ contract ConfigurationTest is PegInTestBase {
             TEST_DUST_THRESHOLD,
             TEST_MIN_PEGIN,
             address(collateralManagement),
-            false
+            false,
+            pauseRegistry
         );
     }
 

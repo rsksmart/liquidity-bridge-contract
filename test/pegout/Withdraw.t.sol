@@ -64,7 +64,7 @@ contract WithdrawTest is PegOutTestBase {
         );
 
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
         changeReceiver.setFail(true);
 
         vm.prank(user);
@@ -238,7 +238,7 @@ contract WithdrawTest is PegOutTestBase {
         );
 
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signQuote(fullLp, quoteHash);
+        bytes memory signature = signQuote(fullLp, quote);
         receiver.setFail(true);
 
         vm.prank(user);
@@ -268,6 +268,7 @@ contract WithdrawTest is PegOutTestBase {
                 callFee: 100000000000000,
                 penaltyFee: 10000000000000,
                 value: value,
+                chainId: block.chainid,
                 gasFee: 100,
                 lbcAddress: address(pegOutContract),
                 lpRskAddress: lp,
@@ -307,7 +308,7 @@ contract WithdrawTest is PegOutTestBase {
 
     function signQuote(
         address signer,
-        bytes32 quoteHash
+        Quotes.PegOutQuote memory quote
     ) internal view returns (bytes memory) {
         uint256 privateKey;
         if (signer == fullLp) {
@@ -320,13 +321,8 @@ contract WithdrawTest is PegOutTestBase {
             revert("Unknown signer");
         }
 
-        bytes32 ethSignedMessageHash = keccak256(
-            abi.encodePacked("\x19Ethereum Signed Message:\n32", quoteHash)
-        );
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
-            privateKey,
-            ethSignedMessageHash
-        );
+        bytes32 eip712Hash = pegOutContract.hashPegOutQuoteEIP712(quote);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, eip712Hash);
         return abi.encodePacked(r, s, v);
     }
 }

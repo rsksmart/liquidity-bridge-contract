@@ -113,6 +113,9 @@ contract CollateralManagementContract is
         uint256 rewardPercentage,
         IPauseRegistry pauseRegistry
     ) external initializer {
+        if (rewardPercentage > TOTAL_REWARD_PERCENTAGE) {
+            revert InvalidRewardPercentage(TOTAL_REWARD_PERCENTAGE, rewardPercentage);
+        }
         if (address(pauseRegistry).code.length == 0) revert Flyover.NoContract(address(pauseRegistry));
         __AccessControlDefaultAdminRules_init(initialDelay, defaultAdmin);
         __ReentrancyGuard_init();
@@ -142,6 +145,9 @@ contract CollateralManagementContract is
     /// @param rewardPercentage The new reward percentage
     // solhint-disable-next-line comprehensive-interface
     function setRewardPercentage(uint256 rewardPercentage) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (rewardPercentage > TOTAL_REWARD_PERCENTAGE) {
+            revert InvalidRewardPercentage(TOTAL_REWARD_PERCENTAGE, rewardPercentage);
+        }
         emit RewardPercentageSet(_rewardPercentage, rewardPercentage);
         _rewardPercentage = rewardPercentage;
     }
