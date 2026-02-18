@@ -14,18 +14,20 @@ event CollateralManagementSet(address indexed oldAddress, address indexed newAdd
 interface ICollateralManagement is IPausable {
 
     /// @notice Emitted when the collateral is withdrawn
-    /// @param addr The address of the liquidity provider
+    /// @param caller The liquidity provider whose collateral was withdrawn (msg.sender)
+    /// @param recipient The address that received the withdrawn collateral
     /// @param amount The amount of collateral withdrawn
-    event WithdrawCollateral(address indexed addr, uint indexed amount);
+    event WithdrawCollateral(address indexed caller, address indexed recipient, uint256 indexed amount);
 
     /// @notice Emitted when the liquidity provider resigns
     /// @param addr The address of the liquidity provider
     event Resigned(address indexed addr);
 
     /// @notice Emitted when the rewards are withdrawn by a punisher
-    /// @param addr The address of the punisher
+    /// @param caller The punisher whose rewards were withdrawn (msg.sender)
+    /// @param recipient The address that received the withdrawn rewards
     /// @param amount The amount of rewards withdrawn
-    event RewardsWithdrawn(address indexed addr, uint256 indexed amount);
+    event RewardsWithdrawn(address indexed caller, address indexed recipient, uint256 indexed amount);
 
     /// @notice Emitted when the peg in collateral is added
     /// @param addr The address of the liquidity provider
@@ -124,13 +126,27 @@ interface ICollateralManagement is IPausable {
         bytes32 quoteHash
     ) external;
 
-    /// @notice Withdraws rewards from the contract. This implies that the caller has
-    /// been a punisher at some point in time.
+    /// @notice Withdraws rewards from the contract. Sends to the caller. Use withdrawRewards(address payable to)
+    /// to send to a different address (e.g. if the caller cannot receive ETH).
     function withdrawRewards() external;
 
-    /// @notice Withdraws collateral from the contract. This requires the liquidity provider
-    /// to have resigned and the resignation delay to have passed.
+    /// @notice Withdraws rewards from the contract to the given address. The caller must have
+    /// accumulated rewards as a punisher. If the transfer fails, the call reverts and state is
+    /// unchanged; the caller can retry with a different recipient (e.g. an EOA).
+    /// @param to Must be non-zero; the address that will receive the withdrawn rewards.
+    /// Reverts with Flyover.InvalidAddress(to) if to == address(0).
+    function withdrawRewards(address payable to) external;
+
+    /// @notice Withdraws collateral from the contract. Sends to the caller. Use withdrawCollateral(address payable to)
+    /// to send to a different address (e.g. if the caller cannot receive ETH).
     function withdrawCollateral() external;
+
+    /// @notice Withdraws collateral from the contract to the given address. Requires the caller
+    /// to have resigned and the resignation delay to have passed. If the transfer fails, the call
+    /// reverts and state is unchanged; the caller can retry with a different recipient.
+    /// @param to Must be non-zero; the address that will receive the withdrawn collateral.
+    /// Reverts with Flyover.InvalidAddress(to) if to == address(0).
+    function withdrawCollateral(address payable to) external;
 
     /// @notice Resigns a liquidity provider
     function resign() external;

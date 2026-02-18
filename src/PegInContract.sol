@@ -22,7 +22,6 @@ contract PegInContract is
     AccessControlDaoContributorUpgradeable,
     IPegIn
 {
-
     /// @notice This struct is used to store the information of a call on behalf of the user
     /// @param timestamp The timestamp of the call
     /// @param success Whether the call was successful or not
@@ -65,6 +64,11 @@ contract PegInContract is
     /// @param oldMinPegIn The old minimum peg in amount
     /// @param newMinPegIn The new minimum peg in amount
     event MinPegInSet(uint256 indexed oldMinPegIn, uint256 indexed newMinPegIn);
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
 
     // solhint-disable-next-line comprehensive-interface
     receive() external payable {
@@ -182,13 +186,13 @@ contract PegInContract is
         if (gasleft() < quote.gasLimit + _MAX_CALL_GAS_COST) {
             revert InsufficientGas(gasleft(), quote.gasLimit + _MAX_CALL_GAS_COST);
         }
-        _callRegistry[quoteHash].timestamp = block.timestamp;
-        _processedQuotes[quoteHash] = PegInStates.CALL_DONE;
-
         (bool success,) = quote.contractAddress.call{
             gas: quote.gasLimit,
             value: quote.value
         }(quote.data);
+
+        _callRegistry[quoteHash].timestamp = block.timestamp;
+        _processedQuotes[quoteHash] = PegInStates.CALL_DONE;
 
         if (success) {
             _callRegistry[quoteHash].success = true;
@@ -266,15 +270,13 @@ contract PegInContract is
                 quote.liquidityProviderBtcAddress
             )
         );
-        bytes1 OP_DROP = 0x75; // solhint-disable-line
-        bytes1 OP_PUSHBYTES_32 = 0x20; // solhint-disable-line
         bytes memory flyoverRedeemScript = bytes.concat(
-            OP_PUSHBYTES_32,
+            OpCodes.OP_PUSHBYTES_32,
             derivationValue,
-            OP_DROP,
+            OpCodes.OP_DROP,
             _bridge.getActivePowpegRedeemScript()
         );
-        bytes memory segwitScript = bytes.concat(OpCodes.OP_0, OP_PUSHBYTES_32, sha256(flyoverRedeemScript));
+        bytes memory segwitScript = bytes.concat(OpCodes.OP_0, OpCodes.OP_PUSHBYTES_32, sha256(flyoverRedeemScript));
         return BtcUtils.validateP2SHAdress(depositAddress, segwitScript, _mainnet);
     }
 

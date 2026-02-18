@@ -20,7 +20,6 @@ contract PegOutContract is
     AccessControlDaoContributorUpgradeable,
     IPegOut
 {
-
     /// @notice This struct is used to store the information of a peg out
     /// @param completed whether the peg out has been completed or not,
     /// completed means the peg out was paid and refunded (to any party)
@@ -33,7 +32,9 @@ contract PegOutContract is
     /// @notice The version of the contract
     string constant public VERSION = "1.0.0";
     Flyover.ProviderType constant private _PEG_TYPE = Flyover.ProviderType.PegOut;
+    // Index of the BTC output that must pay quote.depositAddress during peg-out refund validation.
     uint256 constant private _PAY_TO_ADDRESS_OUTPUT = 0;
+    // Index of the BTC output that must be OP_RETURN with the quote hash during peg-out refund validation.
     uint256 constant private _QUOTE_HASH_OUTPUT = 1;
     uint256 constant private _SAT_TO_WEI_CONVERSION = 10**10;
     uint256 constant private _QUOTE_HASH_SIZE = 32;
@@ -59,6 +60,11 @@ contract PegOutContract is
     /// @param oldTime the old Bitcoin block time
     /// @param newTime the new Bitcoin block time
     event BtcBlockTimeSet(uint256 indexed oldTime, uint256 indexed newTime);
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
 
     // solhint-disable-next-line comprehensive-interface
     receive() external payable {
@@ -312,6 +318,8 @@ contract PegOutContract is
 
     /// @notice This function performs common validations for peg out transactions without checking confirmations.
     /// Used by both validatePegout (for unbroadcasted transactions) and refundPegOut (before confirmation check).
+    /// The validation expects fixed output positions in btcTx:
+    /// output 0 is the payment output and output 1 is the OP_RETURN quote-hash output.
     /// @param quoteHash the hash of the quote being validated
     /// @param btcTx the Bitcoin transaction
     /// @return quote the PegOutQuote associated with the transaction
@@ -393,7 +401,9 @@ contract PegOutContract is
     }
 
     /// @notice This function is used to validate the null data of the Bitcoin transaction. The null data
-    /// is used to store the hash of the peg out quote in the Bitcoin transaction
+    /// is used to store the hash of the peg out quote in the Bitcoin transaction.
+    /// It reads the OP_RETURN script from output index 1 and expects:
+    /// first byte == 32, followed by 32 bytes containing quoteHash.
     /// @param outputs the outputs of the Bitcoin transaction
     /// @param quoteHash the hash of the peg out quote
     function _validateBtcTxNullData(BtcUtils.TxRawOutput[] memory outputs, bytes32 quoteHash) private pure {

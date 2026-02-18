@@ -62,6 +62,11 @@ contract CollateralManagementContract is
         _;
     }
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     // solhint-disable-next-line comprehensive-interface
     receive() external payable {
         revert Flyover.PaymentNotAllowed();
@@ -183,33 +188,22 @@ contract CollateralManagementContract is
 
     /// @inheritdoc ICollateralManagement
     function withdrawCollateral() external nonReentrant override {
-        address providerAddress = msg.sender;
-        uint resignationBlock = _resignationBlockNum[providerAddress];
-        if (resignationBlock < 1) revert NotResigned(providerAddress);
-        if (block.number - resignationBlock < _resignDelayInBlocks) {
-            revert ResignationDelayNotMet(providerAddress, resignationBlock, _resignDelayInBlocks);
-        }
+        _withdrawCollateralTo(payable(msg.sender));
+    }
 
-        uint256 amount = _pegOutCollateral[providerAddress] + _pegInCollateral[providerAddress];
-        if (amount < 1) revert NothingToWithdraw(providerAddress);
-        _pegOutCollateral[providerAddress] = 0;
-        _pegInCollateral[providerAddress] = 0;
-        _resignationBlockNum[providerAddress] = 0;
-
-        emit WithdrawCollateral(providerAddress, amount);
-        (bool success,) = providerAddress.call{value: amount}("");
-        if (!success) revert WithdrawalFailed(providerAddress, amount);
+    /// @inheritdoc ICollateralManagement
+    function withdrawCollateral(address payable to) external nonReentrant override {
+        _withdrawCollateralTo(to);
     }
 
     /// @inheritdoc ICollateralManagement
     function withdrawRewards() external nonReentrant override {
-        address addr = msg.sender;
-        uint256 rewards = _rewards[addr];
-        if (rewards < 1) revert NothingToWithdraw(addr);
-        _rewards[addr] = 0;
-        emit RewardsWithdrawn(addr, rewards);
-        (bool success,) = addr.call{value: rewards}("");
-        if (!success) revert WithdrawalFailed(addr, rewards);
+        _withdrawRewardsTo(payable(msg.sender));
+    }
+
+    /// @inheritdoc ICollateralManagement
+    function withdrawRewards(address payable to) external nonReentrant override {
+        _withdrawRewardsTo(to);
     }
 
     /// @inheritdoc ICollateralManagement
@@ -282,6 +276,37 @@ contract CollateralManagementContract is
     /// @inheritdoc ICollateralManagement
     function getPenalties() external view override returns (uint256) {
         return _penalties;
+    }
+
+    function _withdrawRewardsTo(address payable to) private {
+        if (to == address(0)) revert Flyover.InvalidAddress(to);
+        address addr = msg.sender;
+        uint256 rewards = _rewards[addr];
+        if (rewards < 1) revert NothingToWithdraw(addr);
+        _rewards[addr] = 0;
+        emit RewardsWithdrawn(addr, to, rewards);
+        (bool success,) = to.call{value: rewards}("");
+        if (!success) revert WithdrawalFailed(to, rewards);
+    }
+
+    function _withdrawCollateralTo(address payable to) private {
+        if (to == address(0)) revert Flyover.InvalidAddress(to);
+        address providerAddress = msg.sender;
+        uint256 resignationBlock = _resignationBlockNum[providerAddress];
+        if (resignationBlock < 1) revert NotResigned(providerAddress);
+        if (block.number - resignationBlock < _resignDelayInBlocks) {
+            revert ResignationDelayNotMet(providerAddress, resignationBlock, _resignDelayInBlocks);
+        }
+
+        uint256 amount = _pegOutCollateral[providerAddress] + _pegInCollateral[providerAddress];
+        if (amount < 1) revert NothingToWithdraw(providerAddress);
+        _pegOutCollateral[providerAddress] = 0;
+        _pegInCollateral[providerAddress] = 0;
+        _resignationBlockNum[providerAddress] = 0;
+
+        emit WithdrawCollateral(providerAddress, to, amount);
+        (bool success,) = to.call{value: amount}("");
+        if (!success) revert WithdrawalFailed(to, amount);
     }
 
     /// @notice Adds peg in collateral to an account
