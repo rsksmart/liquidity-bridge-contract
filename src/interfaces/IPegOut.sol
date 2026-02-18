@@ -47,6 +47,22 @@ interface IPegOut is IPausable {
         uint256 amount
     );
 
+    /// @notice Emitted when the balance of a liquidity provider increases
+    /// @param dest The address of the liquidity provider
+    /// @param amount The amount of the increase
+    event BalanceIncrease(address indexed dest, uint256 indexed amount);
+
+    /// @notice Emitted when the balance of a liquidity provider decreases
+    /// @param dest The address of the liquidity provider
+    /// @param amount The amount of the decrease
+    event BalanceDecrease(address indexed dest, uint256 indexed amount);
+
+    /// @notice Emitted when an account withdraws funds from the contract
+    /// @param from The address making the withdrawal
+    /// @param to The address receiving the withdrawal
+    /// @param amount The amount of the withdrawal
+    event Withdrawal(address indexed from, address indexed to, uint256 indexed amount);
+
     /// @notice This error is emitted when the quote has expired by the number of blocks
     /// @param expireBlock the number of blocks the quote has expired
     error QuoteExpiredByBlocks(uint32 expireBlock);
@@ -92,6 +108,14 @@ interface IPegOut is IPausable {
     /// @param quoteHash the hash of the quote that is not expired
     error QuoteNotExpired(bytes32 quoteHash);
 
+
+    /// @notice This function is used to withdraw funds from the contract
+    /// @dev This is usually used if some payment failed and the funds need to be returned to a different address.
+    /// The amount will be subtracted from the sender's balance.
+    /// @param addr The address that will receive the withdrawn funds
+    /// @param amount The amount of the withdrawal
+    function withdraw(address payable addr, uint256 amount) external;
+
     /// @notice This is the function used to pay for a peg out quote. This is the only correct function to execute
     /// such payment, sending money directly to the contract does not work
     /// @param quote The quote that is being paid
@@ -101,7 +125,12 @@ interface IPegOut is IPausable {
     /// @notice This function is used by the liquidity provider to recover the funds spent on the peg out service plus
     /// their fee for the service. It proves the inclusion of the transaction paying to the user in the Bitcoin network
     /// @param quoteHash hash of the quote being refunded
-    /// @param btcTx the bitcoin raw transaction without the witness
+    /// @param btcTx the Bitcoin raw transaction without witness data. It must include
+    /// the required outputs in this EXACT order
+    /// (otherwise the LP risks losing its funds and getting its collateral slashed):
+    /// - output 0: payment to quote.depositAddress
+    /// - output 1: OP_RETURN storing the quoteHash
+    /// The contract validates these outputs by fixed indices during peg-out refunds.
     /// @param btcBlockHeaderHash header hash of the block where the transaction was included
     /// @param merkleBranchPath index of the leaf that is being proved to be included in the merkle tree
     /// @param merkleBranchHashes hashes of the merkle branch to get to the merkle root using the leaf being proved
@@ -139,4 +168,9 @@ interface IPegOut is IPausable {
         external
         view
         returns (Quotes.PegOutQuote memory quote);
+
+    /// @notice This function is used to get the balance of an address
+    /// @param addr The address to get the balance of
+    /// @return balance The balance of the address
+    function getBalance(address addr) external view returns (uint256);
 }

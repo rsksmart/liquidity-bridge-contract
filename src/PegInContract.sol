@@ -21,7 +21,6 @@ contract PegInContract is
     ReentrancyGuardUpgradeable,
     IPegIn
 {
-
     /// @notice This struct is used to store the information of a call on behalf of the user
     /// @param timestamp The timestamp of the call
     /// @param success Whether the call was successful or not
@@ -64,6 +63,11 @@ contract PegInContract is
     /// @param oldMinPegIn The old minimum peg in amount
     /// @param newMinPegIn The new minimum peg in amount
     event MinPegInSet(uint256 indexed oldMinPegIn, uint256 indexed newMinPegIn);
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
 
     // solhint-disable-next-line comprehensive-interface
     receive() external payable {
@@ -175,13 +179,13 @@ contract PegInContract is
         if (gasleft() < quote.gasLimit + _MAX_CALL_GAS_COST) {
             revert InsufficientGas(gasleft(), quote.gasLimit + _MAX_CALL_GAS_COST);
         }
-        _callRegistry[quoteHash].timestamp = block.timestamp;
-        _processedQuotes[quoteHash] = PegInStates.CALL_DONE;
-
         (bool success,) = quote.contractAddress.call{
             gas: quote.gasLimit,
             value: quote.value
         }(quote.data);
+
+        _callRegistry[quoteHash].timestamp = block.timestamp;
+        _processedQuotes[quoteHash] = PegInStates.CALL_DONE;
 
         if (success) {
             _callRegistry[quoteHash].success = true;

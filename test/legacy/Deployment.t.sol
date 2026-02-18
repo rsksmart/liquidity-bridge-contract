@@ -19,6 +19,15 @@ contract DeploymentTest is Test {
         bool shouldSucceed;
     }
 
+    function test_ImplementationInitialize_RevertsForLiquidityBridgeContractV2()
+        public
+    {
+        LiquidityBridgeContractV2 implementation = new LiquidityBridgeContractV2();
+
+        vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
+        implementation.initializeV2();
+    }
+
     function test_DeployLiquidityBridgeContractProxyAndInitializeIt() public {
         // Deploy V1 implementation
         LiquidityBridgeContract lbcV1Impl = new LiquidityBridgeContract();
