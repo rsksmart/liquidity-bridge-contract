@@ -204,7 +204,7 @@ contract FlyoverDiscovery is
         address providerAddress,
         uint256 collateralAmount
     ) private view {
-        if (providerAddress != msg.sender || providerAddress.code.length != 0) revert NotEOA(providerAddress);
+        if (providerAddress != msg.sender || msg.sender != tx.origin) revert NotEOA(providerAddress);
 
         if (
             bytes(name).length < 1 ||

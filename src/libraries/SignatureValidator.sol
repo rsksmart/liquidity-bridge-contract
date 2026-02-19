@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 library SignatureValidator {
 
     using ECDSA for bytes32;
-
     error IncorrectSignature(address expectedAddress, bytes32 usedHash, bytes signature);
     error SignatureCheckError(uint8 errorType, bytes32 errorArg);
     error ZeroAddress();
@@ -34,4 +33,5 @@ library SignatureValidator {
         }
         return recovered == addr;
     }
+
 }
