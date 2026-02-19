@@ -3,7 +3,6 @@ pragma solidity 0.8.25;
 
 import "forge-std/Test.sol";
 import {SignatureValidatorWrapper} from "../../src/test/SignatureValidatorWrapper.sol";
-import {EIP1271Bytes32Mock, EIP1271BytesOnlyMock, EIP1271InvalidMock, NonEIP1271Mock} from "../../src/test/EIP1271Mock.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
@@ -162,66 +161,6 @@ contract SignatureValidatorTest is Test {
         // Verify incorrect combinations
         assertFalse(signatureValidator.verify(signer, hash1, signature2));
         assertFalse(signatureValidator.verify(signer, hash2, signature1));
-    }
-
-    // ============ EIP-1271 Contract Signature Tests ============
-
-    function test_ShouldVerifyValidEIP1271Bytes32Signature() public {
-        bytes memory contractSignature = hex"123456";
-        bytes32 prefixedHash = testMessageHash.toEthSignedMessageHash();
-        EIP1271Bytes32Mock signerContract = new EIP1271Bytes32Mock(
-            prefixedHash,
-            contractSignature
-        );
-
-        bool result = signatureValidator.verify(
-            address(signerContract),
-            testMessageHash,
-            contractSignature
-        );
-        assertTrue(result, "EIP-1271 bytes32 signature should be valid");
-    }
-
-    function test_ShouldVerifyValidEIP1271BytesSignatureUsingFallback() public {
-        bytes memory contractSignature = hex"cafebabe";
-        bytes32 prefixedHash = testMessageHash.toEthSignedMessageHash();
-        EIP1271BytesOnlyMock signerContract = new EIP1271BytesOnlyMock(
-            abi.encode(prefixedHash),
-            contractSignature
-        );
-
-        bool result = signatureValidator.verify(
-            address(signerContract),
-            testMessageHash,
-            contractSignature
-        );
-        assertTrue(result, "EIP-1271 bytes fallback signature should be valid");
-    }
-
-    function test_ShouldReturnFalseForEIP1271InvalidMagicValue() public {
-        EIP1271InvalidMock signerContract = new EIP1271InvalidMock();
-        bytes memory contractSignature = hex"deadbeef";
-
-        bool result = signatureValidator.verify(
-            address(signerContract),
-            testMessageHash,
-            contractSignature
-        );
-        assertFalse(result, "EIP-1271 invalid magic value should fail");
-    }
-
-    function test_ShouldReturnFalseForContractWithoutEIP1271Implementation()
-        public
-    {
-        NonEIP1271Mock signerContract = new NonEIP1271Mock();
-        bytes memory contractSignature = hex"00";
-
-        bool result = signatureValidator.verify(
-            address(signerContract),
-            testMessageHash,
-            contractSignature
-        );
-        assertFalse(result, "Contract without EIP-1271 should fail");
     }
 
     // ============ Signature Length Validation Tests ============

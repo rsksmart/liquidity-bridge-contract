@@ -11,12 +11,18 @@ contract ContractCallerRegistrationTest is DiscoveryTestBase {
         deployDiscovery();
     }
 
-    // ============ Contract caller registration tests ============
+    // ============ Contract caller rejection tests ============
 
-    function test_Register_AllowsContractCallsRegister() public {
+    function test_Register_RevertsWhenContractCallsRegister() public {
         RegisterCaller caller = new RegisterCaller();
         vm.deal(address(caller), 100 ether);
 
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IFlyoverDiscovery.NotEOA.selector,
+                address(caller)
+            )
+        );
         caller.callRegister{value: MIN_COLLATERAL}(
             address(discovery),
             "N",
@@ -24,19 +30,9 @@ contract ContractCallerRegistrationTest is DiscoveryTestBase {
             true,
             Flyover.ProviderType.PegIn
         );
-
-        Flyover.LiquidityProvider memory provider = discovery.getProvider(
-            address(caller)
-        );
-        assertEq(provider.id, 1, "Provider id should be 1");
-        assertEq(
-            provider.providerAddress,
-            address(caller),
-            "Provider address should be the caller contract"
-        );
     }
 
-    function test_Register_RevertsWhenContractProvidesInsufficientCollateral()
+    function test_Register_RevertsWhenContractCallsRegisterWithLowCollateral()
         public
     {
         RegisterCaller caller = new RegisterCaller();
@@ -44,8 +40,8 @@ contract ContractCallerRegistrationTest is DiscoveryTestBase {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                IFlyoverDiscovery.InsufficientCollateral.selector,
-                MIN_COLLATERAL - 1
+                IFlyoverDiscovery.NotEOA.selector,
+                address(caller)
             )
         );
         caller.callRegister{value: MIN_COLLATERAL - 1}(
