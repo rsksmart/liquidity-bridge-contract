@@ -107,7 +107,11 @@ contract ResignTest is DiscoveryTestBase {
 
         vm.prank(fullLp);
         vm.expectEmit(true, true, false, true);
-        emit ICollateralManagement.WithdrawCollateral(fullLp, collateral);
+        emit ICollateralManagement.WithdrawCollateral(
+            fullLp,
+            fullLp,
+            collateral
+        );
         collateralManagement.withdrawCollateral();
 
         // Verify LP balance increased
@@ -164,7 +168,11 @@ contract ResignTest is DiscoveryTestBase {
 
         vm.prank(pegInLp);
         vm.expectEmit(true, true, false, true);
-        emit ICollateralManagement.WithdrawCollateral(pegInLp, collateral);
+        emit ICollateralManagement.WithdrawCollateral(
+            pegInLp,
+            pegInLp,
+            collateral
+        );
         collateralManagement.withdrawCollateral();
 
         // Verify LP balance increased
@@ -221,7 +229,11 @@ contract ResignTest is DiscoveryTestBase {
 
         vm.prank(pegOutLp);
         vm.expectEmit(true, true, false, true);
-        emit ICollateralManagement.WithdrawCollateral(pegOutLp, collateral);
+        emit ICollateralManagement.WithdrawCollateral(
+            pegOutLp,
+            pegOutLp,
+            collateral
+        );
         collateralManagement.withdrawCollateral();
 
         // Verify LP balance increased

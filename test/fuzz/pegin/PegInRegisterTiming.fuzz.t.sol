@@ -39,21 +39,21 @@ contract PegInRegisterTimingFuzzTest is PegInFuzzTestBase {
             fuzzUser,
             fullLp
         );
-        bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
+        bytes32 eip712Hash = pegInContract.hashPegInQuoteEIP712(quote);
 
         // First do callForUser to set state to CALL_DONE
         vm.prank(fullLp);
         pegInContract.callForUser{value: callValue}(quote);
 
         // Sign a different hash (wrong signature)
-        vm.assume(randomHash != quoteHash);
-        bytes memory wrongSignature = signFuzzQuote(pegInLp, randomHash);
+        vm.assume(randomHash != eip712Hash);
+        bytes memory wrongSignature = signMessageHash(pegInLp, randomHash);
 
         vm.expectRevert(
             abi.encodeWithSelector(
                 SignatureValidator.IncorrectSignature.selector,
                 fullLp,
-                quoteHash,
+                eip712Hash,
                 wrongSignature
             )
         );
@@ -78,20 +78,20 @@ contract PegInRegisterTimingFuzzTest is PegInFuzzTestBase {
             fuzzUser,
             fullLp
         );
-        bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
+        bytes32 eip712Hash = pegInContract.hashPegInQuoteEIP712(quote);
 
         // First do callForUser
         vm.prank(fullLp);
         pegInContract.callForUser{value: callValue}(quote);
 
         // Sign with wrong LP (pegInLp instead of fullLp)
-        bytes memory wrongSignature = signFuzzQuote(pegInLp, quoteHash);
+        bytes memory wrongSignature = signFuzzQuote(pegInLp, quote);
 
         vm.expectRevert(
             abi.encodeWithSelector(
                 SignatureValidator.IncorrectSignature.selector,
                 fullLp,
-                quoteHash,
+                eip712Hash,
                 wrongSignature
             )
         );
@@ -120,8 +120,7 @@ contract PegInRegisterTimingFuzzTest is PegInFuzzTestBase {
             fuzzUser,
             fullLp
         );
-        bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signFuzzQuote(fullLp, quoteHash);
+        bytes memory signature = signFuzzQuote(fullLp, quote);
 
         // First do callForUser
         vm.prank(fullLp);
@@ -158,7 +157,7 @@ contract PegInRegisterTimingFuzzTest is PegInFuzzTestBase {
             fullLp
         );
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signFuzzQuote(fullLp, quoteHash);
+        bytes memory signature = signFuzzQuote(fullLp, quote);
 
         uint256 peginAmount = getTotalQuoteValue(quote);
 
@@ -222,8 +221,7 @@ contract PegInRegisterTimingFuzzTest is PegInFuzzTestBase {
             fuzzUser,
             fullLp
         );
-        bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signFuzzQuote(fullLp, quoteHash);
+        bytes memory signature = signFuzzQuote(fullLp, quote);
 
         // Setup bridge to return confirmations error
         int256 BRIDGE_UNPROCESSABLE_ERROR = -303;
@@ -261,8 +259,7 @@ contract PegInRegisterTimingFuzzTest is PegInFuzzTestBase {
             fuzzUser,
             fullLp
         );
-        bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signFuzzQuote(fullLp, quoteHash);
+        bytes memory signature = signFuzzQuote(fullLp, quote);
 
         // Setup bridge to return unexpected error
         bridgeMock.setPeginError(errorCode);
@@ -301,7 +298,7 @@ contract PegInRegisterTimingFuzzTest is PegInFuzzTestBase {
             fullLp
         );
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signFuzzQuote(fullLp, quoteHash);
+        bytes memory signature = signFuzzQuote(fullLp, quote);
 
         // Setup BTC block headers
         bytes memory firstHeader = createBtcBlockHeader(
@@ -355,7 +352,7 @@ contract PegInRegisterTimingFuzzTest is PegInFuzzTestBase {
             fullLp
         );
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signFuzzQuote(fullLp, quoteHash);
+        bytes memory signature = signFuzzQuote(fullLp, quote);
 
         // Setup BTC block headers
         bytes memory firstHeader = createBtcBlockHeader(
@@ -411,7 +408,7 @@ contract PegInRegisterTimingFuzzTest is PegInFuzzTestBase {
             fullLp
         );
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signFuzzQuote(fullLp, quoteHash);
+        bytes memory signature = signFuzzQuote(fullLp, quote);
 
         uint256 peginAmount = getTotalQuoteValue(quote);
 
@@ -467,7 +464,7 @@ contract PegInRegisterTimingFuzzTest is PegInFuzzTestBase {
             fullLp
         );
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signFuzzQuote(fullLp, quoteHash);
+        bytes memory signature = signFuzzQuote(fullLp, quote);
 
         uint256 peginAmount = getTotalQuoteValue(quote);
 
@@ -505,10 +502,10 @@ contract PegInRegisterTimingFuzzTest is PegInFuzzTestBase {
             HEIGHT_MOCK
         );
 
-        // LP balance should increase by peginAmount minus productFeeAmount
+        // LP balance should increase by peginAmount
         assertEq(
             pegInContract.getBalance(fullLp),
-            lpBalanceBefore + peginAmount - quote.productFeeAmount,
+            lpBalanceBefore + peginAmount,
             "LP balance should increase"
         );
     }
@@ -530,7 +527,7 @@ contract PegInRegisterTimingFuzzTest is PegInFuzzTestBase {
             fullLp
         );
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signFuzzQuote(fullLp, quoteHash);
+        bytes memory signature = signFuzzQuote(fullLp, quote);
 
         uint256 peginAmount = getTotalQuoteValue(quote);
         uint256 totalPaid = peginAmount + extraPaid;
@@ -595,7 +592,7 @@ contract PegInRegisterTimingFuzzTest is PegInFuzzTestBase {
             fullLp
         );
         bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
-        bytes memory signature = signFuzzQuote(fullLp, quoteHash);
+        bytes memory signature = signFuzzQuote(fullLp, quote);
 
         uint256 peginAmount = getTotalQuoteValue(quote);
         vm.assume(underpayment < peginAmount);

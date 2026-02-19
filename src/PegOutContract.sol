@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {
+    AccessControlDefaultAdminRulesUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
+import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
-import {AccessControlDaoContributorUpgradeable} from "./DaoContributor.sol";
 import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {IBridge} from "./interfaces/IBridge.sol";
 import {ICollateralManagement, CollateralManagementSet} from "./interfaces/ICollateralManagement.sol";
+import {IPauseRegistry} from "./interfaces/IPauseRegistry.sol";
 import {IPegOut} from "./interfaces/IPegOut.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 import {Quotes} from "./libraries/Quotes.sol";
@@ -16,11 +20,12 @@ import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 /// @notice This contract is used to handle the peg out of the RSK network to the Bitcoin network
 /// @author Rootstock Labs
 contract PegOutContract is
+    AccessControlDefaultAdminRulesUpgradeable,
     EmergencyPause,
-    AccessControlDaoContributorUpgradeable,
+    ReentrancyGuardUpgradeable,
+    EIP712Upgradeable,
     IPegOut
 {
-
     /// @notice This struct is used to store the information of a peg out
     /// @param completed whether the peg out has been completed or not,
     /// completed means the peg out was paid and refunded (to any party)
@@ -32,8 +37,12 @@ contract PegOutContract is
 
     /// @notice The version of the contract
     string constant public VERSION = "1.0.0";
+    /// @notice The name of the contract (used for EIP712)
+    string constant public NAME = "PegOutContract";
     Flyover.ProviderType constant private _PEG_TYPE = Flyover.ProviderType.PegOut;
+    // Index of the BTC output that must pay quote.depositAddress during peg-out refund validation.
     uint256 constant private _PAY_TO_ADDRESS_OUTPUT = 0;
+    // Index of the BTC output that must be OP_RETURN with the quote hash during peg-out refund validation.
     uint256 constant private _QUOTE_HASH_OUTPUT = 1;
     uint256 constant private _SAT_TO_WEI_CONVERSION = 10**10;
     uint256 constant private _QUOTE_HASH_SIZE = 32;
@@ -43,6 +52,7 @@ contract PegOutContract is
 
     mapping(bytes32 => Quotes.PegOutQuote) private _pegOutQuotes;
     mapping(bytes32 => PegOutRecord) private _pegOutRegistry;
+    mapping(address => uint256) private _balances;
 
     /// @notice The dust threshold for the peg out. If the difference between the amount paid and the amount required
     /// is more than this value, the difference goes back to the user's wallet
@@ -60,6 +70,11 @@ contract PegOutContract is
     /// @param newTime the new Bitcoin block time
     event BtcBlockTimeSet(uint256 indexed oldTime, uint256 indexed newTime);
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     // solhint-disable-next-line comprehensive-interface
     receive() external payable {
         revert Flyover.PaymentNotAllowed();
@@ -73,7 +88,7 @@ contract PegOutContract is
         if(!_collateralManagement.isRegistered(_PEG_TYPE, quote.lpRskAddress)) {
             revert Flyover.ProviderNotRegistered(quote.lpRskAddress);
         }
-        uint256 requiredAmount = quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+        uint256 requiredAmount = quote.value + quote.callFee + quote.gasFee;
         if (msg.value < requiredAmount) {
             revert Flyover.InsufficientAmount(msg.value, requiredAmount);
         }
@@ -84,10 +99,11 @@ contract PegOutContract is
             revert QuoteExpiredByBlocks(quote.expireBlock);
         }
 
-        bytes32 quoteHash = _hashPegOutQuote(quote);
-        if (!SignatureValidator.verify(quote.lpRskAddress, quoteHash, signature)) {
-            revert SignatureValidator.IncorrectSignature(quote.lpRskAddress, quoteHash, signature);
+        bytes32 eip712Hash = _hashPegOutQuoteEIP712(quote);
+        if (!SignatureValidator.verify(quote.lpRskAddress, eip712Hash, signature)) {
+            revert SignatureValidator.IncorrectSignature(quote.lpRskAddress, eip712Hash, signature);
         }
+        bytes32 quoteHash = _hashPegOutQuote(quote);
 
         Quotes.PegOutQuote storage registeredQuote = _pegOutQuotes[quoteHash];
 
@@ -122,9 +138,7 @@ contract PegOutContract is
     /// @param collateralManagement the address of the Collateral Management contract
     /// @param mainnet whether the contract is on the mainnet or not
     /// @param btcBlockTime_ the average Bitcoin block time in seconds
-    /// @param daoFeePercentage the percentage of the peg out amount that goes to the DAO.
-    /// Use zero to disable the DAO integration feature
-    /// @param daoFeeCollector the address of the DAO fee collector
+    /// @param pauseRegistry the central PauseRegistry for pause state
     // solhint-disable-next-line comprehensive-interface
     function initialize(
         address defaultAdmin,
@@ -133,14 +147,14 @@ contract PegOutContract is
         address collateralManagement,
         bool mainnet,
         uint256 btcBlockTime_,
-        uint256 daoFeePercentage,
-        address payable daoFeeCollector
+        IPauseRegistry pauseRegistry
     ) external initializer {
         if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
-        // Initialize DaoContributor (uses AccessControl from EmergencyPause)
-        __AccessControlDaoContributor_init(daoFeePercentage, daoFeeCollector, DEFAULT_ADMIN_ROLE);
-        // Initialize EmergencyPause (includes AccessControl, Pausable, and grants PAUSER_ROLE)
-        __EmergencyPause_init(0, defaultAdmin);
+        if (address(pauseRegistry).code.length == 0) revert Flyover.NoContract(address(pauseRegistry));
+        __AccessControlDefaultAdminRules_init(0, defaultAdmin);
+        __ReentrancyGuard_init();
+        __EIP712_init(NAME, VERSION);
+        __EmergencyPause_init(pauseRegistry);
         _bridge = IBridge(bridge);
         _collateralManagement = ICollateralManagement(collateralManagement);
         _mainnet = mainnet;
@@ -177,13 +191,28 @@ contract PegOutContract is
     }
 
     /// @inheritdoc IPegOut
+    function withdraw(address payable addr, uint256 amount) external nonReentrant override {
+        if (addr == address(0)) revert Flyover.InvalidAddress(addr);
+        uint256 balance = _balances[msg.sender];
+        if (balance < amount) {
+            revert Flyover.NoBalance(amount, balance);
+        }
+        _decreaseBalance(msg.sender, amount);
+        emit Withdrawal(msg.sender, addr, amount);
+        (bool success, bytes memory reason) = addr.call{value: amount}("");
+        if (!success) {
+            revert Flyover.PaymentFailed(addr, amount, reason);
+        }
+    }
+
+    /// @inheritdoc IPegOut
     function refundPegOut(
         bytes32 quoteHash,
         bytes calldata btcTx,
         bytes32 btcBlockHeaderHash,
         uint256 merkleBranchPath,
         bytes32[] calldata merkleBranchHashes
-    ) external nonReentrant whenNotPaused override {
+    ) external nonReentrant override {
         Quotes.PegOutQuote memory quote = _validatePegOutTransaction(quoteHash, btcTx);
         _validateBtcTxConfirmations(quote, btcTx, btcBlockHeaderHash, merkleBranchPath, merkleBranchHashes);
 
@@ -191,28 +220,26 @@ contract PegOutContract is
         _pegOutRegistry[quoteHash].completed = true;
         emit PegOutRefunded(quoteHash);
 
-        _addDaoContribution(quote.lpRskAddress, quote.productFeeAmount);
-
         if (_shouldPenalize(quote, quoteHash, btcBlockHeaderHash)) {
             _collateralManagement.slashPegOutCollateral(msg.sender, quote, quoteHash);
         }
 
         uint256 refundAmount = quote.value + quote.callFee + quote.gasFee;
-        (bool sent, bytes memory reason) = quote.lpRskAddress.call{value: refundAmount}("");
+        (bool sent,) = quote.lpRskAddress.call{value: refundAmount}("");
         if (!sent) {
-            revert Flyover.PaymentFailed(quote.lpRskAddress, refundAmount, reason);
+            _increaseBalance(quote.lpRskAddress, refundAmount);
         }
     }
 
     /// @inheritdoc IPegOut
-    function refundUserPegOut(bytes32 quoteHash) external nonReentrant whenNotPaused override {
+    function refundUserPegOut(bytes32 quoteHash) external nonReentrant override {
         Quotes.PegOutQuote memory quote = _pegOutQuotes[quoteHash];
 
         if (quote.lbcAddress == address(0)) revert Flyover.QuoteNotFound(quoteHash);
         // solhint-disable-next-line gas-strict-inequalities
         if (quote.expireDate >= block.timestamp || quote.expireBlock >= block.number) revert QuoteNotExpired(quoteHash);
 
-        uint256 valueToTransfer = quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+        uint256 valueToTransfer = quote.value + quote.callFee + quote.gasFee;
         address addressToTransfer = quote.rskRefundAddress;
 
         delete _pegOutQuotes[quoteHash];
@@ -221,9 +248,9 @@ contract PegOutContract is
         emit PegOutUserRefunded(quoteHash, addressToTransfer, valueToTransfer);
         _collateralManagement.slashPegOutCollateral(msg.sender, quote, quoteHash);
 
-        (bool sent, bytes memory reason) = addressToTransfer.call{value: valueToTransfer}("");
+        (bool sent,) = addressToTransfer.call{value: valueToTransfer}("");
         if (!sent) {
-            revert Flyover.PaymentFailed(addressToTransfer, valueToTransfer, reason);
+            _increaseBalance(addressToTransfer, valueToTransfer);
         }
     }
 
@@ -243,17 +270,45 @@ contract PegOutContract is
     }
 
     /// @inheritdoc IPegOut
+    function hashPegOutQuoteEIP712(
+        Quotes.PegOutQuote calldata quote
+    ) external view override returns (bytes32) {
+        return _hashPegOutQuoteEIP712(quote);
+    }
+
+    /// @inheritdoc IPegOut
     function isQuoteCompleted(bytes32 quoteHash) external view override returns (bool) {
         return _isQuoteCompleted(quoteHash);
     }
 
-    /// @dev Override _checkRole to use AccessControl from EmergencyPause
-    function _checkRole(bytes32 role)
-        internal
-        view
-        override(AccessControlDaoContributorUpgradeable, AccessControlUpgradeable)
-    {
-        super._checkRole(role);
+    /// @inheritdoc IPegOut
+    function getBalance(address addr) external view override returns (uint256) {
+        if (_reentrancyGuardEntered()) revert ReentrancyGuardReentrantCall();
+        return _balances[addr];
+    }
+
+    /// @notice This function is used to increase the balance of an account
+    /// @dev This function must remain private. Any exposure can lead to a loss of funds.
+    /// It is responsibility of the caller to ensure that the account is a liquidity provider
+    /// @param dest The address of account
+    /// @param amount The amount of balance to increase
+    function _increaseBalance(address dest, uint256 amount) private {
+        if (amount > 0) {
+            _balances[dest] += amount;
+            emit BalanceIncrease(dest, amount);
+        }
+    }
+
+    /// @notice This function is used to decrease the balance of an account
+    /// @dev This function must remain private. Any exposure can lead to a loss of funds.
+    /// It is responsibility of the caller to ensure that the account is a liquidity provider
+    /// @param dest The address of account
+    /// @param amount The amount of balance to decrease
+    function _decreaseBalance(address dest, uint256 amount) private {
+        if (amount > 0) {
+            _balances[dest] -= amount;
+            emit BalanceDecrease(dest, amount);
+        }
     }
 
     /// @notice This function is used to hash a peg out quote
@@ -263,10 +318,28 @@ contract PegOutContract is
     function _hashPegOutQuote(
         Quotes.PegOutQuote calldata quote
     ) private view returns (bytes32) {
+        _validatePegOutQuote(quote);
+        return keccak256(Quotes.encodePegOutQuote(quote));
+    }
+
+    /// @notice This function is used to hash a peg out quote using EIP712 specification
+    /// @dev The function also validates the quote belongs to this contract
+    /// @param quote the peg out quote to hash
+    /// @return quoteHash the hash of the peg out quote
+    function _hashPegOutQuoteEIP712(Quotes.PegOutQuote calldata quote) private view returns (bytes32) {
+        _validatePegOutQuote(quote);
+        return _hashTypedDataV4(Quotes.hashPegOutQuoteEIP712(quote));
+    }
+
+    /// @notice This function is used to validate a peg out quote before hashing it
+    /// @param quote The peg out quote to validate
+    function _validatePegOutQuote(Quotes.PegOutQuote calldata quote) private view {
+        if (quote.chainId != block.chainid) {
+            revert Flyover.InvalidChainId(block.chainid, quote.chainId);
+        }
         if (address(this) != quote.lbcAddress) {
             revert Flyover.IncorrectContract(address(this), quote.lbcAddress);
         }
-        return keccak256(Quotes.encodePegOutQuote(quote));
     }
 
     /// @notice This function is used to check if a quote has been completed (refunded by any party)
@@ -312,6 +385,8 @@ contract PegOutContract is
 
     /// @notice This function performs common validations for peg out transactions without checking confirmations.
     /// Used by both validatePegout (for unbroadcasted transactions) and refundPegOut (before confirmation check).
+    /// The validation expects fixed output positions in btcTx:
+    /// output 0 is the payment output and output 1 is the OP_RETURN quote-hash output.
     /// @param quoteHash the hash of the quote being validated
     /// @param btcTx the Bitcoin transaction
     /// @return quote the PegOutQuote associated with the transaction
@@ -393,7 +468,9 @@ contract PegOutContract is
     }
 
     /// @notice This function is used to validate the null data of the Bitcoin transaction. The null data
-    /// is used to store the hash of the peg out quote in the Bitcoin transaction
+    /// is used to store the hash of the peg out quote in the Bitcoin transaction.
+    /// It reads the OP_RETURN script from output index 1 and expects:
+    /// first byte == 32, followed by 32 bytes containing quoteHash.
     /// @param outputs the outputs of the Bitcoin transaction
     /// @param quoteHash the hash of the peg out quote
     function _validateBtcTxNullData(BtcUtils.TxRawOutput[] memory outputs, bytes32 quoteHash) private pure {
