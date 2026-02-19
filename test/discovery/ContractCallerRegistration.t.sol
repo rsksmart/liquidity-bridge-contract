@@ -52,4 +52,21 @@ contract ContractCallerRegistrationTest is DiscoveryTestBase {
             Flyover.ProviderType.PegIn
         );
     }
+
+    function test_Register_RevertsWhenMsgSenderDiffersFromTxOrigin() public {
+        address sender = makeAddr("sender");
+        address origin = makeAddr("origin");
+        vm.deal(sender, 100 ether);
+
+        vm.prank(sender, origin);
+        vm.expectRevert(
+            abi.encodeWithSelector(IFlyoverDiscovery.NotEOA.selector, sender)
+        );
+        discovery.register{value: MIN_COLLATERAL}(
+            "N",
+            "U",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+    }
 }
