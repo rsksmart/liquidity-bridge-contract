@@ -21,7 +21,7 @@ contract SignatureValidatorWrapper {
      * @return True if the signature is valid, false otherwise.
      */
     // solhint-disable-next-line comprehensive-interface
-    function verify(address addr, bytes32 quoteHash, bytes calldata signature) external view returns (bool) {
+    function verify(address addr, bytes32 quoteHash, bytes calldata signature) external pure returns (bool) {
         return SignatureValidator.verify(addr, quoteHash, signature);
     }
 }
