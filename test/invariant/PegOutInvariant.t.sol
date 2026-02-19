@@ -7,7 +7,6 @@ import {PegOutTestBase} from "../pegout/PegOutTestBase.sol";
 /// @title PegOutContract Invariant Tests
 /// @notice Tests critical invariants for the PegOutContract
 contract PegOutInvariantTest is PegOutTestBase {
-
     // Ghost variables
     uint256 public ghost_totalDeposited;
     uint256 public ghost_totalRefunded;
@@ -20,7 +19,9 @@ contract PegOutInvariantTest is PegOutTestBase {
         selectors[0] = this.invariant_NoUnderflow.selector;
         selectors[1] = this.invariant_ContractSolvent.selector;
         selectors[2] = this.invariant_GhostAccounting.selector;
-        targetSelector(FuzzSelector({addr: address(this), selectors: selectors}));
+        targetSelector(
+            FuzzSelector({addr: address(this), selectors: selectors})
+        );
     }
 
     // ============ Invariant Tests ============
