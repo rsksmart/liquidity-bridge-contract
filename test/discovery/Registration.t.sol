@@ -191,9 +191,7 @@ contract RegistrationTest is DiscoveryTestBase {
         );
     }
 
-    function test_Register_PreventsMultipleRegistrationsBySameEOA()
-        public
-    {
+    function test_Register_PreventsMultipleRegistrationsBySameEOA() public {
         address lp = makeAddr("lp");
         vm.deal(lp, 100 ether);
 
