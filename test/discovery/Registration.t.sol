@@ -196,7 +196,7 @@ contract RegistrationTest is DiscoveryTestBase {
         );
     }
 
-    function test_Register_PreventsMultipleRegistrationsBySameProviderAddress()
+    function test_Register_PreventsMultipleRegistrationsBySameEOA()
         public
     {
         address lp = makeAddr("lp");
@@ -211,7 +211,7 @@ contract RegistrationTest is DiscoveryTestBase {
             Flyover.ProviderType.PegIn
         );
 
-        // Second registration by the same provider address should fail
+        // Second registration by the same EOA should fail
         vm.prank(lp);
         vm.expectRevert(
             abi.encodeWithSelector(
