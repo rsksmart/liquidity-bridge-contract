@@ -24,10 +24,6 @@ library SignatureValidator {
             revert ZeroAddress();
         }
 
-        // TODO use EIP712 compatible format instead
-        bytes memory prefix = "\x19Ethereum Signed Message:\n32";
-        bytes32 prefixedHash = keccak256(abi.encodePacked(prefix, quoteHash));
-
         if (signature.length != 65) {
             revert IncorrectSignature(addr, messageHash, signature);
         }
