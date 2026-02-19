@@ -6,12 +6,12 @@ import {IFlyoverDiscovery} from "../../src/interfaces/IFlyoverDiscovery.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 import {RegisterCaller} from "../../src/test/RegisterCaller.sol";
 
-contract ContractCallerRegistrationTest is DiscoveryTestBase {
+contract NotEoaTest is DiscoveryTestBase {
     function setUp() public {
         deployDiscovery();
     }
 
-    // ============ Contract caller rejection tests ============
+    // ============ NotEOA checks tests ============
 
     function test_Register_RevertsWhenContractCallsRegister() public {
         RegisterCaller caller = new RegisterCaller();
