@@ -171,7 +171,7 @@ contract DiscoveryRegistrationFuzzTest is DiscoveryFuzzTestBase {
     ) public {
         collateral = bound(collateral, 0, MIN_COLLATERAL * 2 - 1);
 
-        vm.prank(fuzzUser);
+        vm.prank(fuzzUser, fuzzUser);
         vm.expectRevert(
             abi.encodeWithSelector(
                 IFlyoverDiscovery.InsufficientCollateral.selector,
@@ -195,7 +195,7 @@ contract DiscoveryRegistrationFuzzTest is DiscoveryFuzzTestBase {
         );
         uint256 requiredCollateral = getRequiredCollateral(providerType);
 
-        vm.prank(fuzzUser);
+        vm.prank(fuzzUser, fuzzUser);
         uint256 providerId = discovery.register{value: requiredCollateral}(
             "Name",
             "url",
@@ -252,7 +252,7 @@ contract DiscoveryRegistrationFuzzTest is DiscoveryFuzzTestBase {
         extraCollateral = bound(extraCollateral, 0, 5 ether);
         uint256 collateral = MIN_COLLATERAL + extraCollateral;
 
-        vm.prank(fuzzUser);
+        vm.prank(fuzzUser, fuzzUser);
         discovery.register{value: collateral}(
             "Name",
             "url",
@@ -279,7 +279,7 @@ contract DiscoveryRegistrationFuzzTest is DiscoveryFuzzTestBase {
         extraCollateral = bound(extraCollateral, 0, 5 ether);
         uint256 collateral = MIN_COLLATERAL + extraCollateral;
 
-        vm.prank(fuzzUser);
+        vm.prank(fuzzUser, fuzzUser);
         discovery.register{value: collateral}(
             "Name",
             "url",
@@ -306,7 +306,7 @@ contract DiscoveryRegistrationFuzzTest is DiscoveryFuzzTestBase {
         extraCollateral = bound(extraCollateral, 0, 5 ether);
         uint256 collateral = MIN_COLLATERAL * 2 + extraCollateral;
 
-        vm.prank(fuzzUser);
+        vm.prank(fuzzUser, fuzzUser);
         discovery.register{value: collateral}(
             "Name",
             "url",

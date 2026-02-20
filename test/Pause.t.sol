@@ -254,7 +254,7 @@ contract PauseTest is Test {
         vm.prank(pauser);
         pauseRegistry.pause("Emergency");
 
-        vm.prank(signers[1]);
+        vm.prank(signers[1], signers[1]);
         vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
         flyoverDiscovery.register{value: 1 ether}(
             "Test LP",
@@ -290,7 +290,7 @@ contract PauseTest is Test {
         _grantPauserRole();
 
         // First, register a provider before pausing
-        vm.prank(signers[1]);
+        vm.prank(signers[1], signers[1]);
         flyoverDiscovery.register{value: 1 ether}(
             "Test LP",
             "http://localhost/api",
@@ -383,7 +383,7 @@ contract PauseTest is Test {
         assertFalse(isPausedPI);
         assertFalse(isPausedPO);
 
-        vm.prank(signers[1]);
+        vm.prank(signers[1], signers[1]);
         flyoverDiscovery.register{value: 1 ether}(
             "Test LP",
             "http://localhost/api",
@@ -448,7 +448,7 @@ contract PauseTest is Test {
         vm.prank(pauser);
         pauseRegistry.pause("Multiple ops");
 
-        vm.startPrank(signers[1]);
+        vm.startPrank(signers[1], signers[1]);
 
         vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
         flyoverDiscovery.register{value: 1 ether}(

@@ -109,7 +109,7 @@ abstract contract DiscoveryTestBase is Test {
         vm.deal(fullLp, 100 ether);
 
         // Register providers
-        vm.prank(pegInLp);
+        vm.prank(pegInLp, pegInLp);
         discovery.register{value: MIN_COLLATERAL}(
             "Pegin Provider",
             "lp1.com",
@@ -117,7 +117,7 @@ abstract contract DiscoveryTestBase is Test {
             Flyover.ProviderType.PegIn
         );
 
-        vm.prank(pegOutLp);
+        vm.prank(pegOutLp, pegOutLp);
         discovery.register{value: MIN_COLLATERAL}(
             "PegOut Provider",
             "lp2.com",
@@ -125,7 +125,7 @@ abstract contract DiscoveryTestBase is Test {
             Flyover.ProviderType.PegOut
         );
 
-        vm.prank(fullLp);
+        vm.prank(fullLp, fullLp);
         discovery.register{value: MIN_COLLATERAL * 2}(
             "Full Provider",
             "lp3.com",

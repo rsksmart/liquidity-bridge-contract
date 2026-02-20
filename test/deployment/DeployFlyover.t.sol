@@ -346,7 +346,7 @@ contract DeployFlyoverTest is Test {
         console.log("   Provider address:", provider);
         console.log("   Collateral amount:", collateralAmount);
 
-        vm.prank(provider);
+        vm.prank(provider, provider);
         uint256 providerId = discovery.register{value: collateralAmount}(
             "Test Provider",
             "https://api.test.com",
