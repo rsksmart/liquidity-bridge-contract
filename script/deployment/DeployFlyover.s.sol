@@ -34,7 +34,9 @@ contract DeployFlyover is Script {
     function run() external returns (FlyoverDeployment memory) {
         HelperConfig helper = new HelperConfig();
         HelperConfig.FlyoverConfig memory cfg = helper.getFlyoverConfig();
-        console.log("======================== Config ==========================");
+        console.log(
+            "======================== Config =========================="
+        );
         console.log("Bridge:", cfg.bridge);
         console.log("Minimum Collateral:", cfg.minimumCollateral);
         console.log("Minimum PegIn:", cfg.minimumPegIn);
@@ -44,7 +46,9 @@ contract DeployFlyover is Script {
         console.log("BTC Block Time:", cfg.btcBlockTime);
         console.log("Mainnet:", cfg.mainnet);
         console.log("Admin Delay:", cfg.adminDelay);
-        console.log("==========================================================");
+        console.log(
+            "=========================================================="
+        );
 
         uint256 deployerKey = helper.getDeployerPrivateKey();
         address deployer = vm.rememberKey(deployerKey);
