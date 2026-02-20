@@ -109,7 +109,7 @@ contract HelperConfig is Script {
                 bridge: bridgeAddr,
                 minimumCollateral: vm.envOr(
                     "MIN_COLLATERAL_TESTNET",
-                    uint256(0.1 ether)
+                    uint256(0.01 ether)
                 ),
                 minimumPegIn: vm.envOr(
                     "MIN_PEGIN_TESTNET",
@@ -206,7 +206,7 @@ contract HelperConfig is Script {
                 bridge: bridgeAddr,
                 minimumCollateral: vm.envOr(
                     string.concat("MIN_COLLATERAL_", suffix),
-                    isMainnet ? uint256(0.5 ether) : uint256(0.1 ether)
+                    isMainnet ? uint256(0.5 ether) : uint256(0.01 ether)
                 ),
                 minimumPegIn: vm.envOr(
                     string.concat("MIN_PEGIN_", suffix),
