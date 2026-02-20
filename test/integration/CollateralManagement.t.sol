@@ -126,7 +126,7 @@ contract CollateralManagementIntegrationTest is Test {
         address lp = signers[signers.length - 1];
 
         // Register with extra collateral
-        vm.prank(lp);
+        vm.prank(lp, lp);
         discovery.register{value: MIN_COLLATERAL * 2}(
             "LP",
             "url",
@@ -177,7 +177,7 @@ contract CollateralManagementIntegrationTest is Test {
         address lp = signers[signers.length - 1];
 
         // Register with 2x minimum collateral
-        vm.prank(lp);
+        vm.prank(lp, lp);
         discovery.register{value: MIN_COLLATERAL * 2}(
             "LP",
             "url",
@@ -213,7 +213,7 @@ contract CollateralManagementIntegrationTest is Test {
         address lp = signers[signers.length - 1];
 
         // Register with 3x minimum collateral
-        vm.prank(lp);
+        vm.prank(lp, lp);
         discovery.register{value: MIN_COLLATERAL * 3}(
             "LP",
             "url",
@@ -250,7 +250,7 @@ contract CollateralManagementIntegrationTest is Test {
         address lp2 = signers[signers.length - 1];
 
         // Register two providers
-        vm.prank(lp1);
+        vm.prank(lp1, lp1);
         discovery.register{value: MIN_COLLATERAL}(
             "LP1",
             "url1",
@@ -258,7 +258,7 @@ contract CollateralManagementIntegrationTest is Test {
             Flyover.ProviderType.PegIn
         );
 
-        vm.prank(lp2);
+        vm.prank(lp2, lp2);
         discovery.register{value: MIN_COLLATERAL}(
             "LP2",
             "url2",
@@ -295,7 +295,7 @@ contract CollateralManagementIntegrationTest is Test {
         address lp = signers[signers.length - 1];
 
         // Register provider
-        vm.prank(lp);
+        vm.prank(lp, lp);
         discovery.register{value: MIN_COLLATERAL}(
             "LP",
             "url",
@@ -338,7 +338,7 @@ contract CollateralManagementIntegrationTest is Test {
         address lp = signers[signers.length - 1];
 
         // Initial registration
-        vm.prank(lp);
+        vm.prank(lp, lp);
         discovery.register{value: MIN_COLLATERAL}(
             "LP First",
             "url1",
@@ -364,7 +364,7 @@ contract CollateralManagementIntegrationTest is Test {
         assertEq(providers.length, 0);
 
         // Re-register
-        vm.prank(lp);
+        vm.prank(lp, lp);
         discovery.register{value: MIN_COLLATERAL}(
             "LP Second",
             "url2",
@@ -401,7 +401,7 @@ contract CollateralManagementIntegrationTest is Test {
         address lp4 = signers[signers.length - 1];
 
         // Register 4 providers with different collateral amounts
-        vm.prank(lp1);
+        vm.prank(lp1, lp1);
         discovery.register{value: MIN_COLLATERAL}(
             "LP1",
             "url1",
@@ -409,7 +409,7 @@ contract CollateralManagementIntegrationTest is Test {
             Flyover.ProviderType.PegIn
         );
 
-        vm.prank(lp2);
+        vm.prank(lp2, lp2);
         discovery.register{value: MIN_COLLATERAL * 2}(
             "LP2",
             "url2",
@@ -417,7 +417,7 @@ contract CollateralManagementIntegrationTest is Test {
             Flyover.ProviderType.PegIn
         );
 
-        vm.prank(lp3);
+        vm.prank(lp3, lp3);
         discovery.register{value: MIN_COLLATERAL * 5}(
             "LP3",
             "url3",
@@ -425,7 +425,7 @@ contract CollateralManagementIntegrationTest is Test {
             Flyover.ProviderType.PegIn
         );
 
-        vm.prank(lp4);
+        vm.prank(lp4, lp4);
         discovery.register{value: MIN_COLLATERAL * 10}(
             "LP4",
             "url4",

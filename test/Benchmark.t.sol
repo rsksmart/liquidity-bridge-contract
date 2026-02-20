@@ -129,7 +129,7 @@ contract BenchmarkTest is Test {
         for (uint i = 0; i < providersData.length; i++) {
             ProviderData memory providerData = providersData[i];
 
-            vm.prank(providerData.account);
+            vm.prank(providerData.account, providerData.account);
             discovery.register{value: 0.06 ether}(
                 providerData.name,
                 providerData.apiBaseUrl,
