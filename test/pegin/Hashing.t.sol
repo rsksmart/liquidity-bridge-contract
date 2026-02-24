@@ -13,6 +13,23 @@ contract HashingTest is PegInTestBase {
 
     // ============ hashPegInQuote function tests ============
 
+    function test_HashPegInQuote_RevertsIfQuoteChainIdIsFromAnotherNetwork()
+        public
+    {
+        Quotes.PegInQuote memory quote = createBasicPegInQuote();
+        uint256 wrongChainId = block.chainid == 1 ? 31337 : 1;
+        quote.chainId = wrongChainId;
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Flyover.InvalidChainId.selector,
+                block.chainid,
+                wrongChainId
+            )
+        );
+        pegInContract.hashPegInQuote(quote);
+    }
+
     function test_HashPegInQuote_RevertsIfQuoteBelongsToOtherContract() public {
         Quotes.PegInQuote memory quote = createBasicPegInQuote();
         address wrongContract = 0xAA9cAf1e3967600578727F975F283446A3Da6612;
@@ -81,9 +98,8 @@ contract HashingTest is PegInTestBase {
     {
         Quotes.PegInQuote memory quote = createBasicPegInQuote();
         // Set values that sum to less than 0.5 ether (TEST_MIN_PEGIN)
-        quote.productFeeAmount = 99_999_999_999_999_999; // Just under 0.1 ether
-        quote.gasFee = 0.1 ether;
-        quote.callFee = 0.1 ether;
+        quote.gasFee = 99_999_999_999_999_999;
+        quote.callFee = 0.2 ether;
         quote.value = 0.2 ether;
         // Total = 0.49999... ether, which is less than TEST_MIN_PEGIN (0.5 ether)
 
@@ -142,7 +158,7 @@ contract HashingTest is PegInTestBase {
         assertTrue(hash1a != hash3, "Changing quote value should change hash");
     }
 
-    function test_HashPegInQuote_IncludesAllFieldsInHash() public view {
+    function test_HashPegInQuote_IncludesAllFieldsInHash() public {
         // This test ensures every field in PegInQuote affects the hash
         // If a new field is added but not included in the hash function, this test will fail
         Quotes.PegInQuote memory baseQuote = createSpecificPegInQuote1();
@@ -151,6 +167,17 @@ contract HashingTest is PegInTestBase {
 
         Quotes.PegInQuote memory modifiedQuote;
 
+        // Test chainId
+        modifiedQuote = baseQuote;
+        modifiedQuote.chainId = baseQuote.chainId + 1;
+        uint originalChainId = block.chainid;
+        vm.chainId(modifiedQuote.chainId); // to prevent the hash from failing
+        assertTrue(
+            pegInContract.hashPegInQuote(modifiedQuote) != baseHash,
+            "chainId should affect hash"
+        );
+        vm.chainId(originalChainId);
+        modifiedQuote.chainId = originalChainId;
         // Test callFee
         modifiedQuote = baseQuote;
         modifiedQuote.callFee = baseQuote.callFee + 1;
@@ -259,14 +286,6 @@ contract HashingTest is PegInTestBase {
             "callOnRegister should affect hash"
         );
 
-        // Test productFeeAmount
-        modifiedQuote = baseQuote;
-        modifiedQuote.productFeeAmount = baseQuote.productFeeAmount + 1;
-        assertTrue(
-            pegInContract.hashPegInQuote(modifiedQuote) != baseHash,
-            "productFeeAmount should affect hash"
-        );
-
         // Test gasFee
         modifiedQuote = baseQuote;
         modifiedQuote.gasFee = baseQuote.gasFee + 1;
@@ -326,10 +345,10 @@ contract HashingTest is PegInTestBase {
 
         return
             Quotes.PegInQuote({
+                chainId: block.chainid,
                 callFee: 100000000000000,
                 penaltyFee: 10000000000000,
                 value: 1 ether,
-                productFeeAmount: 0,
                 gasFee: 100,
                 fedBtcAddress: bytes20(testBtcAddress),
                 lbcAddress: address(pegInContract),
@@ -351,7 +370,7 @@ contract HashingTest is PegInTestBase {
 
     function createSpecificPegInQuote1()
         internal
-        pure
+        view
         returns (Quotes.PegInQuote memory)
     {
         // This matches QUOTE_MOCK from the TypeScript test
@@ -359,10 +378,10 @@ contract HashingTest is PegInTestBase {
 
         return
             Quotes.PegInQuote({
+                chainId: block.chainid,
                 callFee: 100000000000000,
                 penaltyFee: 10000000000000,
                 value: 985215170000000000,
-                productFeeAmount: 0,
                 gasFee: 547377600000,
                 fedBtcAddress: bytes20(
                     0x6b9a1d6634133e163A35eC8d7b6f496C32Cc16b0
@@ -388,17 +407,17 @@ contract HashingTest is PegInTestBase {
 
     function createSpecificPegInQuote2()
         internal
-        pure
+        view
         returns (Quotes.PegInQuote memory)
     {
         bytes memory testBtcAddress = new bytes(21);
 
         return
             Quotes.PegInQuote({
+                chainId: block.chainid,
                 callFee: 1478412310000000,
                 penaltyFee: 10000000000000,
                 value: 517700700000000000,
-                productFeeAmount: 0,
                 gasFee: 547377600000,
                 fedBtcAddress: bytes20(
                     0x6b9a1d6634133e163A35eC8d7b6f496C32Cc16b0
@@ -424,17 +443,17 @@ contract HashingTest is PegInTestBase {
 
     function createSpecificPegInQuote3()
         internal
-        pure
+        view
         returns (Quotes.PegInQuote memory)
     {
         bytes memory testBtcAddress = new bytes(21);
 
         return
             Quotes.PegInQuote({
+                chainId: block.chainid,
                 callFee: 2009314000000000,
                 penaltyFee: 10000000000000,
                 value: 578580000000000000,
-                productFeeAmount: 0,
                 gasFee: 547377600000,
                 fedBtcAddress: bytes20(
                     0x6b9a1d6634133e163A35eC8d7b6f496C32Cc16b0

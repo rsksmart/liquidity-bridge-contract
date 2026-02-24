@@ -6,6 +6,7 @@ import "lib/forge-std/src/console.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {PegOutContract} from "../../src/PegOutContract.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
+import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {BridgeMock} from "../../src/test-contracts/BridgeMock.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
@@ -18,6 +19,7 @@ contract DeployPegOutTest is Test {
     HelperConfig public helperConfig;
     BridgeMock public bridgeMock;
     address public collateralManagementProxy;
+    address public pauseRegistryProxy;
 
     function setUp() public {
         helperConfig = new HelperConfig();
@@ -26,8 +28,16 @@ contract DeployPegOutTest is Test {
         HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
         address deployer = address(this);
 
-        address cmImpl = address(new CollateralManagementContract());
         address cmAdmin = address(new ProxyAdmin(deployer));
+        PauseRegistry prImpl = new PauseRegistry();
+        pauseRegistryProxy = address(
+            new TransparentUpgradeableProxy(
+                address(prImpl),
+                cmAdmin,
+                abi.encodeCall(prImpl.initialize, (0, deployer))
+            )
+        );
+        address cmImpl = address(new CollateralManagementContract());
         bytes memory cmInitData = abi.encodeCall(
             CollateralManagementContract.initialize,
             (
@@ -35,7 +45,8 @@ contract DeployPegOutTest is Test {
                 cfg.adminDelay,
                 cfg.minimumCollateral,
                 cfg.resignDelayBlocks,
-                cfg.rewardPercentage
+                cfg.rewardPercentage,
+                PauseRegistry(pauseRegistryProxy)
             )
         );
         collateralManagementProxy = address(
@@ -58,8 +69,7 @@ contract DeployPegOutTest is Test {
                 collateralManagementProxy,
                 cfg.mainnet,
                 cfg.btcBlockTime,
-                cfg.daoFeePercentage,
-                cfg.daoFeeCollector
+                PauseRegistry(pauseRegistryProxy)
             )
         );
         return address(new TransparentUpgradeableProxy(impl, admin, initData));
@@ -129,25 +139,6 @@ contract DeployPegOutTest is Test {
         assertTrue(
             pegOut.hasRole(defaultAdminRole, deployer),
             "Deployer should have DEFAULT_ADMIN_ROLE"
-        );
-    }
-
-    function test_DaoConfigurationSet() public {
-        HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
-        address deployer = address(this);
-
-        address proxy = _deployPegOut(deployer, cfg);
-        PegOutContract pegOut = PegOutContract(payable(proxy));
-
-        assertEq(
-            pegOut.getFeePercentage(),
-            cfg.daoFeePercentage,
-            "DAO fee percentage mismatch"
-        );
-        assertEq(
-            pegOut.getFeeCollector(),
-            cfg.daoFeeCollector,
-            "DAO fee collector mismatch"
         );
     }
 }
