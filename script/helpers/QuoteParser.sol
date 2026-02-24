@@ -103,6 +103,7 @@ abstract contract QuoteParser is BtcAddressParser {
         );
         quote.callOnRegister = vm.parseJsonBool(json, ".callOnRegister");
         quote.gasFee = vm.parseJsonUint(json, ".gasFee");
+        quote.chainId = block.chainid;
     }
 
     /// @notice Parse a PegOut quote from JSON string
