@@ -402,4 +402,61 @@ contract DiscoveryTest is Test {
         assertEq(result[3].status, true);
         assertEq(result[3].providerType, "both");
     }
+
+    function test_ShouldReuseSameIdAndReturnCurrentEntryAfterReRegistration()
+        public
+    {
+        address lp = liquidityProviders[0].signer;
+
+        vm.prank(lp);
+        lbc.resign();
+
+        vm.prank(lp);
+        lbc.withdrawCollateral();
+
+        vm.prank(lp, lp);
+        uint returnedId = lbc.register{value: LP_COLLATERAL / 2}(
+            "First LP Re",
+            "http://localhost/api1-re",
+            true,
+            "pegin"
+        );
+
+        assertEq(returnedId, 1);
+        assertEq(lbc.providerId(), 3);
+
+        LiquidityBridgeContractV2.LiquidityProvider memory provider = lbc
+            .getProvider(lp);
+        assertEq(provider.id, 1);
+        assertEq(
+            keccak256(bytes(provider.name)),
+            keccak256(bytes("First LP Re"))
+        );
+        assertEq(
+            keccak256(bytes(provider.apiBaseUrl)),
+            keccak256(bytes("http://localhost/api1-re"))
+        );
+        assertEq(
+            keccak256(bytes(provider.providerType)),
+            keccak256(bytes("pegin"))
+        );
+
+        vm.prank(lp);
+        lbc.updateProvider("First LP Final", "http://localhost/api1-final");
+
+        provider = lbc.getProvider(lp);
+        assertEq(provider.id, 1);
+        assertEq(
+            keccak256(bytes(provider.name)),
+            keccak256(bytes("First LP Final"))
+        );
+        assertEq(
+            keccak256(bytes(provider.apiBaseUrl)),
+            keccak256(bytes("http://localhost/api1-final"))
+        );
+        assertEq(
+            keccak256(bytes(provider.providerType)),
+            keccak256(bytes("pegin"))
+        );
+    }
 }

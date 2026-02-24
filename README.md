@@ -48,7 +48,6 @@ PegIn Quotes consist of:
         uint callTime;                          // the time (in seconds) that the LP has to perform the call on behalf of the user after the deposit achieves the number of confirmations
         uint depositConfirmations;              // the number of confirmations that the LP requires before making the call
         bool callOnRegister:                    // a boolean value indicating whether the callForUser can be called on registerPegIn.
-        uint256 productFeeAmount;               // the fee payed to the network DAO
         uint256 gasFee;                         // the fee payed to the LP to cover the gas of the RSK transaction
     }
 
@@ -72,7 +71,6 @@ PegOut Quotes consist of:
         uint transferTime;                      // the time (in seconds) that the LP has to transfer on behalf of the user after the deposit achieves the number of confirmations
         uint expireDate;                        // the timestamp to consider the quote expired
         uint expireBlock;                       // the block number to consider the quote expired
-        uint256 productFeeAmount;               // the fee payed to the network DAO
         uint256 gasFee;                         // the fee payed to the LP to cover the fee of the BTC transaction
     }
 
@@ -242,6 +240,17 @@ Validates that the LP made the deposit of the service and applies the correspond
     * partialMerkleTree: PMT to validate transaction
     * merkleBranchHashes: merkleBranchHashes used by the bridge to validate transaction
 
+#### Peg-out BTC transaction structure (required)
+
+For `refundPegOut`, the contract expects a Bitcoin transaction with two specific outputs used to prove the LP delivered the service:
+
+1. **Payment output** at index `0`: pays the user destination (`quote.depositAddress`) with the peg-out amount.
+2. **Quote-hash output** at index `1`: an `OP_RETURN` output containing the peg-out quote hash.
+
+The structure is intentionally enforced by contract validation for peg-out refunding. Bitcoin consensus does not enforce output ordering, but `refundPegOut` currently validates these outputs using fixed positions. If the required outputs are present but swapped, validation fails and the LP cannot be refunded through this function.
+
+`btcTx` must be the raw Bitcoin transaction serialization without witness data.
+
 ### **refundUserPegOut**
 
     function refundUserPegOut(
@@ -399,8 +408,10 @@ This project uses **Foundry** for smart contract development and deployment. We 
 
 ```bash
 # Setup environment
+# Optional: create and activate a Python virtualenv before installing
 cp example.env .env
 make install
+npm ci
 make build
 
 # Test deployment (simulation)

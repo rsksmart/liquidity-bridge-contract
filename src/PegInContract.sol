@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {
+    AccessControlDefaultAdminRulesUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
+import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCodes.sol";
-import {AccessControlDaoContributorUpgradeable} from "./DaoContributor.sol";
 import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {IBridge} from "./interfaces/IBridge.sol";
 import {ICollateralManagement, CollateralManagementSet} from "./interfaces/ICollateralManagement.sol";
+import {IPauseRegistry} from "./interfaces/IPauseRegistry.sol";
 import {IPegIn} from "./interfaces/IPegIn.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 import {Quotes} from "./libraries/Quotes.sol";
@@ -18,11 +22,12 @@ import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 /// @dev All non pure/view functions in this contract should be marked as nonReentrant
 /// @author Rootstock Labs
 contract PegInContract is
+    AccessControlDefaultAdminRulesUpgradeable,
     EmergencyPause,
-    AccessControlDaoContributorUpgradeable,
+    ReentrancyGuardUpgradeable,
+    EIP712Upgradeable,
     IPegIn
 {
-
     /// @notice This struct is used to store the information of a call on behalf of the user
     /// @param timestamp The timestamp of the call
     /// @param success Whether the call was successful or not
@@ -33,6 +38,8 @@ contract PegInContract is
 
     /// @notice The version of the contract
     string constant public VERSION = "1.0.0";
+    /// @notice The name of the contract (used for EIP712)
+    string constant public NAME = "PegInContract";
     Flyover.ProviderType constant private _PEG_TYPE = Flyover.ProviderType.PegIn;
     uint256 constant private _REFUND_ADDRESS_LENGTH = 21;
 
@@ -66,6 +73,11 @@ contract PegInContract is
     /// @param newMinPegIn The new minimum peg in amount
     event MinPegInSet(uint256 indexed oldMinPegIn, uint256 indexed newMinPegIn);
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     // solhint-disable-next-line comprehensive-interface
     receive() external payable {
         if (msg.sender != address(_bridge)) {
@@ -80,9 +92,7 @@ contract PegInContract is
     /// @param minPegIn the minimum peg in amount supported by the bridge
     /// @param collateralManagement the address of the Collateral Management contract
     /// @param mainnet whether the contract is on the mainnet or not
-    /// @param daoFeePercentage the percentage of the peg in amount that goes to the DAO.
-    /// Use zero to disable the DAO integration feature
-    /// @param daoFeeCollector the address of the DAO fee collector
+    /// @param pauseRegistry the central PauseRegistry for pause state
     // solhint-disable-next-line comprehensive-interface
     function initialize(
         address defaultAdmin,
@@ -91,14 +101,14 @@ contract PegInContract is
         uint256 minPegIn,
         address collateralManagement,
         bool mainnet,
-        uint256 daoFeePercentage,
-        address payable daoFeeCollector
+        IPauseRegistry pauseRegistry
     ) external initializer {
         if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
-        // Initialize DaoContributor (uses AccessControl from EmergencyPause)
-        __AccessControlDaoContributor_init(daoFeePercentage, daoFeeCollector, DEFAULT_ADMIN_ROLE);
-        // Initialize EmergencyPause (includes AccessControl, Pausable, and grants PAUSER_ROLE)
-        __EmergencyPause_init(0, defaultAdmin);
+        if (address(pauseRegistry).code.length == 0) revert Flyover.NoContract(address(pauseRegistry));
+        __AccessControlDefaultAdminRules_init(0, defaultAdmin);
+        __ReentrancyGuard_init();
+        __EIP712_init(NAME, VERSION);
+        __EmergencyPause_init(pauseRegistry);
         _bridge = IBridge(bridge);
         _collateralManagement = ICollateralManagement(collateralManagement);
         _mainnet = mainnet;
@@ -159,7 +169,7 @@ contract PegInContract is
     /// @inheritdoc IPegIn
     function callForUser(
         Quotes.PegInQuote calldata quote
-    ) external payable nonReentrant whenNotPaused override returns (bool) {
+    ) external payable nonReentrant override returns (bool) {
         if(!_collateralManagement.isRegistered(_PEG_TYPE, msg.sender)) {
             revert Flyover.ProviderNotRegistered(msg.sender);
         }
@@ -182,13 +192,13 @@ contract PegInContract is
         if (gasleft() < quote.gasLimit + _MAX_CALL_GAS_COST) {
             revert InsufficientGas(gasleft(), quote.gasLimit + _MAX_CALL_GAS_COST);
         }
-        _callRegistry[quoteHash].timestamp = block.timestamp;
-        _processedQuotes[quoteHash] = PegInStates.CALL_DONE;
-
         (bool success,) = quote.contractAddress.call{
             gas: quote.gasLimit,
             value: quote.value
         }(quote.data);
+
+        _callRegistry[quoteHash].timestamp = block.timestamp;
+        _processedQuotes[quoteHash] = PegInStates.CALL_DONE;
 
         if (success) {
             _callRegistry[quoteHash].success = true;
@@ -214,7 +224,7 @@ contract PegInContract is
         bytes calldata btcRawTransaction,
         bytes calldata partialMerkleTree,
         uint256 height
-    ) external nonReentrant whenNotPaused override returns (int256) {
+    ) external nonReentrant override returns (int256) {
         bytes32 quoteHash = _hashPegInQuote(quote);
         _validateRegisterParams(quote, quoteHash, height, signature);
         int256 registerResult = _registerBridge(quote, btcRawTransaction, partialMerkleTree, height, quoteHash);
@@ -293,18 +303,14 @@ contract PegInContract is
     }
 
     /// @inheritdoc IPegIn
+    function hashPegInQuoteEIP712(Quotes.PegInQuote calldata quote) external view override returns (bytes32) {
+        return _hashPegInQuoteEIP712(quote);
+    }
+
+    /// @inheritdoc IPegIn
     function getQuoteStatus(bytes32 quoteHash) external view override returns (PegInStates) {
         if (_reentrancyGuardEntered()) revert ReentrancyGuardReentrantCall();
         return _processedQuotes[quoteHash];
-    }
-
-    /// @dev Override _checkRole to use AccessControl from EmergencyPause
-    function _checkRole(bytes32 role)
-        internal
-        view
-        override(AccessControlDaoContributorUpgradeable, AccessControlUpgradeable)
-    {
-        super._checkRole(role);
     }
 
     /// @notice This function is used to increase the balance of an account
@@ -385,9 +391,8 @@ contract PegInContract is
             refundAmount = _min(transferredAmount, quote.callFee + quote.gasFee);
         }
         _increaseBalance(quote.liquidityProviderRskAddress, refundAmount);
-        _addDaoContribution(quote.liquidityProviderRskAddress, quote.productFeeAmount);
 
-        uint remainingAmount = transferredAmount - refundAmount - quote.productFeeAmount;
+        uint remainingAmount = transferredAmount - refundAmount;
         if (remainingAmount > dustThreshold) {
             // refund rskRefundAddress, if remaining amount greater than dust
             (bool success,) = quote.rskRefundAddress.call{
@@ -425,7 +430,7 @@ contract PegInContract is
     ) private {
         uint refundAmount = transferredAmount;
 
-        if (quote.callOnRegister && refundAmount > quote.value - 1) {
+        if (quote.callOnRegister && refundAmount >= quote.value) { // solhint-disable-line gas-strict-inequalities
             (bool callSuccess,) = quote.contractAddress.call{
                 gas: quote.gasLimit,
                 value: quote.value
@@ -482,8 +487,9 @@ contract PegInContract is
         if (_processedQuotes[quoteHash] == PegInStates.PROCESSED_QUOTE) {
             revert QuoteAlreadyProcessed(quoteHash);
         }
-        if (!SignatureValidator.verify(quote.liquidityProviderRskAddress, quoteHash, signature)) {
-            revert SignatureValidator.IncorrectSignature(quote.liquidityProviderRskAddress, quoteHash, signature);
+        bytes32 eip712hash = _hashPegInQuoteEIP712(quote);
+        if (!SignatureValidator.verify(quote.liquidityProviderRskAddress, eip712hash, signature)) {
+            revert SignatureValidator.IncorrectSignature(quote.liquidityProviderRskAddress, eip712hash, signature);
         }
         // the actual type in the RSKj node source code is a java int which is equivalent to int32
         if (height > uint256(int(type(int32).max)) - 1) {
@@ -502,6 +508,29 @@ contract PegInContract is
     /// @param quote The peg in quote
     /// @return quoteHash The hash of the quote
     function _hashPegInQuote(Quotes.PegInQuote calldata quote) private view returns (bytes32) {
+        _validatePegInQuote(quote);
+        return keccak256(Quotes.encodeQuote(quote));
+    }
+
+    /// @notice This function is used to hash a peg in quote using EIP712 specification
+    /// @dev The function also validates the following:
+    /// - The quote belongs to this contract
+    /// - The quote destination is not the bridge contract
+    /// - The quote BTC refund address is valid
+    /// - The quote liquidity provider BTC address is valid
+    /// - The quote total amount is greater than the bridge minimum peg in amount
+    /// - The sum of the timestamp values is not greater than the maximum uint32 value
+    /// @param quote The peg in quote
+    /// @return quoteHash The hash struct to be combined with the domain separator
+    function _hashPegInQuoteEIP712(Quotes.PegInQuote calldata quote) private view returns (bytes32) {
+        _validatePegInQuote(quote);
+        return _hashTypedDataV4(Quotes.hashPegInQuoteEIP712(quote));
+    }
+
+    function _validatePegInQuote(Quotes.PegInQuote calldata quote) private view {
+        if (quote.chainId != block.chainid) {
+            revert Flyover.InvalidChainId(block.chainid, quote.chainId);
+        }
         if (address(this) != quote.lbcAddress) {
             revert Flyover.IncorrectContract(address(this), quote.lbcAddress);
         }
@@ -514,14 +543,13 @@ contract PegInContract is
         if (quote.liquidityProviderBtcAddress.length != _REFUND_ADDRESS_LENGTH) {
             revert InvalidRefundAddress(quote.liquidityProviderBtcAddress);
         }
-        uint256 total = quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+        uint256 total = quote.value + quote.callFee + quote.gasFee;
         if (total < _minPegIn) {
             revert AmountUnderMinimum(_minPegIn);
         }
         if (type(uint32).max < uint64(quote.agreementTimestamp) + uint64(quote.timeForDeposit)) {
             revert Flyover.Overflow(type(uint32).max);
         }
-        return keccak256(Quotes.encodeQuote(quote));
     }
 
     /// @notice This function is used to determine if the liquidity provider should be penalized
@@ -537,7 +565,7 @@ contract PegInContract is
         uint256 height
     ) private view returns (bool) {
         // do not penalize if deposit amount is insufficient
-        uint256 quoteTotal = quote.value + quote.callFee + quote.productFeeAmount + quote.gasFee;
+        uint256 quoteTotal = quote.value + quote.callFee + quote.gasFee;
         if (amount > 0 && uint256(amount) < quoteTotal) {
             return false;
         }

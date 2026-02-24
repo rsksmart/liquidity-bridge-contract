@@ -6,6 +6,8 @@
   "scripts": {
     "compile": "npm run lint:sol && forge build",
     "test": "npm run compile && make test-unit",
+    "test:fuzz": "npm run compile && make test-fuzz",
+    "test:invariant": "npm run compile && make test-invariant",
     "coverage": "forge coverage",
     "lint:ts": "npx prettier --check . && npx eslint .",
     "lint:sol": "solhint 'src/**/*.sol'",
