@@ -40,7 +40,7 @@ contract ListingFilterTest is DiscoveryTestBase {
         address lp = makeAddr("newLp");
         vm.deal(lp, 100 ether);
 
-        vm.prank(lp);
+        vm.prank(lp, lp);
         discovery.register{value: MIN_COLLATERAL}(
             "N",
             "U",
@@ -67,7 +67,7 @@ contract ListingFilterTest is DiscoveryTestBase {
         vm.deal(b, 100 ether);
         vm.deal(c, 100 ether);
 
-        vm.prank(a);
+        vm.prank(a, a);
         discovery.register{value: MIN_COLLATERAL}(
             "A",
             "U1",
@@ -75,7 +75,7 @@ contract ListingFilterTest is DiscoveryTestBase {
             Flyover.ProviderType.PegIn
         );
 
-        vm.prank(b);
+        vm.prank(b, b);
         discovery.register{value: MIN_COLLATERAL}(
             "B",
             "U2",
@@ -83,7 +83,7 @@ contract ListingFilterTest is DiscoveryTestBase {
             Flyover.ProviderType.PegIn
         );
 
-        vm.prank(c);
+        vm.prank(c, c);
         discovery.register{value: MIN_COLLATERAL}(
             "C",
             "U3",

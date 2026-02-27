@@ -31,4 +31,10 @@ library Flyover {
     error InsufficientAmount(uint256 amount, uint256 target);
     error Overflow(uint256 passedAmount);
     error InvalidAddress(address addr);
+    /// @notice Quote was created for a different chain
+    /// @param expected The current chain id (block.chainid)
+    /// @param actual The chain id in the quote
+    error InvalidChainId(uint256 expected, uint256 actual);
+    /// @notice Used by whenNotPaused when the system is paused via PauseRegistry
+    error EnforcedPause();
 }

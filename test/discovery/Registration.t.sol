@@ -2,6 +2,7 @@
 pragma solidity 0.8.25;
 
 import {DiscoveryTestBase} from "./DiscoveryTestBase.sol";
+import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
 import {IFlyoverDiscovery} from "../../src/interfaces/IFlyoverDiscovery.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 import {RegisterCaller} from "../../src/test/RegisterCaller.sol";
@@ -12,6 +13,18 @@ contract RegistrationTest is DiscoveryTestBase {
     }
 
     // ============ Registration tests ============
+
+    function test_Initialize_RevertsWhenCalledOnImplementation() public {
+        FlyoverDiscovery implementation = new FlyoverDiscovery();
+
+        vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
+        implementation.initialize(
+            owner,
+            0,
+            address(collateralManagement),
+            pauseRegistry
+        );
+    }
 
     function test_Register_RegistersProvidersAndIncrementsLastProviderId()
         public
@@ -25,7 +38,7 @@ contract RegistrationTest is DiscoveryTestBase {
         vm.deal(lp3, 100 ether);
 
         // Register LP1
-        vm.prank(lp1);
+        vm.prank(lp1, lp1);
         vm.expectEmit(true, true, true, true);
         emit IFlyoverDiscovery.Register(1, lp1, MIN_COLLATERAL * 2);
         discovery.register{value: MIN_COLLATERAL * 2}(
@@ -36,7 +49,7 @@ contract RegistrationTest is DiscoveryTestBase {
         );
 
         // Register LP2
-        vm.prank(lp2);
+        vm.prank(lp2, lp2);
         vm.expectEmit(true, true, true, true);
         emit IFlyoverDiscovery.Register(2, lp2, MIN_COLLATERAL);
         discovery.register{value: MIN_COLLATERAL}(
@@ -47,7 +60,7 @@ contract RegistrationTest is DiscoveryTestBase {
         );
 
         // Register LP3
-        vm.prank(lp3);
+        vm.prank(lp3, lp3);
         vm.expectEmit(true, true, true, true);
         emit IFlyoverDiscovery.Register(3, lp3, MIN_COLLATERAL);
         discovery.register{value: MIN_COLLATERAL}(
@@ -66,7 +79,7 @@ contract RegistrationTest is DiscoveryTestBase {
         vm.deal(lp, 100 ether);
 
         // Empty name
-        vm.prank(lp);
+        vm.prank(lp, lp);
         vm.expectRevert(
             abi.encodeWithSelector(
                 IFlyoverDiscovery.InvalidProviderData.selector,
@@ -82,7 +95,7 @@ contract RegistrationTest is DiscoveryTestBase {
         );
 
         // Empty URL
-        vm.prank(lp);
+        vm.prank(lp, lp);
         vm.expectRevert(
             abi.encodeWithSelector(
                 IFlyoverDiscovery.InvalidProviderData.selector,
@@ -110,7 +123,7 @@ contract RegistrationTest is DiscoveryTestBase {
         vm.deal(lpOut, 100 ether);
 
         // Both type needs 2x MIN_COLLATERAL
-        vm.prank(lpBoth);
+        vm.prank(lpBoth, lpBoth);
         vm.expectRevert(
             abi.encodeWithSelector(
                 IFlyoverDiscovery.InsufficientCollateral.selector,
@@ -125,7 +138,7 @@ contract RegistrationTest is DiscoveryTestBase {
         );
 
         // PegIn with insufficient collateral
-        vm.prank(lpIn);
+        vm.prank(lpIn, lpIn);
         vm.expectRevert(
             abi.encodeWithSelector(
                 IFlyoverDiscovery.InsufficientCollateral.selector,
@@ -140,7 +153,7 @@ contract RegistrationTest is DiscoveryTestBase {
         );
 
         // PegOut with insufficient collateral
-        vm.prank(lpOut);
+        vm.prank(lpOut, lpOut);
         vm.expectRevert(
             abi.encodeWithSelector(
                 IFlyoverDiscovery.InsufficientCollateral.selector,
@@ -188,7 +201,7 @@ contract RegistrationTest is DiscoveryTestBase {
         vm.deal(lp, 100 ether);
 
         // First registration succeeds
-        vm.prank(lp);
+        vm.prank(lp, lp);
         discovery.register{value: MIN_COLLATERAL}(
             "N1",
             "U1",
@@ -197,7 +210,7 @@ contract RegistrationTest is DiscoveryTestBase {
         );
 
         // Second registration by the same EOA should fail
-        vm.prank(lp);
+        vm.prank(lp, lp);
         vm.expectRevert(
             abi.encodeWithSelector(
                 IFlyoverDiscovery.AlreadyRegistered.selector,

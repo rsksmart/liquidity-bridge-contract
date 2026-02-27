@@ -19,7 +19,7 @@ import {BtcAddressParser} from "./BtcAddressParser.sol";
  * - btcRefundAddr: BTC refund address (string)
  * - rskRefundAddr: RSK refund address (address)
  * - lpBTCAddr: LP Bitcoin address (string)
- * - callFee, penaltyFee, value, gasFee, productFeeAmount: (uint256)
+ * - callFee, penaltyFee, value, gasFee: (uint256)
  * - contractAddr: Destination contract address (address)
  * - data: Call data (bytes)
  * - gasLimit: Gas limit (uint32)
@@ -37,7 +37,7 @@ import {BtcAddressParser} from "./BtcAddressParser.sol";
  * - rskRefundAddress: RSK refund address (address)
  * - lpBtcAddr: LP Bitcoin address (string)
  * - depositAddr: Deposit address (string)
- * - callFee, penaltyFee, value, gasFee, productFeeAmount: (uint256)
+ * - callFee, penaltyFee, value, gasFee: (uint256)
  * - nonce: Quote nonce (int64 or string)
  * - agreementTimestamp: Agreement timestamp (uint32)
  * - depositDateLimit: Deposit date limit (uint32)
@@ -103,7 +103,7 @@ abstract contract QuoteParser is BtcAddressParser {
         );
         quote.callOnRegister = vm.parseJsonBool(json, ".callOnRegister");
         quote.gasFee = vm.parseJsonUint(json, ".gasFee");
-        quote.productFeeAmount = vm.parseJsonUint(json, ".productFeeAmount");
+        quote.chainId = block.chainid;
     }
 
     /// @notice Parse a PegOut quote from JSON string
@@ -153,7 +153,6 @@ abstract contract QuoteParser is BtcAddressParser {
         quote.transferConfirmations = uint16(
             vm.parseJsonUint(json, ".transferConfirmations")
         );
-        quote.productFeeAmount = vm.parseJsonUint(json, ".productFeeAmount");
         quote.gasFee = vm.parseJsonUint(json, ".gasFee");
         quote.expireBlock = uint32(vm.parseJsonUint(json, ".expireBlocks"));
         quote.expireDate = uint32(vm.parseJsonUint(json, ".expireDate"));

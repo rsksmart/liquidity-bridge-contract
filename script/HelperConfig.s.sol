@@ -5,11 +5,6 @@ import {Script} from "lib/forge-std/src/Script.sol";
 import {BridgeMock} from "../src/test-contracts/BridgeMock.sol";
 
 contract HelperConfig is Script {
-    error InvalidDaoFeeConfiguration(
-        uint256 feePercentage,
-        address feeCollector
-    );
-
     struct NetworkConfig {
         address bridge;
         uint256 minimumCollateral;
@@ -37,8 +32,6 @@ contract HelperConfig is Script {
         uint256 dustThreshold;
         uint256 btcBlockTime;
         bool mainnet;
-        uint256 daoFeePercentage;
-        address payable daoFeeCollector;
         uint48 adminDelay;
         uint256 timelockMinDelay;
         address timelockProposer;
@@ -143,7 +136,7 @@ contract HelperConfig is Script {
                 bridge: bridgeAddr,
                 minimumCollateral: vm.envOr(
                     "MIN_COLLATERAL_TESTNET",
-                    uint256(0.1 ether)
+                    uint256(0.01 ether)
                 ),
                 minimumPegIn: vm.envOr(
                     "MIN_PEGIN_TESTNET",
@@ -252,21 +245,7 @@ contract HelperConfig is Script {
             cachedFlyoverConfig = getFlyoverLocalConfig();
         }
 
-        // Validate DAO fee configuration
-        _validateDaoFeeConfig(cachedFlyoverConfig);
-
         return cachedFlyoverConfig;
-    }
-
-    /// @notice Validate that DAO fee configuration is consistent
-    /// @dev If feePercentage > 0, feeCollector must not be address(0)
-    function _validateDaoFeeConfig(FlyoverConfig memory cfg) internal pure {
-        if (cfg.daoFeePercentage > 0 && cfg.daoFeeCollector == address(0)) {
-            revert InvalidDaoFeeConfiguration(
-                cfg.daoFeePercentage,
-                cfg.daoFeeCollector
-            );
-        }
     }
 
     /// @notice Build Flyover config for a specific network suffix
@@ -286,7 +265,7 @@ contract HelperConfig is Script {
                 bridge: bridgeAddr,
                 minimumCollateral: vm.envOr(
                     string.concat("MIN_COLLATERAL_", suffix),
-                    isMainnet ? uint256(0.5 ether) : uint256(0.1 ether)
+                    isMainnet ? uint256(0.5 ether) : uint256(0.01 ether)
                 ),
                 minimumPegIn: vm.envOr(
                     string.concat("MIN_PEGIN_", suffix),
@@ -309,16 +288,6 @@ contract HelperConfig is Script {
                     uint256(600)
                 ),
                 mainnet: isMainnet,
-                daoFeePercentage: vm.envOr(
-                    string.concat("DAO_FEE_PERCENTAGE_", suffix),
-                    uint256(0)
-                ),
-                daoFeeCollector: payable(
-                    vm.envOr(
-                        string.concat("DAO_FEE_COLLECTOR_", suffix),
-                        address(0)
-                    )
-                ),
                 adminDelay: uint48(
                     vm.envOr(string.concat("ADMIN_DELAY_", suffix), uint256(0))
                 ),

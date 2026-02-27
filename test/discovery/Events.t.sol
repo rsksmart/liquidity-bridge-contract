@@ -20,7 +20,7 @@ contract EventsTest is DiscoveryTestBase {
 
     function test_Register_EmitsRegisterWithIdSenderAndAmount() public {
         // Register a new provider and check event emission
-        vm.prank(newLp);
+        vm.prank(newLp, newLp);
         vm.expectEmit(true, true, true, true);
         emit IFlyoverDiscovery.Register(1, newLp, MIN_COLLATERAL);
         discovery.register{value: MIN_COLLATERAL}(

@@ -6,9 +6,11 @@ import {Test, console} from "forge-std/Test.sol";
 // Contracts
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
+import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {PegInContract} from "../../src/PegInContract.sol";
 import {PegOutContract} from "../../src/PegOutContract.sol";
 import {BridgeMock} from "../../src/test-contracts/BridgeMock.sol";
+import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
 
 // Libraries
 import {Quotes} from "../../src/libraries/Quotes.sol";
@@ -64,6 +66,7 @@ abstract contract FlyoverTestBase is Test {
     // Contract Instances
     // ============================================================
 
+    PauseRegistry public pauseRegistry;
     CollateralManagementContract public collateralManagement;
     FlyoverDiscovery public discovery;
     PegInContract public pegInContract;
@@ -115,14 +118,28 @@ abstract contract FlyoverTestBase is Test {
     // Deployment Functions - Using Deployment Scripts
     // ============================================================
 
+    /// @notice Deploy PauseRegistry (used by all pausable contracts)
+    function _deployPauseRegistry() internal {
+        PauseRegistry prImpl = new PauseRegistry();
+        address admin = address(new ProxyAdmin(owner));
+        address proxy = address(
+            new TransparentUpgradeableProxy(
+                address(prImpl),
+                admin,
+                abi.encodeCall(prImpl.initialize, (0, owner))
+            )
+        );
+        pauseRegistry = PauseRegistry(proxy);
+    }
+
     /// @notice Deploy only CollateralManagement contract
     function deployCollateralManagement() internal {
         owner = makeAddr("owner");
         vm.deal(owner, 100 ether);
 
         HelperConfig.FlyoverConfig memory cfg = _getTestConfig();
+        _deployPauseRegistry();
 
-        // Inline deployment
         address impl = address(new CollateralManagementContract());
         address admin = address(new ProxyAdmin(owner));
         address proxy = address(
@@ -136,7 +153,8 @@ abstract contract FlyoverTestBase is Test {
                         cfg.adminDelay,
                         cfg.minimumCollateral,
                         cfg.resignDelayBlocks,
-                        cfg.rewardPercentage
+                        cfg.rewardPercentage,
+                        pauseRegistry
                     )
                 )
             )
@@ -151,7 +169,6 @@ abstract contract FlyoverTestBase is Test {
 
         HelperConfig.FlyoverConfig memory cfg = _getTestConfig();
 
-        // Inline deployment
         address impl = address(new FlyoverDiscovery());
         address admin = address(new ProxyAdmin(owner));
         address proxy = address(
@@ -160,7 +177,12 @@ abstract contract FlyoverTestBase is Test {
                 admin,
                 abi.encodeCall(
                     FlyoverDiscovery.initialize,
-                    (owner, cfg.adminDelay, address(collateralManagement))
+                    (
+                        owner,
+                        cfg.adminDelay,
+                        address(collateralManagement),
+                        pauseRegistry
+                    )
                 )
             )
         );
@@ -200,8 +222,7 @@ abstract contract FlyoverTestBase is Test {
                 cfg.minimumPegIn,
                 address(collateralManagement),
                 cfg.mainnet,
-                cfg.daoFeePercentage,
-                cfg.daoFeeCollector
+                pauseRegistry
             )
         );
         address proxy = address(
@@ -238,8 +259,7 @@ abstract contract FlyoverTestBase is Test {
                 address(collateralManagement),
                 cfg.mainnet,
                 cfg.btcBlockTime,
-                cfg.daoFeePercentage,
-                cfg.daoFeeCollector
+                pauseRegistry
             )
         );
         address proxy = address(
@@ -268,8 +288,18 @@ abstract contract FlyoverTestBase is Test {
 
         HelperConfig.FlyoverConfig memory cfg = _getTestConfig();
 
-        // Single ProxyAdmin for all contracts
         address proxyAdmin = address(new ProxyAdmin(owner));
+
+        // 0) PauseRegistry
+        PauseRegistry prImpl = new PauseRegistry();
+        address prProxy = address(
+            new TransparentUpgradeableProxy(
+                address(prImpl),
+                proxyAdmin,
+                abi.encodeCall(prImpl.initialize, (0, owner))
+            )
+        );
+        pauseRegistry = PauseRegistry(prProxy);
 
         // 1) CollateralManagement
         address cmImpl = address(new CollateralManagementContract());
@@ -284,7 +314,8 @@ abstract contract FlyoverTestBase is Test {
                         cfg.adminDelay,
                         cfg.minimumCollateral,
                         cfg.resignDelayBlocks,
-                        cfg.rewardPercentage
+                        cfg.rewardPercentage,
+                        IPauseRegistry(prProxy)
                     )
                 )
             )
@@ -299,7 +330,7 @@ abstract contract FlyoverTestBase is Test {
                 proxyAdmin,
                 abi.encodeCall(
                     FlyoverDiscovery.initialize,
-                    (owner, cfg.adminDelay, cmProxy)
+                    (owner, cfg.adminDelay, cmProxy, IPauseRegistry(prProxy))
                 )
             )
         );
@@ -317,8 +348,7 @@ abstract contract FlyoverTestBase is Test {
                     cfg.minimumPegIn,
                     cmProxy,
                     cfg.mainnet,
-                    cfg.daoFeePercentage,
-                    cfg.daoFeeCollector
+                    IPauseRegistry(prProxy)
                 )
             );
             address piProxy = address(
@@ -339,8 +369,7 @@ abstract contract FlyoverTestBase is Test {
                     cmProxy,
                     cfg.mainnet,
                     cfg.btcBlockTime,
-                    cfg.daoFeePercentage,
-                    cfg.daoFeeCollector
+                    IPauseRegistry(prProxy)
                 )
             );
             address poProxy = address(
@@ -395,7 +424,7 @@ abstract contract FlyoverTestBase is Test {
         vm.deal(fullLp, 100 ether);
 
         // Register providers via Discovery
-        vm.prank(pegInLp);
+        vm.prank(pegInLp, pegInLp);
         discovery.register{value: TEST_MIN_COLLATERAL}(
             "Pegin Provider",
             "lp1.com",
@@ -403,7 +432,7 @@ abstract contract FlyoverTestBase is Test {
             Flyover.ProviderType.PegIn
         );
 
-        vm.prank(pegOutLp);
+        vm.prank(pegOutLp, pegOutLp);
         discovery.register{value: TEST_MIN_COLLATERAL}(
             "PegOut Provider",
             "lp2.com",
@@ -411,7 +440,7 @@ abstract contract FlyoverTestBase is Test {
             Flyover.ProviderType.PegOut
         );
 
-        vm.prank(fullLp);
+        vm.prank(fullLp, fullLp);
         discovery.register{value: TEST_MIN_COLLATERAL * 2}(
             "Full Provider",
             "lp3.com",
@@ -483,7 +512,7 @@ abstract contract FlyoverTestBase is Test {
     /// @notice Create an empty PegIn quote for testing
     function getEmptyPegInQuote()
         internal
-        pure
+        view
         returns (Quotes.PegInQuote memory)
     {
         bytes memory emptyBytes = new bytes(0);
@@ -491,10 +520,10 @@ abstract contract FlyoverTestBase is Test {
 
         return
             Quotes.PegInQuote({
+                chainId: block.chainid,
                 callFee: 0,
                 penaltyFee: 0,
                 value: 0,
-                productFeeAmount: 0,
                 gasFee: 0,
                 fedBtcAddress: bytes20(testAddress),
                 lbcAddress: ZERO_ADDRESS,
@@ -517,17 +546,17 @@ abstract contract FlyoverTestBase is Test {
     /// @notice Create an empty PegOut quote for testing
     function getEmptyPegOutQuote()
         internal
-        pure
+        view
         returns (Quotes.PegOutQuote memory)
     {
         bytes memory testAddress = new bytes(20);
 
         return
             Quotes.PegOutQuote({
+                chainId: block.chainid,
                 callFee: 0,
                 penaltyFee: 0,
                 value: 0,
-                productFeeAmount: 0,
                 gasFee: 0,
                 lbcAddress: ZERO_ADDRESS,
                 lpRskAddress: ZERO_ADDRESS,
@@ -557,10 +586,10 @@ abstract contract FlyoverTestBase is Test {
 
         return
             Quotes.PegInQuote({
+                chainId: block.chainid,
                 callFee: 100000000000000,
                 penaltyFee: 10000000000000,
                 value: 0.5 ether,
-                productFeeAmount: 0,
                 gasFee: 100,
                 fedBtcAddress: bytes20(
                     hex"0000000000000000000000000000000000000000"
@@ -593,10 +622,10 @@ abstract contract FlyoverTestBase is Test {
 
         return
             Quotes.PegOutQuote({
+                chainId: block.chainid,
                 callFee: 100000000000000,
                 penaltyFee: 10000000000000,
                 value: 0.5 ether,
-                productFeeAmount: 0,
                 gasFee: 100,
                 lbcAddress: lbcAddress,
                 lpRskAddress: lpAddress,
