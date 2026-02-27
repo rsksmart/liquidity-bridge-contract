@@ -336,13 +336,6 @@ contract HelperConfig is Script {
                 ),
                 btcBlockTime: vm.envOr("BTC_BLOCK_TIME_LOCAL", uint256(600)),
                 mainnet: false,
-                daoFeePercentage: vm.envOr(
-                    "DAO_FEE_PERCENTAGE_LOCAL",
-                    uint256(0)
-                ),
-                daoFeeCollector: payable(
-                    vm.envOr("DAO_FEE_COLLECTOR_LOCAL", address(0))
-                ),
                 adminDelay: uint48(vm.envOr("ADMIN_DELAY_LOCAL", uint256(0))),
                 timelockMinDelay: vm.envOr(
                     "TIMELOCK_MIN_DELAY_LOCAL",

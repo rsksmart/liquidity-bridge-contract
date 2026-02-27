@@ -17,6 +17,7 @@ import {LiquidityBridgeContractAdmin} from "../../src/legacy/LiquidityBridgeCont
 import {ChangeOwnerToTimelock as SplitChangeOwnerToTimelock} from "../../script/deployment/ChangeOwnerToTimelock.s.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
+import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {PegInContract} from "../../src/PegInContract.sol";
 import {PegOutContract} from "../../src/PegOutContract.sol";
 import {BridgeMock} from "../../src/test-contracts/BridgeMock.sol";
@@ -134,6 +135,7 @@ contract SplitChangeOwnerToTimelockTest is Test {
     SplitChangeOwnerToTimelock public script;
     BridgeMock public bridgeMock;
 
+    address public pauseRegistryProxy;
     CollateralManagementContract public collateralManagement;
     FlyoverDiscovery public discovery;
     PegInContract public pegInContract;
@@ -362,6 +364,15 @@ contract SplitChangeOwnerToTimelockTest is Test {
         address admin_,
         HelperConfig.FlyoverConfig memory cfg
     ) private {
+        PauseRegistry prImpl = new PauseRegistry();
+        pauseRegistryProxy = address(
+            new TransparentUpgradeableProxy(
+                address(prImpl),
+                proxyAdmin,
+                abi.encodeCall(prImpl.initialize, (0, admin_))
+            )
+        );
+
         address impl = address(new CollateralManagementContract());
         address proxy = address(
             new TransparentUpgradeableProxy(
@@ -369,13 +380,7 @@ contract SplitChangeOwnerToTimelockTest is Test {
                 proxyAdmin,
                 abi.encodeCall(
                     CollateralManagementContract.initialize,
-                    (
-                        admin_,
-                        cfg.adminDelay,
-                        cfg.minimumCollateral,
-                        cfg.resignDelayBlocks,
-                        cfg.rewardPercentage
-                    )
+                    (admin_, cfg.adminDelay, cfg.minimumCollateral, cfg.resignDelayBlocks, cfg.rewardPercentage, PauseRegistry(pauseRegistryProxy))
                 )
             )
         );
@@ -393,7 +398,7 @@ contract SplitChangeOwnerToTimelockTest is Test {
                 proxyAdmin,
                 abi.encodeCall(
                     FlyoverDiscovery.initialize,
-                    (admin_, cfg.adminDelay, address(collateralManagement))
+                    (admin_, cfg.adminDelay, address(collateralManagement), PauseRegistry(pauseRegistryProxy))
                 )
             )
         );
@@ -418,8 +423,7 @@ contract SplitChangeOwnerToTimelockTest is Test {
                         cfg.minimumPegIn,
                         address(collateralManagement),
                         cfg.mainnet,
-                        cfg.daoFeePercentage,
-                        cfg.daoFeeCollector
+                        PauseRegistry(pauseRegistryProxy)
                     )
                 )
             )
@@ -445,8 +449,7 @@ contract SplitChangeOwnerToTimelockTest is Test {
                         address(collateralManagement),
                         cfg.mainnet,
                         cfg.btcBlockTime,
-                        cfg.daoFeePercentage,
-                        cfg.daoFeeCollector
+                        PauseRegistry(pauseRegistryProxy)
                     )
                 )
             )

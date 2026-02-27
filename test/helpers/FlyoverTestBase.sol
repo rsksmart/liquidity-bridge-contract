@@ -764,8 +764,6 @@ abstract contract FlyoverTestBase is Test {
                 dustThreshold: TEST_DUST_THRESHOLD_PEGIN,
                 btcBlockTime: TEST_BTC_BLOCK_TIME,
                 mainnet: false,
-                daoFeePercentage: 0,
-                daoFeeCollector: payable(ZERO_ADDRESS),
                 adminDelay: TEST_DEFAULT_ADMIN_DELAY,
                 timelockMinDelay: 7 days,
                 timelockProposer: address(
