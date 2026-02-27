@@ -73,16 +73,22 @@ contract LegacyChangeOwnerToTimelockTest is Test {
     }
 
     function test_ScriptTransfersProxyAdminToTimelock() public {
-        HelperConfig.NetworkConfig memory cfg = helperConfig.getConfig();
-        cfg.timelockProposer = proposer;
-        cfg.timelockExecutor = executor;
-        cfg.timelockMinDelay = minDelay;
-
         LiquidityBridgeContractAdmin slotAdmin = _getProxyAdmin();
         vm.prank(address(admin));
         slotAdmin.transferOwnership(address(script));
 
-        TimelockController timelock = script.execute(address(proxy), cfg);
+        address[] memory proposers = new address[](1);
+        proposers[0] = proposer;
+        address[] memory executors = new address[](1);
+        executors[0] = executor;
+
+        TimelockController timelock = script.execute(
+            address(proxy),
+            minDelay,
+            proposers,
+            executors,
+            address(0)
+        );
 
         assertEq(
             slotAdmin.owner(),
@@ -153,15 +159,32 @@ contract SplitChangeOwnerToTimelockTest is Test {
         _deployAll(deployer, cfg);
     }
 
+    function _buildRoles()
+        internal
+        view
+        returns (address[] memory proposers, address[] memory executors)
+    {
+        proposers = new address[](1);
+        proposers[0] = proposer;
+        executors = new address[](1);
+        executors[0] = executor;
+    }
+
     function test_ScriptTransfersProxyAdminToTimelock() public {
-        HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
-        cfg.timelockProposer = proposer;
-        cfg.timelockExecutor = executor;
-        cfg.timelockMinDelay = minDelay;
+        (
+            address[] memory proposers,
+            address[] memory executors
+        ) = _buildRoles();
 
         ProxyAdmin(proxyAdmin).transferOwnership(address(script));
 
-        TimelockController timelock = script.execute(proxyAdmin, cfg);
+        TimelockController timelock = script.execute(
+            proxyAdmin,
+            minDelay,
+            proposers,
+            executors,
+            address(0)
+        );
 
         assertEq(
             ProxyAdmin(proxyAdmin).owner(),
@@ -179,15 +202,95 @@ contract SplitChangeOwnerToTimelockTest is Test {
         );
     }
 
-    function test_ProxyAdminOwnedByTimelockBlocksDirectUpgrade() public {
-        HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
-        cfg.timelockProposer = proposer;
-        cfg.timelockExecutor = executor;
-        cfg.timelockMinDelay = minDelay;
+    function test_MultipleProposersAndExecutors() public {
+        address proposer2 = makeAddr("proposer2");
+        address executor2 = makeAddr("executor2");
+
+        address[] memory proposers = new address[](2);
+        proposers[0] = proposer;
+        proposers[1] = proposer2;
+        address[] memory executors = new address[](2);
+        executors[0] = executor;
+        executors[1] = executor2;
 
         ProxyAdmin(proxyAdmin).transferOwnership(address(script));
 
-        TimelockController timelock = script.execute(proxyAdmin, cfg);
+        TimelockController timelock = script.execute(
+            proxyAdmin,
+            minDelay,
+            proposers,
+            executors,
+            address(0)
+        );
+
+        bytes32 proposerRole = timelock.PROPOSER_ROLE();
+        bytes32 executorRole = timelock.EXECUTOR_ROLE();
+        assertTrue(
+            timelock.hasRole(proposerRole, proposer),
+            "proposer1 missing"
+        );
+        assertTrue(
+            timelock.hasRole(proposerRole, proposer2),
+            "proposer2 missing"
+        );
+        assertTrue(
+            timelock.hasRole(executorRole, executor),
+            "executor1 missing"
+        );
+        assertTrue(
+            timelock.hasRole(executorRole, executor2),
+            "executor2 missing"
+        );
+    }
+
+    function test_AdminCanGrantRolesImmediately() public {
+        (
+            address[] memory proposers,
+            address[] memory executors
+        ) = _buildRoles();
+        address timelockAdmin = makeAddr("timelockAdmin");
+
+        ProxyAdmin(proxyAdmin).transferOwnership(address(script));
+
+        TimelockController timelock = script.execute(
+            proxyAdmin,
+            minDelay,
+            proposers,
+            executors,
+            timelockAdmin
+        );
+
+        assertTrue(
+            timelock.hasRole(timelock.DEFAULT_ADMIN_ROLE(), timelockAdmin),
+            "admin should have DEFAULT_ADMIN_ROLE"
+        );
+
+        address newProposer = makeAddr("newProposer");
+        bytes32 proposerRole = timelock.PROPOSER_ROLE();
+        vm.prank(timelockAdmin);
+        timelock.grantRole(proposerRole, newProposer);
+
+        assertTrue(
+            timelock.hasRole(proposerRole, newProposer),
+            "new proposer should have role"
+        );
+    }
+
+    function test_ProxyAdminOwnedByTimelockBlocksDirectUpgrade() public {
+        (
+            address[] memory proposers,
+            address[] memory executors
+        ) = _buildRoles();
+
+        ProxyAdmin(proxyAdmin).transferOwnership(address(script));
+
+        TimelockController timelock = script.execute(
+            proxyAdmin,
+            minDelay,
+            proposers,
+            executors,
+            address(0)
+        );
 
         assertEq(
             ProxyAdmin(proxyAdmin).owner(),
@@ -205,35 +308,39 @@ contract SplitChangeOwnerToTimelockTest is Test {
     }
 
     function test_RevertsIfNonOwnerCallsExecute() public {
-        HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
-        cfg.timelockProposer = proposer;
-        cfg.timelockExecutor = executor;
-        cfg.timelockMinDelay = minDelay;
+        (
+            address[] memory proposers,
+            address[] memory executors
+        ) = _buildRoles();
 
         vm.expectRevert();
-        script.execute(proxyAdmin, cfg);
+        script.execute(proxyAdmin, minDelay, proposers, executors, address(0));
     }
 
-    function test_RevertsIfTimelockProposerIsZero() public {
-        HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
-        cfg.timelockProposer = address(0);
-        cfg.timelockExecutor = executor;
+    function test_RevertsIfNoProposers() public {
+        address[] memory proposers = new address[](0);
+        address[] memory executors = new address[](1);
+        executors[0] = executor;
+
+        ProxyAdmin(proxyAdmin).transferOwnership(address(script));
 
         vm.expectRevert(
-            SplitChangeOwnerToTimelock.TimelockProposerIsZero.selector
+            SplitChangeOwnerToTimelock.NoProposersConfigured.selector
         );
-        script.execute(proxyAdmin, cfg);
+        script.execute(proxyAdmin, minDelay, proposers, executors, address(0));
     }
 
-    function test_RevertsIfTimelockExecutorIsZero() public {
-        HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
-        cfg.timelockProposer = proposer;
-        cfg.timelockExecutor = address(0);
+    function test_RevertsIfNoExecutors() public {
+        address[] memory proposers = new address[](1);
+        proposers[0] = proposer;
+        address[] memory executors = new address[](0);
+
+        ProxyAdmin(proxyAdmin).transferOwnership(address(script));
 
         vm.expectRevert(
-            SplitChangeOwnerToTimelock.TimelockExecutorIsZero.selector
+            SplitChangeOwnerToTimelock.NoExecutorsConfigured.selector
         );
-        script.execute(proxyAdmin, cfg);
+        script.execute(proxyAdmin, minDelay, proposers, executors, address(0));
     }
 
     // ============================================================
