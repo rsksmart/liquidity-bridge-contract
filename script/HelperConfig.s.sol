@@ -39,6 +39,9 @@ contract HelperConfig is Script {
         uint256 daoFeePercentage;
         address payable daoFeeCollector;
         uint48 adminDelay;
+        uint256 timelockMinDelay;
+        address timelockProposer;
+        address timelockExecutor;
     }
 
     NetworkConfig private cachedConfig;
@@ -313,6 +316,24 @@ contract HelperConfig is Script {
                 ),
                 adminDelay: uint48(
                     vm.envOr(string.concat("ADMIN_DELAY_", suffix), uint256(0))
+                ),
+                timelockMinDelay: vm.envOr(
+                    string.concat("TIMELOCK_MIN_DELAY_", suffix),
+                    uint256(7 days)
+                ),
+                timelockProposer: vm.envOr(
+                    string.concat("TIMELOCK_PROPOSER_", suffix),
+                    vm.envOr(
+                        string.concat("MULTISIG_ADDRESS_", suffix),
+                        address(0)
+                    )
+                ),
+                timelockExecutor: vm.envOr(
+                    string.concat("TIMELOCK_EXECUTOR_", suffix),
+                    vm.envOr(
+                        string.concat("MULTISIG_ADDRESS_", suffix),
+                        address(0)
+                    )
                 )
             });
     }
@@ -344,7 +365,19 @@ contract HelperConfig is Script {
                 daoFeeCollector: payable(
                     vm.envOr("DAO_FEE_COLLECTOR_LOCAL", address(0))
                 ),
-                adminDelay: uint48(vm.envOr("ADMIN_DELAY_LOCAL", uint256(0)))
+                adminDelay: uint48(vm.envOr("ADMIN_DELAY_LOCAL", uint256(0))),
+                timelockMinDelay: vm.envOr(
+                    "TIMELOCK_MIN_DELAY_LOCAL",
+                    uint256(7 days)
+                ),
+                timelockProposer: vm.envOr(
+                    "TIMELOCK_PROPOSER_LOCAL",
+                    address(0x1000000000000000000000000000000000000001)
+                ),
+                timelockExecutor: vm.envOr(
+                    "TIMELOCK_EXECUTOR_LOCAL",
+                    address(0x1000000000000000000000000000000000000002)
+                )
             });
     }
 }

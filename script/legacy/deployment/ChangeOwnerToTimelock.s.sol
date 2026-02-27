@@ -14,10 +14,8 @@ contract ChangeOwnerToTimelock is Script {
     error ProxyAddressNotProvided();
     error TimelockProposerIsZero();
     error TimelockExecutorIsZero();
-    error OnlyCurrentLbcOwnerCanTransferOwnership();
     error ContractOwnerTransferFailed();
     error AdminAddressNotFound();
-    error OnlyCurrentProxyAdminOwnerCanTransferOwnership();
     error ProxyAdminOwnerTransferFailed();
 
     function run() external {
@@ -31,6 +29,20 @@ contract ChangeOwnerToTimelock is Script {
         if (proxyAddress == address(0)) {
             revert ProxyAddressNotProvided();
         }
+
+        vm.startBroadcast(deployerKey);
+        TimelockController timelock = execute(proxyAddress, cfg);
+        vm.stopBroadcast();
+
+        _logFinalState(proxyAddress, timelock, cfg);
+    }
+
+    /// @notice Core logic: deploys a TimelockController and transfers ownership
+    ///         of the LBC proxy and its ProxyAdmin. No console.log calls -- safe for broadcast.
+    function execute(
+        address proxyAddress,
+        HelperConfig.NetworkConfig memory cfg
+    ) public returns (TimelockController) {
         if (cfg.timelockProposer == address(0)) {
             revert TimelockProposerIsZero();
         }
@@ -44,8 +56,6 @@ contract ChangeOwnerToTimelock is Script {
         address[] memory executors = new address[](1);
         executors[0] = cfg.timelockExecutor;
 
-        vm.startBroadcast(deployerKey);
-
         TimelockController timelock = new TimelockController(
             cfg.timelockMinDelay,
             proposers,
@@ -56,9 +66,7 @@ contract ChangeOwnerToTimelock is Script {
         _transferContractOwnership(proxyAddress, address(timelock));
         _transferProxyAdminOwnership(proxyAddress, address(timelock));
 
-        vm.stopBroadcast();
-
-        _logFinalState(proxyAddress, timelock, cfg);
+        return timelock;
     }
 
     function _transferContractOwnership(
@@ -68,13 +76,12 @@ contract ChangeOwnerToTimelock is Script {
         LiquidityBridgeContractV2 contract_ = LiquidityBridgeContractV2(
             payable(proxyAddress)
         );
-        address currentOwner = contract_.owner();
-        if (currentOwner != timelock) {
-            if (currentOwner != msg.sender) {
-                revert OnlyCurrentLbcOwnerCanTransferOwnership();
-            }
-            contract_.transferOwnership(timelock);
+        if (contract_.owner() == timelock) {
+            return;
         }
+
+        contract_.transferOwnership(timelock);
+
         if (contract_.owner() != timelock) {
             revert ContractOwnerTransferFailed();
         }
@@ -94,13 +101,12 @@ contract ChangeOwnerToTimelock is Script {
         LiquidityBridgeContractAdmin admin = LiquidityBridgeContractAdmin(
             adminAddress
         );
-        address currentAdminOwner = admin.owner();
-        if (currentAdminOwner != timelock) {
-            if (currentAdminOwner != msg.sender) {
-                revert OnlyCurrentProxyAdminOwnerCanTransferOwnership();
-            }
-            admin.transferOwnership(timelock);
+        if (admin.owner() == timelock) {
+            return;
         }
+
+        admin.transferOwnership(timelock);
+
         if (admin.owner() != timelock) {
             revert ProxyAdminOwnerTransferFailed();
         }
