@@ -7,6 +7,12 @@ import {TimelockController} from "@openzeppelin/contracts/governance/TimelockCon
 import {LiquidityBridgeContractV2} from "../../../src/legacy/LiquidityBridgeContractV2.sol";
 import {LiquidityBridgeContractAdmin} from "../../../src/legacy/LiquidityBridgeContractAdmin.sol";
 
+/// @title ChangeOwnerToTimelock (Legacy)
+/// @notice Deploys a TimelockController and transfers ownership of the LBC's
+///         ProxyAdmin to it, gating contract upgrades behind a time delay.
+/// @dev Only the ProxyAdmin is transferred to the timelock. The LBC contract
+///      ownership is intentionally left unchanged so that time-sensitive operations
+///      like emergency actions can be executed immediately.
 contract ChangeOwnerToTimelock is Script {
     bytes32 internal constant ADMIN_SLOT =
         0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103;
@@ -14,7 +20,6 @@ contract ChangeOwnerToTimelock is Script {
     error ProxyAddressNotProvided();
     error TimelockProposerIsZero();
     error TimelockExecutorIsZero();
-    error ContractOwnerTransferFailed();
     error AdminAddressNotFound();
     error ProxyAdminOwnerTransferFailed();
 
@@ -37,8 +42,8 @@ contract ChangeOwnerToTimelock is Script {
         _logFinalState(proxyAddress, timelock, cfg);
     }
 
-    /// @notice Core logic: deploys a TimelockController and transfers ownership
-    ///         of the LBC proxy and its ProxyAdmin. No console.log calls -- safe for broadcast.
+    /// @notice Core logic: deploys a TimelockController and transfers the ProxyAdmin
+    ///         ownership to it
     function execute(
         address proxyAddress,
         HelperConfig.NetworkConfig memory cfg
@@ -63,28 +68,9 @@ contract ChangeOwnerToTimelock is Script {
             address(0)
         );
 
-        _transferContractOwnership(proxyAddress, address(timelock));
         _transferProxyAdminOwnership(proxyAddress, address(timelock));
 
         return timelock;
-    }
-
-    function _transferContractOwnership(
-        address proxyAddress,
-        address timelock
-    ) internal {
-        LiquidityBridgeContractV2 contract_ = LiquidityBridgeContractV2(
-            payable(proxyAddress)
-        );
-        if (contract_.owner() == timelock) {
-            return;
-        }
-
-        contract_.transferOwnership(timelock);
-
-        if (contract_.owner() != timelock) {
-            revert ContractOwnerTransferFailed();
-        }
     }
 
     function _transferProxyAdminOwnership(
@@ -117,9 +103,6 @@ contract ChangeOwnerToTimelock is Script {
         TimelockController timelock,
         HelperConfig.NetworkConfig memory cfg
     ) internal view {
-        LiquidityBridgeContractV2 contract_ = LiquidityBridgeContractV2(
-            payable(proxyAddress)
-        );
         address adminAddress = address(
             uint160(uint256(vm.load(proxyAddress, ADMIN_SLOT)))
         );
@@ -130,10 +113,7 @@ contract ChangeOwnerToTimelock is Script {
         console.log("=== Timelock ownership setup complete ===");
         console.log("Timelock:", address(timelock));
         console.log("Timelock minDelay:", timelock.getMinDelay());
-        console.log("LBC owner:", contract_.owner());
-        console.log("Expected timelock:", address(timelock));
         console.log("ProxyAdmin owner:", admin.owner());
-        console.log("Expected timelock:", address(timelock));
         console.log(
             "Proposer role granted:",
             timelock.hasRole(timelock.PROPOSER_ROLE(), cfg.timelockProposer)
