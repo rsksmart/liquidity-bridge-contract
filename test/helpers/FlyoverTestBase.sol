@@ -737,7 +737,14 @@ abstract contract FlyoverTestBase is Test {
                 mainnet: false,
                 daoFeePercentage: 0,
                 daoFeeCollector: payable(ZERO_ADDRESS),
-                adminDelay: TEST_DEFAULT_ADMIN_DELAY
+                adminDelay: TEST_DEFAULT_ADMIN_DELAY,
+                timelockMinDelay: 7 days,
+                timelockProposer: address(
+                    0x1000000000000000000000000000000000000001
+                ),
+                timelockExecutor: address(
+                    0x1000000000000000000000000000000000000002
+                )
             });
     }
 }
