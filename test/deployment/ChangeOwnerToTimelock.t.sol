@@ -380,7 +380,14 @@ contract SplitChangeOwnerToTimelockTest is Test {
                 proxyAdmin,
                 abi.encodeCall(
                     CollateralManagementContract.initialize,
-                    (admin_, cfg.adminDelay, cfg.minimumCollateral, cfg.resignDelayBlocks, cfg.rewardPercentage, PauseRegistry(pauseRegistryProxy))
+                    (
+                        admin_,
+                        cfg.adminDelay,
+                        cfg.minimumCollateral,
+                        cfg.resignDelayBlocks,
+                        cfg.rewardPercentage,
+                        PauseRegistry(pauseRegistryProxy)
+                    )
                 )
             )
         );
@@ -398,7 +405,12 @@ contract SplitChangeOwnerToTimelockTest is Test {
                 proxyAdmin,
                 abi.encodeCall(
                     FlyoverDiscovery.initialize,
-                    (admin_, cfg.adminDelay, address(collateralManagement), PauseRegistry(pauseRegistryProxy))
+                    (
+                        admin_,
+                        cfg.adminDelay,
+                        address(collateralManagement),
+                        PauseRegistry(pauseRegistryProxy)
+                    )
                 )
             )
         );
