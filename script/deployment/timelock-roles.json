@@ -1,0 +1,10 @@
+{
+  "rskMainnet": {
+    "proposers": ["0x633D1233eD6251108b61A8365CEEd271BF3e3C9b"],
+    "executors": ["0x633D1233eD6251108b61A8365CEEd271BF3e3C9b"]
+  },
+  "rskTestnet": {
+    "proposers": ["0x27ad02ABf893F8e01f0089EDE607A76FbB3F1Cd3"],
+    "executors": ["0x27ad02ABf893F8e01f0089EDE607A76FbB3F1Cd3"]
+  }
+}

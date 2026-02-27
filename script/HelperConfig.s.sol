@@ -24,6 +24,7 @@ contract HelperConfig is Script {
         uint256 timelockMinDelay;
         address timelockProposer;
         address timelockExecutor;
+        address timelockAdmin;
     }
 
     /// @notice Configuration for the new Flyover contracts
@@ -42,6 +43,7 @@ contract HelperConfig is Script {
         uint256 timelockMinDelay;
         address timelockProposer;
         address timelockExecutor;
+        address timelockAdmin;
     }
 
     NetworkConfig private cachedConfig;
@@ -125,7 +127,8 @@ contract HelperConfig is Script {
                         "MULTISIG_ADDRESS_MAINNET",
                         address(0x633D1233eD6251108b61A8365CEEd271BF3e3C9b)
                     )
-                )
+                ),
+                timelockAdmin: vm.envOr("TIMELOCK_ADMIN_MAINNET", address(0))
             });
     }
 
@@ -183,7 +186,8 @@ contract HelperConfig is Script {
                         "MULTISIG_ADDRESS_TESTNET",
                         address(0x27ad02ABf893F8e01f0089EDE607A76FbB3F1Cd3)
                     )
-                )
+                ),
+                timelockAdmin: vm.envOr("TIMELOCK_ADMIN_TESTNET", address(0))
             });
     }
 
@@ -224,7 +228,8 @@ contract HelperConfig is Script {
                 timelockExecutor: vm.envOr(
                     "TIMELOCK_EXECUTOR_LOCAL",
                     address(0x1000000000000000000000000000000000000002)
-                )
+                ),
+                timelockAdmin: vm.envOr("TIMELOCK_ADMIN_LOCAL", address(0))
             });
     }
 
@@ -334,6 +339,10 @@ contract HelperConfig is Script {
                         string.concat("MULTISIG_ADDRESS_", suffix),
                         address(0)
                     )
+                ),
+                timelockAdmin: vm.envOr(
+                    string.concat("TIMELOCK_ADMIN_", suffix),
+                    address(0)
                 )
             });
     }
@@ -377,7 +386,8 @@ contract HelperConfig is Script {
                 timelockExecutor: vm.envOr(
                     "TIMELOCK_EXECUTOR_LOCAL",
                     address(0x1000000000000000000000000000000000000002)
-                )
+                ),
+                timelockAdmin: vm.envOr("TIMELOCK_ADMIN_LOCAL", address(0))
             });
     }
 }
