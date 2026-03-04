@@ -39,7 +39,7 @@ contract SystemHandler is HandlerBase {
     uint256 public ghost_totalPegOutRefunded;
     uint256 public ghost_totalPegOutWithdrawn;
     uint256 public ghost_totalRewardsWithdrawn;
-    uint256 public ghost_totalETHIn;
+    uint256 public ghost_totalRBTCIn;
 
     uint256 private _nonce;
 
@@ -119,7 +119,7 @@ contract SystemHandler is HandlerBase {
                 })
             );
             ghost_totalCollateralAdded += collateral;
-            ghost_totalETHIn += collateral;
+            ghost_totalRBTCIn += collateral;
         } catch {}
     }
 
@@ -145,7 +145,7 @@ contract SystemHandler is HandlerBase {
                 )
             {
                 ghost_totalCollateralAdded += amount;
-                ghost_totalETHIn += amount;
+                ghost_totalRBTCIn += amount;
             } catch {}
         } else {
             try
@@ -154,7 +154,7 @@ contract SystemHandler is HandlerBase {
                 )
             {
                 ghost_totalCollateralAdded += amount;
-                ghost_totalETHIn += amount;
+                ghost_totalRBTCIn += amount;
             } catch {}
         }
     }
@@ -169,7 +169,7 @@ contract SystemHandler is HandlerBase {
         vm.prank(info.addr);
         try pegInContract.deposit{value: amount}() {
             ghost_totalPegInDeposited += amount;
-            ghost_totalETHIn += amount;
+            ghost_totalRBTCIn += amount;
         } catch {}
     }
 
@@ -229,7 +229,7 @@ contract SystemHandler is HandlerBase {
         );
 
         ghost_totalPegOutDeposited += totalValue;
-        ghost_totalETHIn += totalValue;
+        ghost_totalRBTCIn += totalValue;
 
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(_staged);
         _pruneCompletedQuotes(8);

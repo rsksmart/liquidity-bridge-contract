@@ -29,12 +29,12 @@ contract DiscoveryInvariantTest is DiscoveryTestBase {
 
     // ============ Invariant Tests ============
 
-    /// @notice Discovery contract should never hold ETH — all forwarded to CollateralManagement
-    function invariant_DiscoveryHoldsNoETH() public view {
+    /// @notice Discovery contract should never hold RBTC — all forwarded to CollateralManagement
+    function invariant_DiscoveryHoldsNoRBTC() public view {
         assertEq(
             address(discovery).balance,
             0,
-            "INVARIANT VIOLATED: Discovery holds ETH"
+            "INVARIANT VIOLATED: Discovery holds RBTC"
         );
     }
 

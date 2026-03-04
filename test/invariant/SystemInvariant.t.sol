@@ -131,12 +131,12 @@ contract SystemInvariantTest is Test {
         );
     }
 
-    /// @notice Discovery contract should never hold ETH
-    function invariant_DiscoveryHoldsNoETH() public view {
+    /// @notice Discovery contract should never hold RBTC
+    function invariant_DiscoveryHoldsNoRBTC() public view {
         assertEq(
             address(discovery).balance,
             0,
-            "INVARIANT VIOLATED: Discovery holds ETH"
+            "INVARIANT VIOLATED: Discovery holds RBTC"
         );
     }
 
@@ -200,54 +200,54 @@ contract SystemInvariantTest is Test {
         }
     }
 
-    /// @notice No individual value should exceed the total ETH injected into the system
+    /// @notice No individual value should exceed the total RBTC injected into the system
     function invariant_NoUnderflowAnywhere() public view {
-        uint256 totalETHIn = handler.ghost_totalETHIn();
+        uint256 totalRBTCIn = handler.ghost_totalRBTCIn();
         uint256 count = handler.getProviderCount();
         for (uint256 i = 0; i < count; i++) {
             address addr = handler.getProviderAddr(i);
             assertLe(
                 collateralManagement.getPegInCollateral(addr),
-                totalETHIn,
-                "PegIn collateral exceeds total ETH in"
+                totalRBTCIn,
+                "PegIn collateral exceeds total RBTC in"
             );
             assertLe(
                 collateralManagement.getPegOutCollateral(addr),
-                totalETHIn,
-                "PegOut collateral exceeds total ETH in"
+                totalRBTCIn,
+                "PegOut collateral exceeds total RBTC in"
             );
             assertLe(
                 pegInContract.getBalance(addr),
-                totalETHIn,
-                "PegIn balance exceeds total ETH in"
+                totalRBTCIn,
+                "PegIn balance exceeds total RBTC in"
             );
             assertLe(
                 pegOutContract.getBalance(addr),
-                totalETHIn,
-                "PegOut balance exceeds total ETH in"
+                totalRBTCIn,
+                "PegOut balance exceeds total RBTC in"
             );
         }
         assertLe(
             address(collateralManagement).balance,
-            totalETHIn,
-            "CM balance exceeds total ETH in"
+            totalRBTCIn,
+            "CM balance exceeds total RBTC in"
         );
         assertLe(
             address(pegInContract).balance,
-            totalETHIn,
-            "PegIn contract balance exceeds total ETH in"
+            totalRBTCIn,
+            "PegIn contract balance exceeds total RBTC in"
         );
         assertLe(
             address(pegOutContract).balance,
-            totalETHIn,
-            "PegOut contract balance exceeds total ETH in"
+            totalRBTCIn,
+            "PegOut contract balance exceeds total RBTC in"
         );
     }
 
-    /// @notice Total ETH across all contracts should not exceed total ETH injected
+    /// @notice Total RBTC across all contracts should not exceed total RBTC injected
     function invariant_GlobalConservation() public view {
-        uint256 totalETHIn = handler.ghost_totalETHIn();
-        if (totalETHIn == 0) return;
+        uint256 totalRBTCIn = handler.ghost_totalRBTCIn();
+        if (totalRBTCIn == 0) return;
 
         uint256 systemBalance = address(collateralManagement).balance +
             address(pegInContract).balance +
@@ -256,8 +256,8 @@ contract SystemInvariantTest is Test {
 
         assertLe(
             systemBalance,
-            totalETHIn,
-            "INVARIANT VIOLATED: System has more ETH than was injected"
+            totalRBTCIn,
+            "INVARIANT VIOLATED: System has more RBTC than was injected"
         );
     }
 
@@ -295,7 +295,7 @@ contract SystemInvariantTest is Test {
             "Collateral withdrawn:",
             handler.ghost_totalCollateralWithdrawn()
         );
-        console.log("Total ETH in:", handler.ghost_totalETHIn());
+        console.log("Total RBTC in:", handler.ghost_totalRBTCIn());
         console.log("CM balance:", address(collateralManagement).balance);
         console.log("PegIn balance:", address(pegInContract).balance);
         console.log("PegOut balance:", address(pegOutContract).balance);
