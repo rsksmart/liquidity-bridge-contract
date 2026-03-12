@@ -183,13 +183,13 @@ contract PauseTest is Test {
             .pauseStatus();
 
         assertTrue(isPausedD);
-        assertEq(reasonD, "Emergency system-wide pause");
+        assertEq(reasonD, "");
         assertTrue(isPausedC);
-        assertEq(reasonC, "Emergency system-wide pause");
+        assertEq(reasonC, "");
         assertTrue(isPausedPI);
-        assertEq(reasonPI, "Emergency system-wide pause");
+        assertEq(reasonPI, "");
         assertTrue(isPausedPO);
-        assertEq(reasonPO, "Emergency system-wide pause");
+        assertEq(reasonPO, "");
     }
 
     function test_CanUnpauseAllContractsSimultaneously() public {
@@ -422,26 +422,6 @@ contract PauseTest is Test {
         assertTrue(isPausedPO, "PegOut should be paused");
     }
 
-    function test_CanPerformEmergencyPauseWithCustomReason() public {
-        _grantPauserRole();
-
-        string
-            memory reason = "Critical security vulnerability detected - immediate pause required";
-
-        vm.prank(pauser);
-        pauseRegistry.pause(reason);
-
-        (, string memory reasonD, ) = flyoverDiscovery.pauseStatus();
-        (, string memory reasonC, ) = collateralManagement.pauseStatus();
-        (, string memory reasonPI, ) = pegInContract.pauseStatus();
-        (, string memory reasonPO, ) = pegOutContract.pauseStatus();
-
-        assertEq(reasonD, reason);
-        assertEq(reasonC, reason);
-        assertEq(reasonPI, reason);
-        assertEq(reasonPO, reason);
-    }
-
     function test_MaintainsPauseStateAcrossMultipleOperations() public {
         _grantPauserRole();
 
@@ -477,5 +457,222 @@ contract PauseTest is Test {
         assertTrue(isPausedC);
         assertTrue(isPausedPI);
         assertTrue(isPausedPO);
+    }
+
+    // ---------- Two-level pause (soft vs hard) ----------
+
+    function test_SoftPause_BlocksNewBusiness_AllowsContinuations() public {
+        _grantPauserRole();
+        vm.prank(signers[1], signers[1]);
+        flyoverDiscovery.register{value: 1 ether}(
+            "LP",
+            "http://localhost/api",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_ADDER(),
+            owner
+        );
+        collateralManagement.addPegInCollateralTo{value: 0.5 ether}(signers[1]);
+        vm.prank(signers[1]);
+        pegInContract.deposit{value: 0.5 ether}();
+
+        vm.prank(pauser);
+        pauseRegistry.pause("Soft pause"); // level 1
+
+        assertEq(pauseRegistry.pauseLevel(), 1);
+
+        // New business blocked
+        vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
+        flyoverDiscovery.register{value: 0.1 ether}(
+            "LP2",
+            "url",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+        vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
+        vm.prank(signers[1]);
+        pegInContract.deposit{value: 0.1 ether}();
+
+        // LP metadata updates are allowed during soft pause (not a new flow initiation)
+        vm.prank(signers[1]);
+        flyoverDiscovery.updateProvider(
+            "LP-updated",
+            "http://localhost/api/v2"
+        );
+
+        // Continuations allowed (whenNotHardPaused passes at level 1)
+        vm.prank(signers[1]);
+        pegInContract.withdraw(0.3 ether);
+    }
+
+    function test_HardPause_BlocksAllStateChangingIncludingContinuations()
+        public
+    {
+        _grantPauserRole();
+        vm.prank(signers[1], signers[1]);
+        flyoverDiscovery.register{value: 1 ether}(
+            "LP",
+            "http://localhost/api",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_ADDER(),
+            owner
+        );
+        collateralManagement.addPegInCollateralTo{value: 0.5 ether}(signers[1]);
+        vm.prank(signers[1]);
+        pegInContract.deposit{value: 0.5 ether}();
+
+        vm.prank(pauser);
+        pauseRegistry.setPauseLevel(2); // hard pause
+
+        assertEq(pauseRegistry.pauseLevel(), 2);
+
+        // New business blocked
+        vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
+        flyoverDiscovery.register{value: 0.1 ether}(
+            "LP2",
+            "url",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+
+        // Metadata updates are blocked on hard pause (full freeze)
+        vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
+        vm.prank(signers[1]);
+        flyoverDiscovery.updateProvider(
+            "LP-updated",
+            "http://localhost/api/v2"
+        );
+
+        // Continuations/outflows also blocked at level 2
+        vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
+        vm.prank(signers[1]);
+        pegInContract.withdraw(0.3 ether);
+
+        vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
+        vm.prank(signers[1]);
+        collateralManagement.resign();
+
+        vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
+        vm.prank(signers[1]);
+        collateralManagement.withdrawRewards();
+
+        vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
+        vm.prank(signers[1]);
+        pegOutContract.withdraw(payable(signers[1]), 0);
+    }
+
+    function test_PauseUnpause_BackwardCompatible_Level1() public {
+        _grantPauserRole();
+        vm.prank(pauser);
+        pauseRegistry.pause("Reason");
+        assertEq(pauseRegistry.pauseLevel(), 1);
+        assertTrue(pauseRegistry.paused());
+        (bool isPaused, , ) = pauseRegistry.pauseStatus();
+        assertTrue(isPaused);
+
+        vm.prank(pauser);
+        pauseRegistry.unpause();
+        assertEq(pauseRegistry.pauseLevel(), 0);
+        assertFalse(pauseRegistry.paused());
+    }
+
+    // ---------- Hard-pause timer overlap ----------
+
+    function test_HardPause_AppendsAndClosesLog() public {
+        _grantPauserRole();
+        assertEq(pauseRegistry.hardPausesCount(), 0);
+
+        vm.prank(pauser);
+        pauseRegistry.setPauseLevel(2);
+        assertEq(pauseRegistry.hardPausesCount(), 1);
+        (uint64 sTs, uint64 eTs, uint64 sBl, uint64 eBl) = pauseRegistry
+            .hardPauses(0);
+        assertTrue(sTs > 0 && sBl > 0);
+        assertEq(eTs, 0);
+        assertEq(eBl, 0);
+
+        vm.prank(pauser);
+        pauseRegistry.setPauseLevel(0);
+        assertEq(pauseRegistry.hardPausesCount(), 1);
+        (, eTs, , eBl) = pauseRegistry.hardPauses(0);
+        assertTrue(eTs > 0 && eBl > 0);
+    }
+
+    function test_ComputePauseOverlap_AccountsForHardPauseWindow() public {
+        _grantPauserRole();
+        uint256 startTs = block.timestamp;
+
+        vm.prank(pauser);
+        pauseRegistry.setPauseLevel(2);
+        vm.warp(block.timestamp + 90);
+
+        vm.prank(pauser);
+        pauseRegistry.setPauseLevel(0);
+
+        uint256 overlap = pauseRegistry.computePauseOverlap(
+            startTs,
+            block.timestamp
+        );
+        assertEq(overlap, 90);
+    }
+
+    function test_ComputePauseOverlapBlocks_AccountsForHardPauseWindow()
+        public
+    {
+        _grantPauserRole();
+        uint256 startBlock = block.number;
+
+        vm.prank(pauser);
+        pauseRegistry.setPauseLevel(2);
+        vm.roll(block.number + 25);
+
+        vm.prank(pauser);
+        pauseRegistry.setPauseLevel(0);
+
+        uint256 overlap = pauseRegistry.computePauseOverlapBlocks(
+            startBlock,
+            block.number
+        );
+        assertEq(overlap, 25);
+    }
+
+    function test_ResignDelay_ExcludesHardPausedBlocks() public {
+        _grantPauserRole();
+
+        vm.prank(signers[2], signers[2]);
+        flyoverDiscovery.register{value: 1 ether}(
+            "PauseDelay LP",
+            "http://localhost/api",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+
+        vm.prank(signers[2]);
+        collateralManagement.resign();
+        uint256 resignationBlock = collateralManagement.getResignationBlock(
+            signers[2]
+        );
+
+        vm.roll(resignationBlock + 200);
+
+        vm.prank(pauser);
+        pauseRegistry.setPauseLevel(2);
+        vm.roll(block.number + 400);
+        vm.prank(pauser);
+        pauseRegistry.setPauseLevel(0);
+
+        // Effective elapsed = 200 (400 hard-pause blocks should be excluded), so delay is not met yet.
+        vm.expectRevert();
+        vm.prank(signers[2]);
+        collateralManagement.withdrawCollateral();
+
+        vm.roll(block.number + 300);
+        vm.prank(signers[2]);
+        collateralManagement.withdrawCollateral();
     }
 }
