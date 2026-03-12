@@ -309,14 +309,17 @@ contract MockPauseRegistry is IPauseRegistry {
     bool private _paused;
     string private _reason;
     uint64 private _since;
+    uint8 private _level;
 
     function pause(string calldata reason) external override {
+        _level = 1;
         _paused = true;
         _reason = reason;
         _since = uint64(block.timestamp);
     }
 
     function unpause() external override {
+        _level = 0;
         _paused = false;
         _reason = "";
         _since = 0;
@@ -333,6 +336,44 @@ contract MockPauseRegistry is IPauseRegistry {
         returns (bool isPaused, string memory reason, uint64 since)
     {
         return (_paused, _reason, _since);
+    }
+
+    function pauseLevel() external view override returns (uint8) {
+        return _level;
+    }
+
+    function setPauseLevel(uint8 level) external override {
+        if (level > 2) revert();
+        _level = level;
+        _paused = (level != 0);
+        if (level == 0) {
+            _reason = "";
+            _since = 0;
+        }
+    }
+
+    function hardPausesCount() external pure override returns (uint256) {
+        return 0;
+    }
+
+    function hardPauses(
+        uint256
+    ) external pure override returns (uint64, uint64, uint64, uint64) {
+        return (0, 0, 0, 0);
+    }
+
+    function computePauseOverlap(
+        uint256,
+        uint256
+    ) external pure override returns (uint256) {
+        return 0;
+    }
+
+    function computePauseOverlapBlocks(
+        uint256,
+        uint256
+    ) external pure override returns (uint256) {
+        return 0;
     }
 }
 
