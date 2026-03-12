@@ -78,22 +78,28 @@ contract CollateralManagementContract is
     }
 
     /// @inheritdoc ICollateralManagement
-    function addPegInCollateralTo(address addr) external onlyRole(COLLATERAL_ADDER) whenNotPaused payable override {
+    function addPegInCollateralTo(address addr) external onlyRole(COLLATERAL_ADDER) whenNotSoftPaused payable override {
         _addPegInCollateralTo(addr, msg.value);
     }
 
     /// @inheritdoc ICollateralManagement
-    function addPegInCollateral() external whenNotPaused onlyRegisteredForPegIn(msg.sender) payable override {
+    function addPegInCollateral() external whenNotSoftPaused onlyRegisteredForPegIn(msg.sender) payable override {
         _addPegInCollateralTo(msg.sender, msg.value);
     }
 
     /// @inheritdoc ICollateralManagement
-    function addPegOutCollateralTo(address addr) external whenNotPaused onlyRole(COLLATERAL_ADDER) payable override {
+    function addPegOutCollateralTo(address addr)
+        external
+        whenNotSoftPaused
+        onlyRole(COLLATERAL_ADDER)
+        payable
+        override
+    {
         _addPegOutCollateralTo(addr, msg.value);
     }
 
     /// @inheritdoc ICollateralManagement
-    function addPegOutCollateral() external whenNotPaused onlyRegisteredForPegOut(msg.sender) payable override {
+    function addPegOutCollateral() external whenNotSoftPaused onlyRegisteredForPegOut(msg.sender) payable override {
         _addPegOutCollateralTo(msg.sender, msg.value);
     }
 
@@ -153,6 +159,8 @@ contract CollateralManagementContract is
     }
 
     /// @inheritdoc ICollateralManagement
+    /// @dev Intentionally not paused: slashing must remain available so PegIn/PegOut can enforce penalties
+    ///      when they call this during registerPegIn/refundPegOut; a separate pause would cause reverts.
     function slashPegInCollateral(
         address punisher,
         Quotes.PegInQuote calldata quote,
@@ -177,6 +185,8 @@ contract CollateralManagementContract is
     }
 
     /// @inheritdoc ICollateralManagement
+    /// @dev Intentionally not paused: slashing must remain available so PegIn/PegOut can enforce penalties
+    ///      when they call this during registerPegIn/refundPegOut; a separate pause would cause reverts.
     function slashPegOutCollateral(
         address punisher,
         Quotes.PegOutQuote calldata quote,
@@ -201,27 +211,27 @@ contract CollateralManagementContract is
     }
 
     /// @inheritdoc ICollateralManagement
-    function withdrawCollateral() external nonReentrant override {
+    function withdrawCollateral() external nonReentrant whenNotHardPaused override {
         _withdrawCollateralTo(payable(msg.sender));
     }
 
     /// @inheritdoc ICollateralManagement
-    function withdrawCollateral(address payable to) external nonReentrant override {
+    function withdrawCollateral(address payable to) external nonReentrant whenNotHardPaused override {
         _withdrawCollateralTo(to);
     }
 
     /// @inheritdoc ICollateralManagement
-    function withdrawRewards() external nonReentrant override {
+    function withdrawRewards() external nonReentrant whenNotHardPaused override {
         _withdrawRewardsTo(payable(msg.sender));
     }
 
     /// @inheritdoc ICollateralManagement
-    function withdrawRewards(address payable to) external nonReentrant override {
+    function withdrawRewards(address payable to) external nonReentrant whenNotHardPaused override {
         _withdrawRewardsTo(to);
     }
 
     /// @inheritdoc ICollateralManagement
-    function resign() external override {
+    function resign() external whenNotHardPaused override {
         address providerAddress = msg.sender;
         if (_resignationBlockNum[providerAddress] != 0) revert AlreadyResigned(providerAddress);
         if (_pegInCollateral[providerAddress] < 1 && _pegOutCollateral[providerAddress] < 1) {
@@ -308,7 +318,8 @@ contract CollateralManagementContract is
         address providerAddress = msg.sender;
         uint256 resignationBlock = _resignationBlockNum[providerAddress];
         if (resignationBlock < 1) revert NotResigned(providerAddress);
-        if (block.number - resignationBlock < _resignDelayInBlocks) {
+        uint256 pauseBlocks = pauseRegistry().computePauseOverlapBlocks(resignationBlock, block.number);
+        if (block.number - resignationBlock - pauseBlocks < _resignDelayInBlocks) {
             revert ResignationDelayNotMet(providerAddress, resignationBlock, _resignDelayInBlocks);
         }
 
