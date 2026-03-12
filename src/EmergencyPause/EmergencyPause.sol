@@ -23,9 +23,17 @@ abstract contract EmergencyPause is Initializable, IPausable {
     bytes32 private constant _EMERGENCY_PAUSE_STORAGE =
         0x9231f352ae2e78fc5cd04a185b8fc917dd5cf9947923b7000e25955769a61f00;
 
-    /// @notice Modifier that reverts if the system is paused (reads from PauseRegistry)
-    modifier whenNotPaused() {
-        if (_getEmergencyPauseStorage().pauseRegistry.paused()) {
+    /// @notice Reverts at pause level >= 1 (soft pause: no new business)
+    modifier whenNotSoftPaused() {
+        if (_getEmergencyPauseStorage().pauseRegistry.pauseLevel() > 0) {
+            revert Flyover.EnforcedPause();
+        }
+        _;
+    }
+
+    /// @notice Reverts at pause level >= 2 (hard pause: full freeze)
+    modifier whenNotHardPaused() {
+        if (_getEmergencyPauseStorage().pauseRegistry.pauseLevel() > 1) {
             revert Flyover.EnforcedPause();
         }
         _;
