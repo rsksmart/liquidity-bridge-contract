@@ -298,6 +298,45 @@ contract UserRefundTest is PegOutTestBase {
         pegOutContract.refundUserPegOut(quoteHash);
     }
 
+    function test_RefundUserPegOut_LegacyQuoteWithZeroDepositBlock_IgnoresHistoricalPauseBlocks()
+        public
+    {
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            1 ether,
+            fullLp
+        );
+        quote.expireDate = uint32(uint256(block.timestamp) + 100);
+        quote.expireBlock = uint32(uint256(block.number) + 50);
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+        bytes memory signature = signQuote(fullLp, quote);
+
+        // Simulate hard pause history that happened before this quote was deposited.
+        vm.prank(owner);
+        pauseRegistry.setPauseLevel(2);
+        vm.roll(block.number + 25);
+        vm.prank(owner);
+        pauseRegistry.setPauseLevel(0);
+
+        vm.prank(user);
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(
+            quote,
+            signature
+        );
+
+        // Simulate pre-upgrade quote record where depositBlock was never initialized.
+        _setLegacyDepositBlockToZero(quoteHash);
+
+        vm.roll(uint256(quote.expireBlock) + 1);
+        vm.warp(uint256(quote.expireDate) + 1);
+
+        vm.prank(user);
+        pegOutContract.refundUserPegOut(quoteHash);
+        assertTrue(
+            pegOutContract.isQuoteCompleted(quoteHash),
+            "legacy quote should remain refundable after expiration"
+        );
+    }
+
     // ============ Helper Functions ============
 
     string constant HELPER_SCRIPT_GET_BTC_ADDRESS_BYTES =
@@ -351,6 +390,13 @@ contract UserRefundTest is PegOutTestBase {
         Quotes.PegOutQuote memory quote
     ) internal pure returns (uint256) {
         return quote.value + quote.callFee + quote.gasFee;
+    }
+
+    function _setLegacyDepositBlockToZero(bytes32 quoteHash) internal {
+        // _pegOutRegistry mapping is at storage slot 3 and depositBlock is the 3rd struct slot.
+        bytes32 baseSlot = keccak256(abi.encode(quoteHash, uint256(3)));
+        bytes32 depositBlockSlot = bytes32(uint256(baseSlot) + 2);
+        vm.store(address(pegOutContract), depositBlockSlot, bytes32(0));
     }
 
     function signQuote(

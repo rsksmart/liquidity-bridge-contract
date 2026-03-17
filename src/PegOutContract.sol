@@ -243,7 +243,8 @@ contract PegOutContract is
         uint256 depositTs = _pegOutRegistry[quoteHash].depositTimestamp;
         uint256 depositBlock = _pegOutRegistry[quoteHash].depositBlock;
         uint256 pauseOverlap = pauseRegistry().computePauseOverlap(depositTs, block.timestamp);
-        uint256 pauseBlocks = pauseRegistry().computePauseOverlapBlocks(depositBlock, block.number);
+        // Backward-compatibility for legacy quotes predating depositBlock tracking.
+        uint256 pauseBlocks = _computePauseBlocksFromDeposit(depositBlock);
         // User may refund only after effective expiration (adjusted for hard-pause overlap)
         // solhint-disable-next-line gas-strict-inequalities
         if (block.timestamp <= quote.expireDate + pauseOverlap || block.number <= quote.expireBlock + pauseBlocks) {
@@ -389,7 +390,7 @@ contract PegOutContract is
         uint256 depositTs = _pegOutRegistry[quoteHash].depositTimestamp;
         uint256 depositBlock = _pegOutRegistry[quoteHash].depositBlock;
         uint256 pauseOverlap = pauseRegistry().computePauseOverlap(depositTs, block.timestamp);
-        uint256 pauseBlocks = pauseRegistry().computePauseOverlapBlocks(depositBlock, block.number);
+        uint256 pauseBlocks = _computePauseBlocksFromDeposit(depositBlock);
 
         // penalize if LP is refunding after expiration (adjusted for hard pause)
         if (block.timestamp > quote.expireDate + pauseOverlap || block.number > quote.expireBlock + pauseBlocks) {
@@ -397,6 +398,16 @@ contract PegOutContract is
         }
 
         return false;
+    }
+
+    function _computePauseBlocksFromDeposit(
+        uint256 depositBlock
+    ) private view returns (uint256 pauseBlocks) {
+        if (depositBlock == 0) {
+            // Legacy records created before block anchor support must not count historical pauses.
+            return 0;
+        }
+        return pauseRegistry().computePauseOverlapBlocks(depositBlock, block.number);
     }
 
     /// @notice This function performs common validations for peg out transactions without checking confirmations.
