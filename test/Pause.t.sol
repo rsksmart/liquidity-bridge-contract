@@ -183,13 +183,13 @@ contract PauseTest is Test {
             .pauseStatus();
 
         assertTrue(isPausedD);
-        assertEq(reasonD, "");
+        assertEq(reasonD, "Emergency system-wide pause");
         assertTrue(isPausedC);
-        assertEq(reasonC, "");
+        assertEq(reasonC, "Emergency system-wide pause");
         assertTrue(isPausedPI);
-        assertEq(reasonPI, "");
+        assertEq(reasonPI, "Emergency system-wide pause");
         assertTrue(isPausedPO);
-        assertEq(reasonPO, "");
+        assertEq(reasonPO, "Emergency system-wide pause");
     }
 
     function test_CanUnpauseAllContractsSimultaneously() public {
