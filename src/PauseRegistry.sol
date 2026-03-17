@@ -41,6 +41,7 @@ contract PauseRegistry is
     event EmergencyPaused(address indexed by, string reason);
     event EmergencyUnpaused(address indexed by);
     error InvalidPauseLevel(uint8 level);
+    error AlreadyPaused();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -57,8 +58,9 @@ contract PauseRegistry is
 
     /// @inheritdoc IPauseRegistry
     function pause(string calldata reason) external onlyRole(PAUSER_ROLE) {
-        _setPauseLevel(1);
         PauseRegistryStorage storage $ = _getPauseRegistryStorage();
+        if ($.pauseLevel != 0) revert AlreadyPaused();
+        _setPauseLevel(1);
         $.pauseReason = reason;
         emit EmergencyPaused(msg.sender, reason);
     }
