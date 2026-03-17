@@ -583,6 +583,52 @@ contract PauseTest is Test {
         assertFalse(pauseRegistry.paused());
     }
 
+    function test_Pause_RevertsWhenAlreadySoftPaused() public {
+        _grantPauserRole();
+
+        vm.prank(pauser);
+        pauseRegistry.pause("First reason");
+
+        vm.prank(pauser);
+        vm.expectRevert(PauseRegistry.AlreadyPaused.selector);
+        pauseRegistry.pause("Second reason");
+
+        assertEq(pauseRegistry.pauseLevel(), 1);
+        (, string memory reason, ) = pauseRegistry.pauseStatus();
+        assertEq(reason, "First reason");
+    }
+
+    function test_Pause_RevertsWhenHardPaused() public {
+        _grantPauserRole();
+
+        vm.prank(pauser);
+        pauseRegistry.setPauseLevel(2);
+        (
+            uint64 startTs,
+            uint64 endTsBefore,
+            uint64 startBl,
+            uint64 endBlBefore
+        ) = pauseRegistry.hardPauses(0);
+
+        vm.prank(pauser);
+        vm.expectRevert(PauseRegistry.AlreadyPaused.selector);
+        pauseRegistry.pause("Should not downgrade");
+
+        assertEq(pauseRegistry.pauseLevel(), 2);
+        (
+            uint64 startTsAfter,
+            uint64 endTsAfter,
+            uint64 startBlAfter,
+            uint64 endBlAfter
+        ) = pauseRegistry.hardPauses(0);
+        assertEq(startTsAfter, startTs);
+        assertEq(startBlAfter, startBl);
+        assertEq(endTsBefore, 0);
+        assertEq(endBlBefore, 0);
+        assertEq(endTsAfter, 0);
+        assertEq(endBlAfter, 0);
+    }
+
     function test_SetPauseLevel_TracksContinuousPauseTimestamp() public {
         _grantPauserRole();
 
