@@ -59,7 +59,6 @@ contract PauseRegistry is
     function pause(string calldata reason) external onlyRole(PAUSER_ROLE) {
         _setPauseLevel(1);
         PauseRegistryStorage storage $ = _getPauseRegistryStorage();
-        $.pauseTimestamp = uint64(block.timestamp);
         $.pauseReason = reason;
         emit EmergencyPaused(msg.sender, reason);
     }
@@ -68,7 +67,6 @@ contract PauseRegistry is
     function unpause() external onlyRole(PAUSER_ROLE) {
         _setPauseLevel(0);
         PauseRegistryStorage storage $ = _getPauseRegistryStorage();
-        $.pauseTimestamp = 0;
         $.pauseReason = "";
         emit EmergencyUnpaused(msg.sender);
     }
@@ -179,6 +177,11 @@ contract PauseRegistry is
         uint8 prev = $.pauseLevel;
         $.pauseLevel = level;
         $.paused = (level != 0);
+        if (prev == 0 && level != 0) {
+            $.pauseTimestamp = uint64(block.timestamp);
+        } else if (prev != 0 && level == 0) {
+            $.pauseTimestamp = 0;
+        }
 
         if (prev == 2 && level != 2) {
             HardPause[] storage pauses = $.hardPauses;

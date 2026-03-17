@@ -583,6 +583,58 @@ contract PauseTest is Test {
         assertFalse(pauseRegistry.paused());
     }
 
+    function test_SetPauseLevel_TracksContinuousPauseTimestamp() public {
+        _grantPauserRole();
+
+        (, , uint64 since0) = pauseRegistry.pauseStatus();
+        assertEq(since0, 0);
+
+        vm.warp(block.timestamp + 10);
+        vm.prank(pauser);
+        pauseRegistry.setPauseLevel(1);
+        (, , uint64 since1) = pauseRegistry.pauseStatus();
+        assertEq(since1, uint64(block.timestamp));
+
+        vm.warp(block.timestamp + 15);
+        vm.prank(pauser);
+        pauseRegistry.setPauseLevel(2);
+        (, , uint64 since2) = pauseRegistry.pauseStatus();
+        assertEq(since2, since1);
+
+        vm.warp(block.timestamp + 12);
+        vm.prank(pauser);
+        pauseRegistry.setPauseLevel(1);
+        (, , uint64 since3) = pauseRegistry.pauseStatus();
+        assertEq(since3, since1);
+
+        vm.warp(block.timestamp + 8);
+        vm.prank(pauser);
+        pauseRegistry.setPauseLevel(0);
+        (, , uint64 since4) = pauseRegistry.pauseStatus();
+        assertEq(since4, 0);
+    }
+
+    function test_PauseAndSetPauseLevel_KeepSamePauseStartTimestamp() public {
+        _grantPauserRole();
+
+        vm.warp(block.timestamp + 7);
+        vm.prank(pauser);
+        pauseRegistry.pause("Reason");
+        (, , uint64 sinceAfterPause) = pauseRegistry.pauseStatus();
+
+        vm.warp(block.timestamp + 9);
+        vm.prank(pauser);
+        pauseRegistry.setPauseLevel(2);
+        (, , uint64 sinceAfterHardPause) = pauseRegistry.pauseStatus();
+        assertEq(sinceAfterHardPause, sinceAfterPause);
+
+        vm.warp(block.timestamp + 11);
+        vm.prank(pauser);
+        pauseRegistry.setPauseLevel(1);
+        (, , uint64 sinceAfterSoftPause) = pauseRegistry.pauseStatus();
+        assertEq(sinceAfterSoftPause, sinceAfterPause);
+    }
+
     // ---------- Hard-pause timer overlap ----------
 
     function test_HardPause_AppendsAndClosesLog() public {
