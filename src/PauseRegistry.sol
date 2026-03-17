@@ -60,6 +60,7 @@ contract PauseRegistry is
         _setPauseLevel(1);
         PauseRegistryStorage storage $ = _getPauseRegistryStorage();
         $.pauseTimestamp = uint64(block.timestamp);
+        $.pauseReason = reason;
         emit EmergencyPaused(msg.sender, reason);
     }
 
@@ -68,6 +69,7 @@ contract PauseRegistry is
         _setPauseLevel(0);
         PauseRegistryStorage storage $ = _getPauseRegistryStorage();
         $.pauseTimestamp = 0;
+        $.pauseReason = "";
         emit EmergencyUnpaused(msg.sender);
     }
 
@@ -91,7 +93,7 @@ contract PauseRegistry is
     {
         PauseRegistryStorage storage $ = _getPauseRegistryStorage();
         isPaused = $.pauseLevel != 0;
-        reason = "";
+        reason = $.pauseReason;
         since = $.pauseTimestamp;
     }
 
