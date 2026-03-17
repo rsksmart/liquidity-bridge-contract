@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 import {PegInTestBase} from "./PegInTestBase.sol";
 import {IPegIn} from "../../src/interfaces/IPegIn.sol";
+import {ICollateralManagement} from "../../src/interfaces/ICollateralManagement.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 import {SignatureValidator} from "../../src/libraries/SignatureValidator.sol";
@@ -582,6 +583,61 @@ contract RegisterPegInTest is PegInTestBase {
             uint256(pegInContract.getQuoteStatus(quoteHash)),
             uint256(IPegIn.PegInStates.PROCESSED_QUOTE),
             "Quote should be PROCESSED"
+        );
+    }
+
+    function test_RegisterPegIn_DoesNotCountPreConfirmationPauseForCallDeadline()
+        public
+    {
+        Quotes.PegInQuote memory quote = createTestQuote(1.2 ether);
+        (bytes32 quoteHash, bytes memory signature) = getQuoteHashAndSignature(
+            quote
+        );
+
+        uint256 peginAmount = getTotalValue(quote);
+        uint32 firstConfirmationTs = quote.agreementTimestamp + 300;
+        uint32 nConfirmationsTs = quote.agreementTimestamp + 1000;
+        setupBridgeWithHeaders(
+            quoteHash,
+            peginAmount,
+            uint256(quote.depositConfirmations),
+            firstConfirmationTs,
+            nConfirmationsTs
+        );
+
+        // Hard pause occurs before nConfirmationsTs and must not extend the call deadline.
+        vm.warp(quote.agreementTimestamp + 100);
+        vm.prank(owner);
+        pauseRegistry.setPauseLevel(2);
+
+        vm.warp(quote.agreementTimestamp + 800);
+        vm.prank(owner);
+        pauseRegistry.setPauseLevel(0);
+
+        uint256 callTs = uint256(nConfirmationsTs) + quote.callTime + 200;
+        vm.warp(callTs);
+        vm.prank(fullLp);
+        pegInContract.callForUser{value: quote.value}(quote);
+
+        uint256 penalty = quote.penaltyFee;
+        uint256 reward = (penalty * TEST_REWARD_PERCENTAGE) / 10000;
+
+        vm.prank(registerCaller);
+        vm.expectEmit(true, true, true, true);
+        emit ICollateralManagement.Penalized(
+            fullLp,
+            registerCaller,
+            quoteHash,
+            Flyover.ProviderType.PegIn,
+            penalty,
+            reward
+        );
+        pegInContract.registerPegIn(
+            quote,
+            signature,
+            RAW_TX_MOCK,
+            PMT_MOCK,
+            HEIGHT_MOCK
         );
     }
 

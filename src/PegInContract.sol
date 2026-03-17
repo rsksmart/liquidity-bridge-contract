@@ -592,7 +592,7 @@ contract PegInContract is
         );
 
         uint256 pauseOverlap = pauseRegistry().computePauseOverlap(
-            quote.agreementTimestamp,
+            nConfirmationsTimestamp,
             block.timestamp
         );
         uint256 adjustedDeadline = nConfirmationsTimestamp + quote.callTime + pauseOverlap;
