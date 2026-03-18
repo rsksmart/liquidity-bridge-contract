@@ -6,5 +6,9 @@
   "rskTestnet": {
     "proposers": ["0x27ad02ABf893F8e01f0089EDE607A76FbB3F1Cd3"],
     "executors": ["0x27ad02ABf893F8e01f0089EDE607A76FbB3F1Cd3"]
+  },
+  "rskRegtest": {
+    "proposers": ["0x1000000000000000000000000000000000000001"],
+    "executors": ["0x1000000000000000000000000000000000000002"]
   }
 }
