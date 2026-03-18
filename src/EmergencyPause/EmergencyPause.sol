@@ -9,7 +9,10 @@ import {IPauseRegistry} from "../interfaces/IPauseRegistry.sol";
 import {Flyover} from "../libraries/Flyover.sol";
 
 /// @notice Base contract for Flyover contracts that delegate pause state to a central PauseRegistry.
-/// pauseStatus() and whenNotPaused read from the registry. Pause/unpause are done only on the registry.
+/// pauseStatus() and pause-level checks read from the registry. Pause/unpause are done only on the registry.
+/// Uses two modifiers:
+/// - whenNotSoftPaused(): blocks at level >= 1 (soft and hard pause)
+/// - whenNotHardPaused(): blocks at level >= 2 (hard pause only)
 /// Uses namespaced storage; no AccessControl (children that need roles inherit it separately).
 abstract contract EmergencyPause is Initializable, IPausable {
 
