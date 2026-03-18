@@ -4,7 +4,6 @@ pragma solidity 0.8.25;
 import {Script, console} from "lib/forge-std/src/Script.sol";
 import {HelperConfig} from "../../HelperConfig.s.sol";
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
-import {LiquidityBridgeContractV2} from "../../../src/legacy/LiquidityBridgeContractV2.sol";
 import {LiquidityBridgeContractAdmin} from "../../../src/legacy/LiquidityBridgeContractAdmin.sol";
 
 /// @title ChangeOwnerToTimelock (Legacy)
