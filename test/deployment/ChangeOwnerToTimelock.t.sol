@@ -75,7 +75,6 @@ contract LegacyChangeOwnerToTimelockTest is Test {
 
     function test_ScriptTransfersProxyAdminToTimelock() public {
         LiquidityBridgeContractAdmin slotAdmin = _getProxyAdmin();
-        vm.prank(address(admin));
         slotAdmin.transferOwnership(address(script));
 
         address[] memory proposers = new address[](1);
