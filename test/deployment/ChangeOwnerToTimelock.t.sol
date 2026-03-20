@@ -66,9 +66,11 @@ contract LegacyChangeOwnerToTimelockTest is Test {
                 cfg.mainnet
             )
         );
+        // OZ v5 TransparentUpgradeableProxy deploys its own ProxyAdmin and uses
+        // this argument as the initial owner of that ProxyAdmin.
         proxy = new LiquidityBridgeContractProxy(
             address(lbcImpl),
-            address(admin),
+            address(this),
             initData
         );
     }
