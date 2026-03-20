@@ -2,6 +2,7 @@
 pragma solidity 0.8.25;
 
 import {QuotesV2} from "../../../src/legacy/QuotesV2.sol";
+import {Vm} from "forge-std/Vm.sol";
 import {IDifferentialAdapter} from "./IDifferentialAdapter.sol";
 
 contract ReferenceAdapter is IDifferentialAdapter {
@@ -17,6 +18,8 @@ contract ReferenceAdapter is IDifferentialAdapter {
     IDifferentialAdapter private immutable _target;
     uint256 private immutable _expectedMinPegIn;
     uint256 private immutable _expectedDustThreshold;
+    Vm private constant vm =
+        Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
 
     constructor(
         address target_,
@@ -108,6 +111,7 @@ contract ReferenceAdapter is IDifferentialAdapter {
         bool status,
         ProviderType providerType
     ) external payable returns (uint256) {
+        vm.prank(msg.sender, msg.sender);
         (bool ok, bytes memory data) = address(_target).call{value: msg.value}(
             abi.encodeWithSignature(
                 "register(string,string,bool,string)",
@@ -125,6 +129,7 @@ contract ReferenceAdapter is IDifferentialAdapter {
         string memory name,
         string memory apiBaseUrl
     ) external {
+        vm.prank(msg.sender, msg.sender);
         (bool ok, ) = address(_target).call(
             abi.encodeWithSignature(
                 "updateProvider(string,string)",
@@ -136,6 +141,7 @@ contract ReferenceAdapter is IDifferentialAdapter {
     }
 
     function setProviderStatusById(uint256 providerId, bool status) external {
+        vm.prank(msg.sender, msg.sender);
         (bool ok, ) = address(_target).call(
             abi.encodeWithSignature(
                 "setProviderStatus(uint256,bool)",

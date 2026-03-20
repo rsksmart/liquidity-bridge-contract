@@ -8,6 +8,7 @@ import {PegInContract} from "../../../src/PegInContract.sol";
 import {PegOutContract} from "../../../src/PegOutContract.sol";
 import {CollateralManagementContract} from "../../../src/CollateralManagement.sol";
 import {IFlyoverDiscovery} from "../../../src/interfaces/IFlyoverDiscovery.sol";
+import {Vm} from "forge-std/Vm.sol";
 import {IDifferentialAdapter} from "./IDifferentialAdapter.sol";
 
 contract CandidateAdapter is IDifferentialAdapter {
@@ -16,6 +17,8 @@ contract CandidateAdapter is IDifferentialAdapter {
     CollateralManagementContract private immutable _collateral;
     IFlyoverDiscovery private immutable _discovery;
     address private immutable _bridge;
+    Vm private constant vm =
+        Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
 
     constructor(
         address pegInTarget_,
@@ -115,6 +118,7 @@ contract CandidateAdapter is IDifferentialAdapter {
         bool status,
         ProviderType providerType
     ) external payable returns (uint256) {
+        vm.prank(msg.sender, msg.sender);
         return
             _discovery.register{value: msg.value}(
                 name,
@@ -128,10 +132,12 @@ contract CandidateAdapter is IDifferentialAdapter {
         string memory name,
         string memory apiBaseUrl
     ) external {
+        vm.prank(msg.sender, msg.sender);
         _discovery.updateProvider(name, apiBaseUrl);
     }
 
     function setProviderStatusById(uint256 providerId, bool status) external {
+        vm.prank(msg.sender, msg.sender);
         _discovery.setProviderStatus(providerId, status);
     }
 
