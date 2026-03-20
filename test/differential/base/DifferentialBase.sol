@@ -54,6 +54,12 @@ abstract contract DifferentialBase is Test {
 
         vm.selectFork(harness.forkId);
 
+        HelperConfig helper = new HelperConfig();
+        HelperConfig.FlyoverConfig memory flyoverCfg = helper
+            .getFlyoverConfig();
+        flyoverCfg.mainnet = isMainnet;
+        flyoverCfg.btcBlockTime = btcBlockTime;
+
         harness.referenceTarget = _resolveReference(networkKey);
         _assertReferenceCompatibility(harness.referenceTarget);
         CandidateTargets memory targets = _deploySplitCandidateFromReference(
@@ -131,17 +137,14 @@ abstract contract DifferentialBase is Test {
         uint256 btcBlockTime
     ) internal returns (CandidateTargets memory targets) {
         IDifferentialAdapter refConfig = IDifferentialAdapter(referenceTarget);
-        HelperConfig.FlyoverConfig memory cfg = HelperConfig.FlyoverConfig({
-            bridge: refConfig.getBridgeAddress(),
-            minimumCollateral: refConfig.getMinCollateral(),
-            minimumPegIn: refConfig.getMinPegIn(),
-            rewardPercentage: refConfig.getRewardPercentage(),
-            resignDelayBlocks: refConfig.getResignDelayBlocks(),
-            dustThreshold: refConfig.getDustThreshold(),
-            btcBlockTime: btcBlockTime,
-            mainnet: isMainnet,
-            adminDelay: 0
-        });
+        HelperConfig helper = new HelperConfig();
+        HelperConfig.FlyoverConfig memory cfg = helper.getFlyoverConfig();
+        cfg.bridge = refConfig.bridge();
+        cfg.minimumCollateral = refConfig.getMinCollateral();
+        cfg.rewardPercentage = refConfig.getRewardPercentage();
+        cfg.resignDelayBlocks = refConfig.getResignDelayBlocks();
+        cfg.mainnet = isMainnet;
+        cfg.btcBlockTime = btcBlockTime;
 
         DeployFlyover deployer = new DeployFlyover();
         DeployFlyover.FlyoverDeployment memory d = deployer.deployForTesting(

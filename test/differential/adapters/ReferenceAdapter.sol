@@ -15,17 +15,25 @@ contract ReferenceAdapter is IDifferentialAdapter {
     }
 
     IDifferentialAdapter private immutable _target;
+    uint256 private immutable _expectedMinPegIn;
+    uint256 private immutable _expectedDustThreshold;
 
-    constructor(address target_) {
+    constructor(
+        address target_,
+        uint256 expectedMinPegIn_,
+        uint256 expectedDustThreshold_
+    ) {
         _target = IDifferentialAdapter(target_);
+        _expectedMinPegIn = expectedMinPegIn_;
+        _expectedDustThreshold = expectedDustThreshold_;
     }
 
     function getBridgeAddress() external view returns (address) {
-        return _target.getBridgeAddress();
+        return _target.bridge();
     }
 
     function getMinPegIn() external view returns (uint256) {
-        return _target.getMinPegIn();
+        return _expectedMinPegIn;
     }
 
     function getMinCollateral() external view returns (uint256) {
@@ -41,7 +49,7 @@ contract ReferenceAdapter is IDifferentialAdapter {
     }
 
     function getDustThreshold() external view returns (uint256) {
-        return _target.getDustThreshold();
+        return _expectedDustThreshold;
     }
 
     function hashQuote(
@@ -57,11 +65,11 @@ contract ReferenceAdapter is IDifferentialAdapter {
     }
 
     function bridge() external view returns (address) {
-        return _target.getBridgeAddress();
+        return _target.bridge();
     }
 
     function minPegIn() external view returns (uint256) {
-        return _target.getMinPegIn();
+        return _expectedMinPegIn;
     }
 
     function minCollateral() external view returns (uint256) {
