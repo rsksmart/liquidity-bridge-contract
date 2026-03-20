@@ -73,7 +73,13 @@ abstract contract DifferentialBase is Test {
         harness.candidateDiscoveryTarget = targets.discovery;
 
         harness.referenceAdapter = IDifferentialAdapter(
-            address(new ReferenceAdapter(harness.referenceTarget))
+            address(
+                new ReferenceAdapter(
+                    harness.referenceTarget,
+                    flyoverCfg.minimumPegIn,
+                    flyoverCfg.dustThreshold
+                )
+            )
         );
         harness.candidateAdapter = IDifferentialAdapter(
             address(
@@ -129,6 +135,14 @@ abstract contract DifferentialBase is Test {
             abi.encodeWithSignature("version()")
         );
         require(ok && data.length > 0, "Reference must expose version()");
+
+        (bool okBridge, bytes memory bridgeData) = referenceTarget.staticcall(
+            abi.encodeWithSignature("bridge()")
+        );
+        require(
+            okBridge && bridgeData.length > 0,
+            "Reference must expose bridge()"
+        );
     }
 
     function _deploySplitCandidateFromReference(
