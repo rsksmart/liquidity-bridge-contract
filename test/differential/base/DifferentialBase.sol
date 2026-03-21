@@ -49,7 +49,7 @@ abstract contract DifferentialBase is Test {
         uint256 pinBlock,
         uint256 btcBlockTime
     ) internal {
-        string memory rpcUrl = vm.rpcUrl(networkKey);
+        string memory rpcUrl = _resolveRpcUrl(networkKey);
         harness.forkId = _createForkSafe(rpcUrl, pinBlock);
 
         vm.selectFork(harness.forkId);
@@ -126,6 +126,27 @@ abstract contract DifferentialBase is Test {
             ".LiquidityBridgeContract.address"
         );
         return vm.parseJsonAddress(addressesJson, key);
+    }
+
+    function _resolveRpcUrl(
+        string memory networkKey
+    ) internal view returns (string memory) {
+        bytes32 networkHash = keccak256(bytes(networkKey));
+        if (networkHash == keccak256(bytes("rskMainnet"))) {
+            return
+                vm.envOr(
+                    "MAINNET_RPC_URL",
+                    string("https://public-node.rsk.co")
+                );
+        }
+        if (networkHash == keccak256(bytes("rskTestnet"))) {
+            return
+                vm.envOr(
+                    "TESTNET_RPC_URL",
+                    string("https://public-node.testnet.rsk.co")
+                );
+        }
+        revert("Unsupported differential network key");
     }
 
     function _assertReferenceCompatibility(
