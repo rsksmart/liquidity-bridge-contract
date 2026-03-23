@@ -69,8 +69,8 @@ contract CollateralInvariantTest is CollateralTestBase {
         );
     }
 
-    /// @notice No provider collateral should exceed total added through handler
-    function invariant_NoNegativeCollateral() public view {
+    /// @notice Provider collateral should not exceed total added through handler
+    function invariant_CollateralBoundedByTotalAdded() public view {
         uint256 added = handler.ghost_totalAdded();
         uint256 count = handler.getProviderCount();
         for (uint256 i = 0; i < count; i++) {
