@@ -20,7 +20,7 @@ contract PauseRegistry is
     /// @custom:storage-location erc7201:rsk.flyover.PauseRegistry
     struct PauseRegistryStorage {
         bool paused;
-        uint8 pauseLevel;
+        IPauseRegistry.PauseLevel pauseLevel;
         uint64 pauseTimestamp;
         string pauseReason;
         HardPause[] hardPauses;
@@ -59,30 +59,33 @@ contract PauseRegistry is
     /// @inheritdoc IPauseRegistry
     function pause(string calldata reason) external onlyRole(PAUSER_ROLE) {
         PauseRegistryStorage storage $ = _getPauseRegistryStorage();
-        if ($.pauseLevel != 0) revert AlreadyPaused();
-        _setPauseLevel(1);
+        if ($.pauseLevel != IPauseRegistry.PauseLevel.None) {
+            revert AlreadyPaused();
+        }
+        _setPauseLevel(IPauseRegistry.PauseLevel.Soft);
         $.pauseReason = reason;
         emit EmergencyPaused(msg.sender, reason);
     }
 
     /// @inheritdoc IPauseRegistry
     function unpause() external onlyRole(PAUSER_ROLE) {
-        _setPauseLevel(0);
+        _setPauseLevel(IPauseRegistry.PauseLevel.None);
         PauseRegistryStorage storage $ = _getPauseRegistryStorage();
         $.pauseReason = "";
         emit EmergencyUnpaused(msg.sender);
     }
 
     /// @inheritdoc IPauseRegistry
-    function setPauseLevel(uint8 level) external onlyRole(PAUSER_ROLE) {
-        if (level > 2) revert InvalidPauseLevel(level);
+    function setPauseLevel(
+        IPauseRegistry.PauseLevel level
+    ) external onlyRole(PAUSER_ROLE) {
         _setPauseLevel(level);
     }
 
     /// @inheritdoc IPauseRegistry
     function paused() external view returns (bool) {
         PauseRegistryStorage storage $ = _getPauseRegistryStorage();
-        return $.pauseLevel != 0;
+        return $.pauseLevel != IPauseRegistry.PauseLevel.None;
     }
 
     /// @inheritdoc IPauseRegistry
@@ -92,13 +95,13 @@ contract PauseRegistry is
         returns (bool isPaused, string memory reason, uint64 since)
     {
         PauseRegistryStorage storage $ = _getPauseRegistryStorage();
-        isPaused = $.pauseLevel != 0;
+        isPaused = $.pauseLevel != IPauseRegistry.PauseLevel.None;
         reason = $.pauseReason;
         since = $.pauseTimestamp;
     }
 
     /// @inheritdoc IPauseRegistry
-    function pauseLevel() external view returns (uint8) {
+    function pauseLevel() external view returns (IPauseRegistry.PauseLevel) {
         return _getPauseRegistryStorage().pauseLevel;
     }
 
@@ -174,18 +177,27 @@ contract PauseRegistry is
         }
     }
 
-    function _setPauseLevel(uint8 level) internal {
+    function _setPauseLevel(IPauseRegistry.PauseLevel level) internal {
         PauseRegistryStorage storage $ = _getPauseRegistryStorage();
-        uint8 prev = $.pauseLevel;
+        IPauseRegistry.PauseLevel prev = IPauseRegistry.PauseLevel($.pauseLevel);
         $.pauseLevel = level;
-        $.paused = (level != 0);
-        if (prev == 0 && level != 0) {
+        $.paused = (level != IPauseRegistry.PauseLevel.None);
+        if (
+            prev == IPauseRegistry.PauseLevel.None &&
+            level != IPauseRegistry.PauseLevel.None
+        ) {
             $.pauseTimestamp = uint64(block.timestamp);
-        } else if (prev != 0 && level == 0) {
+        } else if (
+            prev != IPauseRegistry.PauseLevel.None &&
+            level == IPauseRegistry.PauseLevel.None
+        ) {
             $.pauseTimestamp = 0;
         }
 
-        if (prev == 2 && level != 2) {
+        if (
+            prev == IPauseRegistry.PauseLevel.Hard &&
+            level != IPauseRegistry.PauseLevel.Hard
+        ) {
             HardPause[] storage pauses = $.hardPauses;
             uint256 len = pauses.length;
             if (len > 0) {
@@ -195,7 +207,10 @@ contract PauseRegistry is
                     last.endBlock = uint64(block.number);
                 }
             }
-        } else if (prev != 2 && level == 2) {
+        } else if (
+            prev != IPauseRegistry.PauseLevel.Hard &&
+            level == IPauseRegistry.PauseLevel.Hard
+        ) {
             $.hardPauses.push(
                 HardPause({
                     startTimestamp: uint64(block.timestamp),

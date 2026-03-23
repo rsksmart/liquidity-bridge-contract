@@ -30,6 +30,12 @@ contract PauseTest is Test {
 
     bytes32 constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     uint256 constant TEST_MIN_COLLATERAL = 0.6 ether;
+    IPauseRegistry.PauseLevel constant PAUSE_NONE =
+        IPauseRegistry.PauseLevel.None;
+    IPauseRegistry.PauseLevel constant PAUSE_SOFT =
+        IPauseRegistry.PauseLevel.Soft;
+    IPauseRegistry.PauseLevel constant PAUSE_HARD =
+        IPauseRegistry.PauseLevel.Hard;
 
     function setUp() public {
         owner = address(this);
@@ -165,6 +171,12 @@ contract PauseTest is Test {
 
     function _grantPauserRole() internal {
         pauseRegistry.grantRole(PAUSER_ROLE, pauser);
+    }
+
+    function _assertPauseLevel(
+        IPauseRegistry.PauseLevel expected
+    ) internal view {
+        assertEq(uint8(pauseRegistry.pauseLevel()), uint8(expected));
     }
 
     function test_CanPauseAllContractsSimultaneously() public {
@@ -481,7 +493,7 @@ contract PauseTest is Test {
         vm.prank(pauser);
         pauseRegistry.pause("Soft pause"); // level 1
 
-        assertEq(pauseRegistry.pauseLevel(), 1);
+        _assertPauseLevel(PAUSE_SOFT);
 
         // New business blocked
         vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
@@ -527,9 +539,9 @@ contract PauseTest is Test {
         pegInContract.deposit{value: 0.5 ether}();
 
         vm.prank(pauser);
-        pauseRegistry.setPauseLevel(2); // hard pause
+        pauseRegistry.setPauseLevel(PAUSE_HARD); // hard pause
 
-        assertEq(pauseRegistry.pauseLevel(), 2);
+        _assertPauseLevel(PAUSE_HARD);
 
         // New business blocked
         vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
@@ -570,14 +582,14 @@ contract PauseTest is Test {
         _grantPauserRole();
         vm.prank(pauser);
         pauseRegistry.pause("Reason");
-        assertEq(pauseRegistry.pauseLevel(), 1);
+        _assertPauseLevel(PAUSE_SOFT);
         assertTrue(pauseRegistry.paused());
         (bool isPaused, , ) = pauseRegistry.pauseStatus();
         assertTrue(isPaused);
 
         vm.prank(pauser);
         pauseRegistry.unpause();
-        assertEq(pauseRegistry.pauseLevel(), 0);
+        _assertPauseLevel(PAUSE_NONE);
         assertFalse(pauseRegistry.paused());
     }
 
@@ -591,7 +603,7 @@ contract PauseTest is Test {
         vm.expectRevert(PauseRegistry.AlreadyPaused.selector);
         pauseRegistry.pause("Second reason");
 
-        assertEq(pauseRegistry.pauseLevel(), 1);
+        _assertPauseLevel(PAUSE_SOFT);
         (, string memory reason, ) = pauseRegistry.pauseStatus();
         assertEq(reason, "First reason");
     }
@@ -600,7 +612,7 @@ contract PauseTest is Test {
         _grantPauserRole();
 
         vm.prank(pauser);
-        pauseRegistry.setPauseLevel(2);
+        pauseRegistry.setPauseLevel(PAUSE_HARD);
         (
             uint64 startTs,
             uint64 endTsBefore,
@@ -612,7 +624,7 @@ contract PauseTest is Test {
         vm.expectRevert(PauseRegistry.AlreadyPaused.selector);
         pauseRegistry.pause("Should not downgrade");
 
-        assertEq(pauseRegistry.pauseLevel(), 2);
+        _assertPauseLevel(PAUSE_HARD);
         (
             uint64 startTsAfter,
             uint64 endTsAfter,
@@ -635,25 +647,25 @@ contract PauseTest is Test {
 
         vm.warp(block.timestamp + 10);
         vm.prank(pauser);
-        pauseRegistry.setPauseLevel(1);
+        pauseRegistry.setPauseLevel(PAUSE_SOFT);
         (, , uint64 since1) = pauseRegistry.pauseStatus();
         assertEq(since1, uint64(block.timestamp));
 
         vm.warp(block.timestamp + 15);
         vm.prank(pauser);
-        pauseRegistry.setPauseLevel(2);
+        pauseRegistry.setPauseLevel(PAUSE_HARD);
         (, , uint64 since2) = pauseRegistry.pauseStatus();
         assertEq(since2, since1);
 
         vm.warp(block.timestamp + 12);
         vm.prank(pauser);
-        pauseRegistry.setPauseLevel(1);
+        pauseRegistry.setPauseLevel(PAUSE_SOFT);
         (, , uint64 since3) = pauseRegistry.pauseStatus();
         assertEq(since3, since1);
 
         vm.warp(block.timestamp + 8);
         vm.prank(pauser);
-        pauseRegistry.setPauseLevel(0);
+        pauseRegistry.setPauseLevel(PAUSE_NONE);
         (, , uint64 since4) = pauseRegistry.pauseStatus();
         assertEq(since4, 0);
     }
@@ -668,13 +680,13 @@ contract PauseTest is Test {
 
         vm.warp(block.timestamp + 9);
         vm.prank(pauser);
-        pauseRegistry.setPauseLevel(2);
+        pauseRegistry.setPauseLevel(PAUSE_HARD);
         (, , uint64 sinceAfterHardPause) = pauseRegistry.pauseStatus();
         assertEq(sinceAfterHardPause, sinceAfterPause);
 
         vm.warp(block.timestamp + 11);
         vm.prank(pauser);
-        pauseRegistry.setPauseLevel(1);
+        pauseRegistry.setPauseLevel(PAUSE_SOFT);
         (, , uint64 sinceAfterSoftPause) = pauseRegistry.pauseStatus();
         assertEq(sinceAfterSoftPause, sinceAfterPause);
     }
@@ -686,7 +698,7 @@ contract PauseTest is Test {
         assertEq(pauseRegistry.hardPausesCount(), 0);
 
         vm.prank(pauser);
-        pauseRegistry.setPauseLevel(2);
+        pauseRegistry.setPauseLevel(PAUSE_HARD);
         assertEq(pauseRegistry.hardPausesCount(), 1);
         (uint64 sTs, uint64 eTs, uint64 sBl, uint64 eBl) = pauseRegistry
             .hardPauses(0);
@@ -695,7 +707,7 @@ contract PauseTest is Test {
         assertEq(eBl, 0);
 
         vm.prank(pauser);
-        pauseRegistry.setPauseLevel(0);
+        pauseRegistry.setPauseLevel(PAUSE_NONE);
         assertEq(pauseRegistry.hardPausesCount(), 1);
         (, eTs, , eBl) = pauseRegistry.hardPauses(0);
         assertTrue(eTs > 0 && eBl > 0);
@@ -706,11 +718,11 @@ contract PauseTest is Test {
         uint256 startTs = block.timestamp;
 
         vm.prank(pauser);
-        pauseRegistry.setPauseLevel(2);
+        pauseRegistry.setPauseLevel(PAUSE_HARD);
         vm.warp(block.timestamp + 90);
 
         vm.prank(pauser);
-        pauseRegistry.setPauseLevel(0);
+        pauseRegistry.setPauseLevel(PAUSE_NONE);
 
         uint256 overlap = pauseRegistry.computePauseOverlap(
             startTs,
@@ -726,11 +738,11 @@ contract PauseTest is Test {
         uint256 startBlock = block.number;
 
         vm.prank(pauser);
-        pauseRegistry.setPauseLevel(2);
+        pauseRegistry.setPauseLevel(PAUSE_HARD);
         vm.roll(block.number + 25);
 
         vm.prank(pauser);
-        pauseRegistry.setPauseLevel(0);
+        pauseRegistry.setPauseLevel(PAUSE_NONE);
 
         uint256 overlap = pauseRegistry.computePauseOverlapBlocks(
             startBlock,
@@ -759,10 +771,10 @@ contract PauseTest is Test {
         vm.roll(resignationBlock + 200);
 
         vm.prank(pauser);
-        pauseRegistry.setPauseLevel(2);
+        pauseRegistry.setPauseLevel(PAUSE_HARD);
         vm.roll(block.number + 400);
         vm.prank(pauser);
-        pauseRegistry.setPauseLevel(0);
+        pauseRegistry.setPauseLevel(PAUSE_NONE);
 
         // Effective elapsed = 200 (400 hard-pause blocks should be excluded), so delay is not met yet.
         vm.expectRevert();
