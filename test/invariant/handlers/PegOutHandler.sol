@@ -123,7 +123,12 @@ contract PegOutHandler is HandlerBase {
         _stagedOverpay = 0;
 
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(_staged);
-        _pruneCompletedQuotes(8);
+        _pruneCompletedQuotes(
+            activeQuoteHashes,
+            storedQuotes,
+            pegOutContract,
+            8
+        );
         activeQuoteHashes.push(quoteHash);
         storedQuotes[quoteHash] = _staged;
     }
@@ -214,30 +219,5 @@ contract PegOutHandler is HandlerBase {
             }
         }
         return LPInfo(address(0), 0, Flyover.ProviderType.PegIn);
-    }
-
-    function _advanceToQuoteExpiry(Quotes.PegOutQuote storage quote) internal {
-        uint256 targetTs = uint256(quote.expireDate) + 1;
-        uint256 targetBlock = uint256(quote.expireBlock) + 1;
-        if (targetTs > block.timestamp) {
-            vm.warp(targetTs);
-        }
-        if (targetBlock > block.number) {
-            vm.roll(targetBlock);
-        }
-    }
-
-    function _pruneCompletedQuotes(uint256 maxScan) internal {
-        uint256 i = 0;
-        while (i < activeQuoteHashes.length && maxScan > 0) {
-            bytes32 quoteHash = activeQuoteHashes[i];
-            if (pegOutContract.isQuoteCompleted(quoteHash)) {
-                delete storedQuotes[quoteHash];
-                _removeFromArray(activeQuoteHashes, i);
-            } else {
-                i++;
-            }
-            maxScan--;
-        }
     }
 }

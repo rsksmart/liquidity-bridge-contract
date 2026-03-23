@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import {Test} from "forge-std/Test.sol";
 import {Flyover} from "../../../src/libraries/Flyover.sol";
 import {Quotes} from "../../../src/libraries/Quotes.sol";
+import {PegOutContract} from "../../../src/PegOutContract.sol";
 
 /// @title Shared utilities for invariant handlers
 abstract contract HandlerBase is Test {
@@ -115,5 +116,35 @@ abstract contract HandlerBase is Test {
         staged.depositAddress = btcAddr;
         staged.btcRefundAddress = btcAddr;
         staged.lpBtcAddress = btcAddr;
+    }
+
+    function _advanceToQuoteExpiry(Quotes.PegOutQuote storage quote) internal {
+        uint256 targetTs = uint256(quote.expireDate) + 1;
+        uint256 targetBlock = uint256(quote.expireBlock) + 1;
+        if (targetTs > block.timestamp) {
+            vm.warp(targetTs);
+        }
+        if (targetBlock > block.number) {
+            vm.roll(targetBlock);
+        }
+    }
+
+    function _pruneCompletedQuotes(
+        bytes32[] storage activeQuoteHashes,
+        mapping(bytes32 => Quotes.PegOutQuote) storage storedQuotes,
+        PegOutContract pegOutContract,
+        uint256 maxScan
+    ) internal {
+        uint256 i = 0;
+        while (i < activeQuoteHashes.length && maxScan > 0) {
+            bytes32 quoteHash = activeQuoteHashes[i];
+            if (pegOutContract.isQuoteCompleted(quoteHash)) {
+                delete storedQuotes[quoteHash];
+                _removeFromArray(activeQuoteHashes, i);
+            } else {
+                i++;
+            }
+            maxScan--;
+        }
     }
 }
