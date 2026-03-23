@@ -2,6 +2,14 @@
 pragma solidity 0.8.25;
 
 interface IPauseRegistry {
+    /// @notice Canonical pause levels used by the registry
+    /// @dev Underlying values are fixed: None=0, Soft=1, Hard=2
+    enum PauseLevel {
+        None,
+        Soft,
+        Hard
+    }
+
     /// @notice Pauses the system (all contracts using this registry) — sets level to 1 (soft)
     /// @param reason The reason for pausing
     function pause(string calldata reason) external;
@@ -9,11 +17,11 @@ interface IPauseRegistry {
     /// @notice Unpauses the system — sets level to 0
     function unpause() external;
 
-    /// @notice Set pause level (PAUSER_ROLE). On enter 2 a HardPause entry is appended; on leave 2 it is closed.
-    /// @param level 0, 1, or 2
-    function setPauseLevel(uint8 level) external;
+    /// @notice Set pause level (PAUSER_ROLE). On enter Hard a HardPause entry is appended; on leave Hard it is closed.
+    /// @param level Numeric value of PauseLevel (0=None, 1=Soft, 2=Hard)
+    function setPauseLevel(PauseLevel level) external;
 
-    /// @notice Returns whether the system is paused (level != 0)
+    /// @notice Returns whether the system is paused (level != PauseLevel.None)
     /// @return True if paused
     function paused() external view returns (bool);
 
@@ -26,8 +34,8 @@ interface IPauseRegistry {
         view
         returns (bool isPaused, string memory reason, uint64 since);
 
-    /// @notice Current pause level: 0 = normal, 1 = soft (no new business), 2 = hard (full freeze)
-    function pauseLevel() external view returns (uint8);
+    /// @notice Current pause level encoded as PauseLevel numeric value
+    function pauseLevel() external view returns (PauseLevel);
 
     /// @notice Number of hard-pause log entries (for reverse iteration)
     function hardPausesCount() external view returns (uint256);

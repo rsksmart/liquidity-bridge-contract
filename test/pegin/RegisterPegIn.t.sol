@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 import {PegInTestBase} from "./PegInTestBase.sol";
 import {IPegIn} from "../../src/interfaces/IPegIn.sol";
+import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
 import {ICollateralManagement} from "../../src/interfaces/ICollateralManagement.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
@@ -608,11 +609,11 @@ contract RegisterPegInTest is PegInTestBase {
         // Hard pause occurs before nConfirmationsTs and must not extend the call deadline.
         vm.warp(quote.agreementTimestamp + 100);
         vm.prank(owner);
-        pauseRegistry.setPauseLevel(2);
+        pauseRegistry.setPauseLevel(IPauseRegistry.PauseLevel.Hard);
 
         vm.warp(quote.agreementTimestamp + 800);
         vm.prank(owner);
-        pauseRegistry.setPauseLevel(0);
+        pauseRegistry.setPauseLevel(IPauseRegistry.PauseLevel.None);
 
         uint256 callTs = uint256(nConfirmationsTs) + quote.callTime + 200;
         vm.warp(callTs);

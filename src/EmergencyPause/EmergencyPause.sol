@@ -28,7 +28,10 @@ abstract contract EmergencyPause is Initializable, IPausable {
 
     /// @notice Reverts at pause level >= 1 (soft pause: no new business)
     modifier whenNotSoftPaused() {
-        if (_getEmergencyPauseStorage().pauseRegistry.pauseLevel() > 0) {
+        if (
+            _getEmergencyPauseStorage().pauseRegistry.pauseLevel() >=
+            IPauseRegistry.PauseLevel.Soft
+        ) {
             revert Flyover.EnforcedPause();
         }
         _;
@@ -36,7 +39,10 @@ abstract contract EmergencyPause is Initializable, IPausable {
 
     /// @notice Reverts at pause level >= 2 (hard pause: full freeze)
     modifier whenNotHardPaused() {
-        if (_getEmergencyPauseStorage().pauseRegistry.pauseLevel() > 1) {
+        if (
+            _getEmergencyPauseStorage().pauseRegistry.pauseLevel() >=
+            IPauseRegistry.PauseLevel.Hard
+        ) {
             revert Flyover.EnforcedPause();
         }
         _;

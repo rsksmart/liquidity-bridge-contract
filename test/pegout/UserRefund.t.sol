@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 import {PegOutTestBase} from "./PegOutTestBase.sol";
 import {IPegOut} from "../../src/interfaces/IPegOut.sol";
+import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 import {ICollateralManagement} from "../../src/interfaces/ICollateralManagement.sol";
@@ -312,10 +313,10 @@ contract UserRefundTest is PegOutTestBase {
 
         // Simulate hard pause history that happened before this quote was deposited.
         vm.prank(owner);
-        pauseRegistry.setPauseLevel(2);
+        pauseRegistry.setPauseLevel(IPauseRegistry.PauseLevel.Hard);
         vm.roll(block.number + 25);
         vm.prank(owner);
-        pauseRegistry.setPauseLevel(0);
+        pauseRegistry.setPauseLevel(IPauseRegistry.PauseLevel.None);
 
         vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(

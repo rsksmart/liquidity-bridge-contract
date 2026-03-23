@@ -309,17 +309,17 @@ contract MockPauseRegistry is IPauseRegistry {
     bool private _paused;
     string private _reason;
     uint64 private _since;
-    uint8 private _level;
+    PauseLevel private _level;
 
     function pause(string calldata reason) external override {
-        _level = 1;
+        _level = PauseLevel.Soft;
         _paused = true;
         _reason = reason;
         _since = uint64(block.timestamp);
     }
 
     function unpause() external override {
-        _level = 0;
+        _level = PauseLevel.None;
         _paused = false;
         _reason = "";
         _since = 0;
@@ -338,15 +338,14 @@ contract MockPauseRegistry is IPauseRegistry {
         return (_paused, _reason, _since);
     }
 
-    function pauseLevel() external view override returns (uint8) {
+    function pauseLevel() external view override returns (PauseLevel) {
         return _level;
     }
 
-    function setPauseLevel(uint8 level) external override {
-        if (level > 2) revert();
+    function setPauseLevel(PauseLevel level) external override {
         _level = level;
-        _paused = (level != 0);
-        if (level == 0) {
+        _paused = (level != PauseLevel.None);
+        if (level == PauseLevel.None) {
             _reason = "";
             _since = 0;
         }
