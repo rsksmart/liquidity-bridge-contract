@@ -7,6 +7,7 @@ import {
 import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
+import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCodes.sol";
 import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {IBridge} from "./interfaces/IBridge.sol";
 import {ICollateralManagement, CollateralManagementSet} from "./interfaces/ICollateralManagement.sol";
@@ -275,16 +276,13 @@ contract PegInContract is
                 quote.liquidityProviderBtcAddress
             )
         );
-        bytes1 OP_PUSHBYTES_32 = 0x20;
-        bytes1 OP_DROP = 0x75;
-        bytes1 OP_0 = 0x00;
         bytes memory flyoverRedeemScript = bytes.concat(
-            OP_PUSHBYTES_32,
+            OpCodes.OP_PUSHBYTES_32,
             derivationValue,
-            OP_DROP,
+            OpCodes.OP_DROP,
             _bridge.getActivePowpegRedeemScript()
         );
-        bytes memory segwitScript = bytes.concat(OP_0, OP_PUSHBYTES_32, sha256(flyoverRedeemScript));
+        bytes memory segwitScript = bytes.concat(OpCodes.OP_0, OpCodes.OP_PUSHBYTES_32, sha256(flyoverRedeemScript));
         return BtcUtils.validateP2SHAdress(depositAddress, segwitScript, _mainnet);
     }
 
