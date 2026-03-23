@@ -10,6 +10,12 @@ import {Flyover} from "../../src/libraries/Flyover.sol";
 /// @notice Tests critical invariants for the PegInContract using a dedicated handler
 contract PegInInvariantTest is PegInTestBase {
     PegInHandler public handler;
+    address public nonLpRefundCreditor;
+    uint256 public baselineBalance;
+
+    bytes constant RAW_TX_MOCK = hex"112233";
+    bytes constant PMT_MOCK = hex"010203";
+    uint256 constant HEIGHT_MOCK = 10;
 
     function setUp() public {
         deployPegInContract();
@@ -30,6 +36,17 @@ contract PegInInvariantTest is PegInTestBase {
         );
         handler.addLP(extraPegInLp);
 
+        (address creditor, ) = _seedNonLpRefundLiabilityFixture(
+            fullLp,
+            fullLpKey,
+            1 ether,
+            HEIGHT_MOCK,
+            RAW_TX_MOCK,
+            PMT_MOCK
+        );
+        nonLpRefundCreditor = creditor;
+        baselineBalance = address(pegInContract).balance;
+
         targetContract(address(handler));
 
         bytes4[] memory selectors = new bytes4[](2);
@@ -42,13 +59,27 @@ contract PegInInvariantTest is PegInTestBase {
 
     // ============ Invariant Tests ============
 
-    /// @notice Contract balance must cover sum of all LP internal balances
+    /// @notice LP-only lower bound: contract balance must cover tracked LP internal balances
     function invariant_ContractSolvent() public view {
         uint256 totalLPBalances = handler.calculateTotalLPBalances();
         assertGe(
             address(pegInContract).balance,
             totalLPBalances,
             "INVARIANT VIOLATED: PegIn contract insolvent"
+        );
+    }
+
+    /// @notice Contract balance must cover tracked LP liabilities plus seeded non-LP refund creditor
+    function invariant_ContractSolventIncludingNonLpRefundCreditor()
+        public
+        view
+    {
+        uint256 totalLPBalances = handler.calculateTotalLPBalances();
+        uint256 nonLpLiability = pegInContract.getBalance(nonLpRefundCreditor);
+        assertGe(
+            address(pegInContract).balance,
+            totalLPBalances + nonLpLiability,
+            "INVARIANT VIOLATED: PegIn contract insolvent with non-LP refund liability"
         );
     }
 
@@ -66,13 +97,18 @@ contract PegInInvariantTest is PegInTestBase {
         }
     }
 
-    /// @notice Contract balance must equal deposited minus withdrawn (tight equality)
+    /// @notice Contract balance must equal deposited minus withdrawn (for deposit/withdraw handler actions)
     function invariant_GhostAccounting() public view {
         uint256 deposited = handler.ghost_totalDeposited();
         uint256 withdrawn = handler.ghost_totalWithdrawn();
+        assertGe(
+            address(pegInContract).balance,
+            baselineBalance,
+            "INVARIANT VIOLATED: Contract balance unexpectedly below baseline"
+        );
 
         assertEq(
-            address(pegInContract).balance,
+            address(pegInContract).balance - baselineBalance,
             deposited - withdrawn,
             "INVARIANT VIOLATED: Contract balance != deposited - withdrawn"
         );
@@ -91,6 +127,11 @@ contract PegInInvariantTest is PegInTestBase {
             "Handler withdraw calls:",
             handler.getHandlerCalls("withdraw")
         );
+        console.log(
+            "Seeded non-LP liability:",
+            pegInContract.getBalance(nonLpRefundCreditor)
+        );
+        console.log("Baseline balance:", baselineBalance);
         console.log("Contract balance:", address(pegInContract).balance);
         console.log("-------------------------------\n");
     }
