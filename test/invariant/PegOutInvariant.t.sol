@@ -50,6 +50,7 @@ contract PegOutInvariantTest is PegOutTestBase {
     // ============ Invariant Tests ============
 
     /// @notice Contract balance must equal deposited minus refunded minus withdrawn
+    /// @dev Deposited includes sub-dust overpayments retained by the contract
     function invariant_ContractSolvent() public view {
         uint256 deposited = handler.ghost_totalDeposited();
         uint256 refunded = handler.ghost_totalRefunded();
@@ -94,7 +95,7 @@ contract PegOutInvariantTest is PegOutTestBase {
         }
     }
 
-    /// @notice Internal balances plus pending quote liability must equal net deposits
+    /// @notice Internal balances plus pending quote liability and retained dust must equal net deposits
     function invariant_InternalBalanceAccounting() public view {
         uint256 deposited = handler.ghost_totalDeposited();
         if (deposited == 0) return;
@@ -110,10 +111,11 @@ contract PegOutInvariantTest is PegOutTestBase {
         }
 
         uint256 pendingLiability = handler.calculateActiveLiability();
+        uint256 retainedDust = handler.ghost_totalRetainedDust();
         assertEq(
-            totalInternalBalances + pendingLiability,
+            totalInternalBalances + pendingLiability + retainedDust,
             deposited - refunded - withdrawn,
-            "INVARIANT VIOLATED: Internal balances + pending liability != net deposits"
+            "INVARIANT VIOLATED: Internal balances + pending liability + retained dust != net deposits"
         );
     }
 
@@ -136,6 +138,7 @@ contract PegOutInvariantTest is PegOutTestBase {
         console.log("Total deposited:", handler.ghost_totalDeposited());
         console.log("Total refunded:", handler.ghost_totalRefunded());
         console.log("Total withdrawn:", handler.ghost_totalWithdrawn());
+        console.log("Retained sub-dust:", handler.ghost_totalRetainedDust());
         console.log("Active quotes:", handler.getActiveQuoteCount());
         console.log(
             "Handler depositPegOut calls:",

@@ -31,12 +31,14 @@ contract PegOutHandler is HandlerBase {
     uint256 public ghost_totalRefunded;
     uint256 public ghost_totalWithdrawn;
     uint256 public ghost_totalSlashed;
+    uint256 public ghost_totalRetainedDust;
 
     uint256 private _nonce;
 
     Quotes.PegOutQuote private _staged;
     uint256 private _stagedKey;
     bytes private _stagedSignature;
+    uint256 private _stagedOverpay;
 
     constructor(
         PegOutContract pegOutContract_,
@@ -64,7 +66,11 @@ contract PegOutHandler is HandlerBase {
         );
     }
 
-    function depositPegOut(uint256 lpSeed, uint256 value) external {
+    function depositPegOut(
+        uint256 lpSeed,
+        uint256 value,
+        uint256 overpay
+    ) external {
         handlerCalls["depositPegOut"] += 1;
 
         LPInfo memory lp = _getPegOutLP(lpSeed);
@@ -81,6 +87,12 @@ contract PegOutHandler is HandlerBase {
             _nonce
         );
         _stagedKey = lp.privateKey;
+        uint256 dustThreshold = pegOutContract.dustThreshold();
+        if (dustThreshold > 0) {
+            _stagedOverpay = bound(overpay, 0, dustThreshold - 1);
+        } else {
+            _stagedOverpay = 0;
+        }
 
         try this.executeDeposit() {} catch {}
     }
@@ -98,14 +110,17 @@ contract PegOutHandler is HandlerBase {
 
     function submitStaged() external {
         uint256 totalValue = _staged.value + _staged.callFee + _staged.gasFee;
-        vm.deal(user, totalValue);
+        uint256 paidAmount = totalValue + _stagedOverpay;
+        vm.deal(user, paidAmount);
         vm.prank(user);
-        pegOutContract.depositPegOut{value: totalValue}(
+        pegOutContract.depositPegOut{value: paidAmount}(
             _staged,
             _stagedSignature
         );
 
-        ghost_totalDeposited += totalValue;
+        ghost_totalDeposited += paidAmount;
+        ghost_totalRetainedDust += _stagedOverpay;
+        _stagedOverpay = 0;
 
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(_staged);
         _pruneCompletedQuotes(8);
