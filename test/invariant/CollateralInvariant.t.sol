@@ -1,216 +1,152 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {Test, console} from "forge-std/Test.sol";
-import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {PauseRegistry} from "../../src/PauseRegistry.sol";
-import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
+import {console} from "forge-std/Test.sol";
+import {CollateralTestBase} from "../collateral/CollateralTestBase.sol";
+import {CollateralHandler} from "./handlers/CollateralHandler.sol";
 
 /// @title CollateralManagement Invariant Tests
 /// @notice Tests critical invariants for the CollateralManagement contract
-contract CollateralInvariantTest is Test {
-    CollateralManagementContract public collateralManagement;
-
-    address public owner;
-    address public adder;
-    address public slasher;
+contract CollateralInvariantTest is CollateralTestBase {
+    CollateralHandler public handler;
     address public punisher;
 
-    // Track providers for invariant checks
-    address[] public providers;
-
-    // Ghost variables
-    uint256 public ghost_totalAdded;
-    uint256 public ghost_totalSlashed;
-    uint256 public ghost_totalWithdrawn;
-
-    uint256 constant MIN_COLLATERAL = 0.6 ether;
-    uint256 constant RESIGN_DELAY = 500;
-    uint256 constant REWARD_PERCENTAGE = 1000;
-
     function setUp() public {
-        owner = makeAddr("owner");
-        adder = makeAddr("adder");
-        slasher = makeAddr("slasher");
+        deployCollateralManagement();
+        setupRoles();
+
         punisher = makeAddr("punisher");
-
-        vm.deal(owner, 100 ether);
-        vm.deal(adder, 100 ether);
-
-        // Deploy PauseRegistry first
-        PauseRegistry prImpl = new PauseRegistry();
-        ERC1967Proxy prProxy = new ERC1967Proxy(
-            address(prImpl),
-            abi.encodeCall(prImpl.initialize, (0, owner))
-        );
-        IPauseRegistry pauseRegistry = IPauseRegistry(
-            payable(address(prProxy))
+        handler = new CollateralHandler(
+            collateralManagement,
+            adder,
+            slasher,
+            punisher
         );
 
-        // Deploy CollateralManagement
-        CollateralManagementContract impl = new CollateralManagementContract();
-        bytes memory initData = abi.encodeCall(
-            CollateralManagementContract.initialize,
-            (
-                owner,
-                30,
-                MIN_COLLATERAL,
-                RESIGN_DELAY,
-                REWARD_PERCENTAGE,
-                pauseRegistry
-            )
-        );
-        ERC1967Proxy proxy = new ERC1967Proxy(address(impl), initData);
-        collateralManagement = CollateralManagementContract(
-            payable(address(proxy))
-        );
+        targetContract(address(handler));
 
-        // Grant roles
-        bytes32 adderRole = collateralManagement.COLLATERAL_ADDER();
-        bytes32 slasherRole = collateralManagement.COLLATERAL_SLASHER();
-
-        vm.startPrank(owner);
-        collateralManagement.grantRole(adderRole, adder);
-        collateralManagement.grantRole(slasherRole, slasher);
-        vm.stopPrank();
-
-        // Target this contract for invariant testing
-        targetContract(address(this));
-
-        // Exclude setUp from being called during invariant testing
-        bytes4[] memory selectors = new bytes4[](2);
-        selectors[0] = this.addCollateral.selector;
-        selectors[1] = this.resignAndWithdraw.selector;
+        bytes4[] memory selectors = new bytes4[](6);
+        selectors[0] = handler.addPegInCollateral.selector;
+        selectors[1] = handler.addPegOutCollateral.selector;
+        selectors[2] = handler.slashPegIn.selector;
+        selectors[3] = handler.slashPegOut.selector;
+        selectors[4] = handler.resignAndWithdraw.selector;
+        selectors[5] = handler.withdrawRewards.selector;
         targetSelector(
-            FuzzSelector({addr: address(this), selectors: selectors})
+            FuzzSelector({addr: address(handler), selectors: selectors})
         );
-    }
-
-    // ============ Handler Functions ============
-
-    function addCollateral(uint256 providerSeed, uint256 amount) external {
-        amount = bound(amount, MIN_COLLATERAL, 10 ether);
-        address provider = _getOrCreateProvider(providerSeed);
-
-        vm.deal(adder, amount);
-        vm.prank(adder);
-        collateralManagement.addPegInCollateralTo{value: amount}(provider);
-
-        ghost_totalAdded += amount;
-    }
-
-    function resignAndWithdraw(uint256 providerSeed) external {
-        if (providers.length == 0) return;
-
-        address provider = providers[providerSeed % providers.length];
-        uint256 pegInCollateral = collateralManagement.getPegInCollateral(
-            provider
-        );
-
-        if (pegInCollateral == 0) return;
-
-        // Resign first
-        vm.prank(provider);
-        try collateralManagement.resign() {} catch {
-            return;
-        }
-
-        // Advance blocks past delay
-        vm.roll(block.number + RESIGN_DELAY + 1);
-
-        // Withdraw
-        vm.prank(provider);
-        try collateralManagement.withdrawCollateral() {
-            ghost_totalWithdrawn += pegInCollateral;
-        } catch {}
     }
 
     // ============ Invariant Tests ============
 
-    /// @notice Contract balance should always be >= total collateral obligations
+    /// @notice Contract balance should always cover all collateral + rewards + penalties
     function invariant_ContractSolvent() public view {
         uint256 contractBalance = address(collateralManagement).balance;
         uint256 totalCollateral = _calculateTotalCollateral();
+        uint256 totalRewards = _calculateTotalRewards();
+        uint256 totalPenalties = collateralManagement.getPenalties();
 
         assertGe(
             contractBalance,
-            totalCollateral,
+            totalCollateral + totalRewards + totalPenalties,
             "INVARIANT VIOLATED: Contract is insolvent"
         );
     }
 
-    /// @notice Ghost accounting should match contract state (relaxed check)
+    /// @notice Contract balance must equal added - withdrawn - rewardsWithdrawn (tight equality)
     function invariant_GhostAccountingConsistent() public view {
-        // If nothing has been added via our handlers, skip this check
-        if (ghost_totalAdded == 0) return;
+        if (handler.ghost_totalAdded() == 0) return;
 
         uint256 contractBalance = address(collateralManagement).balance;
+        uint256 added = handler.ghost_totalAdded();
+        uint256 withdrawn = handler.ghost_totalWithdrawn();
+        uint256 rewardsWithdrawn = handler.ghost_totalRewardsWithdrawn();
 
-        // Contract balance should be reasonable - not more than we added
-        assertTrue(
-            contractBalance <= ghost_totalAdded + 1 ether,
-            "INVARIANT VIOLATED: Contract has more than deposited"
+        assertEq(
+            contractBalance,
+            added - withdrawn - rewardsWithdrawn,
+            "INVARIANT VIOLATED: Contract balance != added - withdrawn - rewardsWithdrawn"
         );
     }
 
-    /// @notice No provider should have negative collateral (underflow)
-    function invariant_NoNegativeCollateral() public view {
-        for (uint256 i = 0; i < providers.length; i++) {
-            uint256 pegInCollateral = collateralManagement.getPegInCollateral(
-                providers[i]
+    /// @notice Provider collateral should not exceed total added through handler
+    function invariant_CollateralBoundedByTotalAdded() public view {
+        uint256 added = handler.ghost_totalAdded();
+        uint256 count = handler.getProviderCount();
+        for (uint256 i = 0; i < count; i++) {
+            address provider = handler.getProvider(i);
+            assertLe(
+                collateralManagement.getPegInCollateral(provider),
+                added,
+                "INVARIANT VIOLATED: PegIn collateral exceeds total added"
             );
-            uint256 pegOutCollateral = collateralManagement.getPegOutCollateral(
-                providers[i]
-            );
-
-            // Check for underflow - values near max uint256 indicate underflow
-            assertTrue(
-                pegInCollateral < 1_000_000 ether,
-                "INVARIANT VIOLATED: PegIn collateral underflowed"
-            );
-            assertTrue(
-                pegOutCollateral < 1_000_000 ether,
-                "INVARIANT VIOLATED: PegOut collateral underflowed"
+            assertLe(
+                collateralManagement.getPegOutCollateral(provider),
+                added,
+                "INVARIANT VIOLATED: PegOut collateral exceeds total added"
             );
         }
+    }
+
+    /// @notice Rewards + penalties must equal total slashed
+    function invariant_RewardsPlusPenaltiesEqualSlashed() public view {
+        uint256 slashed = handler.ghost_totalSlashed();
+        if (slashed == 0) return;
+
+        uint256 totalRewards = _calculateTotalRewards() +
+            handler.ghost_totalRewardsWithdrawn();
+        uint256 totalPenalties = collateralManagement.getPenalties();
+
+        assertEq(
+            totalRewards + totalPenalties,
+            slashed,
+            "INVARIANT VIOLATED: Rewards + penalties != total slashed"
+        );
+    }
+
+    /// @notice Sum of all collateral + penalties + rewards must equal added - withdrawn - rewardsWithdrawn
+    function invariant_FullConservation() public view {
+        if (handler.ghost_totalAdded() == 0) return;
+
+        uint256 totalCollateral = _calculateTotalCollateral();
+        uint256 rewards = _calculateTotalRewards();
+        uint256 penalties = collateralManagement.getPenalties();
+        uint256 added = handler.ghost_totalAdded();
+        uint256 withdrawn = handler.ghost_totalWithdrawn();
+        uint256 rewardsWithdrawn = handler.ghost_totalRewardsWithdrawn();
+
+        assertEq(
+            totalCollateral + rewards + penalties,
+            added - withdrawn - rewardsWithdrawn,
+            "INVARIANT VIOLATED: Conservation of value failed"
+        );
     }
 
     // ============ Helper Functions ============
 
-    function _getOrCreateProvider(
-        uint256 seed
-    ) internal returns (address provider) {
-        if (providers.length > 0 && seed % 3 != 0) {
-            return providers[seed % providers.length];
+    function _calculateTotalCollateral() internal view returns (uint256 total) {
+        uint256 count = handler.getProviderCount();
+        for (uint256 i = 0; i < count; i++) {
+            address provider = handler.getProvider(i);
+            total += collateralManagement.getPegInCollateral(provider);
+            total += collateralManagement.getPegOutCollateral(provider);
         }
-
-        provider = address(
-            uint160(uint256(keccak256(abi.encode(seed, providers.length))))
-        );
-        providers.push(provider);
-        vm.deal(provider, 10 ether);
-        return provider;
     }
 
-    function _calculateTotalCollateral() internal view returns (uint256 total) {
-        for (uint256 i = 0; i < providers.length; i++) {
-            uint256 pegInCollateral = collateralManagement.getPegInCollateral(
-                providers[i]
-            );
-            uint256 pegOutCollateral = collateralManagement.getPegOutCollateral(
-                providers[i]
-            );
-            total += pegInCollateral + pegOutCollateral;
-        }
+    function _calculateTotalRewards() internal view returns (uint256) {
+        return collateralManagement.getRewards(punisher);
     }
 
     function invariant_callSummary() public view {
         console.log("\n--- Collateral Invariant Summary ---");
-        console.log("Providers:", providers.length);
-        console.log("Total added:", ghost_totalAdded);
-        console.log("Total slashed:", ghost_totalSlashed);
-        console.log("Total withdrawn:", ghost_totalWithdrawn);
+        console.log("Providers:", handler.getProviderCount());
+        console.log("Total added:", handler.ghost_totalAdded());
+        console.log("Total slashed:", handler.ghost_totalSlashed());
+        console.log("Total withdrawn:", handler.ghost_totalWithdrawn());
+        console.log(
+            "Total rewards withdrawn:",
+            handler.ghost_totalRewardsWithdrawn()
+        );
         console.log("Contract balance:", address(collateralManagement).balance);
         console.log("------------------------------------\n");
     }

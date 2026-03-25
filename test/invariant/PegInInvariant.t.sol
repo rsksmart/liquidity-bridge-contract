@@ -1,120 +1,137 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {Test, console} from "forge-std/Test.sol";
+import {console} from "forge-std/Test.sol";
 import {PegInTestBase} from "../pegin/PegInTestBase.sol";
+import {PegInHandler} from "./handlers/PegInHandler.sol";
+import {Flyover} from "../../src/libraries/Flyover.sol";
 
 /// @title PegInContract Invariant Tests
-/// @notice Tests critical invariants for the PegInContract
+/// @notice Tests critical invariants for the PegInContract using a dedicated handler
 contract PegInInvariantTest is PegInTestBase {
-    // Ghost variables for tracking state
-    uint256 public ghost_totalDeposited;
-    uint256 public ghost_totalWithdrawn;
+    PegInHandler public handler;
+    address public nonLpRefundCreditor;
+    uint256 public baselineBalance;
 
-    // Track LPs
-    address[] public trackedLPs;
-    mapping(address => bool) public isTrackedLP;
+    bytes constant RAW_TX_MOCK = hex"112233";
+    bytes constant PMT_MOCK = hex"010203";
+    uint256 constant HEIGHT_MOCK = 10;
 
     function setUp() public {
         deployPegInContract();
         setupProviders();
 
-        // Track initial LPs
-        _trackLP(pegInLp);
-        _trackLP(pegOutLp);
-        _trackLP(fullLp);
+        handler = new PegInHandler(pegInContract);
 
-        // Target this contract for invariant testing
-        targetContract(address(this));
-
-        // Only target handler functions, not setUp
-        bytes4[] memory selectors = new bytes4[](2);
-        selectors[0] = this.deposit.selector;
-        selectors[1] = this.withdraw.selector;
-        targetSelector(
-            FuzzSelector({addr: address(this), selectors: selectors})
+        handler.addLP(pegInLp);
+        handler.addLP(fullLp);
+        address extraPegInLp = makeAddr("extraPegInLp");
+        vm.deal(extraPegInLp, 100 ether);
+        vm.prank(extraPegInLp, extraPegInLp);
+        discovery.register{value: 0.6 ether}(
+            "Extra PegIn Provider",
+            "lp-extra.com",
+            true,
+            Flyover.ProviderType.PegIn
         );
-    }
+        handler.addLP(extraPegInLp);
 
-    // ============ Handler Functions ============
+        (address creditor, ) = _seedNonLpRefundLiabilityFixture(
+            fullLp,
+            fullLpKey,
+            1 ether,
+            HEIGHT_MOCK,
+            RAW_TX_MOCK,
+            PMT_MOCK
+        );
+        nonLpRefundCreditor = creditor;
+        baselineBalance = address(pegInContract).balance;
 
-    function deposit(uint256 lpSeed, uint256 amount) external {
-        amount = bound(amount, 0.01 ether, 10 ether);
-        address lp = _getLP(lpSeed);
+        targetContract(address(handler));
 
-        vm.deal(lp, amount);
-        vm.prank(lp);
-        pegInContract.deposit{value: amount}();
-
-        ghost_totalDeposited += amount;
-    }
-
-    function withdraw(uint256 lpSeed, uint256 amount) external {
-        address lp = _getLP(lpSeed);
-        uint256 balance = pegInContract.getBalance(lp);
-
-        if (balance == 0) return;
-
-        amount = bound(amount, 1, balance);
-
-        vm.prank(lp);
-        try pegInContract.withdraw(amount) {
-            ghost_totalWithdrawn += amount;
-        } catch {}
+        bytes4[] memory selectors = new bytes4[](2);
+        selectors[0] = handler.deposit.selector;
+        selectors[1] = handler.withdraw.selector;
+        targetSelector(
+            FuzzSelector({addr: address(handler), selectors: selectors})
+        );
     }
 
     // ============ Invariant Tests ============
 
-    /// @notice No LP balance should indicate underflow
+    /// @notice LP-only lower bound: contract balance must cover tracked LP internal balances
+    function invariant_ContractSolvent() public view {
+        uint256 totalLPBalances = handler.calculateTotalLPBalances();
+        assertGe(
+            address(pegInContract).balance,
+            totalLPBalances,
+            "INVARIANT VIOLATED: PegIn contract insolvent"
+        );
+    }
+
+    /// @notice Contract balance must cover tracked LP liabilities plus seeded non-LP refund creditor
+    function invariant_ContractSolventIncludingNonLpRefundCreditor()
+        public
+        view
+    {
+        uint256 totalLPBalances = handler.calculateTotalLPBalances();
+        uint256 nonLpLiability = pegInContract.getBalance(nonLpRefundCreditor);
+        assertGe(
+            address(pegInContract).balance,
+            totalLPBalances + nonLpLiability,
+            "INVARIANT VIOLATED: PegIn contract insolvent with non-LP refund liability"
+        );
+    }
+
+    /// @notice No individual LP balance should exceed total deposited through the handler
     function invariant_NoUnderflow() public view {
-        for (uint256 i = 0; i < trackedLPs.length; i++) {
-            uint256 balance = pegInContract.getBalance(trackedLPs[i]);
-            assertTrue(
-                balance < 1_000_000 ether,
-                "INVARIANT VIOLATED: LP balance indicates underflow"
+        uint256 deposited = handler.ghost_totalDeposited();
+        uint256 count = handler.getLPCount();
+        for (uint256 i = 0; i < count; i++) {
+            uint256 balance = pegInContract.getBalance(handler.getLP(i));
+            assertLe(
+                balance,
+                deposited,
+                "INVARIANT VIOLATED: LP balance exceeds total deposited"
             );
         }
     }
 
-    /// @notice Ghost accounting should be consistent (relaxed check)
+    /// @notice Contract balance must equal deposited minus withdrawn (for deposit/withdraw handler actions)
     function invariant_GhostAccounting() public view {
-        // If nothing has been deposited via our handlers, skip this check
-        if (ghost_totalDeposited == 0) return;
-
-        uint256 contractBalance = address(pegInContract).balance;
-
-        // Contract balance should be reasonable - not more than we deposited
-        // (This is a relaxed check since initial setup also adds funds)
-        assertTrue(
-            contractBalance <= ghost_totalDeposited + 100 ether, // allow for initial LP deposits
-            "INVARIANT VIOLATED: Contract has way more than deposited"
+        uint256 deposited = handler.ghost_totalDeposited();
+        uint256 withdrawn = handler.ghost_totalWithdrawn();
+        assertGe(
+            address(pegInContract).balance,
+            baselineBalance,
+            "INVARIANT VIOLATED: Contract balance unexpectedly below baseline"
         );
-    }
 
-    // ============ Helper Functions ============
-
-    function _getLP(uint256 seed) internal view returns (address) {
-        return trackedLPs[seed % trackedLPs.length];
-    }
-
-    function _trackLP(address lp) internal {
-        if (!isTrackedLP[lp]) {
-            trackedLPs.push(lp);
-            isTrackedLP[lp] = true;
-        }
-    }
-
-    function _calculateTotalLPBalances() internal view returns (uint256 total) {
-        for (uint256 i = 0; i < trackedLPs.length; i++) {
-            total += pegInContract.getBalance(trackedLPs[i]);
-        }
+        assertEq(
+            address(pegInContract).balance - baselineBalance,
+            deposited - withdrawn,
+            "INVARIANT VIOLATED: Contract balance != deposited - withdrawn"
+        );
     }
 
     function invariant_callSummary() public view {
         console.log("\n--- PegIn Invariant Summary ---");
-        console.log("LPs tracked:", trackedLPs.length);
-        console.log("Total deposited:", ghost_totalDeposited);
-        console.log("Total withdrawn:", ghost_totalWithdrawn);
+        console.log("LPs tracked:", handler.getLPCount());
+        console.log("Total deposited:", handler.ghost_totalDeposited());
+        console.log("Total withdrawn:", handler.ghost_totalWithdrawn());
+        console.log(
+            "Handler deposit calls:",
+            handler.getHandlerCalls("deposit")
+        );
+        console.log(
+            "Handler withdraw calls:",
+            handler.getHandlerCalls("withdraw")
+        );
+        console.log(
+            "Seeded non-LP liability:",
+            pegInContract.getBalance(nonLpRefundCreditor)
+        );
+        console.log("Baseline balance:", baselineBalance);
         console.log("Contract balance:", address(pegInContract).balance);
         console.log("-------------------------------\n");
     }
