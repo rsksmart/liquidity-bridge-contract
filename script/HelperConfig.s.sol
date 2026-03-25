@@ -5,6 +5,13 @@ import {Script} from "lib/forge-std/src/Script.sol";
 import {BridgeMock} from "../src/test-contracts/BridgeMock.sol";
 
 contract HelperConfig is Script {
+    struct DifferentialNetworkConfig {
+        string networkKey;
+        bool mainnet;
+        uint256 pinBlock;
+        uint256 btcBlockTime;
+    }
+
     struct NetworkConfig {
         address bridge;
         uint256 minimumCollateral;
@@ -257,5 +264,48 @@ contract HelperConfig is Script {
                 mainnet: false,
                 adminDelay: uint48(vm.envOr("ADMIN_DELAY_LOCAL", uint256(0)))
             });
+    }
+
+    /// @notice Resolve single-network config for differential tests.
+    /// @dev DIFF_NETWORK supports only "mainnet" or "testnet" to keep
+    /// differential suites network-agnostic and backed by one active harness.
+    function getDifferentialNetworkConfig()
+        external
+        view
+        returns (DifferentialNetworkConfig memory)
+    {
+        string memory mode = vm.envOr("DIFF_NETWORK", string("mainnet"));
+        bytes32 modeHash = keccak256(bytes(mode));
+        if (
+            modeHash == keccak256(bytes("mainnet")) ||
+            modeHash == keccak256(bytes("MAINNET"))
+        ) {
+            return
+                DifferentialNetworkConfig({
+                    networkKey: "rskMainnet",
+                    mainnet: true,
+                    pinBlock: vm.envOr("DIFF_MAINNET_BLOCK", uint256(0)),
+                    btcBlockTime: vm.envOr(
+                        "DIFF_BTC_BLOCK_TIME_MAINNET",
+                        uint256(600)
+                    )
+                });
+        }
+        if (
+            modeHash == keccak256(bytes("testnet")) ||
+            modeHash == keccak256(bytes("TESTNET"))
+        ) {
+            return
+                DifferentialNetworkConfig({
+                    networkKey: "rskTestnet",
+                    mainnet: false,
+                    pinBlock: vm.envOr("DIFF_TESTNET_BLOCK", uint256(0)),
+                    btcBlockTime: vm.envOr(
+                        "DIFF_BTC_BLOCK_TIME_TESTNET",
+                        uint256(600)
+                    )
+                });
+        }
+        revert("DIFF_NETWORK must be mainnet|testnet");
     }
 }
