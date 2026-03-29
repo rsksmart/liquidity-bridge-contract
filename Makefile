@@ -185,7 +185,8 @@ help:
 	@echo ""
 	@echo "Testing:"
 	@echo "  test              - Run all tests (unit + fuzz)"
-	@echo "  test-unit         - Run unit tests only (excludes fuzz tests)"
+	@echo "  test-unit         - Run unit tests only (excludes fuzz/invariant/differential)"
+	@echo "  test-differential - Run differential tests"
 	@echo "  test-v            - Run all tests with verbosity"
 	@echo "  test-tasks        - Run task script tests"
 	@echo "  test-pegin        - Run PegIn contract tests"
@@ -762,11 +763,17 @@ test:
 	@echo "Running all tests..."
 	forge test
 
-# Run unit tests only (excludes fuzz tests)
+# Run unit tests only (excludes fuzz/invariant/differential)
 .PHONY: test-unit
 test-unit:
-	@echo "Running unit tests only (excluding fuzz tests)..."
-	forge test --no-match-path "test/fuzz/*"
+	@echo "Running unit tests only (excluding fuzz/invariant/differential)..."
+	forge test --no-match-path "test/{fuzz,invariant,differential}/**/*"
+
+# Run differential tests
+.PHONY: test-differential
+test-differential:
+	@echo "Running differential tests..."
+	forge test --match-path "test/differential/**/*.sol" -vv
 
 # Run tests with verbosity
 .PHONY: test-v

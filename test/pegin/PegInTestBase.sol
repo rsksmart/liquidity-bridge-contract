@@ -7,6 +7,7 @@ import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {BridgeMock} from "../../src/test-contracts/BridgeMock.sol";
+import {WalletMock} from "../../src/test-contracts/WalletMock.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
@@ -182,6 +183,109 @@ abstract contract PegInTestBase is Test {
             "lp3.com",
             true,
             Flyover.ProviderType.Both
+        );
+    }
+
+    /// @notice Shared helper for constructing a standard PegIn quote fixture
+    function _buildPegInQuoteFixture(
+        uint256 value,
+        address lp,
+        address payable refundAddress,
+        address destinationContract,
+        uint256 nonce
+    ) internal view returns (Quotes.PegInQuote memory) {
+        bytes memory testBtcAddress = new bytes(21);
+
+        return
+            Quotes.PegInQuote({
+                chainId: block.chainid,
+                callFee: 100000000000000,
+                penaltyFee: 10000000000000,
+                value: value,
+                gasFee: 100,
+                fedBtcAddress: bytes20(testBtcAddress),
+                lbcAddress: address(pegInContract),
+                liquidityProviderRskAddress: lp,
+                contractAddress: destinationContract,
+                rskRefundAddress: refundAddress,
+                nonce: int64(uint64(nonce)),
+                gasLimit: 21000,
+                agreementTimestamp: uint32(block.timestamp),
+                timeForDeposit: 3600,
+                callTime: 7200,
+                depositConfirmations: 10,
+                callOnRegister: false,
+                btcRefundAddress: testBtcAddress,
+                liquidityProviderBtcAddress: testBtcAddress,
+                data: new bytes(0)
+            });
+    }
+
+    /// @notice Shared helper for signing PegIn quotes
+    function _signPegInQuoteWithKey(
+        uint256 privateKey,
+        Quotes.PegInQuote memory quote
+    ) internal view returns (bytes memory) {
+        bytes32 eip712Hash = pegInContract.hashPegInQuoteEIP712(quote);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, eip712Hash);
+        return abi.encodePacked(r, s, v);
+    }
+
+    /// @notice Shared helper for creating BTC block headers with LE timestamp
+    function _btcHeaderFromTimestamp(
+        uint32 timestamp
+    ) internal pure returns (bytes memory) {
+        bytes memory header = new bytes(80);
+        header[68] = bytes1(uint8(timestamp));
+        header[69] = bytes1(uint8(timestamp >> 8));
+        header[70] = bytes1(uint8(timestamp >> 16));
+        header[71] = bytes1(uint8(timestamp >> 24));
+        return header;
+    }
+
+    /// @notice Seeds one non-LP internal balance by forcing refund transfer failure on registerPegIn
+    function _seedNonLpRefundLiabilityFixture(
+        address lp,
+        uint256 lpPrivateKey,
+        uint256 value,
+        uint256 height,
+        bytes memory rawTx,
+        bytes memory pmt
+    ) internal returns (address creditor, uint256 creditedAmount) {
+        WalletMock refundWallet = new WalletMock();
+        refundWallet.setRejectFunds(true);
+        creditor = address(refundWallet);
+
+        Quotes.PegInQuote memory quote = _buildPegInQuoteFixture(
+            value,
+            lp,
+            payable(creditor),
+            address(0xBEEF),
+            uint256(uint64(block.timestamp))
+        );
+        bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
+        bytes memory signature = _signPegInQuoteWithKey(lpPrivateKey, quote);
+        uint256 peginAmount = quote.value + quote.callFee + quote.gasFee;
+
+        vm.deal(address(this), peginAmount);
+        bridgeMock.setPegin{value: peginAmount}(quoteHash);
+        bridgeMock.setHeader(
+            height,
+            _btcHeaderFromTimestamp(uint32(block.timestamp) + 300)
+        );
+        bridgeMock.setHeader(
+            height + uint256(quote.depositConfirmations) - 1,
+            _btcHeaderFromTimestamp(uint32(block.timestamp) + 600)
+        );
+
+        vm.prank(lp);
+        pegInContract.registerPegIn(quote, signature, rawTx, pmt, height);
+
+        creditedAmount = pegInContract.getBalance(creditor);
+        assertGt(
+            creditedAmount,
+            0,
+            "Expected non-LP refund creditor balance to be seeded"
         );
     }
 }

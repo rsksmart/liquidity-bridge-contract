@@ -64,6 +64,16 @@ contract DeployFlyover is Script {
         return d;
     }
 
+    /// @notice Test-only helper to deploy without broadcast/env key lookup.
+    /// @dev Reuses the same deployment and role wiring logic as run().
+    function deployForTesting(
+        address defaultAdmin,
+        HelperConfig.FlyoverConfig memory cfg
+    ) external returns (FlyoverDeployment memory d) {
+        d = _deployAll(defaultAdmin, cfg);
+        _setupRoles(d);
+    }
+
     function _deployAll(
         address defaultAdmin,
         HelperConfig.FlyoverConfig memory cfg

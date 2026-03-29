@@ -30,6 +30,11 @@ remappings = [
 [fuzz]
 runs = 128
 
+[invariant]
+runs = 256
+depth = 64
+fail_on_revert = false
+
 [rpc_endpoints]
 rskRegtest = "${REGTEST_RPC_URL}"
 rskTestnet = "${TESTNET_RPC_URL}"
