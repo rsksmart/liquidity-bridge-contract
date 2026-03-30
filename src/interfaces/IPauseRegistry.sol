@@ -10,16 +10,11 @@ interface IPauseRegistry {
         Hard
     }
 
-    /// @notice Pauses the system (all contracts using this registry) — sets level to 1 (soft)
-    /// @param reason The reason for pausing
-    function pause(string calldata reason) external;
-
-    /// @notice Unpauses the system — sets level to 0
-    function unpause() external;
-
-    /// @notice Set pause level (PAUSER_ROLE). On enter Hard a HardPause entry is appended; on leave Hard it is closed.
-    /// @param level Numeric value of PauseLevel (0=None, 1=Soft, 2=Hard)
-    function setPauseLevel(PauseLevel level) external;
+    /// @notice Set pause level with an explicit reason.
+    /// @dev Setting PauseLevel.None clears the pause reason.
+    /// @param level The target pause level
+    /// @param reason The reason for pausing (ignored when level is PauseLevel.None)
+    function setPauseLevel(PauseLevel level, string calldata reason) external;
 
     /// @notice Returns whether the system is paused (level != PauseLevel.None)
     /// @return True if paused

@@ -40,8 +40,6 @@ contract PauseRegistry is
 
     event EmergencyPaused(address indexed by, string reason);
     event EmergencyUnpaused(address indexed by);
-    error InvalidPauseLevel(uint8 level);
-    error AlreadyPaused();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -57,29 +55,29 @@ contract PauseRegistry is
     }
 
     /// @inheritdoc IPauseRegistry
-    function pause(string calldata reason) external onlyRole(PAUSER_ROLE) {
-        PauseRegistryStorage storage $ = _getPauseRegistryStorage();
-        if ($.pauseLevel != IPauseRegistry.PauseLevel.None) {
-            revert AlreadyPaused();
-        }
-        _setPauseLevel(IPauseRegistry.PauseLevel.Soft);
-        $.pauseReason = reason;
-        emit EmergencyPaused(msg.sender, reason);
-    }
-
-    /// @inheritdoc IPauseRegistry
-    function unpause() external onlyRole(PAUSER_ROLE) {
-        _setPauseLevel(IPauseRegistry.PauseLevel.None);
-        PauseRegistryStorage storage $ = _getPauseRegistryStorage();
-        $.pauseReason = "";
-        emit EmergencyUnpaused(msg.sender);
-    }
-
-    /// @inheritdoc IPauseRegistry
     function setPauseLevel(
-        IPauseRegistry.PauseLevel level
+        IPauseRegistry.PauseLevel level,
+        string calldata reason
     ) external onlyRole(PAUSER_ROLE) {
+        _setPauseLevelWithReason(level, reason);
+    }
+
+    function _setPauseLevelWithReason(
+        IPauseRegistry.PauseLevel level,
+        string memory reason
+    ) internal {
+        PauseRegistryStorage storage $ = _getPauseRegistryStorage();
+        bool wasPaused = $.pauseLevel != IPauseRegistry.PauseLevel.None;
+        if (level != IPauseRegistry.PauseLevel.None) {
+            $.pauseReason = reason;
+        }
         _setPauseLevel(level);
+        bool isPaused = level != IPauseRegistry.PauseLevel.None;
+        if (!wasPaused && isPaused) {
+            emit EmergencyPaused(msg.sender, $.pauseReason);
+        } else if (wasPaused && !isPaused) {
+            emit EmergencyUnpaused(msg.sender);
+        }
     }
 
     /// @inheritdoc IPauseRegistry
@@ -192,6 +190,7 @@ contract PauseRegistry is
             level == IPauseRegistry.PauseLevel.None
         ) {
             $.pauseTimestamp = 0;
+            $.pauseReason = "";
         }
 
         if (
