@@ -1,10 +1,13 @@
 ## What
+
 Briefly describe the change in plain language.
 
 ## Why
+
 Explain the motivation, bug, risk, or product/security need behind this PR.
 
 ## Type of Change
+
 - [ ] Bug fix (non-breaking change)
 - [ ] New feature (non-breaking change)
 - [ ] Breaking change
@@ -15,6 +18,7 @@ Explain the motivation, bug, risk, or product/security need behind this PR.
 - [ ] Documentation
 
 ## Affected Areas
+
 - [ ] PegIn flow (`registerPegIn`, `callForUser`, quote validation)
 - [ ] PegOut flow (`depositPegout`, `refundPegOut`, `refundUserPegOut`)
 - [ ] Liquidity Provider lifecycle (register/update/status/resign/collateral/withdraw)
@@ -26,6 +30,7 @@ Explain the motivation, bug, risk, or product/security need behind this PR.
 - [ ] Docs
 
 ## Risk & Security Review
+
 - [ ] Access control and authorization paths reviewed
 - [ ] Reentrancy and external call paths reviewed
 - [ ] Storage layout / upgrade safety reviewed (if upgradeable code changed)
@@ -34,6 +39,7 @@ Explain the motivation, bug, risk, or product/security need behind this PR.
 - [ ] No secrets or sensitive values added
 
 ## Test Plan
+
 List what you ran locally and the outcome:
 
 - [ ] `npm run lint:sol`
@@ -48,6 +54,7 @@ List what you ran locally and the outcome:
 Additional notes on test coverage, edge cases, and any tests intentionally skipped:
 
 ## Deployment & Ops Impact
+
 - [ ] No deployment impact
 - [ ] Requires deployment
 - [ ] Requires upgrade
@@ -57,11 +64,14 @@ Additional notes on test coverage, edge cases, and any tests intentionally skipp
 If deployment/upgrade is needed, include target network(s), simulation command(s), and rollback considerations.
 
 ## Related Issues
+
 - Jira: [FLY-XXXX](<insert URL>)
 - GitHub Issue: #(if applicable)
 
 ## Reviewer Notes
+
 Anything reviewers should focus on (critical functions, invariants, assumptions, known limitations).
 
 ## Screenshots / Logs (if applicable)
+
 For scripts, CI, or behavior changes, include relevant output snippets or links.
