@@ -444,10 +444,13 @@ contract LpRefundTest is PegOutTestBase {
 
         // Simulate hard pause history that happened before this quote was deposited.
         vm.prank(owner);
-        pauseRegistry.setPauseLevel(IPauseRegistry.PauseLevel.Hard);
+        pauseRegistry.setPauseLevel(
+            IPauseRegistry.PauseLevel.Hard,
+            "Historical hard pause"
+        );
         vm.roll(block.number + 20);
         vm.prank(owner);
-        pauseRegistry.setPauseLevel(IPauseRegistry.PauseLevel.None);
+        pauseRegistry.setPauseLevel(IPauseRegistry.PauseLevel.None, "");
 
         // Simulate pre-upgrade quote record where depositBlock was never initialized.
         _setLegacyDepositBlockToZero(quoteHash);

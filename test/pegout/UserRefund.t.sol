@@ -313,10 +313,13 @@ contract UserRefundTest is PegOutTestBase {
 
         // Simulate hard pause history that happened before this quote was deposited.
         vm.prank(owner);
-        pauseRegistry.setPauseLevel(IPauseRegistry.PauseLevel.Hard);
+        pauseRegistry.setPauseLevel(
+            IPauseRegistry.PauseLevel.Hard,
+            "Historical hard pause"
+        );
         vm.roll(block.number + 25);
         vm.prank(owner);
-        pauseRegistry.setPauseLevel(IPauseRegistry.PauseLevel.None);
+        pauseRegistry.setPauseLevel(IPauseRegistry.PauseLevel.None, "");
 
         vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(

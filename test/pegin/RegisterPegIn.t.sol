@@ -609,11 +609,14 @@ contract RegisterPegInTest is PegInTestBase {
         // Hard pause occurs before nConfirmationsTs and must not extend the call deadline.
         vm.warp(quote.agreementTimestamp + 100);
         vm.prank(owner);
-        pauseRegistry.setPauseLevel(IPauseRegistry.PauseLevel.Hard);
+        pauseRegistry.setPauseLevel(
+            IPauseRegistry.PauseLevel.Hard,
+            "Hard pause before confirmations"
+        );
 
         vm.warp(quote.agreementTimestamp + 800);
         vm.prank(owner);
-        pauseRegistry.setPauseLevel(IPauseRegistry.PauseLevel.None);
+        pauseRegistry.setPauseLevel(IPauseRegistry.PauseLevel.None, "");
 
         uint256 callTs = uint256(nConfirmationsTs) + quote.callTime + 200;
         vm.warp(callTs);
