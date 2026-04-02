@@ -20,6 +20,20 @@ contract FlyoverDiscovery is
     EmergencyPause,
     IFlyoverDiscovery
 {
+    enum RegistrationState {
+        None,
+        Pending,
+        Approved
+    }
+
+    struct PendingRegistration {
+        string name;
+        string apiBaseUrl;
+        bool status;
+        Flyover.ProviderType providerType;
+        uint256 collateralAmount;
+    }
+
     /// @notice The version of the contract
     string constant public VERSION = "1.0.0";
 
@@ -29,6 +43,8 @@ contract FlyoverDiscovery is
 
     mapping(uint => Flyover.LiquidityProvider) private _liquidityProviders;
     mapping(address => uint) private _providerIdByAddress;
+    mapping(address => PendingRegistration) private _pendingRegistrations;
+    mapping(address => RegistrationState) private _registrationStates;
     ICollateralManagement private _collateralManagement;
     uint public lastProviderId;
 
@@ -77,17 +93,63 @@ contract FlyoverDiscovery is
             _providerIdByAddress[msg.sender] = providerId;
         }
 
-        _liquidityProviders[providerId] = Flyover.LiquidityProvider({
-            id: providerId,
-            providerAddress: msg.sender,
+        _pendingRegistrations[msg.sender] = PendingRegistration({
             name: name,
             apiBaseUrl: apiBaseUrl,
             status: status,
-            providerType: providerType
+            providerType: providerType,
+            collateralAmount: msg.value
         });
+        _registrationStates[msg.sender] = RegistrationState.Pending;
         emit Register(providerId, msg.sender, msg.value);
-        _addCollateral(providerType, msg.sender, msg.value);
         return providerId;
+    }
+
+    /// @inheritdoc IFlyoverDiscovery
+    function withdrawRegisterRequest() external whenNotPaused {
+        if (_registrationStates[msg.sender] != RegistrationState.Pending) {
+            revert RegistrationNotPending(msg.sender);
+        }
+        uint256 providerId = _providerIdByAddress[msg.sender];
+        uint256 amount = _clearPendingRegistration(msg.sender);
+        emit RegistrationWithdrawn(providerId, msg.sender, amount);
+        _refundCollateral(payable(msg.sender), amount);
+    }
+
+    /// @inheritdoc IFlyoverDiscovery
+    function approveRegistration(address providerAddress) external whenNotPaused {
+        if (msg.sender != defaultAdmin()) revert NotAuthorized(msg.sender);
+        if (_registrationStates[providerAddress] != RegistrationState.Pending) {
+            revert RegistrationNotPending(providerAddress);
+        }
+
+        uint256 providerId = _providerIdByAddress[providerAddress];
+        PendingRegistration memory pending = _pendingRegistrations[providerAddress];
+        _liquidityProviders[providerId] = Flyover.LiquidityProvider({
+            id: providerId,
+            providerAddress: providerAddress,
+            name: pending.name,
+            apiBaseUrl: pending.apiBaseUrl,
+            status: pending.status,
+            providerType: pending.providerType
+        });
+        _registrationStates[providerAddress] = RegistrationState.Approved;
+        delete _pendingRegistrations[providerAddress];
+
+        emit RegistrationApproved(providerId, providerAddress, pending.collateralAmount);
+        _addCollateral(pending.providerType, providerAddress, pending.collateralAmount);
+    }
+
+    /// @inheritdoc IFlyoverDiscovery
+    function rejectRegistration(address providerAddress) external whenNotPaused {
+        if (msg.sender != defaultAdmin()) revert NotAuthorized(msg.sender);
+        if (_registrationStates[providerAddress] != RegistrationState.Pending) {
+            revert RegistrationNotPending(providerAddress);
+        }
+        uint256 providerId = _providerIdByAddress[providerAddress];
+        uint256 amount = _clearPendingRegistration(providerAddress);
+        emit RegistrationRejected(providerId, providerAddress, amount);
+        _refundCollateral(payable(providerAddress), amount);
     }
 
     /// @inheritdoc IFlyoverDiscovery
@@ -182,6 +244,17 @@ contract FlyoverDiscovery is
         }
     }
 
+    function _clearPendingRegistration(address providerAddress) private returns (uint256 amount) {
+        amount = _pendingRegistrations[providerAddress].collateralAmount;
+        delete _pendingRegistrations[providerAddress];
+        _registrationStates[providerAddress] = RegistrationState.None;
+    }
+
+    function _refundCollateral(address payable providerAddress, uint256 amount) private {
+        (bool success,) = providerAddress.call{value: amount}("");
+        if (!success) revert Flyover.PaymentFailed(providerAddress, amount, hex"");
+    }
+
     /// @notice Checks if a liquidity provider should be listed in the public provider list
     /// @dev A provider is listed if it is registered and has status enabled
     /// @param lp The liquidity provider storage reference
@@ -218,6 +291,10 @@ contract FlyoverDiscovery is
 
         if (providerType > type(Flyover.ProviderType).max) revert InvalidProviderType(providerType);
 
+        if (_registrationStates[providerAddress] == RegistrationState.Pending) {
+            revert RegistrationAlreadyPending(providerAddress);
+        }
+
         if (
             _collateralManagement.getPegInCollateral(providerAddress) > 0 ||
             _collateralManagement.getPegOutCollateral(providerAddress) > 0 ||
@@ -245,7 +322,9 @@ contract FlyoverDiscovery is
     /// @return The liquidity provider record, reverts if not found
     function _getProvider(address providerAddress) private view returns (Flyover.LiquidityProvider memory) {
         uint providerId = _providerIdByAddress[providerAddress];
-        if (providerId == 0) revert Flyover.ProviderNotRegistered(providerAddress);
+        if (providerId == 0 || _registrationStates[providerAddress] != RegistrationState.Approved) {
+            revert Flyover.ProviderNotRegistered(providerAddress);
+        }
         return _liquidityProviders[providerId];
     }
 }
