@@ -69,6 +69,8 @@ contract DiscoveryRegistrationFuzzTest is DiscoveryFuzzTestBase {
             true,
             Flyover.ProviderType.PegIn
         );
+        vm.prank(owner);
+        discovery.approveRegistration(fuzzUser);
 
         assertEq(
             collateralManagement.getPegInCollateral(fuzzUser),
@@ -96,6 +98,8 @@ contract DiscoveryRegistrationFuzzTest is DiscoveryFuzzTestBase {
             true,
             Flyover.ProviderType.PegOut
         );
+        vm.prank(owner);
+        discovery.approveRegistration(fuzzUser);
 
         assertEq(
             collateralManagement.getPegInCollateral(fuzzUser),
@@ -123,6 +127,8 @@ contract DiscoveryRegistrationFuzzTest is DiscoveryFuzzTestBase {
             true,
             Flyover.ProviderType.Both
         );
+        vm.prank(owner);
+        discovery.approveRegistration(fuzzUser);
 
         uint256 halfAmount = collateral / 2;
         uint256 remainder = collateral % 2;
