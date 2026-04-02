@@ -8,7 +8,9 @@ interface IFlyoverDiscovery is IPausable {
     enum RegistrationState {
         None,
         Pending,
-        Approved
+        Approved,
+        Rejected,
+        Withdrawn
     }
 
     event Register(uint indexed id, address indexed from, uint256 indexed amount);

@@ -105,7 +105,7 @@ contract FlyoverDiscovery is
             revert RegistrationNotPending(msg.sender);
         }
         uint256 providerId = _providerIdByAddress[msg.sender];
-        uint256 amount = _clearPendingRegistration(msg.sender);
+        uint256 amount = _clearPendingRegistration(msg.sender, RegistrationState.Withdrawn);
         emit RegistrationWithdrawn(providerId, msg.sender, amount);
         _refundCollateral(payable(msg.sender), amount);
     }
@@ -141,7 +141,7 @@ contract FlyoverDiscovery is
             revert RegistrationNotPending(providerAddress);
         }
         uint256 providerId = _providerIdByAddress[providerAddress];
-        uint256 amount = _clearPendingRegistration(providerAddress);
+        uint256 amount = _clearPendingRegistration(providerAddress, RegistrationState.Rejected);
         emit RegistrationRejected(providerId, providerAddress, amount);
         _refundCollateral(payable(providerAddress), amount);
     }
@@ -245,10 +245,13 @@ contract FlyoverDiscovery is
         }
     }
 
-    function _clearPendingRegistration(address providerAddress) private returns (uint256 amount) {
+    function _clearPendingRegistration(
+        address providerAddress,
+        RegistrationState nextState
+    ) private returns (uint256 amount) {
         amount = _pendingRegistrations[providerAddress].collateralAmount;
         delete _pendingRegistrations[providerAddress];
-        _registrationStates[providerAddress] = RegistrationState.None;
+        _registrationStates[providerAddress] = nextState;
     }
 
     function _refundCollateral(address payable providerAddress, uint256 amount) private {

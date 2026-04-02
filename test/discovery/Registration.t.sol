@@ -308,6 +308,12 @@ contract RegistrationTest is DiscoveryTestBase {
         vm.prank(owner);
         discovery.rejectRegistration(lp);
 
+        assertEq(
+            uint8(discovery.getRegistrationState(lp)),
+            uint8(IFlyoverDiscovery.RegistrationState.Rejected),
+            "State should be Rejected after rejection"
+        );
+
         assertEq(lp.balance, startBalance, "Collateral should be refunded");
         assertEq(collateralManagement.getPegInCollateral(lp), 0);
 
@@ -330,6 +336,12 @@ contract RegistrationTest is DiscoveryTestBase {
 
         vm.prank(lp);
         discovery.withdrawRegisterRequest();
+
+        assertEq(
+            uint8(discovery.getRegistrationState(lp)),
+            uint8(IFlyoverDiscovery.RegistrationState.Withdrawn),
+            "State should be Withdrawn after withdrawal"
+        );
 
         assertEq(lp.balance, startBalance, "Collateral should be refunded");
         assertEq(collateralManagement.getPegInCollateral(lp), 0);
@@ -402,8 +414,8 @@ contract RegistrationTest is DiscoveryTestBase {
         discovery.withdrawRegisterRequest();
         assertEq(
             uint8(discovery.getRegistrationState(lp2)),
-            uint8(IFlyoverDiscovery.RegistrationState.None),
-            "State should return to None after withdraw"
+            uint8(IFlyoverDiscovery.RegistrationState.Withdrawn),
+            "State should be Withdrawn after withdraw"
         );
     }
 }
