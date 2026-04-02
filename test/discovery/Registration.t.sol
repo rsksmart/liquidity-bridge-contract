@@ -357,4 +357,53 @@ contract RegistrationTest is DiscoveryTestBase {
         );
         discovery.approveRegistration(lp);
     }
+
+    function test_GetRegistrationState_TracksLifecycle() public {
+        address lp = makeAddr("lpState");
+        vm.deal(lp, 100 ether);
+
+        assertEq(
+            uint8(discovery.getRegistrationState(lp)),
+            uint8(IFlyoverDiscovery.RegistrationState.None),
+            "Initial state should be None"
+        );
+
+        vm.prank(lp, lp);
+        discovery.register{value: MIN_COLLATERAL}(
+            "Pending",
+            "url",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+        assertEq(
+            uint8(discovery.getRegistrationState(lp)),
+            uint8(IFlyoverDiscovery.RegistrationState.Pending),
+            "State should be Pending after register"
+        );
+
+        vm.prank(owner);
+        discovery.approveRegistration(lp);
+        assertEq(
+            uint8(discovery.getRegistrationState(lp)),
+            uint8(IFlyoverDiscovery.RegistrationState.Approved),
+            "State should be Approved after approval"
+        );
+
+        address lp2 = makeAddr("lpState2");
+        vm.deal(lp2, 100 ether);
+        vm.prank(lp2, lp2);
+        discovery.register{value: MIN_COLLATERAL}(
+            "Pending2",
+            "url2",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+        vm.prank(lp2);
+        discovery.withdrawRegisterRequest();
+        assertEq(
+            uint8(discovery.getRegistrationState(lp2)),
+            uint8(IFlyoverDiscovery.RegistrationState.None),
+            "State should return to None after withdraw"
+        );
+    }
 }

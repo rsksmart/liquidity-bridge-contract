@@ -5,6 +5,12 @@ import {Flyover} from "../libraries/Flyover.sol";
 import {IPausable} from "./IPausable.sol";
 
 interface IFlyoverDiscovery is IPausable {
+    enum RegistrationState {
+        None,
+        Pending,
+        Approved
+    }
+
     event Register(uint indexed id, address indexed from, uint256 indexed amount);
     event RegistrationApproved(uint indexed id, address indexed provider, uint256 indexed amount);
     event RegistrationRejected(uint indexed id, address indexed provider, uint256 indexed amount);
@@ -82,4 +88,9 @@ interface IFlyoverDiscovery is IPausable {
     /// @notice Returns the last assigned provider id
     /// @return lastId Last provider id
     function getProvidersId() external view returns (uint);
+
+    /// @notice Returns registration state for a provider address
+    /// @param providerAddress The provider address
+    /// @return state The registration state
+    function getRegistrationState(address providerAddress) external view returns (RegistrationState);
 }

@@ -20,12 +20,6 @@ contract FlyoverDiscovery is
     EmergencyPause,
     IFlyoverDiscovery
 {
-    enum RegistrationState {
-        None,
-        Pending,
-        Approved
-    }
-
     struct PendingRegistration {
         string name;
         string apiBaseUrl;
@@ -44,7 +38,7 @@ contract FlyoverDiscovery is
     mapping(uint => Flyover.LiquidityProvider) private _liquidityProviders;
     mapping(address => uint) private _providerIdByAddress;
     mapping(address => PendingRegistration) private _pendingRegistrations;
-    mapping(address => RegistrationState) private _registrationStates;
+    mapping(address => IFlyoverDiscovery.RegistrationState) private _registrationStates;
     ICollateralManagement private _collateralManagement;
     uint public lastProviderId;
 
@@ -216,6 +210,13 @@ contract FlyoverDiscovery is
     /// @inheritdoc IFlyoverDiscovery
     function getProvidersId() external view returns (uint) {
         return lastProviderId;
+    }
+
+    /// @inheritdoc IFlyoverDiscovery
+    function getRegistrationState(
+        address providerAddress
+    ) external view returns (IFlyoverDiscovery.RegistrationState) {
+        return _registrationStates[providerAddress];
     }
 
     // ------------------------------------------------------------
