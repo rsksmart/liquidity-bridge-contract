@@ -431,6 +431,8 @@ abstract contract FlyoverTestBase is Test {
             true,
             Flyover.ProviderType.PegIn
         );
+        vm.prank(owner);
+        discovery.approveRegistration(pegInLp);
 
         vm.prank(pegOutLp, pegOutLp);
         discovery.register{value: TEST_MIN_COLLATERAL}(
@@ -439,6 +441,8 @@ abstract contract FlyoverTestBase is Test {
             true,
             Flyover.ProviderType.PegOut
         );
+        vm.prank(owner);
+        discovery.approveRegistration(pegOutLp);
 
         vm.prank(fullLp, fullLp);
         discovery.register{value: TEST_MIN_COLLATERAL * 2}(
@@ -447,6 +451,8 @@ abstract contract FlyoverTestBase is Test {
             true,
             Flyover.ProviderType.Both
         );
+        vm.prank(owner);
+        discovery.approveRegistration(fullLp);
     }
 
     /// @notice Setup role accounts for CollateralManagement tests
