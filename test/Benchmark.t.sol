@@ -136,6 +136,7 @@ contract BenchmarkTest is Test {
                 true,
                 providerData.providerType
             );
+            discovery.approveRegistration(providerData.account);
         }
 
         console.log(
