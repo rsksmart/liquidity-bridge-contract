@@ -20,8 +20,16 @@ contract MultiPegOutTest is PegOutTestBase {
     }
 
     function test_MultiPegOut_EmitsNDepositEvents() public {
-        Quotes.PegOutQuote memory quote1 = createTestPegOutQuote(0.5 ether, fullLp, 1);
-        Quotes.PegOutQuote memory quote2 = createTestPegOutQuote(0.5 ether, fullLp, 2);
+        Quotes.PegOutQuote memory quote1 = createTestPegOutQuote(
+            0.5 ether,
+            fullLp,
+            1
+        );
+        Quotes.PegOutQuote memory quote2 = createTestPegOutQuote(
+            0.5 ether,
+            fullLp,
+            2
+        );
 
         bytes32 quoteHash1 = pegOutContract.hashPegOutQuote(quote1);
         bytes32 quoteHash2 = pegOutContract.hashPegOutQuote(quote2);
@@ -29,9 +37,16 @@ contract MultiPegOutTest is PegOutTestBase {
         bytes memory sig1 = signQuote(fullLp, quote1);
         bytes memory sig2 = signQuote(fullLp, quote2);
 
-        MultiPegOutPayer.PegOutPayment[] memory payments = new MultiPegOutPayer.PegOutPayment[](2);
-        payments[0] = MultiPegOutPayer.PegOutPayment({quote: quote1, signature: sig1});
-        payments[1] = MultiPegOutPayer.PegOutPayment({quote: quote2, signature: sig2});
+        MultiPegOutPayer.PegOutPayment[]
+            memory payments = new MultiPegOutPayer.PegOutPayment[](2);
+        payments[0] = MultiPegOutPayer.PegOutPayment({
+            quote: quote1,
+            signature: sig1
+        });
+        payments[1] = MultiPegOutPayer.PegOutPayment({
+            quote: quote2,
+            signature: sig2
+        });
 
         vm.expectEmit(true, true, false, false);
         emit IPegOut.PegOutDeposit(
@@ -55,15 +70,30 @@ contract MultiPegOutTest is PegOutTestBase {
     }
 
     function test_MultiPegOut_RevertsIfBalanceInsufficient() public {
-        Quotes.PegOutQuote memory quote1 = createTestPegOutQuote(0.5 ether, fullLp, 1);
-        Quotes.PegOutQuote memory quote2 = createTestPegOutQuote(0.5 ether, fullLp, 2);
+        Quotes.PegOutQuote memory quote1 = createTestPegOutQuote(
+            0.5 ether,
+            fullLp,
+            1
+        );
+        Quotes.PegOutQuote memory quote2 = createTestPegOutQuote(
+            0.5 ether,
+            fullLp,
+            2
+        );
 
         bytes memory sig1 = signQuote(fullLp, quote1);
         bytes memory sig2 = signQuote(fullLp, quote2);
 
-        MultiPegOutPayer.PegOutPayment[] memory payments = new MultiPegOutPayer.PegOutPayment[](2);
-        payments[0] = MultiPegOutPayer.PegOutPayment({quote: quote1, signature: sig1});
-        payments[1] = MultiPegOutPayer.PegOutPayment({quote: quote2, signature: sig2});
+        MultiPegOutPayer.PegOutPayment[]
+            memory payments = new MultiPegOutPayer.PegOutPayment[](2);
+        payments[0] = MultiPegOutPayer.PegOutPayment({
+            quote: quote1,
+            signature: sig1
+        });
+        payments[1] = MultiPegOutPayer.PegOutPayment({
+            quote: quote2,
+            signature: sig2
+        });
 
         // Give multiPayer only enough for the first payment; after it is sent the balance is 0.
         vm.deal(address(multiPayer), getTotalValue(quote1));
@@ -91,27 +121,28 @@ contract MultiPegOutTest is PegOutTestBase {
         );
         uint32 currentTime = uint32(block.timestamp);
 
-        return Quotes.PegOutQuote({
-            chainId: block.chainid,
-            callFee: 100000000000000,
-            penaltyFee: 10000000000000,
-            value: value,
-            gasFee: 100,
-            lbcAddress: address(pegOutContract),
-            lpRskAddress: lp,
-            rskRefundAddress: user,
-            nonce: nonce,
-            agreementTimestamp: currentTime,
-            depositDateLimit: currentTime + 7200,
-            transferTime: 3600,
-            depositConfirmations: 10,
-            transferConfirmations: 2,
-            expireBlock: uint32(block.number + 1000),
-            expireDate: currentTime + 20000,
-            depositAddress: testBtcAddress,
-            btcRefundAddress: testBtcAddress,
-            lpBtcAddress: testBtcAddress
-        });
+        return
+            Quotes.PegOutQuote({
+                chainId: block.chainid,
+                callFee: 100000000000000,
+                penaltyFee: 10000000000000,
+                value: value,
+                gasFee: 100,
+                lbcAddress: address(pegOutContract),
+                lpRskAddress: lp,
+                rskRefundAddress: user,
+                nonce: nonce,
+                agreementTimestamp: currentTime,
+                depositDateLimit: currentTime + 7200,
+                transferTime: 3600,
+                depositConfirmations: 10,
+                transferConfirmations: 2,
+                expireBlock: uint32(block.number + 1000),
+                expireDate: currentTime + 20000,
+                depositAddress: testBtcAddress,
+                btcRefundAddress: testBtcAddress,
+                lpBtcAddress: testBtcAddress
+            });
     }
 
     function getTotalValue(
