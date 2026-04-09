@@ -6,13 +6,13 @@ import {Quotes} from "../libraries/Quotes.sol";
 
 // solhint-disable comprehensive-interface
 contract MultiPegOutPayer {
-    IPegOut public immutable LBC;
-    address public immutable OWNER;
-
     struct PegOutPayment {
         Quotes.PegOutQuote quote;
         bytes signature;
     }
+
+    IPegOut public immutable LBC;
+    address public immutable OWNER;
 
     event Deposit(address indexed sender, uint256 indexed amount);
     event Withdraw(address indexed owner, uint256 indexed amount);
@@ -32,7 +32,8 @@ contract MultiPegOutPayer {
 
     /// @notice Pays for all N quotes in a single transaction, emitting N PegOutDeposit events.
     function executeMultiplePegOuts(PegOutPayment[] calldata payments) external {
-        for (uint256 i = 0; i < payments.length; i++) {
+        uint256 paymentsLength = payments.length;
+        for (uint256 i = 0; i < paymentsLength; ++i) {
             Quotes.PegOutQuote calldata q = payments[i].quote;
             uint256 total = q.value + q.gasFee + q.callFee;
             if (address(this).balance < total) {
