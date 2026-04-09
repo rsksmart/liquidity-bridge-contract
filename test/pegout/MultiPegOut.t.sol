@@ -34,9 +34,19 @@ contract MultiPegOutTest is PegOutTestBase {
         payments[1] = MultiPegOutPayer.PegOutPayment({quote: quote2, signature: sig2});
 
         vm.expectEmit(true, true, false, false);
-        emit IPegOut.PegOutDeposit(quoteHash1, address(multiPayer), 0, getTotalValue(quote1));
+        emit IPegOut.PegOutDeposit(
+            quoteHash1,
+            address(multiPayer),
+            0,
+            getTotalValue(quote1)
+        );
         vm.expectEmit(true, true, false, false);
-        emit IPegOut.PegOutDeposit(quoteHash2, address(multiPayer), 0, getTotalValue(quote2));
+        emit IPegOut.PegOutDeposit(
+            quoteHash2,
+            address(multiPayer),
+            0,
+            getTotalValue(quote2)
+        );
 
         multiPayer.executeMultiplePegOuts(payments);
 
