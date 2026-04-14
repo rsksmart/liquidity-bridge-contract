@@ -3,7 +3,9 @@ name: Publish Docker Image
 on:
   push:
     branches:
-      - main
+      - master
+      - refactor/FLY-2252
+      - v2.6.0
     tags:
       - "v*"
   workflow_dispatch:
