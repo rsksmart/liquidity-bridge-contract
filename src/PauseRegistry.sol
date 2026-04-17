@@ -10,8 +10,8 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {IPauseRegistry} from "./interfaces/IPauseRegistry.sol";
 
 /// @title PauseRegistry
-/// @notice Centralized registry for pause state; all Flyover contracts read from here
-/// @dev Only accounts with PAUSER_ROLE can pause/unpause. Uses namespaced storage.
+/// @notice Centralized registry for pause state; all Flyover contracts read from here.
+/// @dev Level 0 = normal, 1 = soft (no new business), 2 = hard (full freeze). Uses namespaced storage.
 contract PauseRegistry is
     Initializable,
     AccessControlDefaultAdminRulesUpgradeable,
@@ -20,8 +20,17 @@ contract PauseRegistry is
     /// @custom:storage-location erc7201:rsk.flyover.PauseRegistry
     struct PauseRegistryStorage {
         bool paused;
+        IPauseRegistry.PauseLevel pauseLevel;
         uint64 pauseTimestamp;
         string pauseReason;
+        HardPause[] hardPauses;
+    }
+
+    struct HardPause {
+        uint64 startTimestamp;
+        uint64 endTimestamp; // 0 while ongoing
+        uint64 startBlock;
+        uint64 endBlock; // 0 while ongoing
     }
 
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
@@ -46,28 +55,35 @@ contract PauseRegistry is
     }
 
     /// @inheritdoc IPauseRegistry
-    function pause(string calldata reason) external onlyRole(PAUSER_ROLE) {
-        PauseRegistryStorage storage $ = _getPauseRegistryStorage();
-        if ($.paused) return;
-        $.paused = true;
-        $.pauseReason = reason;
-        $.pauseTimestamp = uint64(block.timestamp);
-        emit EmergencyPaused(msg.sender, reason);
+    function setPauseLevel(
+        IPauseRegistry.PauseLevel level,
+        string calldata reason
+    ) external onlyRole(PAUSER_ROLE) {
+        _setPauseLevelWithReason(level, reason);
     }
 
-    /// @inheritdoc IPauseRegistry
-    function unpause() external onlyRole(PAUSER_ROLE) {
+    function _setPauseLevelWithReason(
+        IPauseRegistry.PauseLevel level,
+        string memory reason
+    ) internal {
         PauseRegistryStorage storage $ = _getPauseRegistryStorage();
-        if (!$.paused) return;
-        $.paused = false;
-        $.pauseReason = "";
-        $.pauseTimestamp = 0;
-        emit EmergencyUnpaused(msg.sender);
+        bool wasPaused = $.pauseLevel != IPauseRegistry.PauseLevel.None;
+        if (level != IPauseRegistry.PauseLevel.None) {
+            $.pauseReason = reason;
+        }
+        _setPauseLevel(level);
+        bool isPaused = level != IPauseRegistry.PauseLevel.None;
+        if (!wasPaused && isPaused) {
+            emit EmergencyPaused(msg.sender, $.pauseReason);
+        } else if (wasPaused && !isPaused) {
+            emit EmergencyUnpaused(msg.sender);
+        }
     }
 
     /// @inheritdoc IPauseRegistry
     function paused() external view returns (bool) {
-        return _getPauseRegistryStorage().paused;
+        PauseRegistryStorage storage $ = _getPauseRegistryStorage();
+        return $.pauseLevel != IPauseRegistry.PauseLevel.None;
     }
 
     /// @inheritdoc IPauseRegistry
@@ -77,7 +93,132 @@ contract PauseRegistry is
         returns (bool isPaused, string memory reason, uint64 since)
     {
         PauseRegistryStorage storage $ = _getPauseRegistryStorage();
-        return ($.paused, $.pauseReason, $.pauseTimestamp);
+        isPaused = $.pauseLevel != IPauseRegistry.PauseLevel.None;
+        reason = $.pauseReason;
+        since = $.pauseTimestamp;
+    }
+
+    /// @inheritdoc IPauseRegistry
+    function pauseLevel() external view returns (IPauseRegistry.PauseLevel) {
+        return _getPauseRegistryStorage().pauseLevel;
+    }
+
+    /// @inheritdoc IPauseRegistry
+    function hardPausesCount() external view returns (uint256) {
+        return _getPauseRegistryStorage().hardPauses.length;
+    }
+
+    /// @inheritdoc IPauseRegistry
+    function hardPauses(uint256 index)
+        external
+        view
+        returns (
+            uint64 startTimestamp,
+            uint64 endTimestamp,
+            uint64 startBlock,
+            uint64 endBlock
+        )
+    {
+        HardPause storage p = _getPauseRegistryStorage().hardPauses[index];
+        return (p.startTimestamp, p.endTimestamp, p.startBlock, p.endBlock);
+    }
+
+    /// @inheritdoc IPauseRegistry
+    function computePauseOverlap(uint256 startTimestamp, uint256 endTimestamp)
+        external
+        view
+        returns (uint256 totalPauseTime)
+    {
+        HardPause[] storage pauses = _getPauseRegistryStorage().hardPauses;
+        uint256 n = pauses.length;
+        for (uint256 i = n; i > 0;) {
+            unchecked {
+                --i;
+            }
+            HardPause storage p = pauses[i];
+            uint64 pEnd = p.endTimestamp;
+            if (pEnd != 0 && !(pEnd > startTimestamp)) break;
+            uint256 effectiveStart = startTimestamp;
+            if (p.startTimestamp > effectiveStart) effectiveStart = p.startTimestamp;
+            uint256 effectiveEnd = endTimestamp;
+            uint256 pEndOrNow = pEnd == 0 ? block.timestamp : pEnd;
+            if (pEndOrNow < effectiveEnd) effectiveEnd = pEndOrNow;
+            if (effectiveEnd > effectiveStart) {
+                totalPauseTime += effectiveEnd - effectiveStart;
+            }
+        }
+    }
+
+    /// @inheritdoc IPauseRegistry
+    function computePauseOverlapBlocks(uint256 startBlock, uint256 endBlock)
+        external
+        view
+        returns (uint256 totalPauseBlocks)
+    {
+        HardPause[] storage pauses = _getPauseRegistryStorage().hardPauses;
+        uint256 n = pauses.length;
+        for (uint256 i = n; i > 0;) {
+            unchecked {
+                --i;
+            }
+            HardPause storage p = pauses[i];
+            uint64 pEndBlock = p.endBlock;
+            if (pEndBlock != 0 && !(pEndBlock > startBlock)) break;
+            uint256 effectiveStart = startBlock;
+            if (p.startBlock > effectiveStart) effectiveStart = p.startBlock;
+            uint256 effectiveEnd = endBlock;
+            uint256 pEndOrNow = pEndBlock == 0 ? block.number : pEndBlock;
+            if (pEndOrNow < effectiveEnd) effectiveEnd = pEndOrNow;
+            if (effectiveEnd > effectiveStart) {
+                totalPauseBlocks += effectiveEnd - effectiveStart;
+            }
+        }
+    }
+
+    function _setPauseLevel(IPauseRegistry.PauseLevel level) internal {
+        PauseRegistryStorage storage $ = _getPauseRegistryStorage();
+        IPauseRegistry.PauseLevel prev = IPauseRegistry.PauseLevel($.pauseLevel);
+        $.pauseLevel = level;
+        $.paused = (level != IPauseRegistry.PauseLevel.None);
+        if (
+            prev == IPauseRegistry.PauseLevel.None &&
+            level != IPauseRegistry.PauseLevel.None
+        ) {
+            $.pauseTimestamp = uint64(block.timestamp);
+        } else if (
+            prev != IPauseRegistry.PauseLevel.None &&
+            level == IPauseRegistry.PauseLevel.None
+        ) {
+            $.pauseTimestamp = 0;
+            $.pauseReason = "";
+        }
+
+        if (
+            prev == IPauseRegistry.PauseLevel.Hard &&
+            level != IPauseRegistry.PauseLevel.Hard
+        ) {
+            HardPause[] storage pauses = $.hardPauses;
+            uint256 len = pauses.length;
+            if (len > 0) {
+                HardPause storage last = pauses[len - 1];
+                if (last.endTimestamp == 0) {
+                    last.endTimestamp = uint64(block.timestamp);
+                    last.endBlock = uint64(block.number);
+                }
+            }
+        } else if (
+            prev != IPauseRegistry.PauseLevel.Hard &&
+            level == IPauseRegistry.PauseLevel.Hard
+        ) {
+            $.hardPauses.push(
+                HardPause({
+                    startTimestamp: uint64(block.timestamp),
+                    endTimestamp: 0,
+                    startBlock: uint64(block.number),
+                    endBlock: 0
+                })
+            );
+        }
     }
 
     function _getPauseRegistryStorage()
@@ -89,4 +230,5 @@ contract PauseRegistry is
             $.slot := _PAUSE_REGISTRY_STORAGE
         }
     }
+
 }

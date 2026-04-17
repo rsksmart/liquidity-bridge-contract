@@ -9,7 +9,10 @@ import {IPauseRegistry} from "../interfaces/IPauseRegistry.sol";
 import {Flyover} from "../libraries/Flyover.sol";
 
 /// @notice Base contract for Flyover contracts that delegate pause state to a central PauseRegistry.
-/// pauseStatus() and whenNotPaused read from the registry. Pause/unpause are done only on the registry.
+/// pauseStatus() and pause-level checks read from the registry. Pause/unpause are done only on the registry.
+/// Uses two modifiers:
+/// - whenNotSoftPaused(): blocks at level >= 1 (soft and hard pause)
+/// - whenNotHardPaused(): blocks at level >= 2 (hard pause only)
 /// Uses namespaced storage; no AccessControl (children that need roles inherit it separately).
 abstract contract EmergencyPause is Initializable, IPausable {
 
@@ -23,9 +26,23 @@ abstract contract EmergencyPause is Initializable, IPausable {
     bytes32 private constant _EMERGENCY_PAUSE_STORAGE =
         0x9231f352ae2e78fc5cd04a185b8fc917dd5cf9947923b7000e25955769a61f00;
 
-    /// @notice Modifier that reverts if the system is paused (reads from PauseRegistry)
-    modifier whenNotPaused() {
-        if (_getEmergencyPauseStorage().pauseRegistry.paused()) {
+    /// @notice Reverts at pause level >= 1 (soft pause: no new business)
+    modifier whenNotSoftPaused() {
+        if (
+            _getEmergencyPauseStorage().pauseRegistry.pauseLevel() >=
+            IPauseRegistry.PauseLevel.Soft
+        ) {
+            revert Flyover.EnforcedPause();
+        }
+        _;
+    }
+
+    /// @notice Reverts at pause level >= 2 (hard pause: full freeze)
+    modifier whenNotHardPaused() {
+        if (
+            _getEmergencyPauseStorage().pauseRegistry.pauseLevel() >=
+            IPauseRegistry.PauseLevel.Hard
+        ) {
             revert Flyover.EnforcedPause();
         }
         _;

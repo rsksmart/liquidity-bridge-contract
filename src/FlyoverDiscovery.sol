@@ -66,7 +66,7 @@ contract FlyoverDiscovery is
         string calldata apiBaseUrl,
         bool status,
         Flyover.ProviderType providerType
-    ) external payable whenNotPaused returns (uint) {
+    ) external payable whenNotSoftPaused returns (uint) {
 
        _validateRegistration(name, apiBaseUrl, providerType, msg.sender, msg.value);
 
@@ -103,7 +103,7 @@ contract FlyoverDiscovery is
     }
 
     /// @inheritdoc IFlyoverDiscovery
-    function updateProvider(string calldata name, string calldata apiBaseUrl) external whenNotPaused {
+    function updateProvider(string calldata name, string calldata apiBaseUrl) external whenNotHardPaused {
         if (bytes(name).length < 1 || bytes(apiBaseUrl).length < 1) revert InvalidProviderData(name, apiBaseUrl);
         address providerAddress = msg.sender;
         uint providerId = _providerIdByAddress[providerAddress];

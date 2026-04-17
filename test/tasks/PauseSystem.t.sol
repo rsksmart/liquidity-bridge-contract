@@ -71,8 +71,10 @@ contract PauseSystemTest is FlyoverTestBase {
         pauseScript.checkStatus();
 
         // Pause the registry (central source of truth)
-        string memory reason = "Test pause for status check";
-        mockRegistry.pause(reason);
+        mockRegistry.setPauseLevel(
+            IPauseRegistry.PauseLevel.Soft,
+            "Test pause for status check"
+        );
 
         (r1, , ) = mockRegistry.pauseStatus();
         assertTrue(r1, "Registry should be paused");
@@ -93,8 +95,10 @@ contract PauseSystemTest is FlyoverTestBase {
 
         assertFalse(d1 || p1 || p2 || c1, "None should be paused initially");
 
-        string memory reason = "Test emergency pause";
-        mockRegistry.pause(reason);
+        mockRegistry.setPauseLevel(
+            IPauseRegistry.PauseLevel.Soft,
+            "Test emergency pause"
+        );
 
         (d1, , ) = mockDiscovery.pauseStatus();
         (p1, , ) = mockPegIn.pauseStatus();
@@ -106,7 +110,7 @@ contract PauseSystemTest is FlyoverTestBase {
         assertTrue(p2, "PegOut should report paused (from registry)");
         assertTrue(c1, "Collateral should report paused (from registry)");
 
-        mockRegistry.unpause();
+        mockRegistry.setPauseLevel(IPauseRegistry.PauseLevel.None, "");
 
         (d1, , ) = mockDiscovery.pauseStatus();
         (p1, , ) = mockPegIn.pauseStatus();
@@ -124,13 +128,15 @@ contract PauseSystemTest is FlyoverTestBase {
     function test_UnpauseAllContracts() public {
         console.log("\n=== TEST UNPAUSE ALL CONTRACTS ===\n");
 
-        string memory pauseReason = "Setup for unpause test";
-        mockRegistry.pause(pauseReason);
+        mockRegistry.setPauseLevel(
+            IPauseRegistry.PauseLevel.Soft,
+            "Setup for unpause test"
+        );
 
         (bool r1, , ) = mockRegistry.pauseStatus();
         assertTrue(r1, "Registry should be paused");
 
-        mockRegistry.unpause();
+        mockRegistry.setPauseLevel(IPauseRegistry.PauseLevel.None, "");
 
         (r1, , ) = mockRegistry.pauseStatus();
         assertFalse(r1, "Registry should be unpaused");
@@ -153,20 +159,21 @@ contract PauseSystemTest is FlyoverTestBase {
         _setEnvVars();
         console.log("\n=== TEST COMPLETE PAUSE/UNPAUSE CYCLE ===\n");
 
-        string memory reason = "Integration test";
-
         console.log("1. Initial status check");
         pauseScript.checkStatus();
 
         console.log("\n2. Pausing via registry");
-        mockRegistry.pause(reason);
+        mockRegistry.setPauseLevel(
+            IPauseRegistry.PauseLevel.Soft,
+            "Integration test"
+        );
 
         console.log("\n3. Status while paused");
         _setEnvVars();
         pauseScript.checkStatus();
 
         console.log("\n4. Unpausing registry");
-        mockRegistry.unpause();
+        mockRegistry.setPauseLevel(IPauseRegistry.PauseLevel.None, "");
 
         console.log("\n5. Final status check");
         _setEnvVars();
@@ -309,18 +316,7 @@ contract MockPauseRegistry is IPauseRegistry {
     bool private _paused;
     string private _reason;
     uint64 private _since;
-
-    function pause(string calldata reason) external override {
-        _paused = true;
-        _reason = reason;
-        _since = uint64(block.timestamp);
-    }
-
-    function unpause() external override {
-        _paused = false;
-        _reason = "";
-        _since = 0;
-    }
+    PauseLevel private _level;
 
     function paused() external view override returns (bool) {
         return _paused;
@@ -333,6 +329,56 @@ contract MockPauseRegistry is IPauseRegistry {
         returns (bool isPaused, string memory reason, uint64 since)
     {
         return (_paused, _reason, _since);
+    }
+
+    function pauseLevel() external view override returns (PauseLevel) {
+        return _level;
+    }
+
+    function setPauseLevel(
+        PauseLevel level,
+        string calldata reason
+    ) external override {
+        _setPauseLevel(level, reason);
+    }
+
+    function _setPauseLevel(PauseLevel level, string memory reason) internal {
+        bool wasPaused = _paused;
+        _level = level;
+        _paused = (level != PauseLevel.None);
+        if (_paused) {
+            if (!wasPaused) {
+                _since = uint64(block.timestamp);
+            }
+            _reason = reason;
+        } else {
+            _reason = "";
+            _since = 0;
+        }
+    }
+
+    function hardPausesCount() external pure override returns (uint256) {
+        return 0;
+    }
+
+    function hardPauses(
+        uint256
+    ) external pure override returns (uint64, uint64, uint64, uint64) {
+        return (0, 0, 0, 0);
+    }
+
+    function computePauseOverlap(
+        uint256,
+        uint256
+    ) external pure override returns (uint256) {
+        return 0;
+    }
+
+    function computePauseOverlapBlocks(
+        uint256,
+        uint256
+    ) external pure override returns (uint256) {
+        return 0;
     }
 }
 

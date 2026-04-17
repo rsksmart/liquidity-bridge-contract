@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 import {PegOutTestBase} from "./PegOutTestBase.sol";
 import {IPegOut} from "../../src/interfaces/IPegOut.sol";
+import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
 import {ICollateralManagement} from "../../src/interfaces/ICollateralManagement.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
@@ -414,6 +415,60 @@ contract LpRefundTest is PegOutTestBase {
         uint256 reward = (penalty * TEST_REWARD_PERCENTAGE) / 10000;
 
         // Refund should succeed but emit penalization
+        vm.prank(pegOutLp);
+        vm.expectEmit(true, false, false, true);
+        emit IPegOut.PegOutRefunded(quoteHash);
+        vm.expectEmit(true, true, true, true);
+        emit ICollateralManagement.Penalized(
+            pegOutLp,
+            pegOutLp,
+            quoteHash,
+            Flyover.ProviderType.PegOut,
+            penalty,
+            reward
+        );
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
+    }
+
+    function test_RefundPegOut_LegacyQuoteWithZeroDepositBlock_PenalizesExpiredByBlocks()
+        public
+    {
+        Quotes.PegOutQuote memory quote = createAndDepositQuote();
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+
+        // Simulate hard pause history that happened before this quote was deposited.
+        vm.prank(owner);
+        pauseRegistry.setPauseLevel(
+            IPauseRegistry.PauseLevel.Hard,
+            "Historical hard pause"
+        );
+        vm.roll(block.number + 20);
+        vm.prank(owner);
+        pauseRegistry.setPauseLevel(IPauseRegistry.PauseLevel.None, "");
+
+        // Simulate pre-upgrade quote record where depositBlock was never initialized.
+        _setLegacyDepositBlockToZero(quoteHash);
+
+        // Expire by blocks only, while keeping time branch unexpired.
+        vm.roll(quote.expireBlock + 1);
+        vm.warp(uint256(quote.expireDate) - 1);
+
+        bytes memory header = createBtcBlockHeader(uint32(block.timestamp));
+        bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
+        bridgeMock.setConfirmations(
+            int256(uint256(quote.transferConfirmations))
+        );
+
+        bytes memory btcTx = generateBtcTx(quote, quoteHash);
+        uint256 penalty = quote.penaltyFee;
+        uint256 reward = (penalty * TEST_REWARD_PERCENTAGE) / 10000;
+
         vm.prank(pegOutLp);
         vm.expectEmit(true, false, false, true);
         emit IPegOut.PegOutRefunded(quoteHash);
@@ -1134,6 +1189,13 @@ contract LpRefundTest is PegOutTestBase {
         Quotes.PegOutQuote memory quote
     ) internal pure returns (uint256) {
         return quote.value + quote.callFee + quote.gasFee;
+    }
+
+    function _setLegacyDepositBlockToZero(bytes32 quoteHash) internal {
+        // _pegOutRegistry mapping is at storage slot 3 and depositBlock is the 3rd struct slot.
+        bytes32 baseSlot = keccak256(abi.encode(quoteHash, uint256(3)));
+        bytes32 depositBlockSlot = bytes32(uint256(baseSlot) + 2);
+        vm.store(address(pegOutContract), depositBlockSlot, bytes32(0));
     }
 
     function signQuote(

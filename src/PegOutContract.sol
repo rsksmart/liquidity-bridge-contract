@@ -30,9 +30,11 @@ contract PegOutContract is
     /// @param completed whether the peg out has been completed or not,
     /// completed means the peg out was paid and refunded (to any party)
     /// @param depositTimestamp the timestamp of the deposit
+    /// @param depositBlock the block where the deposit was recorded
     struct PegOutRecord {
         bool completed;
         uint256 depositTimestamp;
+        uint256 depositBlock;
     }
 
     /// @notice The version of the contract
@@ -84,7 +86,7 @@ contract PegOutContract is
     function depositPegOut(
         Quotes.PegOutQuote calldata quote,
         bytes calldata signature
-    ) external payable nonReentrant whenNotPaused override {
+    ) external payable nonReentrant whenNotSoftPaused override {
         if(!_collateralManagement.isRegistered(_PEG_TYPE, quote.lpRskAddress)) {
             revert Flyover.ProviderNotRegistered(quote.lpRskAddress);
         }
@@ -116,6 +118,7 @@ contract PegOutContract is
 
         _pegOutQuotes[quoteHash] = quote;
         _pegOutRegistry[quoteHash].depositTimestamp = block.timestamp;
+        _pegOutRegistry[quoteHash].depositBlock = block.number;
 
         emit PegOutDeposit(quoteHash, msg.sender, block.timestamp, msg.value);
 
@@ -191,7 +194,7 @@ contract PegOutContract is
     }
 
     /// @inheritdoc IPegOut
-    function withdraw(address payable addr, uint256 amount) external nonReentrant override {
+    function withdraw(address payable addr, uint256 amount) external nonReentrant whenNotHardPaused override {
         if (addr == address(0)) revert Flyover.InvalidAddress(addr);
         uint256 balance = _balances[msg.sender];
         if (balance < amount) {
@@ -212,7 +215,7 @@ contract PegOutContract is
         bytes32 btcBlockHeaderHash,
         uint256 merkleBranchPath,
         bytes32[] calldata merkleBranchHashes
-    ) external nonReentrant override {
+    ) external nonReentrant whenNotHardPaused override {
         Quotes.PegOutQuote memory quote = _validatePegOutTransaction(quoteHash, btcTx);
         _validateBtcTxConfirmations(quote, btcTx, btcBlockHeaderHash, merkleBranchPath, merkleBranchHashes);
 
@@ -232,12 +235,21 @@ contract PegOutContract is
     }
 
     /// @inheritdoc IPegOut
-    function refundUserPegOut(bytes32 quoteHash) external nonReentrant override {
+    function refundUserPegOut(bytes32 quoteHash) external nonReentrant whenNotHardPaused override {
         Quotes.PegOutQuote memory quote = _pegOutQuotes[quoteHash];
 
         if (quote.lbcAddress == address(0)) revert Flyover.QuoteNotFound(quoteHash);
+
+        uint256 depositTs = _pegOutRegistry[quoteHash].depositTimestamp;
+        uint256 depositBlock = _pegOutRegistry[quoteHash].depositBlock;
+        uint256 pauseOverlap = pauseRegistry().computePauseOverlap(depositTs, block.timestamp);
+        // Backward-compatibility for legacy quotes predating depositBlock tracking.
+        uint256 pauseBlocks = _computePauseBlocksFromDeposit(depositBlock);
+        // User may refund only after effective expiration (adjusted for hard-pause overlap)
         // solhint-disable-next-line gas-strict-inequalities
-        if (quote.expireDate >= block.timestamp || quote.expireBlock >= block.number) revert QuoteNotExpired(quoteHash);
+        if (block.timestamp <= quote.expireDate + pauseOverlap || block.number <= quote.expireBlock + pauseBlocks) {
+            revert QuoteNotExpired(quoteHash);
+        }
 
         uint256 valueToTransfer = quote.value + quote.callFee + quote.gasFee;
         address addressToTransfer = quote.rskRefundAddress;
@@ -370,17 +382,32 @@ contract PegOutContract is
             quote.transferTime +
             btcBlockTime;
 
-        // penalize if the transfer was not made on time
+        // penalize if the transfer was not made on time (BTC-side, no pause adjustment)
         if (firstConfirmationTimestamp > expectedConfirmationTime) {
             return true;
         }
 
-        // penalize if LP is refunding after expiration
-        if (block.timestamp > quote.expireDate || block.number > quote.expireBlock) {
+        uint256 depositTs = _pegOutRegistry[quoteHash].depositTimestamp;
+        uint256 depositBlock = _pegOutRegistry[quoteHash].depositBlock;
+        uint256 pauseOverlap = pauseRegistry().computePauseOverlap(depositTs, block.timestamp);
+        uint256 pauseBlocks = _computePauseBlocksFromDeposit(depositBlock);
+
+        // penalize if LP is refunding after expiration (adjusted for hard pause)
+        if (block.timestamp > quote.expireDate + pauseOverlap || block.number > quote.expireBlock + pauseBlocks) {
             return true;
         }
 
         return false;
+    }
+
+    function _computePauseBlocksFromDeposit(
+        uint256 depositBlock
+    ) private view returns (uint256 pauseBlocks) {
+        if (depositBlock == 0) {
+            // Legacy records created before block anchor support must not count historical pauses.
+            return 0;
+        }
+        return pauseRegistry().computePauseOverlapBlocks(depositBlock, block.number);
     }
 
     /// @notice This function performs common validations for peg out transactions without checking confirmations.

@@ -145,7 +145,7 @@ contract PegInContract is
     }
 
     /// @inheritdoc IPegIn
-    function deposit() external payable nonReentrant whenNotPaused override {
+    function deposit() external payable nonReentrant whenNotSoftPaused override {
         if(!_collateralManagement.isRegistered(_PEG_TYPE, msg.sender)) {
             revert Flyover.ProviderNotRegistered(msg.sender);
         }
@@ -153,7 +153,7 @@ contract PegInContract is
     }
 
     /// @inheritdoc IPegIn
-    function withdraw(uint256 amount) external nonReentrant override  {
+    function withdraw(uint256 amount) external nonReentrant whenNotHardPaused override {
         uint256 balance = _balances[msg.sender];
         if (balance < amount) {
             revert Flyover.NoBalance(amount, balance);
@@ -169,7 +169,7 @@ contract PegInContract is
     /// @inheritdoc IPegIn
     function callForUser(
         Quotes.PegInQuote calldata quote
-    ) external payable nonReentrant override returns (bool) {
+    ) external payable nonReentrant whenNotHardPaused override returns (bool) {
         if(!_collateralManagement.isRegistered(_PEG_TYPE, msg.sender)) {
             revert Flyover.ProviderNotRegistered(msg.sender);
         }
@@ -224,7 +224,7 @@ contract PegInContract is
         bytes calldata btcRawTransaction,
         bytes calldata partialMerkleTree,
         uint256 height
-    ) external nonReentrant override returns (int256) {
+    ) external nonReentrant whenNotHardPaused override returns (int256) {
         bytes32 quoteHash = _hashPegInQuote(quote);
         _validateRegisterParams(quote, quoteHash, height, signature);
         int256 registerResult = _registerBridge(quote, btcRawTransaction, partialMerkleTree, height, quoteHash);
@@ -577,15 +577,10 @@ contract PegInContract is
             firstConfirmationHeader
         );
 
-        // do not penalize if deposit was not made on time
+        // do not penalize if deposit was not made on time (BTC-side, no pause adjustment)
         uint256 timeLimit = quote.agreementTimestamp + quote.timeForDeposit;
         if (firstConfirmationTimestamp > timeLimit) {
             return false;
-        }
-
-        // penalize if call was not made
-        if (callTimestamp == 0) {
-            return true;
         }
 
         bytes memory nConfirmationsHeader = _bridge.getBtcBlockchainBlockHeaderByHeight(
@@ -596,8 +591,19 @@ contract PegInContract is
             nConfirmationsHeader
         );
 
-        // penalize if the call was not made on time
-        if (callTimestamp > nConfirmationsTimestamp + quote.callTime) {
+        uint256 pauseOverlap = pauseRegistry().computePauseOverlap(
+            nConfirmationsTimestamp,
+            block.timestamp
+        );
+        uint256 adjustedDeadline = nConfirmationsTimestamp + quote.callTime + pauseOverlap;
+
+        // if LP never called: penalize only if adjusted deadline has passed
+        if (callTimestamp == 0) {
+            return block.timestamp > adjustedDeadline;
+        }
+
+        // penalize if the call was not made on time (adjusted for hard pause)
+        if (callTimestamp > adjustedDeadline) {
             return true;
         }
 

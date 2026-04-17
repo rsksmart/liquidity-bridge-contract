@@ -138,7 +138,7 @@ contract PauseSystem is Script, AddressResolver {
         _verifyAllContractsUseRegistry(registry);
 
         vm.startBroadcast();
-        registry.pause(reason);
+        registry.setPauseLevel(IPauseRegistry.PauseLevel.Soft, reason);
         vm.stopBroadcast();
 
         console.log(
@@ -157,7 +157,7 @@ contract PauseSystem is Script, AddressResolver {
         _verifyAllContractsUseRegistry(registry);
 
         vm.startBroadcast();
-        registry.unpause();
+        registry.setPauseLevel(IPauseRegistry.PauseLevel.None, "");
         vm.stopBroadcast();
 
         console.log(
