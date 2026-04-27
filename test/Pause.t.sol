@@ -755,6 +755,7 @@ contract PauseTest is Test {
             true,
             Flyover.ProviderType.PegIn
         );
+        flyoverDiscovery.approveRegistration(signers[2]);
 
         vm.prank(signers[2]);
         collateralManagement.resign();

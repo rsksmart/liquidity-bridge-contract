@@ -64,8 +64,17 @@ contract BtcTransactionParsingFuzzTest is PegOutFuzzTestBase {
         quoteValue = uint128(bound(quoteValue, 0.001 ether, 10 ether));
         btcTxAmount = uint128(bound(btcTxAmount, 0.0001 ether, 10 ether));
 
-        // Skip if amounts match (that's the success case)
-        vm.assume(btcTxAmount < quoteValue);
+        // The contract compares satoshi-normalized values, so constrain fuzz inputs
+        // against the same normalized amounts to avoid false revert expectations.
+        uint64 satAmount = uint64(btcTxAmount / 1e10);
+        uint256 paidAmountWei = uint256(satAmount) * 1e10;
+
+        uint256 requiredAmount = quoteValue;
+        if (quoteValue > 1e10 && (quoteValue % 1e10) != 0) {
+            requiredAmount = quoteValue - (quoteValue % 1e10);
+        }
+
+        vm.assume(paidAmountWei < requiredAmount);
 
         Quotes.PegOutQuote memory quote = createAndDepositFuzzQuote(quoteValue);
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
@@ -80,16 +89,7 @@ contract BtcTransactionParsingFuzzTest is PegOutFuzzTestBase {
         // Setup bridge
         setupFuzzBridgeMock(quote);
 
-        // Calculate expected error values
-        // The contract converts satoshis to wei: paidAmount = satAmount * 10^10
-        uint64 satAmount = uint64(btcTxAmount / 1e10);
-        uint256 paidAmountWei = uint256(satAmount) * 1e10;
-
-        // requiredAmount is the quote.value (with rounding adjustments per contract logic)
-        uint256 requiredAmount = quoteValue;
-        if (quoteValue > 1e10 && (quoteValue % 1e10) != 0) {
-            requiredAmount = quoteValue - (quoteValue % 1e10);
-        }
+        // expected values follow contract's satoshi conversion/rounding rules
 
         vm.prank(pegOutLp);
         vm.expectRevert(
