@@ -114,10 +114,7 @@ contract FlyoverDiscovery is
 
     /// @inheritdoc IFlyoverDiscovery
     function approveRegistration(address providerAddress) external whenNotPaused {
-        if (msg.sender != defaultAdmin()) revert NotAuthorized(msg.sender);
-        if (_registrationStates[providerAddress] != RegistrationState.Pending) {
-            revert RegistrationNotPending(providerAddress);
-        }
+        _checkAdminPendingRegistration(providerAddress);
 
         uint256 providerId = _providerIdByAddress[providerAddress];
         PendingRegistration memory pending = _pendingRegistrations[providerAddress];
@@ -138,10 +135,8 @@ contract FlyoverDiscovery is
 
     /// @inheritdoc IFlyoverDiscovery
     function rejectRegistration(address providerAddress) external whenNotPaused {
-        if (msg.sender != defaultAdmin()) revert NotAuthorized(msg.sender);
-        if (_registrationStates[providerAddress] != RegistrationState.Pending) {
-            revert RegistrationNotPending(providerAddress);
-        }
+        _checkAdminPendingRegistration(providerAddress);
+
         uint256 providerId = _providerIdByAddress[providerAddress];
         uint256 amount = _clearPendingRegistration(providerAddress, RegistrationState.Rejected);
         emit RegistrationRejected(providerId, providerAddress, amount);
@@ -259,6 +254,13 @@ contract FlyoverDiscovery is
     function _refundCollateral(address payable providerAddress, uint256 amount) private {
         (bool success,) = providerAddress.call{value: amount}("");
         if (!success) revert Flyover.PaymentFailed(providerAddress, amount, hex"");
+    }
+
+    function _checkAdminPendingRegistration(address providerAddress) private view {
+        if (msg.sender != defaultAdmin()) revert NotAuthorized(msg.sender);
+        if (_registrationStates[providerAddress] != RegistrationState.Pending) {
+            revert RegistrationNotPending(providerAddress);
+        }
     }
 
     /// @notice Checks if a liquidity provider should be listed in the public provider list
