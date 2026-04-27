@@ -37,10 +37,12 @@ contract FlyoverDiscovery is
 
     mapping(uint => Flyover.LiquidityProvider) private _liquidityProviders;
     mapping(address => uint) private _providerIdByAddress;
-    mapping(address => PendingRegistration) private _pendingRegistrations;
-    mapping(address => IFlyoverDiscovery.RegistrationState) private _registrationStates;
     ICollateralManagement private _collateralManagement;
     uint public lastProviderId;
+
+    // v2.6.0
+    mapping(address => PendingRegistration) private _pendingRegistrations;
+    mapping(address => IFlyoverDiscovery.RegistrationState) private _registrationStates;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
