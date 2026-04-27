@@ -102,7 +102,7 @@ contract FlyoverDiscovery is
     }
 
     /// @inheritdoc IFlyoverDiscovery
-    function withdrawRegisterRequest() external whenNotPaused {
+    function withdrawRegisterRequest() external whenNotSoftPaused {
         if (_registrationStates[msg.sender] != RegistrationState.Pending) {
             revert RegistrationNotPending(msg.sender);
         }
@@ -113,7 +113,7 @@ contract FlyoverDiscovery is
     }
 
     /// @inheritdoc IFlyoverDiscovery
-    function approveRegistration(address providerAddress) external whenNotPaused {
+    function approveRegistration(address providerAddress) external whenNotSoftPaused {
         _checkAdminPendingRegistration(providerAddress);
 
         uint256 providerId = _providerIdByAddress[providerAddress];
@@ -134,7 +134,7 @@ contract FlyoverDiscovery is
     }
 
     /// @inheritdoc IFlyoverDiscovery
-    function rejectRegistration(address providerAddress) external whenNotPaused {
+    function rejectRegistration(address providerAddress) external whenNotSoftPaused {
         _checkAdminPendingRegistration(providerAddress);
 
         uint256 providerId = _providerIdByAddress[providerAddress];
