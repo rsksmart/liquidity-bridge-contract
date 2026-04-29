@@ -17,7 +17,9 @@ import {Quotes} from "./libraries/Quotes.sol";
 import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 
 /// @title PegOutContract
-/// @notice This contract is used to handle the peg out of the RSK network to the Bitcoin network
+/// @notice This contract is used to handle the peg out of the RSK network to the Bitcoin network.
+/// Users are expected to and are responsible for reviewing all fields of any quote before accepting or acting on it,
+/// as those fields represent the terms of the service agreed with the liquidity provider (LP).
 /// @author Rootstock Labs
 contract PegOutContract is
     AccessControlDefaultAdminRulesUpgradeable,
@@ -46,6 +48,9 @@ contract PegOutContract is
     uint256 constant private _QUOTE_HASH_OUTPUT = 1;
     uint256 constant private _SAT_TO_WEI_CONVERSION = 10**10;
     uint256 constant private _QUOTE_HASH_SIZE = 32;
+
+    uint256 constant private _NATIVE_PEGOUT_BLOCKS = 4000;
+    uint256 constant private _NATIVE_PEGOUT_SECONDS = 129_600; // 36 hours
 
     IBridge private _bridge;
     ICollateralManagement private _collateralManagement;
@@ -340,6 +345,10 @@ contract PegOutContract is
         if (address(this) != quote.lbcAddress) {
             revert Flyover.IncorrectContract(address(this), quote.lbcAddress);
         }
+        if (
+            quote.expireBlock > block.number + _NATIVE_PEGOUT_BLOCKS ||
+            quote.expireDate > block.timestamp + _NATIVE_PEGOUT_SECONDS
+        ) revert UnfairQuote();
     }
 
     /// @notice This function is used to check if a quote has been completed (refunded by any party)

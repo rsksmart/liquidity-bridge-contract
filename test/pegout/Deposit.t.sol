@@ -97,9 +97,9 @@ contract DepositTest is PegOutTestBase {
         // Warp time forward
         vm.warp(2000000);
 
-        // Only depositDateLimit is expired, expireDate is still valid
+        // Only depositDateLimit is expired, expireDate is still valid and within 36h limit
         quote.depositDateLimit = 1000000; // EXPIRED (< current time)
-        quote.expireDate = 3000000; // Still valid (> current time)
+        quote.expireDate = uint32(block.timestamp + 1000); // Valid, within _NATIVE_PEGOUT_SECONDS
 
         bytes memory signature = signQuote(fullLp, quote);
 
