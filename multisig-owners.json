@@ -36,5 +36,9 @@
       "0xa420af120ec6515870b65e811fa7ce147d491402",
       "0xa3fd0eedca5ba7504e19b7e0660f21d25fefe77f"
     ]
+  },
+  "hardhat": {
+    "address": "",
+    "owners": []
   }
 }

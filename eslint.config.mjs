@@ -14,8 +14,6 @@ export default [
       "artifacts/*",
       "cache/*",
       "coverage/*",
-      "broadcast/*",
-      "out/*",
     ],
   },
   pluginJs.configs.recommended,
