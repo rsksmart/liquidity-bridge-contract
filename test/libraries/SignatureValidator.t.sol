@@ -48,7 +48,7 @@ contract SignatureValidatorTest is Test {
         // Verify signature
         bool result = signatureValidator.verify(
             signer,
-            testMessageHash,
+            ethSignedMessageHash,
             signature
         );
         assertTrue(result, "Signature should be valid");
@@ -110,7 +110,7 @@ contract SignatureValidatorTest is Test {
 
         bool result = signatureValidator.verify(
             otherSigner,
-            testMessageHash,
+            ethSignedMessageHash,
             signature
         );
         assertTrue(result, "Signature should be valid for correct signer");
@@ -155,12 +155,20 @@ contract SignatureValidatorTest is Test {
         bytes memory signature2 = abi.encodePacked(r2, s2, v2);
 
         // Verify correct combinations
-        assertTrue(signatureValidator.verify(signer, hash1, signature1));
-        assertTrue(signatureValidator.verify(signer, hash2, signature2));
+        assertTrue(
+            signatureValidator.verify(signer, messageBytes1, signature1)
+        );
+        assertTrue(
+            signatureValidator.verify(signer, messageBytes2, signature2)
+        );
 
         // Verify incorrect combinations
-        assertFalse(signatureValidator.verify(signer, hash1, signature2));
-        assertFalse(signatureValidator.verify(signer, hash2, signature1));
+        assertFalse(
+            signatureValidator.verify(signer, messageBytes1, signature2)
+        );
+        assertFalse(
+            signatureValidator.verify(signer, messageBytes2, signature1)
+        );
     }
 
     // ============ Signature Length Validation Tests ============

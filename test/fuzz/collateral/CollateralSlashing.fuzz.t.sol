@@ -346,7 +346,11 @@ contract CollateralSlashingFuzzTest is CollateralFuzzTestBase {
 
         vm.prank(punisher);
         vm.expectEmit(true, true, false, true);
-        emit ICollateralManagement.RewardsWithdrawn(punisher, expectedReward);
+        emit ICollateralManagement.RewardsWithdrawn(
+            punisher,
+            punisher,
+            expectedReward
+        );
         collateralManagement.withdrawRewards();
 
         assertEq(

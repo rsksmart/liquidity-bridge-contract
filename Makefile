@@ -6,7 +6,7 @@ NETWORK ?= testnet
 FORK_BLOCK ?= latest
 VERIFY ?= false
 BROADCAST ?= true
-GAS_LIMIT ?= 10000000
+GAS_LIMIT ?= 100000000
 GAS_PRICE ?= 0
 PRIORITY_GAS_PRICE ?= 0
 
@@ -1070,6 +1070,12 @@ safe-change-owner: validate-deploy change-owner-fork
 .PHONY: docs
 docs:
 	@echo "Documentation is available in docs/FOUNDRY_MAKEFILE_GUIDE.md"
+
+# Invariant tests
+.PHONY: test-invariant
+test-invariant:
+	@echo "Running invariant tests..."
+	forge test --match-path "test/invariant/**/*.t.sol" -vv
 
 # Catch-all target for hash-quote arguments (pegin/pegout, network names, file paths)
 # This prevents make from complaining about unknown targets when using: make hash-quote pegin testnet

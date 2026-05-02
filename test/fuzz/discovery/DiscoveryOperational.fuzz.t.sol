@@ -175,7 +175,7 @@ contract DiscoveryOperationalFuzzTest is DiscoveryFuzzTestBase {
                 string(abi.encodePacked("newProvider_", i))
             );
 
-            vm.prank(provider);
+            vm.prank(provider, provider);
             discovery.register{value: MIN_COLLATERAL}(
                 string(abi.encodePacked("Provider_", i)),
                 string(abi.encodePacked("url_", i)),

@@ -1,14 +1,20 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity 0.8.25;
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import {CollateralManagementContract} from "../src/CollateralManagement.sol";
 import {FlyoverDiscovery} from "../src/FlyoverDiscovery.sol";
+import {PauseRegistry} from "../src/PauseRegistry.sol";
+import {IPauseRegistry} from "../src/interfaces/IPauseRegistry.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Flyover} from "../src/libraries/Flyover.sol";
 
 contract BenchmarkTest is Test {
+    PauseRegistry public pauseRegistryImpl;
+    ERC1967Proxy public pauseRegistryProxy;
+    IPauseRegistry public pauseRegistry;
+
     CollateralManagementContract public collateralManagementImpl;
     ERC1967Proxy public collateralManagementProxy;
     CollateralManagementContract public collateralManagement;
@@ -32,6 +38,19 @@ contract BenchmarkTest is Test {
             vm.deal(account, 100 ether);
         }
 
+        // Deploy PauseRegistry (required by CollateralManagement and FlyoverDiscovery)
+        pauseRegistryImpl = new PauseRegistry();
+        bytes memory pauseRegistryInitData = abi.encodeWithSelector(
+            PauseRegistry.initialize.selector,
+            uint48(0),
+            owner
+        );
+        pauseRegistryProxy = new ERC1967Proxy(
+            address(pauseRegistryImpl),
+            pauseRegistryInitData
+        );
+        pauseRegistry = IPauseRegistry(address(pauseRegistryProxy));
+
         // Deploy CollateralManagementContract
         collateralManagementImpl = new CollateralManagementContract();
         bytes memory collateralInitData = abi.encodeWithSelector(
@@ -40,7 +59,8 @@ contract BenchmarkTest is Test {
             5000,
             0.03 ether,
             60,
-            10
+            10,
+            pauseRegistry
         );
         collateralManagementProxy = new ERC1967Proxy(
             address(collateralManagementImpl),
@@ -56,7 +76,8 @@ contract BenchmarkTest is Test {
             FlyoverDiscovery.initialize.selector,
             owner,
             5000,
-            address(collateralManagement)
+            address(collateralManagement),
+            pauseRegistry
         );
         discoveryProxy = new ERC1967Proxy(
             address(discoveryImpl),
@@ -108,7 +129,7 @@ contract BenchmarkTest is Test {
         for (uint i = 0; i < providersData.length; i++) {
             ProviderData memory providerData = providersData[i];
 
-            vm.prank(providerData.account);
+            vm.prank(providerData.account, providerData.account);
             discovery.register{value: 0.06 ether}(
                 providerData.name,
                 providerData.apiBaseUrl,

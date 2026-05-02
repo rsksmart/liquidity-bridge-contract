@@ -3,65 +3,73 @@ pragma solidity 0.8.25;
 
 /* solhint-disable comprehensive-interface */
 
-import {
-    AccessControlDefaultAdminRulesUpgradeable
-} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
-import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IPausable} from "../interfaces/IPausable.sol";
+import {IPauseRegistry} from "../interfaces/IPauseRegistry.sol";
+import {Flyover} from "../libraries/Flyover.sol";
 
-abstract contract EmergencyPause is AccessControlDefaultAdminRulesUpgradeable, PausableUpgradeable, IPausable {
+/// @notice Base contract for Flyover contracts that delegate pause state to a central PauseRegistry.
+/// pauseStatus() and whenNotPaused read from the registry. Pause/unpause are done only on the registry.
+/// Uses namespaced storage; no AccessControl (children that need roles inherit it separately).
+abstract contract EmergencyPause is Initializable, IPausable {
 
-    bytes32 internal constant _PAUSER_ROLE = keccak256("PAUSER_ROLE");
+    /// @custom:storage-location erc7201:rsk.flyover.EmergencyPause
+    struct EmergencyPauseStorage {
+        IPauseRegistry pauseRegistry;
+    }
 
-    string private _pauseReason;
-    uint64 private _pauseTimestamp;
+    // ERC-7201: keccak256(abi.encode(uint256(keccak256("rsk.flyover.EmergencyPause")) - 1)) &
+    // ~bytes32(uint256(0xff))
+    bytes32 private constant _EMERGENCY_PAUSE_STORAGE =
+        0x9231f352ae2e78fc5cd04a185b8fc917dd5cf9947923b7000e25955769a61f00;
 
-    event EmergencyPaused(address indexed by, string reason);
-    event EmergencyUnpaused(address indexed by);
+    /// @notice Modifier that reverts if the system is paused (reads from PauseRegistry)
+    modifier whenNotPaused() {
+        if (_getEmergencyPauseStorage().pauseRegistry.paused()) {
+            revert Flyover.EnforcedPause();
+        }
+        _;
+    }
 
     /// @inheritdoc IPausable
-    function pause(string calldata reason) public virtual override(IPausable) onlyRole(_PAUSER_ROLE) {
-        _emergencyPause(reason);
-    }
-
-    //// @inheritdoc IPausable
-    function unpause() public virtual override(IPausable) onlyRole(_PAUSER_ROLE) {
-        _emergencyUnpause();
-    }
-
     function pauseStatus()
-        public virtual
-        override(IPausable)
+        public
         view
+        virtual
+        override(IPausable)
         returns (bool isPaused, string memory reason, uint64 since)
     {
-        return (paused(), _pauseReason, _pauseTimestamp);
+        return _getEmergencyPauseStorage().pauseRegistry.pauseStatus();
     }
 
-    /// @notice Initialize EmergencyPause with AccessControl and Pausable
-    /// @param initialDelay The initial delay for admin role changes (use 0 for immediate access)
-    /// @param defaultAdmin The default admin address
+    /// @notice Returns the PauseRegistry used for pause state
+    function pauseRegistry() public view returns (IPauseRegistry) {
+        return _getEmergencyPauseStorage().pauseRegistry;
+    }
+
+    /// @notice Initialize EmergencyPause with reference to PauseRegistry
+    /// @param pauseRegistry_ The central PauseRegistry
     // solhint-disable-next-line func-name-mixedcase
-    function __EmergencyPause_init(
-        uint48 initialDelay,
-        address defaultAdmin
-    ) internal onlyInitializing {
-        __AccessControlDefaultAdminRules_init(initialDelay, defaultAdmin);
-        __Pausable_init();
-        _grantRole(_PAUSER_ROLE, defaultAdmin);
+    function __EmergencyPause_init(IPauseRegistry pauseRegistry_)
+        internal
+        onlyInitializing
+    {
+        _getEmergencyPauseStorage().pauseRegistry = pauseRegistry_;
     }
 
-    function _emergencyPause(string calldata reason) internal {
-        _pause();
-        _pauseReason = reason; // storage string or reason hash/URI
-        _pauseTimestamp = uint64(block.timestamp);
-        emit EmergencyPaused(msg.sender, reason);
+    /// @notice Allows child contracts to update the pause registry (e.g. after upgrade or config change)
+    /// @param pauseRegistry_ The new PauseRegistry
+    function _setPauseRegistry(IPauseRegistry pauseRegistry_) internal {
+        _getEmergencyPauseStorage().pauseRegistry = pauseRegistry_;
     }
 
-    function _emergencyUnpause() internal {
-        _pauseReason = "";
-        _pauseTimestamp = 0;
-        _unpause();
-        emit EmergencyUnpaused(msg.sender);
+    function _getEmergencyPauseStorage()
+        private
+        pure
+        returns (EmergencyPauseStorage storage $)
+    {
+        assembly {
+            $.slot := _EMERGENCY_PAUSE_STORAGE
+        }
     }
 }
