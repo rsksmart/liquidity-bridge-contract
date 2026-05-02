@@ -4,11 +4,13 @@ pragma solidity 0.8.25;
 import {Script, console} from "lib/forge-std/src/Script.sol";
 import {HelperConfig} from "../HelperConfig.s.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
+import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
 /// @title DeployCollateralManagement
 /// @notice Deploys the CollateralManagement contract with proxy pattern
+/// @dev Requires PAUSE_REGISTRY_PROXY env var
 contract DeployCollateralManagement is Script {
     struct DeploymentResult {
         address implementation;
@@ -22,8 +24,14 @@ contract DeployCollateralManagement is Script {
         uint256 deployerKey = helper.getDeployerPrivateKey();
         address deployer = vm.rememberKey(deployerKey);
 
+        address pauseRegistryProxy = vm.envAddress("PAUSE_REGISTRY_PROXY");
+        require(
+            pauseRegistryProxy != address(0),
+            "PAUSE_REGISTRY_PROXY required"
+        );
+
         vm.startBroadcast(deployerKey);
-        result = _deploy(deployer, cfg);
+        result = _deploy(deployer, cfg, pauseRegistryProxy);
         vm.stopBroadcast();
 
         _log(result);
@@ -31,7 +39,8 @@ contract DeployCollateralManagement is Script {
 
     function _deploy(
         address defaultAdmin,
-        HelperConfig.FlyoverConfig memory cfg
+        HelperConfig.FlyoverConfig memory cfg,
+        address pauseRegistryProxy
     ) private returns (DeploymentResult memory result) {
         result.implementation = address(new CollateralManagementContract());
         result.admin = address(new ProxyAdmin(defaultAdmin));
@@ -46,7 +55,8 @@ contract DeployCollateralManagement is Script {
                         cfg.adminDelay,
                         cfg.minimumCollateral,
                         cfg.resignDelayBlocks,
-                        cfg.rewardPercentage
+                        cfg.rewardPercentage,
+                        PauseRegistry(pauseRegistryProxy)
                     )
                 )
             )

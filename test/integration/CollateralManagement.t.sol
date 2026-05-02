@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import "forge-std/Test.sol";
 import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
+import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
@@ -11,6 +12,7 @@ import {Quotes} from "../../src/libraries/Quotes.sol";
 /// @title CollateralManagement Integration Tests
 /// @notice Tests cross-contract interactions between CollateralManagement and Discovery
 contract CollateralManagementIntegrationTest is Test {
+    PauseRegistry public pauseRegistry;
     FlyoverDiscovery public discovery;
     CollateralManagementContract public collateralManagement;
 
@@ -36,11 +38,26 @@ contract CollateralManagementIntegrationTest is Test {
             signers.push(signer);
         }
 
+        // Deploy PauseRegistry
+        PauseRegistry prImpl = new PauseRegistry();
+        ERC1967Proxy prProxy = new ERC1967Proxy(
+            address(prImpl),
+            abi.encodeCall(prImpl.initialize, (0, owner))
+        );
+        pauseRegistry = PauseRegistry(payable(address(prProxy)));
+
         // Deploy CollateralManagement
         CollateralManagementContract cmImpl = new CollateralManagementContract();
         bytes memory cmInitData = abi.encodeCall(
             CollateralManagementContract.initialize,
-            (owner, 30, MIN_COLLATERAL, RESIGN_DELAY_BLOCKS, 1000)
+            (
+                owner,
+                30,
+                MIN_COLLATERAL,
+                RESIGN_DELAY_BLOCKS,
+                1000,
+                pauseRegistry
+            )
         );
         ERC1967Proxy cmProxy = new ERC1967Proxy(address(cmImpl), cmInitData);
         collateralManagement = CollateralManagementContract(
@@ -51,7 +68,7 @@ contract CollateralManagementIntegrationTest is Test {
         FlyoverDiscovery discoveryImpl = new FlyoverDiscovery();
         bytes memory discoveryInitData = abi.encodeCall(
             FlyoverDiscovery.initialize,
-            (owner, 5000, address(collateralManagement))
+            (owner, 5000, address(collateralManagement), pauseRegistry)
         );
         ERC1967Proxy discoveryProxy = new ERC1967Proxy(
             address(discoveryImpl),
@@ -73,14 +90,14 @@ contract CollateralManagementIntegrationTest is Test {
 
     function getEmptyPegInQuote()
         internal
-        pure
+        view
         returns (Quotes.PegInQuote memory)
     {
         return
             Quotes.PegInQuote({
+                chainId: block.chainid,
                 callFee: 0,
                 value: 0,
-                productFeeAmount: 0,
                 gasFee: 0,
                 agreementTimestamp: 0,
                 timeForDeposit: 0,
@@ -109,7 +126,7 @@ contract CollateralManagementIntegrationTest is Test {
         address lp = signers[signers.length - 1];
 
         // Register with extra collateral
-        vm.prank(lp);
+        vm.prank(lp, lp);
         discovery.register{value: MIN_COLLATERAL * 2}(
             "LP",
             "url",
@@ -160,7 +177,7 @@ contract CollateralManagementIntegrationTest is Test {
         address lp = signers[signers.length - 1];
 
         // Register with 2x minimum collateral
-        vm.prank(lp);
+        vm.prank(lp, lp);
         discovery.register{value: MIN_COLLATERAL * 2}(
             "LP",
             "url",
@@ -196,7 +213,7 @@ contract CollateralManagementIntegrationTest is Test {
         address lp = signers[signers.length - 1];
 
         // Register with 3x minimum collateral
-        vm.prank(lp);
+        vm.prank(lp, lp);
         discovery.register{value: MIN_COLLATERAL * 3}(
             "LP",
             "url",
@@ -233,7 +250,7 @@ contract CollateralManagementIntegrationTest is Test {
         address lp2 = signers[signers.length - 1];
 
         // Register two providers
-        vm.prank(lp1);
+        vm.prank(lp1, lp1);
         discovery.register{value: MIN_COLLATERAL}(
             "LP1",
             "url1",
@@ -241,7 +258,7 @@ contract CollateralManagementIntegrationTest is Test {
             Flyover.ProviderType.PegIn
         );
 
-        vm.prank(lp2);
+        vm.prank(lp2, lp2);
         discovery.register{value: MIN_COLLATERAL}(
             "LP2",
             "url2",
@@ -278,7 +295,7 @@ contract CollateralManagementIntegrationTest is Test {
         address lp = signers[signers.length - 1];
 
         // Register provider
-        vm.prank(lp);
+        vm.prank(lp, lp);
         discovery.register{value: MIN_COLLATERAL}(
             "LP",
             "url",
@@ -321,7 +338,7 @@ contract CollateralManagementIntegrationTest is Test {
         address lp = signers[signers.length - 1];
 
         // Initial registration
-        vm.prank(lp);
+        vm.prank(lp, lp);
         discovery.register{value: MIN_COLLATERAL}(
             "LP First",
             "url1",
@@ -347,7 +364,7 @@ contract CollateralManagementIntegrationTest is Test {
         assertEq(providers.length, 0);
 
         // Re-register
-        vm.prank(lp);
+        vm.prank(lp, lp);
         discovery.register{value: MIN_COLLATERAL}(
             "LP Second",
             "url2",
@@ -355,11 +372,14 @@ contract CollateralManagementIntegrationTest is Test {
             Flyover.ProviderType.PegOut
         );
 
-        // Appears in listing again with new ID
+        // Appears in listing again reusing the same provider ID
         providers = discovery.getProviders();
         assertEq(providers.length, 1);
-        assertEq(providers[0].id, 2);
-        assertEq(providers[0].name, "LP Second");
+        assertEq(providers[0].id, 1);
+        assertEq(
+            keccak256(bytes(providers[0].name)),
+            keccak256(bytes("LP Second"))
+        );
         assertEq(
             uint8(providers[0].providerType),
             uint8(Flyover.ProviderType.PegOut)
@@ -381,7 +401,7 @@ contract CollateralManagementIntegrationTest is Test {
         address lp4 = signers[signers.length - 1];
 
         // Register 4 providers with different collateral amounts
-        vm.prank(lp1);
+        vm.prank(lp1, lp1);
         discovery.register{value: MIN_COLLATERAL}(
             "LP1",
             "url1",
@@ -389,7 +409,7 @@ contract CollateralManagementIntegrationTest is Test {
             Flyover.ProviderType.PegIn
         );
 
-        vm.prank(lp2);
+        vm.prank(lp2, lp2);
         discovery.register{value: MIN_COLLATERAL * 2}(
             "LP2",
             "url2",
@@ -397,7 +417,7 @@ contract CollateralManagementIntegrationTest is Test {
             Flyover.ProviderType.PegIn
         );
 
-        vm.prank(lp3);
+        vm.prank(lp3, lp3);
         discovery.register{value: MIN_COLLATERAL * 5}(
             "LP3",
             "url3",
@@ -405,7 +425,7 @@ contract CollateralManagementIntegrationTest is Test {
             Flyover.ProviderType.PegIn
         );
 
-        vm.prank(lp4);
+        vm.prank(lp4, lp4);
         discovery.register{value: MIN_COLLATERAL * 10}(
             "LP4",
             "url4",

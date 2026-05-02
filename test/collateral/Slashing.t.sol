@@ -296,7 +296,11 @@ contract SlashingTest is CollateralTestBase {
 
         vm.prank(punisher);
         vm.expectEmit(true, true, false, true);
-        emit ICollateralManagement.RewardsWithdrawn(punisher, totalReward);
+        emit ICollateralManagement.RewardsWithdrawn(
+            punisher,
+            punisher,
+            totalReward
+        );
         collateralManagement.withdrawRewards();
 
         // Verify balance increased
@@ -319,6 +323,64 @@ contract SlashingTest is CollateralTestBase {
             pegInPenalty + pegOutPenalty - totalReward,
             "Penalties should remain the same"
         );
+    }
+
+    function test_WithdrawRewards_AllowsWithdrawToDifferentRecipient() public {
+        Quotes.PegInQuote memory pegInQuote = createPegInQuote();
+        Quotes.PegOutQuote memory pegOutQuote = createPegOutQuote();
+        uint256 totalReward = getRewardForQuote(
+            pegInQuote.penaltyFee,
+            TEST_REWARD_PERCENTAGE
+        ) + getRewardForQuote(pegOutQuote.penaltyFee, TEST_REWARD_PERCENTAGE);
+
+        vm.startPrank(slasher);
+        collateralManagement.slashPegInCollateral(
+            punisher,
+            pegInQuote,
+            quoteHash
+        );
+        collateralManagement.slashPegOutCollateral(
+            punisher,
+            pegOutQuote,
+            quoteHash
+        );
+        vm.stopPrank();
+
+        address recipient = makeAddr("rewardsRecipient");
+        vm.deal(recipient, 0);
+        uint256 recipientBalanceBefore = recipient.balance;
+        uint256 punisherBalanceBefore = punisher.balance;
+
+        vm.prank(punisher);
+        vm.expectEmit(true, true, false, true);
+        emit ICollateralManagement.RewardsWithdrawn(
+            punisher,
+            recipient,
+            totalReward
+        );
+        collateralManagement.withdrawRewards(payable(recipient));
+
+        // (1) Funds arrive at to
+        assertEq(
+            recipient.balance,
+            recipientBalanceBefore + totalReward,
+            "Recipient should receive the withdrawn rewards"
+        );
+        assertEq(
+            punisher.balance,
+            punisherBalanceBefore,
+            "Caller (punisher) should not receive the funds; they went to recipient"
+        );
+
+        // (2) Caller's state is cleared
+        assertEq(
+            collateralManagement.getRewards(punisher),
+            0,
+            "Punisher rewards should be reset to 0"
+        );
+
+        // (3) Event semantics: RewardsWithdrawn(caller, recipient, amount) documents who withdrew (caller), where the funds were sent (recipient), and how much
+        // (already asserted via vm.expectEmit above)
     }
 
     function test_WithdrawRewards_RevertsIfNoRewardToWithdraw() public {
@@ -350,6 +412,41 @@ contract SlashingTest is CollateralTestBase {
         collateralManagement.withdrawRewards();
     }
 
+    function test_WithdrawRewards_RevertsWithInvalidAddressWhenRecipientIsZeroAddress()
+        public
+    {
+        Quotes.PegInQuote memory pegInQuote = createPegInQuote();
+        Quotes.PegOutQuote memory pegOutQuote = createPegOutQuote();
+
+        vm.startPrank(slasher);
+        collateralManagement.slashPegInCollateral(
+            punisher,
+            pegInQuote,
+            quoteHash
+        );
+        collateralManagement.slashPegOutCollateral(
+            punisher,
+            pegOutQuote,
+            quoteHash
+        );
+        vm.stopPrank();
+
+        uint256 rewardsBefore = collateralManagement.getRewards(punisher);
+
+        vm.prank(punisher);
+        vm.expectRevert(
+            abi.encodeWithSelector(Flyover.InvalidAddress.selector, address(0))
+        );
+        collateralManagement.withdrawRewards(payable(address(0)));
+
+        // Rewards should be unchanged
+        assertEq(
+            collateralManagement.getRewards(punisher),
+            rewardsBefore,
+            "Rewards should be unchanged"
+        );
+    }
+
     function test_WithdrawRewards_RevertsIfWithdrawExternalCallFails() public {
         Quotes.PegInQuote memory pegInQuote = createPegInQuote();
         Quotes.PegOutQuote memory pegOutQuote = createPegOutQuote();
@@ -377,7 +474,7 @@ contract SlashingTest is CollateralTestBase {
 
         // Try to withdraw via wallet mock - should emit TransactionRejected
         bytes memory withdrawData = abi.encodeWithSelector(
-            collateralManagement.withdrawRewards.selector
+            bytes4(keccak256("withdrawRewards()"))
         );
 
         vm.expectEmit(true, true, false, false);

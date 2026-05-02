@@ -3,15 +3,20 @@ pragma solidity 0.8.25;
 
 /* solhint-disable comprehensive-interface */
 
+import {
+    AccessControlDefaultAdminRulesUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
 import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {ICollateralManagement} from "./interfaces/ICollateralManagement.sol";
 import {IFlyoverDiscovery} from "./interfaces/IFlyoverDiscovery.sol";
+import {IPauseRegistry} from "./interfaces/IPauseRegistry.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 
 /// @title FlyoverDiscovery
 /// @notice Registry and discovery of Liquidity Providers (LPs) for Flyover
 /// @dev Keeps LP metadata and consults `ICollateralManagement` to decide listing and operational status
 contract FlyoverDiscovery is
+    AccessControlDefaultAdminRulesUpgradeable,
     EmergencyPause,
     IFlyoverDiscovery
 {
@@ -23,8 +28,14 @@ contract FlyoverDiscovery is
     // ------------------------------------------------------------
 
     mapping(uint => Flyover.LiquidityProvider) private _liquidityProviders;
+    mapping(address => uint) private _providerIdByAddress;
     ICollateralManagement private _collateralManagement;
     uint public lastProviderId;
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
 
     // ------------------------------------------------------------
     // FlyoverDiscovery Public Functions and Modifiers
@@ -35,14 +46,17 @@ contract FlyoverDiscovery is
     /// @param defaultAdmin The Default Admin and initial owner address
     /// @param initialDelay The initial admin delay for `EmergencyPause`
     /// @param collateralManagement The address of the `ICollateralManagement` contract
+    /// @param pauseRegistry The central PauseRegistry for pause state
     function initialize(
         address defaultAdmin,
         uint48 initialDelay,
-        address collateralManagement
+        address collateralManagement,
+        IPauseRegistry pauseRegistry
     ) external initializer {
         if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
-        // Initialize EmergencyPause (includes AccessControl, Pausable, and grants PAUSER_ROLE)
-        __EmergencyPause_init(initialDelay, defaultAdmin);
+        if (address(pauseRegistry).code.length == 0) revert Flyover.NoContract(address(pauseRegistry));
+        __AccessControlDefaultAdminRules_init(initialDelay, defaultAdmin);
+        __EmergencyPause_init(pauseRegistry);
         _collateralManagement = ICollateralManagement(collateralManagement);
     }
 
@@ -56,18 +70,24 @@ contract FlyoverDiscovery is
 
        _validateRegistration(name, apiBaseUrl, providerType, msg.sender, msg.value);
 
-        ++lastProviderId;
-        _liquidityProviders[lastProviderId] = Flyover.LiquidityProvider({
-            id: lastProviderId,
+        uint providerId = _providerIdByAddress[msg.sender];
+        if (providerId == 0) {
+            ++lastProviderId;
+            providerId = lastProviderId;
+            _providerIdByAddress[msg.sender] = providerId;
+        }
+
+        _liquidityProviders[providerId] = Flyover.LiquidityProvider({
+            id: providerId,
             providerAddress: msg.sender,
             name: name,
             apiBaseUrl: apiBaseUrl,
             status: status,
             providerType: providerType
         });
-        emit Register(lastProviderId, msg.sender, msg.value);
+        emit Register(providerId, msg.sender, msg.value);
         _addCollateral(providerType, msg.sender, msg.value);
-        return (lastProviderId);
+        return providerId;
     }
 
     /// @inheritdoc IFlyoverDiscovery
@@ -85,18 +105,14 @@ contract FlyoverDiscovery is
     /// @inheritdoc IFlyoverDiscovery
     function updateProvider(string calldata name, string calldata apiBaseUrl) external whenNotPaused {
         if (bytes(name).length < 1 || bytes(apiBaseUrl).length < 1) revert InvalidProviderData(name, apiBaseUrl);
-        Flyover.LiquidityProvider storage lp;
         address providerAddress = msg.sender;
-        for (uint i = 1; i < lastProviderId + 1; ++i) {
-            lp = _liquidityProviders[i];
-            if (providerAddress == lp.providerAddress) {
-                lp.name = name;
-                lp.apiBaseUrl = apiBaseUrl;
-                emit IFlyoverDiscovery.ProviderUpdate(providerAddress, lp.name, lp.apiBaseUrl);
-                return;
-            }
-        }
-        revert Flyover.ProviderNotRegistered(providerAddress);
+        uint providerId = _providerIdByAddress[providerAddress];
+        if (providerId == 0) revert Flyover.ProviderNotRegistered(providerAddress);
+
+        Flyover.LiquidityProvider storage lp = _liquidityProviders[providerId];
+        lp.name = name;
+        lp.apiBaseUrl = apiBaseUrl;
+        emit IFlyoverDiscovery.ProviderUpdate(providerAddress, lp.name, lp.apiBaseUrl);
     }
 
     /// @inheritdoc IFlyoverDiscovery
@@ -188,7 +204,10 @@ contract FlyoverDiscovery is
         address providerAddress,
         uint256 collateralAmount
     ) private view {
-        if (providerAddress != msg.sender || providerAddress.code.length != 0) revert NotEOA(providerAddress);
+        if (
+            providerAddress != msg.sender ||
+            msg.sender != tx.origin // solhint-disable-line avoid-tx-origin
+        ) revert NotEOA(providerAddress);
 
         if (
             bytes(name).length < 1 ||
@@ -221,15 +240,12 @@ contract FlyoverDiscovery is
     }
 
     /// @notice Retrieves a liquidity provider by address
-    /// @dev Searches through all registered providers to find a match
+    /// @dev Uses providerAddress-to-id mapping for O(1) lookup
     /// @param providerAddress The address of the provider to find
     /// @return The liquidity provider record, reverts if not found
     function _getProvider(address providerAddress) private view returns (Flyover.LiquidityProvider memory) {
-        for (uint i = 1; i < lastProviderId + 1; ++i) {
-            if (_liquidityProviders[i].providerAddress == providerAddress) {
-                return _liquidityProviders[i];
-            }
-        }
-        revert Flyover.ProviderNotRegistered(providerAddress);
+        uint providerId = _providerIdByAddress[providerAddress];
+        if (providerId == 0) revert Flyover.ProviderNotRegistered(providerAddress);
+        return _liquidityProviders[providerId];
     }
 }

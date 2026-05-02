@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
+import {IERC5267} from "@openzeppelin/contracts/interfaces/IERC5267.sol";
 import {Quotes} from "../libraries/Quotes.sol";
-import {IDaoContributor} from "./IDaoContributor.sol";
 import {IPausable} from "./IPausable.sol";
 
 /// @title PegOut interface
-/// @notice This interface is used to expose the required functions to provide the Flyover peg out service
-interface IPegOut is IPausable, IDaoContributor {
+/// @notice This interface is used to expose the required functions to provide the Flyover peg out service.
+/// Users are expected to and are responsible for reviewing all fields of any quote before accepting or acting on it,
+/// as those fields represent the terms of the service agreed with the liquidity provider (LP).
+interface IPegOut is IPausable, IERC5267 {
 
     /// @notice Emitted when a peg out is refunded to the liquidity
     /// provider after successfully providing the service
@@ -47,6 +49,22 @@ interface IPegOut is IPausable, IDaoContributor {
         uint256 indexed timestamp,
         uint256 amount
     );
+
+    /// @notice Emitted when the balance of a liquidity provider increases
+    /// @param dest The address of the liquidity provider
+    /// @param amount The amount of the increase
+    event BalanceIncrease(address indexed dest, uint256 indexed amount);
+
+    /// @notice Emitted when the balance of a liquidity provider decreases
+    /// @param dest The address of the liquidity provider
+    /// @param amount The amount of the decrease
+    event BalanceDecrease(address indexed dest, uint256 indexed amount);
+
+    /// @notice Emitted when an account withdraws funds from the contract
+    /// @param from The address making the withdrawal
+    /// @param to The address receiving the withdrawal
+    /// @param amount The amount of the withdrawal
+    event Withdrawal(address indexed from, address indexed to, uint256 indexed amount);
 
     /// @notice This error is emitted when the quote has expired by the number of blocks
     /// @param expireBlock the number of blocks the quote has expired
@@ -93,16 +111,37 @@ interface IPegOut is IPausable, IDaoContributor {
     /// @param quoteHash the hash of the quote that is not expired
     error QuoteNotExpired(bytes32 quoteHash);
 
+    /// @notice This error is emitted when the terms of the quote are not fair for the contract. This includes:
+    /// - The expiration blocks of the quote is more than the native peg out blocks
+    /// - The expiration date of the quote is more than the native peg out seconds
+    error UnfairQuote();
+
+
+    /// @notice This function is used to withdraw funds from the contract
+    /// @dev This is usually used if some payment failed and the funds need to be returned to a different address.
+    /// The amount will be subtracted from the sender's balance.
+    /// @param addr The address that will receive the withdrawn funds
+    /// @param amount The amount of the withdrawal
+    function withdraw(address payable addr, uint256 amount) external;
+
     /// @notice This is the function used to pay for a peg out quote. This is the only correct function to execute
-    /// such payment, sending money directly to the contract does not work
+    /// such payment, sending money directly to the contract does not work.
+    /// The user is expected to and is responsible for reviewing all fields of the quote, as they comprehend the terms
+    /// of the service agreed with the LP before paying.
     /// @param quote The quote that is being paid
     /// @param signature The signature of the quote hash provided by the liquidity provider after the quote acceptance
     function depositPegOut(Quotes.PegOutQuote calldata quote, bytes calldata signature) external payable;
 
     /// @notice This function is used by the liquidity provider to recover the funds spent on the peg out service plus
-    /// their fee for the service. It proves the inclusion of the transaction paying to the user in the Bitcoin network
+    /// their fee for the service. It proves the inclusion of the transaction paying to the user in the Bitcoin network.
+    /// The LP is expected to have reviewed all quote fields when issuing the quote, as they represent the agreed terms.
     /// @param quoteHash hash of the quote being refunded
-    /// @param btcTx the bitcoin raw transaction without the witness
+    /// @param btcTx the Bitcoin raw transaction without witness data. It must include
+    /// the required outputs in this EXACT order
+    /// (otherwise the LP risks losing its funds and getting its collateral slashed):
+    /// - output 0: payment to quote.depositAddress
+    /// - output 1: OP_RETURN storing the quoteHash
+    /// The contract validates these outputs by fixed indices during peg-out refunds.
     /// @param btcBlockHeaderHash header hash of the block where the transaction was included
     /// @param merkleBranchPath index of the leaf that is being proved to be included in the merkle tree
     /// @param merkleBranchHashes hashes of the merkle branch to get to the merkle root using the leaf being proved
@@ -116,14 +155,24 @@ interface IPegOut is IPausable, IDaoContributor {
 
     /// @notice This function must be used by the user to recover the funds if the liquidity provider
     /// fails to provide the service. The user needs to wait for the quote to expire before calling
-    /// this function
+    /// this function. The user is responsible for having reviewed all quote fields when accepting the quote,
+    /// as they represent the terms agreed with the LP (including refund address and expiration).
     /// @param quoteHash the hash of the quote being refunded
     function refundUserPegOut(bytes32 quoteHash) external;
 
     /// @notice This view is used to get the hash of a quote, this should be used as the single source of truth so
-    /// all the involved parties can compute the quote hash in the same way
+    /// all the involved parties can compute the quote hash in the same way.
+    /// Users should review all fields of the quote before relying on its hash, as those fields are the terms agreed
+    /// with the LP.
     /// @param quote the quote to hash
     function hashPegOutQuote(Quotes.PegOutQuote calldata quote) external view returns (bytes32);
+
+    /// @notice This view is used to get the hash of a peg out quote using EIP712 specification.
+    /// The user is expected to review all quote fields before signing or accepting, as they
+    /// represent the terms agreed with the LP.
+    /// @param quote The quote of the peg out
+    /// @return hashStruct The hash struct to be combined with the domain separator
+    function hashPegOutQuoteEIP712(Quotes.PegOutQuote calldata quote) external view returns (bytes32);
 
     /// @notice This view is used to check if a quote has been completed. Completed means it was paid and refunded
     /// doesn't matter if the refund was to the liquidity provider (success) or to the user (failure)
@@ -133,6 +182,8 @@ interface IPegOut is IPausable, IDaoContributor {
     /// @notice This function validates a Bitcoin transaction for a peg out refund without confirmations.
     /// It allows liquidity providers to verify a transaction will be accepted before broadcasting to Bitcoin.
     /// This performs the same validations as refundPegOut except for confirmations.
+    /// The LP is responsible for having reviewed all quote fields when issuing the quote, as they represent
+    /// the agreed terms.
     /// @param quoteHash hash of the quote being validated
     /// @param btcTx the bitcoin raw transaction without the witness (does not need to be broadcasted yet)
     /// @return quote the PegOutQuote associated with the validated transaction
@@ -140,4 +191,9 @@ interface IPegOut is IPausable, IDaoContributor {
         external
         view
         returns (Quotes.PegOutQuote memory quote);
+
+    /// @notice This function is used to get the balance of an address
+    /// @param addr The address to get the balance of
+    /// @return balance The balance of the address
+    function getBalance(address addr) external view returns (uint256);
 }

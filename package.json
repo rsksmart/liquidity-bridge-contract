@@ -6,6 +6,8 @@
   "scripts": {
     "compile": "npm run lint:sol && forge build",
     "test": "npm run compile && make test-unit",
+    "test:fuzz": "npm run compile && make test-fuzz",
+    "test:invariant": "npm run compile && make test-invariant",
     "coverage": "forge coverage",
     "lint:ts": "npx prettier --check . && npx eslint .",
     "lint:sol": "solhint 'src/**/*.sol'",
@@ -48,6 +50,6 @@
   "dependencies": {
     "@openzeppelin/contracts": "^5.3.0",
     "@openzeppelin/contracts-upgradeable": "^5.3.0",
-    "@rsksmart/btc-transaction-solidity-helper": "^0.2.1"
+    "@rsksmart/btc-transaction-solidity-helper": "^0.3.0"
   }
 }

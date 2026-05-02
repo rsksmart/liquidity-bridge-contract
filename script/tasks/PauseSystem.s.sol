@@ -7,12 +7,15 @@ import {AddressResolver} from "../helpers/AddressResolver.sol";
 
 /**
  * @title PauseSystem
- * @notice Foundry script to pause/unpause all Flyover system contracts simultaneously
- * @dev This script handles FlyoverDiscovery, PegInContract, PegOutContract, and CollateralManagementContract
+ * @notice Foundry script to pause/unpause the Flyover system via the central PauseRegistry
+ * @dev All Flyover contracts (Discovery, PegIn, PegOut, Collateral) read pause state from PauseRegistry.
+ *      Signer must have PAUSER_ROLE on the PauseRegistry.
+ *      Before running, verifies that PegIn, PegOut, CollateralManagement and FlyoverDiscovery
+ *      all use the same PauseRegistry; otherwise the task fails.
  *
  * ## Prerequisites
- * - Contract addresses must be provided via environment variables or addresses.json
- * - Signer must have PAUSER_ROLE on all contracts
+ * - PAUSE_REGISTRY_ADDRESS must be set (or PauseRegistry in addresses.json)
+ * - Signer must have PAUSER_ROLE on the PauseRegistry
  *
  * ## Usage
  *
@@ -36,111 +39,94 @@ import {AddressResolver} from "../helpers/AddressResolver.sol";
  *     --private-key <private-key>
  *
  * ## Environment Variables
- * - FLYOVER_DISCOVERY_ADDRESS: Address of FlyoverDiscovery contract
- * - PEGIN_CONTRACT_ADDRESS: Address of PegInContract
- * - PEGOUT_CONTRACT_ADDRESS: Address of PegOutContract
- * - COLLATERAL_MANAGEMENT_ADDRESS: Address of CollateralManagementContract
- * - NETWORK: Network name to use when reading from addresses.json (default: rskRegtest)
+ * - PAUSE_REGISTRY_ADDRESS: Address of PauseRegistry (required; or set in addresses.json)
+ * - PEGIN_CONTRACT_ADDRESS, PEGOUT_CONTRACT_ADDRESS, COLLATERAL_MANAGEMENT_ADDRESS, FLYOVER_DISCOVERY_ADDRESS:
+ *   Used to verify all contracts point to the same registry (or from addresses.json)
+ * - NETWORK: Network name for addresses.json (default: rskRegtest)
  */
 
-interface IPausable {
-    function pause(string calldata reason) external;
+import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
 
-    function unpause() external;
-
-    function pauseStatus()
-        external
-        view
-        returns (bool isPaused, string memory reason, uint64 since);
+/// @dev Minimal interface to read pauseRegistry() from contracts that inherit EmergencyPause
+interface IPauseRegistryGetter {
+    function pauseRegistry() external view returns (IPauseRegistry);
 }
 
 contract PauseSystem is Script, AddressResolver {
-    struct ContractInfo {
-        string name;
-        address addr;
-        bool isPaused;
-        string reason;
-        uint64 since;
-    }
-
-    error PartialPauseFailure(
-        uint256 succeeded,
-        uint256 total,
-        string[] failedContracts
-    );
-    error PartialUnpauseFailure(
-        uint256 succeeded,
-        uint256 total,
-        string[] failedContracts
-    );
-
     /**
-     * @notice Load all contract addresses
+     * @notice Resolve PauseRegistry from env / addresses.json
      */
-    function loadContracts() internal view returns (ContractInfo[] memory) {
-        ContractInfo[] memory contracts = new ContractInfo[](4);
-
-        contracts[0].name = "FlyoverDiscovery";
-        contracts[0].addr = getFlyoverDiscoveryAddress();
-
-        contracts[1].name = "PegInContract";
-        contracts[1].addr = getPegInAddress();
-
-        contracts[2].name = "PegOutContract";
-        contracts[2].addr = getPegOutAddress();
-
-        contracts[3].name = "CollateralManagement";
-        contracts[3].addr = getCollateralManagementAddress();
-
-        return contracts;
+    function getPauseRegistry() internal view returns (IPauseRegistry) {
+        return IPauseRegistry(getPauseRegistryAddress());
     }
 
     /**
-     * @notice Check and display pause status of all contracts
+     * @notice Verify PegIn, PegOut, CollateralManagement and FlyoverDiscovery all use the same registry
+     * @param registry The expected PauseRegistry address
+     * @dev Reverts if any contract has a different registry
+     */
+    function _verifyAllContractsUseRegistry(
+        IPauseRegistry registry
+    ) internal view {
+        address expected = address(registry);
+
+        address pegInAddr = getPegInAddress();
+        require(
+            address(IPauseRegistryGetter(pegInAddr).pauseRegistry()) ==
+                expected,
+            "PauseSystem: PegInContract has different PauseRegistry"
+        );
+
+        address pegOutAddr = getPegOutAddress();
+        require(
+            address(IPauseRegistryGetter(pegOutAddr).pauseRegistry()) ==
+                expected,
+            "PauseSystem: PegOutContract has different PauseRegistry"
+        );
+
+        address collateralAddr = getCollateralManagementAddress();
+        require(
+            address(IPauseRegistryGetter(collateralAddr).pauseRegistry()) ==
+                expected,
+            "PauseSystem: CollateralManagement has different PauseRegistry"
+        );
+
+        address discoveryAddr = getFlyoverDiscoveryAddress();
+        require(
+            address(IPauseRegistryGetter(discoveryAddr).pauseRegistry()) ==
+                expected,
+            "PauseSystem: FlyoverDiscovery has different PauseRegistry"
+        );
+    }
+
+    /**
+     * @notice Check and display pause status (from central registry)
      */
     function checkStatus() public view {
         console.log("\n=== FLYOVER PAUSE STATUS ===\n");
 
-        ContractInfo[] memory contracts = loadContracts();
+        IPauseRegistry registry = getPauseRegistry();
+        _verifyAllContractsUseRegistry(registry);
 
-        console.log("Contract Addresses:");
-        for (uint256 i = 0; i < contracts.length; i++) {
-            console.log(
-                string.concat(
-                    "  ",
-                    contracts[i].name,
-                    ": ",
-                    vm.toString(contracts[i].addr)
-                )
-            );
-        }
+        console.log(
+            string.concat("PauseRegistry: ", vm.toString(address(registry)))
+        );
+        console.log("");
 
-        console.log("\nCurrent Pause Status:");
-        for (uint256 i = 0; i < contracts.length; i++) {
-            IPausable pausable = IPausable(contracts[i].addr);
-            (bool isPaused, string memory reason, uint64 since) = pausable
-                .pauseStatus();
+        (bool isPaused, string memory reason, uint64 since) = registry
+            .pauseStatus();
 
-            console.log(
-                string.concat(
-                    "  ",
-                    contracts[i].name,
-                    ": ",
-                    isPaused ? "PAUSED" : "ACTIVE"
-                )
-            );
-            if (isPaused) {
-                console.log(string.concat("    - Reason: ", reason));
-                console.log(string.concat("    - Since: ", vm.toString(since)));
-            }
+        console.log(string.concat("System: ", isPaused ? "PAUSED" : "ACTIVE"));
+        if (isPaused) {
+            console.log(string.concat("  Reason: ", reason));
+            console.log(string.concat("  Since: ", vm.toString(since)));
         }
 
         console.log("\n=============================\n");
     }
 
     /**
-     * @notice Pause all system contracts atomically
-     * @dev If any contract fails to pause, the entire transaction reverts to prevent inconsistent state
+     * @notice Pause the system via the central PauseRegistry (affects all Flyover contracts)
      */
     function pauseAll(string memory reason) public {
         require(bytes(reason).length > 0, "Reason cannot be empty");
@@ -148,112 +134,35 @@ contract PauseSystem is Script, AddressResolver {
         console.log("\n=== PAUSE OPERATION ===\n");
         console.log(string.concat("Reason: ", reason));
 
-        ContractInfo[] memory contracts = loadContracts();
+        IPauseRegistry registry = getPauseRegistry();
+        _verifyAllContractsUseRegistry(registry);
 
         vm.startBroadcast();
-
-        // First pass: attempt all pauses, collect failures
-        string[] memory failedContracts = new string[](contracts.length);
-        uint256 failCount = 0;
-
-        for (uint256 i = 0; i < contracts.length; i++) {
-            try IPausable(contracts[i].addr).pause(reason) {
-                console.log(
-                    string.concat("  [OK] ", contracts[i].name, " paused")
-                );
-            } catch Error(string memory error) {
-                console.log(
-                    string.concat("  [FAIL] ", contracts[i].name, " - ", error)
-                );
-                failedContracts[failCount] = contracts[i].name;
-                failCount++;
-            }
-        }
-
+        registry.pause(reason);
         vm.stopBroadcast();
 
-        uint256 successCount = contracts.length - failCount;
         console.log(
-            string.concat(
-                "\nPaused: ",
-                vm.toString(successCount),
-                "/",
-                vm.toString(contracts.length)
-            )
+            "  [OK] PauseRegistry paused - all Flyover contracts are now paused"
         );
-
-        // If any failed, revert the entire transaction to prevent inconsistent state
-        if (failCount > 0) {
-            // Trim the failed contracts array
-            string[] memory trimmedFailed = new string[](failCount);
-            for (uint256 i = 0; i < failCount; i++) {
-                trimmedFailed[i] = failedContracts[i];
-            }
-            revert PartialPauseFailure(
-                successCount,
-                contracts.length,
-                trimmedFailed
-            );
-        }
-
-        console.log("\n[SUCCESS] All contracts paused successfully!");
+        console.log("\n[SUCCESS] System paused successfully!");
     }
 
     /**
-     * @notice Unpause all system contracts atomically
-     * @dev If any contract fails to unpause, the entire transaction reverts to prevent inconsistent state
+     * @notice Unpause the system via the central PauseRegistry
      */
     function unpauseAll() public {
         console.log("\n=== UNPAUSE OPERATION ===\n");
 
-        ContractInfo[] memory contracts = loadContracts();
+        IPauseRegistry registry = getPauseRegistry();
+        _verifyAllContractsUseRegistry(registry);
 
         vm.startBroadcast();
-
-        // First pass: attempt all unpauses, collect failures
-        string[] memory failedContracts = new string[](contracts.length);
-        uint256 failCount = 0;
-
-        for (uint256 i = 0; i < contracts.length; i++) {
-            try IPausable(contracts[i].addr).unpause() {
-                console.log(
-                    string.concat("  [OK] ", contracts[i].name, " unpaused")
-                );
-            } catch Error(string memory error) {
-                console.log(
-                    string.concat("  [FAIL] ", contracts[i].name, " - ", error)
-                );
-                failedContracts[failCount] = contracts[i].name;
-                failCount++;
-            }
-        }
-
+        registry.unpause();
         vm.stopBroadcast();
 
-        uint256 successCount = contracts.length - failCount;
         console.log(
-            string.concat(
-                "\nUnpaused: ",
-                vm.toString(successCount),
-                "/",
-                vm.toString(contracts.length)
-            )
+            "  [OK] PauseRegistry unpaused - all Flyover contracts are now active"
         );
-
-        // If any failed, revert the entire transaction to prevent inconsistent state
-        if (failCount > 0) {
-            // Trim the failed contracts array
-            string[] memory trimmedFailed = new string[](failCount);
-            for (uint256 i = 0; i < failCount; i++) {
-                trimmedFailed[i] = failedContracts[i];
-            }
-            revert PartialUnpauseFailure(
-                successCount,
-                contracts.length,
-                trimmedFailed
-            );
-        }
-
-        console.log("\n[SUCCESS] All contracts unpaused successfully!");
+        console.log("\n[SUCCESS] System unpaused successfully!");
     }
 }

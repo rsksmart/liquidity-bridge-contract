@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import "forge-std/Test.sol";
 import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
+import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
@@ -11,6 +12,7 @@ import {Quotes} from "../../src/libraries/Quotes.sol";
 /// @title FlyoverDiscovery Integration Tests
 /// @notice Tests cross-contract interactions between FlyoverDiscovery and CollateralManagement
 contract FlyoverDiscoveryIntegrationTest is Test {
+    PauseRegistry public pauseRegistry;
     FlyoverDiscovery public discovery;
     CollateralManagementContract public collateralManagement;
 
@@ -31,14 +33,14 @@ contract FlyoverDiscoveryIntegrationTest is Test {
 
     function getEmptyPegInQuote()
         internal
-        pure
+        view
         returns (Quotes.PegInQuote memory)
     {
         return
             Quotes.PegInQuote({
+                chainId: block.chainid,
                 callFee: 0,
                 value: 0,
-                productFeeAmount: 0,
                 gasFee: 0,
                 agreementTimestamp: 0,
                 timeForDeposit: 0,
@@ -69,11 +71,26 @@ contract FlyoverDiscoveryIntegrationTest is Test {
             signers.push(signer);
         }
 
+        // Deploy PauseRegistry
+        PauseRegistry prImpl = new PauseRegistry();
+        ERC1967Proxy prProxy = new ERC1967Proxy(
+            address(prImpl),
+            abi.encodeCall(prImpl.initialize, (0, owner))
+        );
+        pauseRegistry = PauseRegistry(payable(address(prProxy)));
+
         // Deploy CollateralManagement
         CollateralManagementContract cmImpl = new CollateralManagementContract();
         bytes memory cmInitData = abi.encodeCall(
             CollateralManagementContract.initialize,
-            (owner, 30, MIN_COLLATERAL, RESIGN_DELAY_BLOCKS, 1000)
+            (
+                owner,
+                30,
+                MIN_COLLATERAL,
+                RESIGN_DELAY_BLOCKS,
+                1000,
+                pauseRegistry
+            )
         );
         ERC1967Proxy cmProxy = new ERC1967Proxy(address(cmImpl), cmInitData);
         collateralManagement = CollateralManagementContract(
@@ -84,7 +101,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
         FlyoverDiscovery discoveryImpl = new FlyoverDiscovery();
         bytes memory discoveryInitData = abi.encodeCall(
             FlyoverDiscovery.initialize,
-            (owner, 5000, address(collateralManagement))
+            (owner, 5000, address(collateralManagement), pauseRegistry)
         );
         ERC1967Proxy discoveryProxy = new ERC1967Proxy(
             address(discoveryImpl),
@@ -105,7 +122,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
         pegOutLp = signers[signers.length - 2];
         fullLp = signers[signers.length - 1];
 
-        vm.prank(pegInLp);
+        vm.prank(pegInLp, pegInLp);
         discovery.register{value: MIN_COLLATERAL}(
             "Pegin Provider",
             "lp1.com",
@@ -113,7 +130,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
             Flyover.ProviderType.PegIn
         );
 
-        vm.prank(pegOutLp);
+        vm.prank(pegOutLp, pegOutLp);
         discovery.register{value: MIN_COLLATERAL}(
             "PegOut Provider",
             "lp2.com",
@@ -121,7 +138,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
             Flyover.ProviderType.PegOut
         );
 
-        vm.prank(fullLp);
+        vm.prank(fullLp, fullLp);
         discovery.register{value: MIN_COLLATERAL * 2}(
             "Full Provider",
             "lp3.com",
@@ -139,7 +156,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
 
         uint256 collateralAmount = MIN_COLLATERAL;
 
-        vm.prank(lp);
+        vm.prank(lp, lp);
         discovery.register{value: collateralAmount}(
             "PegIn LP",
             "http://localhost/api",
@@ -159,7 +176,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
 
         uint256 collateralAmount = MIN_COLLATERAL;
 
-        vm.prank(lp);
+        vm.prank(lp, lp);
         discovery.register{value: collateralAmount}(
             "PegOut LP",
             "http://localhost/api",
@@ -182,7 +199,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
 
         uint256 evenAmount = MIN_COLLATERAL * 2;
 
-        vm.prank(lp);
+        vm.prank(lp, lp);
         discovery.register{value: evenAmount}(
             "Both LP",
             "http://localhost/api",
@@ -203,7 +220,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
 
         uint256 oddAmount = MIN_COLLATERAL * 2 + 1;
 
-        vm.prank(lp);
+        vm.prank(lp, lp);
         discovery.register{value: oddAmount}(
             "Both LP Odd",
             "http://localhost/api",
@@ -236,7 +253,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
 
         uint256 collateralAmount = MIN_COLLATERAL;
 
-        vm.prank(lp);
+        vm.prank(lp, lp);
         discovery.register{value: collateralAmount}(
             "Test LP",
             "http://localhost/api",
@@ -257,7 +274,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
         uint256 collateralAmount = MIN_COLLATERAL;
 
         vm.recordLogs();
-        vm.prank(lp);
+        vm.prank(lp, lp);
         discovery.register{value: collateralAmount}(
             "Event LP",
             "http://localhost/api",
@@ -336,7 +353,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
         address lp = signers[signers.length - 1];
 
         // Register with enough collateral
-        vm.prank(lp);
+        vm.prank(lp, lp);
         discovery.register{value: MIN_COLLATERAL * 2}(
             "LP",
             "url",
@@ -386,7 +403,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
         address lp = signers[signers.length - 1];
 
         // Register with extra collateral
-        vm.prank(lp);
+        vm.prank(lp, lp);
         discovery.register{value: MIN_COLLATERAL * 2}(
             "LP",
             "url",
@@ -429,7 +446,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
         address lp3 = signers[signers.length - 1];
 
         // Register multiple providers
-        vm.prank(lp1);
+        vm.prank(lp1, lp1);
         discovery.register{value: MIN_COLLATERAL}(
             "LP1",
             "url1",
@@ -437,7 +454,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
             Flyover.ProviderType.PegIn
         );
 
-        vm.prank(lp2);
+        vm.prank(lp2, lp2);
         discovery.register{value: MIN_COLLATERAL}(
             "LP2",
             "url2",
@@ -445,7 +462,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
             Flyover.ProviderType.PegIn
         );
 
-        vm.prank(lp3);
+        vm.prank(lp3, lp3);
         discovery.register{value: MIN_COLLATERAL}(
             "LP3",
             "url3",
@@ -481,7 +498,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
         address lp = signers[signers.length - 1];
 
         // Register provider (appears in Discovery)
-        vm.prank(lp);
+        vm.prank(lp, lp);
         discovery.register{value: MIN_COLLATERAL * 2}(
             "LP",
             "url",
@@ -522,7 +539,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
         address lp2 = signers[signers.length - 1];
 
         // Register first provider as PegIn
-        vm.prank(lp1);
+        vm.prank(lp1, lp1);
         discovery.register{value: MIN_COLLATERAL}(
             "LP1 PegIn",
             "url1",
@@ -550,7 +567,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
         assertFalse(discovery.isOperational(Flyover.ProviderType.PegIn, lp1));
 
         // Register second provider as PegOut (different address)
-        vm.prank(lp2);
+        vm.prank(lp2, lp2);
         discovery.register{value: MIN_COLLATERAL}(
             "LP2 PegOut",
             "url2",
@@ -574,6 +591,64 @@ contract FlyoverDiscoveryIntegrationTest is Test {
         // Verify operational for new provider
         assertTrue(discovery.isOperational(Flyover.ProviderType.PegOut, lp2));
         assertFalse(discovery.isOperational(Flyover.ProviderType.PegIn, lp2));
+    }
+
+    function test_ShouldReuseSameIdAndUpdateCurrentDataWhenSameAddressReRegisters()
+        public
+    {
+        address lp = signers[signers.length - 1];
+
+        vm.prank(lp, lp);
+        uint firstId = discovery.register{value: MIN_COLLATERAL}(
+            "LP v1",
+            "url-v1",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+        assertEq(firstId, 1);
+        assertEq(discovery.getProvidersId(), 1);
+
+        vm.prank(lp);
+        collateralManagement.resign();
+
+        vm.roll(block.number + RESIGN_DELAY_BLOCKS);
+
+        vm.prank(lp);
+        collateralManagement.withdrawCollateral();
+
+        vm.prank(lp, lp);
+        uint secondId = discovery.register{value: MIN_COLLATERAL}(
+            "LP v2",
+            "url-v2",
+            true,
+            Flyover.ProviderType.PegOut
+        );
+
+        assertEq(secondId, 1);
+        assertEq(discovery.getProvidersId(), 1);
+
+        Flyover.LiquidityProvider memory provider = discovery.getProvider(lp);
+        assertEq(provider.id, 1);
+        assertEq(keccak256(bytes(provider.name)), keccak256(bytes("LP v2")));
+        assertEq(
+            keccak256(bytes(provider.apiBaseUrl)),
+            keccak256(bytes("url-v2"))
+        );
+        assertEq(
+            uint8(provider.providerType),
+            uint8(Flyover.ProviderType.PegOut)
+        );
+
+        vm.prank(lp);
+        discovery.updateProvider("LP final", "url-final");
+
+        provider = discovery.getProvider(lp);
+        assertEq(provider.id, 1);
+        assertEq(keccak256(bytes(provider.name)), keccak256(bytes("LP final")));
+        assertEq(
+            keccak256(bytes(provider.apiBaseUrl)),
+            keccak256(bytes("url-final"))
+        );
     }
 
     // ============ Complex Multi-Provider Scenario ============
@@ -604,7 +679,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
          */
 
         // Register all 8 providers as enabled
-        vm.prank(lp1);
+        vm.prank(lp1, lp1);
         discovery.register{value: MIN_COLLATERAL}(
             "LP1",
             "url1",
@@ -612,7 +687,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
             Flyover.ProviderType.PegIn
         );
 
-        vm.prank(lp2);
+        vm.prank(lp2, lp2);
         discovery.register{value: MIN_COLLATERAL}(
             "LP2",
             "url2",
@@ -620,7 +695,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
             Flyover.ProviderType.PegIn
         );
 
-        vm.prank(lp3);
+        vm.prank(lp3, lp3);
         discovery.register{value: MIN_COLLATERAL}(
             "LP3",
             "url3",
@@ -628,7 +703,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
             Flyover.ProviderType.PegIn
         );
 
-        vm.prank(lp4);
+        vm.prank(lp4, lp4);
         discovery.register{value: MIN_COLLATERAL}(
             "LP4",
             "url4",
@@ -636,7 +711,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
             Flyover.ProviderType.PegIn
         );
 
-        vm.prank(lp5);
+        vm.prank(lp5, lp5);
         discovery.register{value: MIN_COLLATERAL}(
             "LP5",
             "url5",
@@ -644,7 +719,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
             Flyover.ProviderType.PegIn
         );
 
-        vm.prank(lp6);
+        vm.prank(lp6, lp6);
         discovery.register{value: MIN_COLLATERAL}(
             "LP6",
             "url6",
@@ -652,7 +727,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
             Flyover.ProviderType.PegIn
         );
 
-        vm.prank(lp7);
+        vm.prank(lp7, lp7);
         discovery.register{value: MIN_COLLATERAL}(
             "LP7",
             "url7",
@@ -660,7 +735,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
             Flyover.ProviderType.PegIn
         );
 
-        vm.prank(lp8);
+        vm.prank(lp8, lp8);
         discovery.register{value: MIN_COLLATERAL}(
             "LP8",
             "url8",

@@ -2,6 +2,7 @@
 pragma solidity 0.8.25;
 
 import {PegOutTestBase} from "./PegOutTestBase.sol";
+import {IPegOut} from "../../src/interfaces/IPegOut.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 
@@ -12,16 +13,97 @@ contract HashingTest is PegOutTestBase {
 
     // ============ hashPegOutQuote function tests ============
 
+    function test_HashPegOutQuote_RevertsIfQuoteChainIdIsFromAnotherNetwork()
+        public
+    {
+        Quotes.PegOutQuote memory quote = createSpecificPegOutQuote1();
+        quote.lbcAddress = address(pegOutContract);
+        uint256 wrongChainId = block.chainid == 1 ? 31337 : 1;
+        quote.chainId = wrongChainId;
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Flyover.InvalidChainId.selector,
+                block.chainid,
+                wrongChainId
+            )
+        );
+        pegOutContract.hashPegOutQuote(quote);
+    }
+
+    function test_HashPegOutQuote_RevertsIfExpireBlockExceedsNativePegoutBlocks()
+        public
+    {
+        Quotes.PegOutQuote memory quote = createSpecificPegOutQuote1();
+        quote.lbcAddress = address(pegOutContract);
+        // expireBlock must be <= block.number + 4000; use 4001 to trigger UnfairQuote
+        quote.expireBlock = uint32(block.number + 4001);
+        quote.expireDate = uint32(block.timestamp + 1000); // within 36h limit
+
+        vm.expectRevert(IPegOut.UnfairQuote.selector);
+        pegOutContract.hashPegOutQuote(quote);
+    }
+
+    function test_HashPegOutQuote_RevertsIfExpireDateExceedsNativePegoutSeconds()
+        public
+    {
+        Quotes.PegOutQuote memory quote = createSpecificPegOutQuote1();
+        quote.lbcAddress = address(pegOutContract);
+        quote.expireBlock = uint32(block.number + 100); // within 4000 blocks
+        // expireDate must be <= block.timestamp + 129600 (36h); use 129601 to trigger UnfairQuote
+        quote.expireDate = uint32(block.timestamp + 129_601);
+
+        vm.expectRevert(IPegOut.UnfairQuote.selector);
+        pegOutContract.hashPegOutQuote(quote);
+    }
+
+    function test_HashPegOutQuote_AcceptsQuoteWithinNativePegoutLimits()
+        public
+        view
+    {
+        Quotes.PegOutQuote memory quote = createSpecificPegOutQuote1();
+        quote.lbcAddress = address(pegOutContract);
+        quote.expireBlock = uint32(block.number + 4000); // exactly at limit
+        quote.expireDate = uint32(block.timestamp + 129_600); // exactly at 36h limit
+
+        bytes32 h = pegOutContract.hashPegOutQuote(quote);
+        assertTrue(h != bytes32(0), "Hash should be non-zero");
+    }
+
+    function test_HashPegOutQuoteEIP712_RevertsIfExpireBlockExceedsNativePegoutBlocks()
+        public
+    {
+        Quotes.PegOutQuote memory quote = createSpecificPegOutQuote1();
+        quote.lbcAddress = address(pegOutContract);
+        quote.expireBlock = uint32(block.number + 4001);
+        quote.expireDate = uint32(block.timestamp + 1000);
+
+        vm.expectRevert(IPegOut.UnfairQuote.selector);
+        pegOutContract.hashPegOutQuoteEIP712(quote);
+    }
+
+    function test_HashPegOutQuoteEIP712_RevertsIfExpireDateExceedsNativePegoutSeconds()
+        public
+    {
+        Quotes.PegOutQuote memory quote = createSpecificPegOutQuote1();
+        quote.lbcAddress = address(pegOutContract);
+        quote.expireBlock = uint32(block.number + 100);
+        quote.expireDate = uint32(block.timestamp + 129_601);
+
+        vm.expectRevert(IPegOut.UnfairQuote.selector);
+        pegOutContract.hashPegOutQuoteEIP712(quote);
+    }
+
     function test_HashPegOutQuote_RevertsIfQuoteBelongsToOtherContract()
         public
     {
         address wrongContract = 0xAA9cAf1e3967600578727F975F283446A3Da6612;
 
         Quotes.PegOutQuote memory quote = Quotes.PegOutQuote({
+            chainId: block.chainid,
             callFee: 300000000000000,
             penaltyFee: 10000000000000,
             value: 471000000000000000,
-            productFeeAmount: 0,
             gasFee: 5990000000000,
             lbcAddress: wrongContract,
             lpRskAddress: 0x82a06eBDB97776a2da4041dF8f2b2ea8D3257852,
@@ -80,7 +162,7 @@ contract HashingTest is PegOutTestBase {
         assertTrue(hash1a != hash3, "Changing quote value should change hash");
     }
 
-    function test_HashPegOutQuote_IncludesAllFieldsInHash() public view {
+    function test_HashPegOutQuote_IncludesAllFieldsInHash() public {
         // This test ensures every field in PegOutQuote affects the hash
         // If a new field is added but not included in the hash function, this test will fail
         Quotes.PegOutQuote memory baseQuote = createSpecificPegOutQuote1();
@@ -88,6 +170,18 @@ contract HashingTest is PegOutTestBase {
         bytes32 baseHash = pegOutContract.hashPegOutQuote(baseQuote);
 
         Quotes.PegOutQuote memory modifiedQuote;
+
+        // Test chainId
+        modifiedQuote = baseQuote;
+        modifiedQuote.chainId = baseQuote.chainId + 1;
+        uint originalChainId = block.chainid;
+        vm.chainId(modifiedQuote.chainId); // to prevent the hash from failing
+        assertTrue(
+            pegOutContract.hashPegOutQuote(modifiedQuote) != baseHash,
+            "chainId should affect hash"
+        );
+        modifiedQuote.chainId = originalChainId;
+        vm.chainId(originalChainId);
 
         // Test callFee
         modifiedQuote = baseQuote;
@@ -111,14 +205,6 @@ contract HashingTest is PegOutTestBase {
         assertTrue(
             pegOutContract.hashPegOutQuote(modifiedQuote) != baseHash,
             "value should affect hash"
-        );
-
-        // Test productFeeAmount
-        modifiedQuote = baseQuote;
-        modifiedQuote.productFeeAmount = baseQuote.productFeeAmount + 1;
-        assertTrue(
-            pegOutContract.hashPegOutQuote(modifiedQuote) != baseHash,
-            "productFeeAmount should affect hash"
         );
 
         // Test gasFee
@@ -250,17 +336,17 @@ contract HashingTest is PegOutTestBase {
 
     function createSpecificPegOutQuote1()
         internal
-        pure
+        view
         returns (Quotes.PegOutQuote memory)
     {
         bytes memory testBtcAddress = new bytes(21);
 
         return
             Quotes.PegOutQuote({
+                chainId: block.chainid,
                 callFee: 300000000000000,
                 penaltyFee: 10000000000000,
                 value: 471000000000000000,
-                productFeeAmount: 0,
                 gasFee: 5990000000000,
                 lbcAddress: 0x4C2F7092C2aE51D986bEFEe378e50BD4dB99C901,
                 lpRskAddress: 0x82a06eBDB97776a2da4041dF8f2b2ea8D3257852,
@@ -271,8 +357,8 @@ contract HashingTest is PegOutTestBase {
                 transferTime: 7200,
                 depositConfirmations: 40,
                 transferConfirmations: 2,
-                expireBlock: 7822676,
-                expireDate: 1753476251,
+                expireBlock: uint32(block.number + 1000),
+                expireDate: uint32(block.timestamp + 20_000),
                 depositAddress: testBtcAddress,
                 btcRefundAddress: testBtcAddress,
                 lpBtcAddress: testBtcAddress
@@ -281,17 +367,17 @@ contract HashingTest is PegOutTestBase {
 
     function createSpecificPegOutQuote2()
         internal
-        pure
+        view
         returns (Quotes.PegOutQuote memory)
     {
         bytes memory testBtcAddress = new bytes(21);
 
         return
             Quotes.PegOutQuote({
+                chainId: block.chainid,
                 callFee: 300000000000000,
                 penaltyFee: 10000000000000,
                 value: 27108379819732510,
-                productFeeAmount: 1,
                 gasFee: 11330000000000,
                 lbcAddress: 0x4C2F7092C2aE51D986bEFEe378e50BD4dB99C901,
                 lpRskAddress: 0x82a06eBDB97776a2da4041dF8f2b2ea8D3257852,
@@ -302,8 +388,8 @@ contract HashingTest is PegOutTestBase {
                 transferTime: 7200,
                 depositConfirmations: 40,
                 transferConfirmations: 2,
-                expireBlock: 7833647,
-                expireDate: 1753741648,
+                expireBlock: uint32(block.number + 2000),
+                expireDate: uint32(block.timestamp + 30_000),
                 depositAddress: testBtcAddress,
                 btcRefundAddress: testBtcAddress,
                 lpBtcAddress: testBtcAddress
@@ -312,17 +398,17 @@ contract HashingTest is PegOutTestBase {
 
     function createSpecificPegOutQuote3()
         internal
-        pure
+        view
         returns (Quotes.PegOutQuote memory)
     {
         bytes memory testBtcAddress = new bytes(21);
 
         return
             Quotes.PegOutQuote({
+                chainId: block.chainid,
                 callFee: 300000000000000,
                 penaltyFee: 10000000000000,
                 value: 1045000000000000000,
-                productFeeAmount: 3,
                 gasFee: 3140000000000,
                 lbcAddress: 0x4C2F7092C2aE51D986bEFEe378e50BD4dB99C901,
                 lpRskAddress: 0x82a06eBDB97776a2da4041dF8f2b2ea8D3257852,
@@ -333,8 +419,8 @@ contract HashingTest is PegOutTestBase {
                 transferTime: 7200,
                 depositConfirmations: 60,
                 transferConfirmations: 3,
-                expireBlock: 7842574,
-                expireDate: 1753959801,
+                expireBlock: uint32(block.number + 3000),
+                expireDate: uint32(block.timestamp + 40_000),
                 depositAddress: testBtcAddress,
                 btcRefundAddress: testBtcAddress,
                 lpBtcAddress: testBtcAddress

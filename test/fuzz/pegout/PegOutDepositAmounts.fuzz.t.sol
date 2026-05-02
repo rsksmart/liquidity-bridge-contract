@@ -20,25 +20,22 @@ contract PegOutDepositAmountsFuzzTest is PegOutFuzzTestBase {
     function testFuzz_DepositPegOut_AcceptsExactPayment(
         uint128 value,
         uint128 callFee,
-        uint128 productFeeAmount,
         uint64 gasFee
     ) public {
         // Bound to reasonable values
         value = uint128(bound(value, 0.001 ether, 100 ether));
         callFee = uint128(bound(callFee, 0, 1 ether));
-        productFeeAmount = uint128(bound(productFeeAmount, 0, 1 ether));
         gasFee = uint64(bound(gasFee, 0, 0.01 ether));
 
         Quotes.PegOutQuote memory quote = createFuzzTestQuote(value);
         quote.callFee = callFee;
-        quote.productFeeAmount = productFeeAmount;
         quote.gasFee = gasFee;
 
         uint256 totalValue = getTotalQuoteValue(quote);
         vm.assume(totalValue <= 500 ether); // Ensure we have enough funds
 
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signFuzzQuote(pegOutLp, quoteHash);
+        bytes memory signature = signFuzzQuote(pegOutLp, quote);
 
         // Expect PegOutDeposit event with correct parameters
         vm.expectEmit(true, true, true, true);
@@ -75,7 +72,7 @@ contract PegOutDepositAmountsFuzzTest is PegOutFuzzTestBase {
         vm.assume(paidAmount <= 500 ether);
 
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signFuzzQuote(pegOutLp, quoteHash);
+        bytes memory signature = signFuzzQuote(pegOutLp, quote);
 
         uint256 contractBalanceBefore = address(pegOutContract).balance;
 
@@ -118,7 +115,7 @@ contract PegOutDepositAmountsFuzzTest is PegOutFuzzTestBase {
         vm.assume(paidAmount <= 500 ether);
 
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        bytes memory signature = signFuzzQuote(pegOutLp, quoteHash);
+        bytes memory signature = signFuzzQuote(pegOutLp, quote);
 
         uint256 userBalanceBefore = fuzzUser.balance;
 

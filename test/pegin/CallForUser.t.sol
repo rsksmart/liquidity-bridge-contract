@@ -8,6 +8,12 @@ import {Flyover} from "../../src/libraries/Flyover.sol";
 import {Mock} from "../../src/test-contracts/Mock.sol";
 import {ReentrancyCaller} from "../../src/test-contracts/ReentrancyCaller.sol";
 
+contract GasAwareRecipient {
+    function requireMinGas(uint256 minGas) external payable {
+        require(gasleft() >= minGas, "insufficient forwarded gas");
+    }
+}
+
 contract CallForUserTest is PegInTestBase {
     address public user;
 
@@ -481,6 +487,48 @@ contract CallForUserTest is PegInTestBase {
         assertTrue(!success);
     }
 
+    function test_CallForUser_RevertsWhenGasOnlyCoversCallAndNotPostCallStorage()
+        public
+    {
+        GasAwareRecipient recipient = new GasAwareRecipient();
+        bytes memory data = abi.encodeWithSelector(
+            GasAwareRecipient.requireMinGas.selector,
+            18000
+        );
+        Quotes.PegInQuote memory quote = createTestQuoteForLPWithData(
+            0.6 ether,
+            address(recipient),
+            user,
+            fullLp,
+            data
+        );
+        bytes32 quoteHash = pegInContract.hashPegInQuote(quote);
+
+        uint256 requiredGasAtCheck = quote.gasLimit + 35000;
+        uint256 estimatedSetupGas = 50000;
+        uint256 constrainedTxGas = requiredGasAtCheck +
+            estimatedSetupGas +
+            1000;
+
+        vm.prank(fullLp);
+        (bool success, ) = address(pegInContract).call{
+            gas: constrainedTxGas,
+            value: quote.value
+        }(abi.encodeWithSelector(IPegIn.callForUser.selector, quote));
+
+        assertTrue(!success, "callForUser should revert under constrained gas");
+        assertEq(
+            uint256(pegInContract.getQuoteStatus(quoteHash)),
+            uint256(IPegIn.PegInStates.UNPROCESSED_QUOTE),
+            "Quote must remain unprocessed when transaction reverts"
+        );
+        assertEq(
+            pegInContract.getBalance(fullLp),
+            0,
+            "LP balance must not change on reverted callForUser"
+        );
+    }
+
     function test_CallForUser_NotAllowReentrancy() public {
         // Deploy ReentrancyCaller contract
         ReentrancyCaller reentrancyCaller = new ReentrancyCaller();
@@ -628,10 +676,10 @@ contract CallForUserTest is PegInTestBase {
 
         return
             Quotes.PegInQuote({
+                chainId: block.chainid,
                 callFee: 100000000000000,
                 penaltyFee: 10000000000000,
                 value: value,
-                productFeeAmount: 0,
                 gasFee: 100,
                 fedBtcAddress: bytes20(testBtcAddress),
                 lbcAddress: address(pegInContract),
