@@ -12,7 +12,7 @@
  */
 
 import { bech32, bech32m } from "bech32";
-import * as bs58check from "bs58check";
+import bs58check from "bs58check";
 
 type BtcAddressType = "p2pkh" | "p2sh" | "p2wpkh" | "p2wsh" | "p2tr";
 
@@ -25,16 +25,6 @@ const TEST_ADDRESSES = {
   p2tr: "tb1ptt2hnzgzfhrfdyfz02l02wam6exd0mzuunfdgqg3ttt9yagp6daslx6grp", // Testnet P2TR
 };
 
-function decodeBase58Check(address: string): Uint8Array {
-  const bs58checkRecord = bs58check as unknown as Record<string, unknown>;
-  const maybeDecode = bs58checkRecord.decode;
-  if (typeof maybeDecode !== "function") {
-    throw new Error("bs58check.decode is not available");
-  }
-  const decode = maybeDecode as (value: string) => Uint8Array;
-  return decode(address);
-}
-
 function getAddressBytes(addressType: BtcAddressType): string {
   const address = TEST_ADDRESSES[addressType];
 
@@ -42,7 +32,7 @@ function getAddressBytes(addressType: BtcAddressType): string {
     case "p2pkh":
     case "p2sh": {
       // Base58 addresses: decode and return full bytes (version + hash)
-      const decoded = decodeBase58Check(address);
+      const decoded = bs58check.decode(address);
       return Buffer.from(decoded).toString("hex");
     }
     case "p2wpkh": {
