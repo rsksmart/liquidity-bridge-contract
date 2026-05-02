@@ -5,7 +5,7 @@ import {
     AccessControlDefaultAdminRulesUpgradeable
 } from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
 import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {IBridge} from "./interfaces/IBridge.sol";
@@ -24,7 +24,7 @@ import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 contract PegOutContract is
     AccessControlDefaultAdminRulesUpgradeable,
     EmergencyPause,
-    ReentrancyGuardUpgradeable,
+    ReentrancyGuard,
     EIP712Upgradeable,
     IPegOut
 {
@@ -157,7 +157,6 @@ contract PegOutContract is
         if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
         if (address(pauseRegistry).code.length == 0) revert Flyover.NoContract(address(pauseRegistry));
         __AccessControlDefaultAdminRules_init(0, defaultAdmin);
-        __ReentrancyGuard_init();
         __EIP712_init(NAME, VERSION);
         __EmergencyPause_init(pauseRegistry);
         _bridge = IBridge(bridge);
