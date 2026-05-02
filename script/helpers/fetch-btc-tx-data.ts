@@ -79,7 +79,7 @@ if (require.main === module) {
 
   if (args.length !== 2) {
     console.error(
-      "Usage: ts-node fetch-btc-tx-data.ts <txid> <mainnet|testnet>"
+      "Usage: ts-node fetch-btc-tx-data.ts <txid> <mainnet|testnet>",
     );
     process.exit(1);
   }

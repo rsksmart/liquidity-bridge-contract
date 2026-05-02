@@ -56,7 +56,7 @@ function getAddressBytes(addressType: BtcAddressType): string {
       const decoded = bech32m.decode(address);
       // decoded.words[0] is the witness version, skip it
       const witnessData = Buffer.from(
-        bech32m.fromWords(decoded.words.slice(1))
+        bech32m.fromWords(decoded.words.slice(1)),
       );
       const result = Buffer.concat([Buffer.from([0x01]), witnessData]);
       return result.toString("hex");
@@ -88,7 +88,7 @@ if (require.main === module) {
 
     if (!validTypes.includes(addressType)) {
       throw new Error(
-        `Invalid address type. Must be one of: ${validTypes.join(", ")}`
+        `Invalid address type. Must be one of: ${validTypes.join(", ")}`,
       );
     }
 
