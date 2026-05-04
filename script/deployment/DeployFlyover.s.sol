@@ -77,7 +77,7 @@ contract DeployFlyover is Script {
             new TransparentUpgradeableProxy(
                 address(prImpl),
                 d.proxyAdmin,
-                abi.encodeCall(prImpl.initialize, (0, defaultAdmin))
+                abi.encodeCall(prImpl.initialize, (cfg.adminDelay, defaultAdmin))
             )
         );
 

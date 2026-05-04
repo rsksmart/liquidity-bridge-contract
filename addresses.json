@@ -74,27 +74,39 @@
   },
   "rskMainnet": {
     "SignatureValidator": {
-      "address": "0xb107cc96A5CfC4Be502e9BBB1208dE4792044ba7",
+      "address": "0xb5698c36773ae6eae9f8d399bef24b33c3519454",
       "deployed": true
     },
     "Quotes": {
-      "address": "0xecfF1feFa8814c980330ca1000B067BBC9D2ee25",
+      "address": "0xc2fac578b41e092543db8dda0c990f64bb18b6f5",
       "deployed": true
     },
     "BtcUtils": {
-      "address": "0x0FCf6ed9DBA0AE3AD3f6908a9499285720a6d43d",
+      "address": "0xddfb077cd156095e31ade2e53f5153d53b770054",
       "deployed": true
     },
-    "LiquidityBridgeContract": {
-      "address": "0xAA9cAf1e3967600578727F975F283446A3Da6612",
+    "FlyoverDiscovery": {
+      "address": "0xf484ed4aaf47a5f584c4edcf29c146139baea460",
       "deployed": true
     },
-    "Migrations": {
-      "address": "0x22183DB087d1Fed621435d00aa9cac4B5CdC9aE1",
+    "PegOutContract": {
+      "address": "0xde16e087cc8209182b693b619c13aa272df9de84",
       "deployed": true
     },
-    "QuotesV2": {
-      "address": "0x0123eF8Ae46F9FCBF67c706f73d46bCCE3df44F7",
+    "PegInContract": {
+      "address": "0x514148ca5bb08acfb082777cd4ce32beb6bf5d00",
+      "deployed": true
+    },
+    "CollateralManagementContract": {
+      "address": "0x0d79d0b60f459dc1ba3504cb0161d525a00a9663",
+      "deployed": true
+    },
+    "ProxyAdmin": {
+      "address": "0xe16d12bd2110e44bf2a625e55e85d72602e65e22",
+      "deployed": true
+    },
+    "PauseRegistry": {
+      "address": "0xf3b3c6cd9f422815fe7c8cab13b3317b45c3498f",
       "deployed": true
     }
   },
