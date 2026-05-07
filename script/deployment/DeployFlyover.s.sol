@@ -41,7 +41,7 @@ contract DeployFlyover is Script {
         uint256 deployerKey = helper.getDeployerPrivateKey();
         address deployer = vm.rememberKey(deployerKey);
 
-        address defaultAdmin = vm.envOr("PROXY_ADMIN_OWNER", deployer);
+        address defaultAdmin = deployer;
 
         console.log(
             "======================== Config =========================="
