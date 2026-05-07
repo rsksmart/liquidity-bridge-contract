@@ -37,7 +37,7 @@ contract PegInContract is
     }
 
     /// @notice The version of the contract
-    string constant public VERSION = "1.0.0";
+    string constant public VERSION = "1.0.1";
     /// @notice The name of the contract (used for EIP712)
     string constant public NAME = "PegInContract";
     Flyover.ProviderType constant private _PEG_TYPE = Flyover.ProviderType.PegIn;
