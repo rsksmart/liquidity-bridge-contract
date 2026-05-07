@@ -698,4 +698,52 @@ contract CallForUserTest is PegInTestBase {
                 data: data
             });
     }
+
+    function test_CallForUser_CanWeaponizePegInSlasherRole() public {
+        uint256 victimCollateral = collateralManagement.getPegInCollateral(
+            pegInLp
+        );
+        uint256 penalty = victimCollateral;
+
+        Quotes.PegInQuote memory victimQuote = createTestQuoteForLP(
+            0,
+            user,
+            user,
+            pegInLp
+        );
+        victimQuote.penaltyFee = penalty;
+
+        bytes memory slashData = abi.encodeWithSelector(
+            collateralManagement.slashPegInCollateral.selector,
+            fullLp,
+            victimQuote,
+            bytes32("forced-slash")
+        );
+
+        Quotes.PegInQuote memory attackerQuote = createTestQuoteForLPWithData(
+            0,
+            address(collateralManagement),
+            user,
+            fullLp,
+            slashData
+        );
+        attackerQuote.callFee = TEST_MIN_PEGIN;
+        attackerQuote.gasFee = 0;
+        attackerQuote.gasLimit = 250_000;
+
+        vm.prank(fullLp);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Flyover.NoContract.selector,
+                address(collateralManagement)
+            )
+        );
+        pegInContract.callForUser(attackerQuote);
+        assertEq(
+            collateralManagement.getPegInCollateral(pegInLp),
+            victimCollateral
+        );
+        assertEq(collateralManagement.getRewards(fullLp), 0);
+        assertEq(collateralManagement.getPenalties(), 0);
+    }
 }

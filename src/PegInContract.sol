@@ -534,7 +534,12 @@ contract PegInContract is
         if (address(this) != quote.lbcAddress) {
             revert Flyover.IncorrectContract(address(this), quote.lbcAddress);
         }
-        if (address(_bridge) == quote.contractAddress) {
+        if (
+            address(_bridge) == quote.contractAddress ||
+            address(this) == quote.contractAddress ||
+            address(0) == quote.contractAddress ||
+            address(_collateralManagement) == quote.contractAddress
+        ) {
             revert Flyover.NoContract(quote.contractAddress);
         }
         if (quote.btcRefundAddress.length != _REFUND_ADDRESS_LENGTH) {
