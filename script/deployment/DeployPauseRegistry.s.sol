@@ -3,9 +3,9 @@ pragma solidity 0.8.25;
 
 import {Script, console} from "lib/forge-std/src/Script.sol";
 import {HelperConfig} from "../HelperConfig.s.sol";
+import {ProxyReader} from "../helpers/ProxyReader.sol";
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
 /// @title DeployPauseRegistry
 /// @notice Deploys the PauseRegistry with proxy pattern (no dependencies)
@@ -32,14 +32,14 @@ contract DeployPauseRegistry is Script {
         address defaultAdmin
     ) private returns (DeploymentResult memory result) {
         result.implementation = address(new PauseRegistry());
-        result.admin = address(new ProxyAdmin(defaultAdmin));
         result.proxy = address(
             new TransparentUpgradeableProxy(
                 result.implementation,
-                result.admin,
+                defaultAdmin,
                 abi.encodeCall(PauseRegistry.initialize, (0, defaultAdmin))
             )
         );
+        result.admin = ProxyReader.readAdmin(vm, result.proxy);
     }
 
     function _log(DeploymentResult memory r) private pure {

@@ -4,11 +4,13 @@ pragma solidity 0.8.25;
 import "lib/forge-std/src/Test.sol";
 import "lib/forge-std/src/console.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
+import {ProxyReader} from "../../script/helpers/ProxyReader.sol";
 import {PegOutContract} from "../../src/PegOutContract.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {BridgeMock} from "../../src/test-contracts/BridgeMock.sol";
-import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {TransparentUpgradeableProxy, ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
 /**
@@ -28,12 +30,11 @@ contract DeployPegOutTest is Test {
         HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
         address deployer = address(this);
 
-        address cmAdmin = address(new ProxyAdmin(deployer));
         PauseRegistry prImpl = new PauseRegistry();
         pauseRegistryProxy = address(
             new TransparentUpgradeableProxy(
                 address(prImpl),
-                cmAdmin,
+                deployer,
                 abi.encodeCall(prImpl.initialize, (0, deployer))
             )
         );
@@ -50,7 +51,19 @@ contract DeployPegOutTest is Test {
             )
         );
         collateralManagementProxy = address(
-            new TransparentUpgradeableProxy(cmImpl, cmAdmin, cmInitData)
+            new TransparentUpgradeableProxy(cmImpl, deployer, cmInitData)
+        );
+
+        assertEq(
+            Ownable(ProxyReader.readAdmin(vm, pauseRegistryProxy)).owner(),
+            deployer,
+            "PauseRegistry ProxyAdmin owner mismatch"
+        );
+        assertEq(
+            Ownable(ProxyReader.readAdmin(vm, collateralManagementProxy))
+                .owner(),
+            deployer,
+            "CollateralManagement ProxyAdmin owner mismatch"
         );
     }
 
@@ -59,7 +72,6 @@ contract DeployPegOutTest is Test {
         HelperConfig.FlyoverConfig memory cfg
     ) internal returns (address) {
         address impl = address(new PegOutContract());
-        address admin = address(new ProxyAdmin(deployer));
         bytes memory initData = abi.encodeCall(
             PegOutContract.initialize,
             (
@@ -72,7 +84,8 @@ contract DeployPegOutTest is Test {
                 PauseRegistry(pauseRegistryProxy)
             )
         );
-        return address(new TransparentUpgradeableProxy(impl, admin, initData));
+        return
+            address(new TransparentUpgradeableProxy(impl, deployer, initData));
     }
 
     function test_DeploymentFlow() public {
@@ -92,6 +105,12 @@ contract DeployPegOutTest is Test {
             cfg.btcBlockTime,
             "BTC block time mismatch"
         );
+
+        assertEq(
+            Ownable(ProxyReader.readAdmin(vm, proxy)).owner(),
+            deployer,
+            "PegOutContract ProxyAdmin owner mismatch"
+        );
     }
 
     function test_DeployUsingInlineDeployment() public {
@@ -107,6 +126,12 @@ contract DeployPegOutTest is Test {
             pegOut.btcBlockTime(),
             cfg.btcBlockTime,
             "BTC block time mismatch"
+        );
+
+        assertEq(
+            Ownable(ProxyReader.readAdmin(vm, proxy)).owner(),
+            deployer,
+            "PegOutContract ProxyAdmin owner mismatch"
         );
     }
 
@@ -126,6 +151,12 @@ contract DeployPegOutTest is Test {
             cm.hasRole(collateralSlasherRole, poProxy),
             "PegOut should have COLLATERAL_SLASHER"
         );
+
+        assertEq(
+            Ownable(ProxyReader.readAdmin(vm, poProxy)).owner(),
+            deployer,
+            "PegOutContract ProxyAdmin owner mismatch"
+        );
     }
 
     function test_RolesAreSetCorrectly() public {
@@ -140,5 +171,58 @@ contract DeployPegOutTest is Test {
             pegOut.hasRole(defaultAdminRole, deployer),
             "Deployer should have DEFAULT_ADMIN_ROLE"
         );
+
+        assertEq(
+            Ownable(ProxyReader.readAdmin(vm, proxy)).owner(),
+            deployer,
+            "PegOutContract ProxyAdmin owner mismatch"
+        );
+    }
+
+    function test_ContractIsUpgradeable() public {
+        console.log("\n=== CONTRACT IS UPGRADEABLE ===\n");
+
+        HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
+        address deployer = address(this);
+
+        address impl = address(new PegOutContract());
+        TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
+            impl,
+            deployer,
+            abi.encodeCall(
+                PegOutContract.initialize,
+                (
+                    deployer,
+                    payable(address(bridgeMock)),
+                    cfg.dustThreshold,
+                    collateralManagementProxy,
+                    cfg.mainnet,
+                    cfg.btcBlockTime,
+                    PauseRegistry(pauseRegistryProxy)
+                )
+            )
+        );
+
+        ProxyAdmin proxyAdmin = ProxyAdmin(
+            ProxyReader.readAdmin(vm, address(proxy))
+        );
+        address newImplementation = address(new PegOutContract());
+        assertEq(
+            ProxyReader.readImplementation(vm, address(proxy)),
+            impl,
+            "Implementation mismatch"
+        );
+        proxyAdmin.upgradeAndCall(
+            ITransparentUpgradeableProxy(address(proxy)),
+            newImplementation,
+            ""
+        );
+        assertEq(
+            ProxyReader.readImplementation(vm, address(proxy)),
+            newImplementation,
+            "Implementation mismatch"
+        );
+
+        console.log("\n[PASS] Contract is upgradeable");
     }
 }

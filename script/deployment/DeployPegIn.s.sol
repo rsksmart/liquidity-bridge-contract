@@ -3,10 +3,10 @@ pragma solidity 0.8.25;
 
 import {Script, console} from "lib/forge-std/src/Script.sol";
 import {HelperConfig} from "../HelperConfig.s.sol";
+import {ProxyReader} from "../helpers/ProxyReader.sol";
 import {PegInContract} from "../../src/PegInContract.sol";
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
 /// @title DeployPegIn
 /// @notice Deploys the PegInContract with proxy pattern
@@ -56,11 +56,10 @@ contract DeployPegIn is Script {
         address pauseRegistryProxy
     ) private returns (DeploymentResult memory result) {
         result.implementation = address(new PegInContract());
-        result.admin = address(new ProxyAdmin(defaultAdmin));
         result.proxy = address(
             new TransparentUpgradeableProxy(
                 result.implementation,
-                result.admin,
+                defaultAdmin,
                 abi.encodeCall(
                     PegInContract.initialize,
                     (
@@ -75,6 +74,7 @@ contract DeployPegIn is Script {
                 )
             )
         );
+        result.admin = ProxyReader.readAdmin(vm, result.proxy);
     }
 
     function _log(DeploymentResult memory r) private pure {

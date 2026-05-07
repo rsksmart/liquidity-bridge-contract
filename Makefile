@@ -169,6 +169,7 @@ help:
 	@echo "  hash-quote               - Hash a PegIn or PegOut quote"
 	@echo "  get-btc-height           - Get current BTC block height"
 	@echo "  get-versions             - Get contract versions"
+	@echo "  query-proxy-admin        - Read ERC-1967 proxy admin for PROXY_ADDRESS (read-only)"
 	@echo "  pause-status             - Check pause status of all system contracts"
 	@echo "  pause-system             - Pause all system contracts (simulation)"
 	@echo "  pause-system-broadcast   - Pause all system contracts (actual)"
@@ -241,6 +242,7 @@ help:
 	@echo "  make hash-quote pegout mainnet my-quote.json       # Hash PegOut with custom file"
 	@echo "  make hash-quote HASH_QUOTE_FILE=my-quote.json     # Hash with named file parameter"
 	@echo "  make pause-status NETWORK=testnet                  # Check pause status"
+	@echo "  make query-proxy-admin NETWORK=mainnet PROXY_ADDRESS=0x... # ERC-1967 admin slot + ProxyAdmin owner"
 	@echo "  make pause-system NETWORK=testnet PAUSE_REASON=\"Security incident\" # Pause (simulation)"
 	@echo "  make pause-system-broadcast NETWORK=mainnet PAUSE_REASON=\"Emergency\" # Pause mainnet"
 	@echo "  make unpause-system-broadcast NETWORK=testnet      # Unpause testnet"
@@ -542,6 +544,23 @@ get-btc-height:
 get-versions:
 	@echo "Getting contract versions..."
 	@bash script/tasks/GetVersions.sh
+
+# Read ERC-1967 proxy admin (read-only; uses script/tasks/QueryProxyAdmin.s.sol)
+# Requires PROXY_ADDRESS (transparent / ERC-1967 proxy contract).
+.PHONY: query-proxy-admin
+query-proxy-admin:
+	@if [ -z "$(PROXY_ADDRESS)" ]; then \
+		echo "Error: Set PROXY_ADDRESS to the proxy contract address."; \
+		echo "  Example: make query-proxy-admin NETWORK=mainnet PROXY_ADDRESS=0x..."; \
+		exit 1; \
+	fi
+	@echo "Querying ERC-1967 proxy admin on $(NETWORK)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@export PROXY_ADDRESS="$(PROXY_ADDRESS)"; \
+		forge script script/tasks/QueryProxyAdmin.s.sol:QueryProxyAdmin \
+		--sig "readProxyAdminFromEnv()" \
+		--rpc-url $(call get_network_config,$(NETWORK)) \
+		-vv
 
 # Hash quote - supports both syntaxes:
 # make hash-quote pegin testnet
