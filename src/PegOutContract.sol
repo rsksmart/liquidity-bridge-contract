@@ -349,6 +349,10 @@ contract PegOutContract is
             quote.expireBlock > block.number + _NATIVE_PEGOUT_BLOCKS ||
             quote.expireDate > block.timestamp + _NATIVE_PEGOUT_SECONDS
         ) revert UnfairQuote();
+
+        if (quote.rskRefundAddress == address(0)) {
+            revert Flyover.InvalidAddress(quote.rskRefundAddress);
+        }
     }
 
     /// @notice This function is used to check if a quote has been completed (refunded by any party)
