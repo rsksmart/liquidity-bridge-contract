@@ -246,6 +246,10 @@ contract FlyoverDiscovery is
         return _liquidityProviders[providerId];
     }
 
+    /// @notice Validates provider metadata fields
+    /// @dev Requires `name` and `apiBaseUrl` to be non-empty and within their configured max lengths
+    /// @param name The provider display name to validate
+    /// @param apiBaseUrl The provider API base URL to validate
     function _validateProviderData(string memory name, string memory apiBaseUrl) private pure {
         if (
             bytes(name).length < 1 ||
