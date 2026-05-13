@@ -22,6 +22,8 @@ contract FlyoverDiscovery is
 {
     /// @notice The version of the contract
     string constant public VERSION = "1.0.0";
+    uint256 constant private _MAX_PROVIDER_NAME_LENGTH = 256;
+    uint256 constant private _MAX_PROVIDER_API_BASE_URL_LENGTH = 512;
 
     // ------------------------------------------------------------
     // FlyoverDiscovery State Variables
@@ -104,7 +106,7 @@ contract FlyoverDiscovery is
 
     /// @inheritdoc IFlyoverDiscovery
     function updateProvider(string calldata name, string calldata apiBaseUrl) external whenNotPaused {
-        if (bytes(name).length < 1 || bytes(apiBaseUrl).length < 1) revert InvalidProviderData(name, apiBaseUrl);
+        _validateProviderData(name, apiBaseUrl);
         address providerAddress = msg.sender;
         uint providerId = _providerIdByAddress[providerAddress];
         if (providerId == 0) revert Flyover.ProviderNotRegistered(providerAddress);
@@ -209,12 +211,7 @@ contract FlyoverDiscovery is
             msg.sender != tx.origin // solhint-disable-line avoid-tx-origin
         ) revert NotEOA(providerAddress);
 
-        if (
-            bytes(name).length < 1 ||
-            bytes(apiBaseUrl).length < 1
-        ) {
-            revert InvalidProviderData(name, apiBaseUrl);
-        }
+        _validateProviderData(name, apiBaseUrl);
 
         if (providerType > type(Flyover.ProviderType).max) revert InvalidProviderType(providerType);
 
@@ -247,5 +244,16 @@ contract FlyoverDiscovery is
         uint providerId = _providerIdByAddress[providerAddress];
         if (providerId == 0) revert Flyover.ProviderNotRegistered(providerAddress);
         return _liquidityProviders[providerId];
+    }
+
+    function _validateProviderData(string memory name, string memory apiBaseUrl) private pure {
+        if (
+            bytes(name).length < 1 ||
+            bytes(name).length > _MAX_PROVIDER_NAME_LENGTH ||
+            bytes(apiBaseUrl).length < 1 ||
+            bytes(apiBaseUrl).length > _MAX_PROVIDER_API_BASE_URL_LENGTH
+        ) {
+            revert InvalidProviderData(name, apiBaseUrl);
+        }
     }
 }
