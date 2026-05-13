@@ -8,6 +8,7 @@ import {ICollateralManagement} from "../../src/interfaces/ICollateralManagement.
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
+import {IFlyoverDiscovery} from "../../src/interfaces/IFlyoverDiscovery.sol";
 
 /// @title Base contract for FlyoverDiscovery tests
 /// @notice Provides shared deployment and setup logic
@@ -46,6 +47,21 @@ abstract contract DiscoveryTestBase is Test {
             }
         }
         return string(b);
+    }
+
+    /// @notice ABI-encoded revert data for `IFlyoverDiscovery.ProviderDataLengthOutOfBounds`
+    function providerDataLengthOutOfBoundsData(
+        uint256 nameLength,
+        uint256 apiBaseUrlLength
+    ) internal pure returns (bytes memory) {
+        return
+            abi.encodeWithSelector(
+                IFlyoverDiscovery.ProviderDataLengthOutOfBounds.selector,
+                nameLength,
+                apiBaseUrlLength,
+                MAX_PROVIDER_NAME_LENGTH,
+                MAX_PROVIDER_API_BASE_URL_LENGTH
+            );
     }
 
     /// @notice Deploy Discovery and CollateralManagement (equivalent to deployDiscoveryFixture)

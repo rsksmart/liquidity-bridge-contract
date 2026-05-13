@@ -81,10 +81,9 @@ contract RegistrationTest is DiscoveryTestBase {
         // Empty name
         vm.prank(lp, lp);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                IFlyoverDiscovery.InvalidProviderData.selector,
-                "",
-                "http://localhost/api"
+            providerDataLengthOutOfBoundsData(
+                0,
+                bytes("http://localhost/api").length
             )
         );
         discovery.register{value: MIN_COLLATERAL}(
@@ -97,11 +96,7 @@ contract RegistrationTest is DiscoveryTestBase {
         // Empty URL
         vm.prank(lp, lp);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                IFlyoverDiscovery.InvalidProviderData.selector,
-                "LP",
-                ""
-            )
+            providerDataLengthOutOfBoundsData(bytes("LP").length, 0)
         );
         discovery.register{value: MIN_COLLATERAL}(
             "LP",
@@ -122,10 +117,9 @@ contract RegistrationTest is DiscoveryTestBase {
 
         vm.prank(lp, lp);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                IFlyoverDiscovery.InvalidProviderData.selector,
-                tooLongName,
-                validUrl
+            providerDataLengthOutOfBoundsData(
+                MAX_PROVIDER_NAME_LENGTH + 1,
+                bytes(validUrl).length
             )
         );
         discovery.register{value: MIN_COLLATERAL}(
@@ -149,10 +143,9 @@ contract RegistrationTest is DiscoveryTestBase {
 
         vm.prank(lp, lp);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                IFlyoverDiscovery.InvalidProviderData.selector,
-                validName,
-                tooLongUrl
+            providerDataLengthOutOfBoundsData(
+                bytes(validName).length,
+                MAX_PROVIDER_API_BASE_URL_LENGTH + 1
             )
         );
         discovery.register{value: MIN_COLLATERAL}(

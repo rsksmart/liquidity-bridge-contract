@@ -41,22 +41,14 @@ contract UpdateTest is DiscoveryTestBase {
         // Empty name
         vm.prank(fullLp);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                IFlyoverDiscovery.InvalidProviderData.selector,
-                "",
-                "x"
-            )
+            providerDataLengthOutOfBoundsData(0, bytes("x").length)
         );
         discovery.updateProvider("", "x");
 
         // Empty URL
         vm.prank(fullLp);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                IFlyoverDiscovery.InvalidProviderData.selector,
-                "x",
-                ""
-            )
+            providerDataLengthOutOfBoundsData(bytes("x").length, 0)
         );
         discovery.updateProvider("x", "");
     }
@@ -69,10 +61,9 @@ contract UpdateTest is DiscoveryTestBase {
 
         vm.prank(fullLp);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                IFlyoverDiscovery.InvalidProviderData.selector,
-                tooLongName,
-                validUrl
+            providerDataLengthOutOfBoundsData(
+                MAX_PROVIDER_NAME_LENGTH + 1,
+                bytes(validUrl).length
             )
         );
         discovery.updateProvider(tooLongName, validUrl);
@@ -88,10 +79,9 @@ contract UpdateTest is DiscoveryTestBase {
 
         vm.prank(fullLp);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                IFlyoverDiscovery.InvalidProviderData.selector,
-                validName,
-                tooLongUrl
+            providerDataLengthOutOfBoundsData(
+                bytes(validName).length,
+                MAX_PROVIDER_API_BASE_URL_LENGTH + 1
             )
         );
         discovery.updateProvider(validName, tooLongUrl);

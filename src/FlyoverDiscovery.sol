@@ -251,13 +251,20 @@ contract FlyoverDiscovery is
     /// @param name The provider display name to validate
     /// @param apiBaseUrl The provider API base URL to validate
     function _validateProviderData(string memory name, string memory apiBaseUrl) private pure {
+        uint256 nameLength = bytes(name).length;
+        uint256 apiBaseUrlLength = bytes(apiBaseUrl).length;
         if (
-            bytes(name).length < 1 ||
-            bytes(name).length > _MAX_PROVIDER_NAME_LENGTH ||
-            bytes(apiBaseUrl).length < 1 ||
-            bytes(apiBaseUrl).length > _MAX_PROVIDER_API_BASE_URL_LENGTH
+            nameLength < 1 ||
+            nameLength > _MAX_PROVIDER_NAME_LENGTH ||
+            apiBaseUrlLength < 1 ||
+            apiBaseUrlLength > _MAX_PROVIDER_API_BASE_URL_LENGTH
         ) {
-            revert InvalidProviderData(name, apiBaseUrl);
+             revert IFlyoverDiscovery.ProviderDataLengthOutOfBounds(
+                 nameLength,
+                 apiBaseUrlLength,
+                 _MAX_PROVIDER_NAME_LENGTH,
+                 _MAX_PROVIDER_API_BASE_URL_LENGTH
+             );
         }
     }
 }
