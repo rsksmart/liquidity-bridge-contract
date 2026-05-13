@@ -8,6 +8,8 @@
     "test": "npm run compile && make test-unit",
     "test:fuzz": "npm run compile && make test-fuzz",
     "test:invariant": "npm run compile && make test-invariant",
+    "gas:snapshot": "forge snapshot",
+    "gas:compare": "npx ts-node --transpile-only script/compare_gas.ts",
     "coverage": "forge coverage",
     "lint:ts": "npx prettier --check . && npx eslint .",
     "lint:sol": "solhint 'src/**/*.sol'",
