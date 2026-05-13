@@ -90,7 +90,7 @@ contract PegOutContract is
         Quotes.PegOutQuote calldata quote,
         bytes calldata signature
     ) external payable nonReentrant whenNotPaused override {
-        if(!_collateralManagement.isRegistered(_PEG_TYPE, quote.lpRskAddress)) {
+        if(!_collateralManagement.isCollateralSufficient(_PEG_TYPE, quote.lpRskAddress)) {
             revert Flyover.ProviderNotRegistered(quote.lpRskAddress);
         }
         uint256 requiredAmount = quote.value + quote.callFee + quote.gasFee;

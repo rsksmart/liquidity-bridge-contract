@@ -187,7 +187,7 @@ contract FlyoverDiscovery is
     /// @param lp The liquidity provider storage reference
     /// @return True if the provider should be listed, false otherwise
     function _shouldBeListed(Flyover.LiquidityProvider storage lp) private view returns(bool){
-        return _collateralManagement.isRegistered(lp.providerType, lp.providerAddress) && lp.status;
+        return _collateralManagement.isCollateralSufficient(lp.providerType, lp.providerAddress) && lp.status;
     }
 
     /// @notice Validates registration parameters and requirements
