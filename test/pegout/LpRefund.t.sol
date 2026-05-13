@@ -29,7 +29,9 @@ contract LpRefundTest is PegOutTestBase {
 
     // ============ refundPegOut function tests ============
 
-    function test_RefundPegOut_SucceedsAfterLPResignedWhenNotPenalized() public {
+    function test_RefundPegOut_SucceedsAfterLPResignedWhenNotPenalized()
+        public
+    {
         Quotes.PegOutQuote memory quote = createAndDepositQuote();
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
 
@@ -66,7 +68,10 @@ contract LpRefundTest is PegOutTestBase {
     function test_RefundPegOut_RevertsWhenPenalizedIfLpResignedInsufficientCollateralForPenalty()
         public
     {
-        Quotes.PegOutQuote memory quote = createTestPegOutQuote(1 ether, pegOutLp);
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            1 ether,
+            pegOutLp
+        );
         quote.penaltyFee = 1 ether;
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
@@ -87,7 +92,9 @@ contract LpRefundTest is PegOutTestBase {
         vm.warp(quote.expireDate + 1);
         vm.roll(quote.expireBlock + 1);
 
-        bytes memory header = createBtcBlockHeader(uint32(quote.expireDate + 1));
+        bytes memory header = createBtcBlockHeader(
+            uint32(quote.expireDate + 1)
+        );
         bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
         bridgeMock.setConfirmations(
             int256(uint256(quote.transferConfirmations))
@@ -539,7 +546,10 @@ contract LpRefundTest is PegOutTestBase {
     function test_RefundPegOut_RevertsWhenPenalizedAndPegOutCollateralBelowPenaltyFee()
         public
     {
-        Quotes.PegOutQuote memory quote = createTestPegOutQuote(1 ether, pegOutLp);
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            1 ether,
+            pegOutLp
+        );
         quote.penaltyFee = 1 ether;
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
@@ -553,7 +563,9 @@ contract LpRefundTest is PegOutTestBase {
         vm.warp(quote.expireDate + 1);
         vm.roll(quote.expireBlock + 1);
 
-        bytes memory header = createBtcBlockHeader(uint32(quote.expireDate + 1));
+        bytes memory header = createBtcBlockHeader(
+            uint32(quote.expireDate + 1)
+        );
         bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
         bridgeMock.setConfirmations(
             int256(uint256(quote.transferConfirmations))
@@ -580,7 +592,10 @@ contract LpRefundTest is PegOutTestBase {
     function test_RefundPegOut_SucceedsWhenNotPenalizedEvenIfPegOutCollateralBelowPenaltyFee()
         public
     {
-        Quotes.PegOutQuote memory quote = createTestPegOutQuote(1 ether, pegOutLp);
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            1 ether,
+            pegOutLp
+        );
         quote.penaltyFee = 1 ether;
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
