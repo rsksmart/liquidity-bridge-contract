@@ -62,7 +62,9 @@ contract UpdateTest is DiscoveryTestBase {
     }
 
     function test_UpdateProvider_RevertsWhenNameExceedsMaxLength() public {
-        string memory tooLongName = makeStringOfLength(MAX_PROVIDER_NAME_LENGTH + 1);
+        string memory tooLongName = makeStringOfLength(
+            MAX_PROVIDER_NAME_LENGTH + 1
+        );
         string memory validUrl = "x";
 
         vm.prank(fullLp);
@@ -76,9 +78,13 @@ contract UpdateTest is DiscoveryTestBase {
         discovery.updateProvider(tooLongName, validUrl);
     }
 
-    function test_UpdateProvider_RevertsWhenApiBaseUrlExceedsMaxLength() public {
+    function test_UpdateProvider_RevertsWhenApiBaseUrlExceedsMaxLength()
+        public
+    {
         string memory validName = "x";
-        string memory tooLongUrl = makeStringOfLength(MAX_PROVIDER_API_BASE_URL_LENGTH + 1);
+        string memory tooLongUrl = makeStringOfLength(
+            MAX_PROVIDER_API_BASE_URL_LENGTH + 1
+        );
 
         vm.prank(fullLp);
         vm.expectRevert(
@@ -93,7 +99,9 @@ contract UpdateTest is DiscoveryTestBase {
 
     function test_UpdateProvider_AcceptsDataAtMaxLength() public {
         string memory name = makeStringOfLength(MAX_PROVIDER_NAME_LENGTH);
-        string memory url = makeStringOfLength(MAX_PROVIDER_API_BASE_URL_LENGTH);
+        string memory url = makeStringOfLength(
+            MAX_PROVIDER_API_BASE_URL_LENGTH
+        );
 
         vm.prank(fullLp);
         discovery.updateProvider(name, url);

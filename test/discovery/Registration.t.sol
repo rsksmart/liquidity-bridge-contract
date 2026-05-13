@@ -115,7 +115,9 @@ contract RegistrationTest is DiscoveryTestBase {
         address lp = makeAddr("lpLongName");
         vm.deal(lp, 100 ether);
 
-        string memory tooLongName = makeStringOfLength(MAX_PROVIDER_NAME_LENGTH + 1);
+        string memory tooLongName = makeStringOfLength(
+            MAX_PROVIDER_NAME_LENGTH + 1
+        );
         string memory validUrl = "u";
 
         vm.prank(lp, lp);
@@ -134,12 +136,16 @@ contract RegistrationTest is DiscoveryTestBase {
         );
     }
 
-    function test_Register_RevertsWhenProviderApiBaseUrlExceedsMaxLength() public {
+    function test_Register_RevertsWhenProviderApiBaseUrlExceedsMaxLength()
+        public
+    {
         address lp = makeAddr("lpLongUrl");
         vm.deal(lp, 100 ether);
 
         string memory validName = "n";
-        string memory tooLongUrl = makeStringOfLength(MAX_PROVIDER_API_BASE_URL_LENGTH + 1);
+        string memory tooLongUrl = makeStringOfLength(
+            MAX_PROVIDER_API_BASE_URL_LENGTH + 1
+        );
 
         vm.prank(lp, lp);
         vm.expectRevert(
@@ -162,7 +168,9 @@ contract RegistrationTest is DiscoveryTestBase {
         vm.deal(lp, 100 ether);
 
         string memory name = makeStringOfLength(MAX_PROVIDER_NAME_LENGTH);
-        string memory url = makeStringOfLength(MAX_PROVIDER_API_BASE_URL_LENGTH);
+        string memory url = makeStringOfLength(
+            MAX_PROVIDER_API_BASE_URL_LENGTH
+        );
 
         vm.prank(lp, lp);
         discovery.register{value: MIN_COLLATERAL}(

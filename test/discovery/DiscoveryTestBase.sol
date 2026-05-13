@@ -35,7 +35,9 @@ abstract contract DiscoveryTestBase is Test {
     uint256 constant MAX_PROVIDER_API_BASE_URL_LENGTH = 512;
 
     /// @notice Builds an ASCII string of exactly `len` bytes (for max-length validation tests)
-    function makeStringOfLength(uint256 len) internal pure returns (string memory) {
+    function makeStringOfLength(
+        uint256 len
+    ) internal pure returns (string memory) {
         bytes memory b = new bytes(len);
         for (uint256 i; i < len; ) {
             b[i] = bytes1(uint8(97 + (i % 26)));
