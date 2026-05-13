@@ -33,7 +33,9 @@ contract ListingFilterTest is DiscoveryTestBase {
     }
 
     /// @notice getProviders lists only LPs whose collateral meets the current minimum (not only > 0)
-    function test_GetProviders_ExcludesProvidersWhenCollateralBelowMinimum() public {
+    function test_GetProviders_ExcludesProvidersWhenCollateralBelowMinimum()
+        public
+    {
         setupProviders();
         assertEq(discovery.getProviders().length, 3);
 
@@ -56,7 +58,11 @@ contract ListingFilterTest is DiscoveryTestBase {
         );
 
         Flyover.LiquidityProvider[] memory providers = discovery.getProviders();
-        assertEq(providers.length, 0, "No provider meets the raised minimum while staying listed");
+        assertEq(
+            providers.length,
+            0,
+            "No provider meets the raised minimum while staying listed"
+        );
     }
 
     // ============ Listing edge cases tests ============

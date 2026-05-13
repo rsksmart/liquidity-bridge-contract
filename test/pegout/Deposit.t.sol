@@ -68,12 +68,17 @@ contract DepositTest is PegOutTestBase {
     }
 
     /// @notice depositPegOut requires sufficient peg-out collateral vs minimum, not merely a positive balance
-    function test_DepositPegOut_RevertsIfLPPegOutCollateralBelowMinimum() public {
+    function test_DepositPegOut_RevertsIfLPPegOutCollateralBelowMinimum()
+        public
+    {
         vm.prank(owner);
         collateralManagement.setMinCollateral(1 ether);
 
         assertTrue(
-            collateralManagement.isRegistered(Flyover.ProviderType.PegOut, pegOutLp),
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.PegOut,
+                pegOutLp
+            ),
             "LP should still count as registered with non-zero collateral"
         );
         assertFalse(
@@ -84,7 +89,10 @@ contract DepositTest is PegOutTestBase {
             "LP should be below the new minimum peg-out collateral"
         );
 
-        Quotes.PegOutQuote memory quote = createTestPegOutQuote(1 ether, pegOutLp);
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            1 ether,
+            pegOutLp
+        );
         bytes memory signature = signQuote(pegOutLp, quote);
 
         vm.prank(user);
