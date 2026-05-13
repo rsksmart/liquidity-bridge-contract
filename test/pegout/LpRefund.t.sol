@@ -102,11 +102,12 @@ contract LpRefundTest is PegOutTestBase {
 
         bytes memory btcTx = generateBtcTx(quote, quoteHash);
 
+        uint256 collateral = collateralManagement.getPegOutCollateral(pegOutLp);
         vm.prank(pegOutLp);
         vm.expectRevert(
             abi.encodeWithSelector(
                 IPegOut.InsufficientCollateral.selector,
-                quote.penaltyFee
+                collateral
             )
         );
         pegOutContract.refundPegOut(
@@ -573,11 +574,12 @@ contract LpRefundTest is PegOutTestBase {
 
         bytes memory btcTx = generateBtcTx(quote, quoteHash);
 
+        uint256 collateral = collateralManagement.getPegOutCollateral(pegOutLp);
         vm.prank(pegOutLp);
         vm.expectRevert(
             abi.encodeWithSelector(
                 IPegOut.InsufficientCollateral.selector,
-                quote.penaltyFee
+                collateral
             )
         );
         pegOutContract.refundPegOut(
