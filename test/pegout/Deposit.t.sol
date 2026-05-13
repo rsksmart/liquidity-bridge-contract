@@ -76,15 +76,9 @@ contract DepositTest is PegOutTestBase {
 
         vm.prank(user);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                Flyover.InvalidAddress.selector,
-                address(0)
-            )
+            abi.encodeWithSelector(Flyover.InvalidAddress.selector, address(0))
         );
-        pegOutContract.depositPegOut{value: getTotalValue(quote)}(
-            quote,
-            ""
-        );
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(quote, "");
     }
 
     function test_DepositPegOut_RevertsIfAmountIsNotEnough() public {
