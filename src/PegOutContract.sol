@@ -228,7 +228,7 @@ contract PegOutContract is
         if (_shouldPenalize(quote, quoteHash, btcBlockHeaderHash)) {
             uint256 collateral = _collateralManagement.getPegOutCollateral(quote.lpRskAddress);
             if (collateral < quote.penaltyFee) {
-                revert IPegOut.InsufficientCollateral(quote.penaltyFee);
+                revert IPegOut.InsufficientCollateral(collateral);
             }
             _collateralManagement.slashPegOutCollateral(msg.sender, quote, quoteHash);
         }
