@@ -226,6 +226,10 @@ contract PegOutContract is
         emit PegOutRefunded(quoteHash);
 
         if (_shouldPenalize(quote, quoteHash, btcBlockHeaderHash)) {
+            uint256 collateral = _collateralManagement.getPegOutCollateral(quote.lpRskAddress);
+            if (collateral < quote.penaltyFee) {
+                revert IPegOut.InsufficientCollateral(collateral);
+            }
             _collateralManagement.slashPegOutCollateral(msg.sender, quote, quoteHash);
         }
 
@@ -407,9 +411,6 @@ contract PegOutContract is
         bytes32 quoteHash,
         bytes calldata btcTx
     ) private view returns (Quotes.PegOutQuote memory quote) {
-        if(!_collateralManagement.isRegistered(_PEG_TYPE, msg.sender)) {
-            revert Flyover.ProviderNotRegistered(msg.sender);
-        }
         if (_isQuoteCompleted(quoteHash)) revert QuoteAlreadyCompleted(quoteHash);
 
         quote = _pegOutQuotes[quoteHash];
