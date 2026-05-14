@@ -226,6 +226,10 @@ contract PegOutContract is
         emit PegOutRefunded(quoteHash);
 
         if (_shouldPenalize(quote, quoteHash, btcBlockHeaderHash)) {
+            uint256 collateral = _collateralManagement.getPegOutCollateral(quote.lpRskAddress);
+            if (collateral < quote.penaltyFee) {
+                revert IPegOut.InsufficientCollateral(collateral);
+            }
             _collateralManagement.slashPegOutCollateral(msg.sender, quote, quoteHash);
         }
 
@@ -349,6 +353,10 @@ contract PegOutContract is
             quote.expireBlock > block.number + _NATIVE_PEGOUT_BLOCKS ||
             quote.expireDate > block.timestamp + _NATIVE_PEGOUT_SECONDS
         ) revert UnfairQuote();
+
+        if (quote.rskRefundAddress == address(0)) {
+            revert Flyover.InvalidAddress(quote.rskRefundAddress);
+        }
     }
 
     /// @notice This function is used to check if a quote has been completed (refunded by any party)
@@ -403,9 +411,6 @@ contract PegOutContract is
         bytes32 quoteHash,
         bytes calldata btcTx
     ) private view returns (Quotes.PegOutQuote memory quote) {
-        if(!_collateralManagement.isRegistered(_PEG_TYPE, msg.sender)) {
-            revert Flyover.ProviderNotRegistered(msg.sender);
-        }
         if (_isQuoteCompleted(quoteHash)) revert QuoteAlreadyCompleted(quoteHash);
 
         quote = _pegOutQuotes[quoteHash];

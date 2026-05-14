@@ -108,6 +108,20 @@ contract DepositTest is PegOutTestBase {
         );
     }
 
+    function test_DepositPegOut_RevertsIfRskRefundAddressIsZero() public {
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            1.03 ether,
+            fullLp
+        );
+        quote.rskRefundAddress = address(0);
+
+        vm.prank(user);
+        vm.expectRevert(
+            abi.encodeWithSelector(Flyover.InvalidAddress.selector, address(0))
+        );
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(quote, "");
+    }
+
     function test_DepositPegOut_RevertsIfAmountIsNotEnough() public {
         Quotes.PegOutQuote memory quote = createTestPegOutQuote(
             1.03 ether,
