@@ -83,6 +83,10 @@ interface ICollateralManagement is IPausable {
     /// @param passedRewardPercentage The provided reward percentage (basis points)
     error InvalidRewardPercentage(uint256 maxRewardPercentage, uint256 passedRewardPercentage);
 
+    /// @notice Emitted when the minimum collateral is invalid
+    /// @param minCollateral The minimum collateral that was invalid
+    error InvalidMinCollateral(uint256 minCollateral);
+
     /// @notice Adds peg in collateral to an account
     /// @param addr The address of the account
     /// @dev This function requires the COLLATERAL_ADDER role
