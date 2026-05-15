@@ -155,7 +155,7 @@ contract ConfigurationTest is CollateralTestBase {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                ICollateralManagement.InvalidMinCollateral.selector,
+                ICollateralManagement.MinCollateralTooLow.selector,
                 uint256(0)
             )
         );
@@ -375,7 +375,7 @@ contract ConfigurationTest is CollateralTestBase {
         vm.prank(owner);
         vm.expectRevert(
             abi.encodeWithSelector(
-                ICollateralManagement.InvalidMinCollateral.selector,
+                ICollateralManagement.MinCollateralTooLow.selector,
                 uint256(0)
             )
         );
