@@ -603,10 +603,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
         );
 
         assertTrue(
-            collateralManagement.isRegistered(
-                Flyover.ProviderType.PegOut,
-                lp
-            )
+            collateralManagement.isRegistered(Flyover.ProviderType.PegOut, lp)
         );
         assertTrue(discovery.isOperational(Flyover.ProviderType.PegOut, lp));
     }

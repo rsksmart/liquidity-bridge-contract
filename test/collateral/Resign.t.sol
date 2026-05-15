@@ -261,14 +261,26 @@ contract ResignTest is CollateralTestBase {
 
         vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS);
 
-        assertEq(collateralManagement.getPegInCollateral(pegInLp), 0, "slash zeroed peg-in collateral");
-        assertGt(collateralManagement.getResignationBlock(pegInLp), 0, "still resigned before withdraw");
+        assertEq(
+            collateralManagement.getPegInCollateral(pegInLp),
+            0,
+            "slash zeroed peg-in collateral"
+        );
+        assertGt(
+            collateralManagement.getResignationBlock(pegInLp),
+            0,
+            "still resigned before withdraw"
+        );
 
         uint256 balanceBefore = pegInLp.balance;
         vm.prank(pegInLp);
         collateralManagement.withdrawCollateral();
 
-        assertEq(pegInLp.balance, balanceBefore, "peg-in: no transfer when slash already zeroed collateral");
+        assertEq(
+            pegInLp.balance,
+            balanceBefore,
+            "peg-in: no transfer when slash already zeroed collateral"
+        );
         assertEq(collateralManagement.getPegInCollateral(pegInLp), 0);
         assertEq(collateralManagement.getResignationBlock(pegInLp), 0);
 
@@ -289,14 +301,26 @@ contract ResignTest is CollateralTestBase {
 
         vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS);
 
-        assertEq(collateralManagement.getPegOutCollateral(pegOutLp), 0, "slash zeroed peg-out collateral");
-        assertGt(collateralManagement.getResignationBlock(pegOutLp), 0, "still resigned before withdraw");
+        assertEq(
+            collateralManagement.getPegOutCollateral(pegOutLp),
+            0,
+            "slash zeroed peg-out collateral"
+        );
+        assertGt(
+            collateralManagement.getResignationBlock(pegOutLp),
+            0,
+            "still resigned before withdraw"
+        );
 
         balanceBefore = pegOutLp.balance;
         vm.prank(pegOutLp);
         collateralManagement.withdrawCollateral();
 
-        assertEq(pegOutLp.balance, balanceBefore, "peg-out: no transfer when slash already zeroed collateral");
+        assertEq(
+            pegOutLp.balance,
+            balanceBefore,
+            "peg-out: no transfer when slash already zeroed collateral"
+        );
         assertEq(collateralManagement.getPegOutCollateral(pegOutLp), 0);
         assertEq(collateralManagement.getResignationBlock(pegOutLp), 0);
 
@@ -323,14 +347,22 @@ contract ResignTest is CollateralTestBase {
         vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS);
 
         assertEq(collateralManagement.getPegInCollateral(fullLp), 0);
-        assertEq(collateralManagement.getPegOutCollateral(fullLp), 0, "slash zeroed both buckets");
+        assertEq(
+            collateralManagement.getPegOutCollateral(fullLp),
+            0,
+            "slash zeroed both buckets"
+        );
         assertGt(collateralManagement.getResignationBlock(fullLp), 0);
 
         balanceBefore = fullLp.balance;
         vm.prank(fullLp);
         collateralManagement.withdrawCollateral();
 
-        assertEq(fullLp.balance, balanceBefore, "both buckets: no transfer when slash already zeroed collateral");
+        assertEq(
+            fullLp.balance,
+            balanceBefore,
+            "both buckets: no transfer when slash already zeroed collateral"
+        );
         assertEq(collateralManagement.getResignationBlock(fullLp), 0);
     }
 
