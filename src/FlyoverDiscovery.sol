@@ -185,11 +185,11 @@ contract FlyoverDiscovery is
     }
 
     /// @notice Checks if a liquidity provider should be listed in the public provider list
-    /// @dev A provider is listed if it is registered and has status enabled
+    /// @dev A provider is listed if it is registered, has the min collateral, and has status enabled
     /// @param lp The liquidity provider storage reference
     /// @return True if the provider should be listed, false otherwise
     function _shouldBeListed(Flyover.LiquidityProvider storage lp) private view returns(bool){
-        return _collateralManagement.isRegistered(lp.providerType, lp.providerAddress) && lp.status;
+        return _collateralManagement.isCollateralSufficient(lp.providerType, lp.providerAddress) && lp.status;
     }
 
     /// @notice Validates registration parameters and requirements
