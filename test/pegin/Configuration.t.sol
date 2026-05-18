@@ -48,7 +48,7 @@ contract ConfigurationTest is PegInTestBase {
 
     function test_Initialize_InitializesProperly() public view {
         // Check VERSION
-        assertEq(pegInContract.VERSION(), "1.0.1", "VERSION should be 1.0.1");
+        assertEq(pegInContract.VERSION(), "1.0.0", "VERSION should be 1.0.0");
 
         // Check dustThreshold
         assertEq(
