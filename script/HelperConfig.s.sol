@@ -237,11 +237,13 @@ contract HelperConfig is Script {
 
     function getFlyoverLocalConfig() internal returns (FlyoverConfig memory) {
         // Deploy mock bridge locally
-        BridgeMock bridge = new BridgeMock();
+        address bridge = block.chainid == 33
+            ? address(0x0000000000000000000000000000000001000006)
+            : address(new BridgeMock());
 
         return
             FlyoverConfig({
-                bridge: address(bridge),
+                bridge: bridge,
                 minimumCollateral: vm.envOr(
                     "MIN_COLLATERAL_LOCAL",
                     uint256(0.05 ether)
