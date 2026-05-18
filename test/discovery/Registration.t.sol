@@ -81,10 +81,9 @@ contract RegistrationTest is DiscoveryTestBase {
         // Empty name
         vm.prank(lp, lp);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                IFlyoverDiscovery.InvalidProviderData.selector,
-                "",
-                "http://localhost/api"
+            providerDataLengthOutOfBoundsData(
+                0,
+                bytes("http://localhost/api").length
             )
         );
         discovery.register{value: MIN_COLLATERAL}(
@@ -97,11 +96,7 @@ contract RegistrationTest is DiscoveryTestBase {
         // Empty URL
         vm.prank(lp, lp);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                IFlyoverDiscovery.InvalidProviderData.selector,
-                "LP",
-                ""
-            )
+            providerDataLengthOutOfBoundsData(bytes("LP").length, 0)
         );
         discovery.register{value: MIN_COLLATERAL}(
             "LP",
@@ -109,6 +104,78 @@ contract RegistrationTest is DiscoveryTestBase {
             true,
             Flyover.ProviderType.PegIn
         );
+    }
+
+    function test_Register_RevertsWhenProviderNameExceedsMaxLength() public {
+        address lp = makeAddr("lpLongName");
+        vm.deal(lp, 100 ether);
+
+        string memory tooLongName = makeStringOfLength(
+            MAX_PROVIDER_NAME_LENGTH + 1
+        );
+        string memory validUrl = "u";
+
+        vm.prank(lp, lp);
+        vm.expectRevert(
+            providerDataLengthOutOfBoundsData(
+                MAX_PROVIDER_NAME_LENGTH + 1,
+                bytes(validUrl).length
+            )
+        );
+        discovery.register{value: MIN_COLLATERAL}(
+            tooLongName,
+            validUrl,
+            true,
+            Flyover.ProviderType.PegIn
+        );
+    }
+
+    function test_Register_RevertsWhenProviderApiBaseUrlExceedsMaxLength()
+        public
+    {
+        address lp = makeAddr("lpLongUrl");
+        vm.deal(lp, 100 ether);
+
+        string memory validName = "n";
+        string memory tooLongUrl = makeStringOfLength(
+            MAX_PROVIDER_API_BASE_URL_LENGTH + 1
+        );
+
+        vm.prank(lp, lp);
+        vm.expectRevert(
+            providerDataLengthOutOfBoundsData(
+                bytes(validName).length,
+                MAX_PROVIDER_API_BASE_URL_LENGTH + 1
+            )
+        );
+        discovery.register{value: MIN_COLLATERAL}(
+            validName,
+            tooLongUrl,
+            true,
+            Flyover.ProviderType.PegIn
+        );
+    }
+
+    function test_Register_AcceptsProviderDataAtMaxLength() public {
+        address lp = makeAddr("lpMaxLen");
+        vm.deal(lp, 100 ether);
+
+        string memory name = makeStringOfLength(MAX_PROVIDER_NAME_LENGTH);
+        string memory url = makeStringOfLength(
+            MAX_PROVIDER_API_BASE_URL_LENGTH
+        );
+
+        vm.prank(lp, lp);
+        discovery.register{value: MIN_COLLATERAL}(
+            name,
+            url,
+            true,
+            Flyover.ProviderType.PegIn
+        );
+
+        Flyover.LiquidityProvider memory p = discovery.getProvider(lp);
+        assertEq(bytes(p.name).length, MAX_PROVIDER_NAME_LENGTH);
+        assertEq(bytes(p.apiBaseUrl).length, MAX_PROVIDER_API_BASE_URL_LENGTH);
     }
 
     function test_Register_RevertsOnInsufficientCollateralDependingOnProviderType()
