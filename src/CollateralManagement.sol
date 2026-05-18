@@ -315,7 +315,10 @@ contract CollateralManagementContract is
         }
 
         uint256 amount = _pegOutCollateral[providerAddress] + _pegInCollateral[providerAddress];
-        if (amount < 1) revert NothingToWithdraw(providerAddress);
+        if (amount < 1) {
+            _resignationBlockNum[providerAddress] = 0;
+            return;
+        }
         _pegOutCollateral[providerAddress] = 0;
         _pegInCollateral[providerAddress] = 0;
         _resignationBlockNum[providerAddress] = 0;

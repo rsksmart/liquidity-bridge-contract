@@ -532,6 +532,85 @@ contract FlyoverDiscoveryIntegrationTest is Test {
         assertFalse(discovery.isOperational(Flyover.ProviderType.PegIn, lp));
     }
 
+    function getEmptyPegOutQuote()
+        internal
+        view
+        returns (Quotes.PegOutQuote memory)
+    {
+        bytes memory testAddress = new bytes(20);
+
+        return
+            Quotes.PegOutQuote({
+                chainId: block.chainid,
+                callFee: 0,
+                penaltyFee: 0,
+                value: 0,
+                gasFee: 0,
+                lbcAddress: ZERO_ADDRESS,
+                lpRskAddress: ZERO_ADDRESS,
+                rskRefundAddress: ZERO_ADDRESS,
+                nonce: 0,
+                agreementTimestamp: 0,
+                depositDateLimit: 0,
+                transferTime: 0,
+                expireDate: 0,
+                expireBlock: 0,
+                depositConfirmations: 0,
+                transferConfirmations: 0,
+                depositAddress: testAddress,
+                btcRefundAddress: testAddress,
+                lpBtcAddress: testAddress
+            });
+    }
+
+    function test_CanRegisterAgainAfterResignSlashAndZeroWithdraw() public {
+        setupProviders();
+
+        address lp = pegOutLp;
+        uint originalProviderId = discovery.getProvider(lp).id;
+
+        vm.prank(lp);
+        collateralManagement.resign();
+
+        Quotes.PegOutQuote memory pegOutQuote = getEmptyPegOutQuote();
+        pegOutQuote.penaltyFee = 300 ether;
+        pegOutQuote.lpRskAddress = lp;
+
+        vm.prank(owner);
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_SLASHER(),
+            owner
+        );
+        collateralManagement.slashPegOutCollateral(
+            owner,
+            pegOutQuote,
+            bytes32(uint256(1))
+        );
+
+        vm.roll(block.number + RESIGN_DELAY_BLOCKS);
+
+        vm.prank(lp);
+        collateralManagement.withdrawCollateral();
+
+        assertEq(collateralManagement.getResignationBlock(lp), 0);
+        assertEq(collateralManagement.getPegOutCollateral(lp), 0);
+
+        vm.prank(lp, lp);
+        uint reregisteredId = discovery.register{value: MIN_COLLATERAL}(
+            "PegOut Provider Again",
+            "lp2.com",
+            true,
+            Flyover.ProviderType.PegOut
+        );
+
+        assertEq(reregisteredId, originalProviderId);
+        assertEq(discovery.getProvider(lp).id, originalProviderId);
+        assertTrue(
+            collateralManagement.isRegistered(Flyover.ProviderType.PegOut, lp)
+        );
+        assertTrue(discovery.isOperational(Flyover.ProviderType.PegOut, lp));
+    }
+
     function test_ShouldSupportReRegistrationWithDifferentProviderTypeAfterFullResignationAndWithdrawal()
         public
     {
