@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import {Script, console} from "lib/forge-std/src/Script.sol";
 
 import {HelperConfig} from "../HelperConfig.s.sol";
+import {ProxyReader} from "../helpers/ProxyReader.sol";
 
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
@@ -12,28 +13,36 @@ import {PegInContract} from "../../src/PegInContract.sol";
 import {PegOutContract} from "../../src/PegOutContract.sol";
 
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
 /// @title DeployFlyover
 /// @notice Orchestrates the deployment of all Flyover contracts and sets up roles
-/// @dev Gas optimized: single ProxyAdmin, inlined deployment logic, linked libraries
 contract DeployFlyover is Script {
     struct FlyoverDeployment {
         address pauseRegistryProxy;
+        address pauseRegistryProxyAdmin;
         address collateralManagementImpl;
         address collateralManagementProxy;
+        address collateralManagementProxyAdmin;
         address flyoverDiscoveryImpl;
         address flyoverDiscoveryProxy;
+        address flyoverDiscoveryProxyAdmin;
         address pegInImpl;
         address pegInProxy;
+        address pegInProxyAdmin;
         address pegOutImpl;
         address pegOutProxy;
-        address proxyAdmin; // Single ProxyAdmin for all
+        address pegOutProxyAdmin;
     }
 
     function run() external returns (FlyoverDeployment memory) {
         HelperConfig helper = new HelperConfig();
         HelperConfig.FlyoverConfig memory cfg = helper.getFlyoverConfig();
+
+        uint256 deployerKey = helper.getDeployerPrivateKey();
+        address deployer = vm.rememberKey(deployerKey);
+
+        address defaultAdmin = deployer;
+
         console.log(
             "======================== Config =========================="
         );
@@ -46,16 +55,14 @@ contract DeployFlyover is Script {
         console.log("BTC Block Time:", cfg.btcBlockTime);
         console.log("Mainnet:", cfg.mainnet);
         console.log("Admin Delay:", cfg.adminDelay);
+        console.log("Default Admin:", defaultAdmin);
         console.log(
             "=========================================================="
         );
 
-        uint256 deployerKey = helper.getDeployerPrivateKey();
-        address deployer = vm.rememberKey(deployerKey);
-
         vm.startBroadcast(deployerKey);
 
-        FlyoverDeployment memory d = _deployAll(deployer, cfg);
+        FlyoverDeployment memory d = _deployAll(defaultAdmin, cfg);
         _setupRoles(d);
 
         vm.stopBroadcast();
@@ -68,20 +75,21 @@ contract DeployFlyover is Script {
         address defaultAdmin,
         HelperConfig.FlyoverConfig memory cfg
     ) private returns (FlyoverDeployment memory d) {
-        // Single ProxyAdmin for all contracts
-        d.proxyAdmin = address(new ProxyAdmin(defaultAdmin));
-
         // 0) PauseRegistry (shared by all)
         PauseRegistry prImpl = new PauseRegistry();
         d.pauseRegistryProxy = address(
             new TransparentUpgradeableProxy(
                 address(prImpl),
-                d.proxyAdmin,
+                defaultAdmin,
                 abi.encodeCall(
                     prImpl.initialize,
                     (cfg.adminDelay, defaultAdmin)
                 )
             )
+        );
+        d.pauseRegistryProxyAdmin = ProxyReader.readAdmin(
+            vm,
+            d.pauseRegistryProxy
         );
 
         // 1) CollateralManagement
@@ -91,7 +99,7 @@ contract DeployFlyover is Script {
         d.collateralManagementProxy = address(
             new TransparentUpgradeableProxy(
                 d.collateralManagementImpl,
-                d.proxyAdmin,
+                defaultAdmin,
                 abi.encodeCall(
                     CollateralManagementContract.initialize,
                     (
@@ -105,13 +113,17 @@ contract DeployFlyover is Script {
                 )
             )
         );
+        d.collateralManagementProxyAdmin = ProxyReader.readAdmin(
+            vm,
+            d.collateralManagementProxy
+        );
 
         // 2) FlyoverDiscovery
         d.flyoverDiscoveryImpl = address(new FlyoverDiscovery());
         d.flyoverDiscoveryProxy = address(
             new TransparentUpgradeableProxy(
                 d.flyoverDiscoveryImpl,
-                d.proxyAdmin,
+                defaultAdmin,
                 abi.encodeCall(
                     FlyoverDiscovery.initialize,
                     (
@@ -123,13 +135,17 @@ contract DeployFlyover is Script {
                 )
             )
         );
+        d.flyoverDiscoveryProxyAdmin = ProxyReader.readAdmin(
+            vm,
+            d.flyoverDiscoveryProxy
+        );
 
         // 3) PegInContract
         d.pegInImpl = address(new PegInContract());
         d.pegInProxy = address(
             new TransparentUpgradeableProxy(
                 d.pegInImpl,
-                d.proxyAdmin,
+                defaultAdmin,
                 abi.encodeCall(
                     PegInContract.initialize,
                     (
@@ -144,13 +160,14 @@ contract DeployFlyover is Script {
                 )
             )
         );
+        d.pegInProxyAdmin = ProxyReader.readAdmin(vm, d.pegInProxy);
 
         // 4) PegOutContract
         d.pegOutImpl = address(new PegOutContract());
         d.pegOutProxy = address(
             new TransparentUpgradeableProxy(
                 d.pegOutImpl,
-                d.proxyAdmin,
+                defaultAdmin,
                 abi.encodeCall(
                     PegOutContract.initialize,
                     (
@@ -165,6 +182,7 @@ contract DeployFlyover is Script {
                 )
             )
         );
+        d.pegOutProxyAdmin = ProxyReader.readAdmin(vm, d.pegOutProxy);
     }
 
     function _setupRoles(FlyoverDeployment memory d) private {
@@ -181,15 +199,25 @@ contract DeployFlyover is Script {
 
     function _log(FlyoverDeployment memory d) private pure {
         console.log("=== FLYOVER DEPLOYMENT ===");
-        console.log("ProxyAdmin:", d.proxyAdmin);
         console.log("PauseRegistry proxy:", d.pauseRegistryProxy);
+        console.log("PauseRegistry ProxyAdmin:", d.pauseRegistryProxyAdmin);
         console.log("CollateralManagement impl:", d.collateralManagementImpl);
         console.log("CollateralManagement proxy:", d.collateralManagementProxy);
+        console.log(
+            "CollateralManagement ProxyAdmin:",
+            d.collateralManagementProxyAdmin
+        );
         console.log("FlyoverDiscovery impl:", d.flyoverDiscoveryImpl);
         console.log("FlyoverDiscovery proxy:", d.flyoverDiscoveryProxy);
+        console.log(
+            "FlyoverDiscovery ProxyAdmin:",
+            d.flyoverDiscoveryProxyAdmin
+        );
         console.log("PegInContract impl:", d.pegInImpl);
         console.log("PegInContract proxy:", d.pegInProxy);
+        console.log("PegInContract ProxyAdmin:", d.pegInProxyAdmin);
         console.log("PegOutContract impl:", d.pegOutImpl);
         console.log("PegOutContract proxy:", d.pegOutProxy);
+        console.log("PegOutContract ProxyAdmin:", d.pegOutProxyAdmin);
     }
 }

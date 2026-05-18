@@ -85,7 +85,7 @@ library AddressResolverLib {
             getContractAddress(
                 vm,
                 "COLLATERAL_MANAGEMENT_ADDRESS",
-                "CollateralManagement"
+                "CollateralManagementContract"
             );
     }
 
