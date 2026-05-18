@@ -567,6 +567,7 @@ contract FlyoverDiscoveryIntegrationTest is Test {
         setupProviders();
 
         address lp = pegOutLp;
+        uint originalProviderId = discovery.getProvider(lp).id;
 
         vm.prank(lp);
         collateralManagement.resign();
@@ -595,13 +596,15 @@ contract FlyoverDiscoveryIntegrationTest is Test {
         assertEq(collateralManagement.getPegOutCollateral(lp), 0);
 
         vm.prank(lp, lp);
-        discovery.register{value: MIN_COLLATERAL}(
+        uint reregisteredId = discovery.register{value: MIN_COLLATERAL}(
             "PegOut Provider Again",
             "lp2.com",
             true,
             Flyover.ProviderType.PegOut
         );
 
+        assertEq(reregisteredId, originalProviderId);
+        assertEq(discovery.getProvider(lp).id, originalProviderId);
         assertTrue(
             collateralManagement.isRegistered(Flyover.ProviderType.PegOut, lp)
         );
