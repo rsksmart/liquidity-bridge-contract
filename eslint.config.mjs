@@ -16,6 +16,7 @@ export default [
       "coverage/*",
       "broadcast/*",
       "out/*",
+      "lib/*",
     ],
   },
   pluginJs.configs.recommended,

@@ -7,6 +7,7 @@ import {ProxyReader} from "../helpers/ProxyReader.sol";
 import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {Options} from "openzeppelin-foundry-upgrades/Options.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 /// @title DeployFlyoverDiscovery
@@ -43,7 +44,8 @@ contract DeployFlyoverDiscovery is Script {
             deployer,
             cfg,
             collateralManagementProxy,
-            pauseRegistryProxy
+            pauseRegistryProxy,
+            helper.getOptions()
         );
         vm.stopBroadcast();
 
@@ -54,7 +56,8 @@ contract DeployFlyoverDiscovery is Script {
         address defaultAdmin,
         HelperConfig.FlyoverConfig memory cfg,
         address collateralManagementProxy,
-        address pauseRegistryProxy
+        address pauseRegistryProxy,
+        Options memory opts
     ) private returns (DeploymentResult memory result) {
         address flyoverDiscoveryProxy = Upgrades.deployTransparentProxy(
             "FlyoverDiscovery.sol",
@@ -67,7 +70,8 @@ contract DeployFlyoverDiscovery is Script {
                     collateralManagementProxy,
                     PauseRegistry(pauseRegistryProxy)
                 )
-            )
+            ),
+            opts
         );
         result.proxy = flyoverDiscoveryProxy;
         result.implementation = ProxyReader.readImplementation(

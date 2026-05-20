@@ -7,6 +7,7 @@ import {ProxyReader} from "../helpers/ProxyReader.sol";
 import {PegOutContract} from "../../src/PegOutContract.sol";
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {Options} from "openzeppelin-foundry-upgrades/Options.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 /// @title DeployPegOut
@@ -43,7 +44,8 @@ contract DeployPegOut is Script {
             deployer,
             cfg,
             collateralManagementProxy,
-            pauseRegistryProxy
+            pauseRegistryProxy,
+            helper.getOptions()
         );
         vm.stopBroadcast();
 
@@ -54,7 +56,8 @@ contract DeployPegOut is Script {
         address defaultAdmin,
         HelperConfig.FlyoverConfig memory cfg,
         address collateralManagementProxy,
-        address pauseRegistryProxy
+        address pauseRegistryProxy,
+        Options memory opts
     ) private returns (DeploymentResult memory result) {
         address pegOutProxy = Upgrades.deployTransparentProxy(
             "PegOutContract.sol",
@@ -70,7 +73,8 @@ contract DeployPegOut is Script {
                     cfg.btcBlockTime,
                     PauseRegistry(pauseRegistryProxy)
                 )
-            )
+            ),
+            opts
         );
         result.proxy = pegOutProxy;
         result.implementation = ProxyReader.readImplementation(vm, pegOutProxy);

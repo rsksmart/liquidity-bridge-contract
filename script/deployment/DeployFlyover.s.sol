@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
+import {Options} from "openzeppelin-foundry-upgrades/Options.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 import {Script, console} from "lib/forge-std/src/Script.sol";
@@ -65,7 +66,11 @@ contract DeployFlyover is Script {
 
         vm.startBroadcast(deployerKey);
 
-        FlyoverDeployment memory d = _deployAll(defaultAdmin, cfg);
+        FlyoverDeployment memory d = _deployAll(
+            defaultAdmin,
+            cfg,
+            helper.getOptions()
+        );
         _setupRoles(d);
 
         vm.stopBroadcast();
@@ -76,7 +81,8 @@ contract DeployFlyover is Script {
 
     function _deployAll(
         address defaultAdmin,
-        HelperConfig.FlyoverConfig memory cfg
+        HelperConfig.FlyoverConfig memory cfg,
+        Options memory opts
     ) private returns (FlyoverDeployment memory d) {
         // 0) PauseRegistry (shared by all)
         address pauseRegistryProxy = Upgrades.deployTransparentProxy(
@@ -85,7 +91,8 @@ contract DeployFlyover is Script {
             abi.encodeCall(
                 PauseRegistry.initialize,
                 (cfg.adminDelay, defaultAdmin)
-            )
+            ),
+            opts
         );
         d.pauseRegistryProxy = pauseRegistryProxy;
         d.pauseRegistryImpl = ProxyReader.readImplementation(
@@ -99,7 +106,7 @@ contract DeployFlyover is Script {
 
         // 1) CollateralManagement
         address collateralManagementProxy = Upgrades.deployTransparentProxy(
-            "CollateralManagementContract.sol",
+            "CollateralManagement.sol:CollateralManagementContract",
             defaultAdmin,
             abi.encodeCall(
                 CollateralManagementContract.initialize,
@@ -111,7 +118,8 @@ contract DeployFlyover is Script {
                     cfg.rewardPercentage,
                     PauseRegistry(pauseRegistryProxy)
                 )
-            )
+            ),
+            opts
         );
         d.collateralManagementProxy = collateralManagementProxy;
         d.collateralManagementImpl = ProxyReader.readImplementation(
@@ -135,7 +143,8 @@ contract DeployFlyover is Script {
                     d.collateralManagementProxy,
                     PauseRegistry(pauseRegistryProxy)
                 )
-            )
+            ),
+            opts
         );
         d.flyoverDiscoveryProxy = flyoverDiscoveryProxy;
         d.flyoverDiscoveryImpl = ProxyReader.readImplementation(
@@ -162,7 +171,8 @@ contract DeployFlyover is Script {
                     cfg.mainnet,
                     PauseRegistry(pauseRegistryProxy)
                 )
-            )
+            ),
+            opts
         );
         d.pegInProxy = pegInProxy;
         d.pegInImpl = ProxyReader.readImplementation(vm, pegInProxy);
@@ -183,7 +193,8 @@ contract DeployFlyover is Script {
                     cfg.btcBlockTime,
                     PauseRegistry(pauseRegistryProxy)
                 )
-            )
+            ),
+            opts
         );
         d.pegOutProxy = pegOutProxy;
         d.pegOutImpl = ProxyReader.readImplementation(vm, pegOutProxy);

@@ -7,6 +7,7 @@ import {ProxyReader} from "../helpers/ProxyReader.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {Options} from "openzeppelin-foundry-upgrades/Options.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 /// @title DeployCollateralManagement
@@ -31,7 +32,12 @@ contract DeployCollateralManagement is Script {
         );
 
         vm.startBroadcast(deployerKey);
-        result = _deploy(deployer, cfg, pauseRegistryProxy);
+        result = _deploy(
+            deployer,
+            cfg,
+            pauseRegistryProxy,
+            helper.getOptions()
+        );
         vm.stopBroadcast();
 
         _log(result);
@@ -40,10 +46,11 @@ contract DeployCollateralManagement is Script {
     function _deploy(
         address defaultAdmin,
         HelperConfig.FlyoverConfig memory cfg,
-        address pauseRegistryProxy
+        address pauseRegistryProxy,
+        Options memory opts
     ) private returns (DeploymentResult memory result) {
         address collateralManagementProxy = Upgrades.deployTransparentProxy(
-            "CollateralManagementContract.sol",
+            "CollateralManagement.sol:CollateralManagementContract",
             defaultAdmin,
             abi.encodeCall(
                 CollateralManagementContract.initialize,
@@ -55,7 +62,8 @@ contract DeployCollateralManagement is Script {
                     cfg.rewardPercentage,
                     PauseRegistry(pauseRegistryProxy)
                 )
-            )
+            ),
+            opts
         );
         result.proxy = collateralManagementProxy;
         result.implementation = ProxyReader.readImplementation(

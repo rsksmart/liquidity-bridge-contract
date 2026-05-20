@@ -78,7 +78,7 @@ endif
 # Read library addresses from addresses.json using jq
 # Usage: $(call get_lib_address,network,library)
 define get_lib_address
-$(shell jq -r '.["$(1)"]["$(2)"].address // empty' addresses.json 2>/dev/null)
+$(shell jq -r '.["$(call get_rsk_network_name,$(1))"]["$(2)"].address // empty' addresses.json 2>/dev/null)
 endef
 
 # Build library linking flags from addresses.json
@@ -91,7 +91,7 @@ endef
 # Network-specific RPC and key
 # Note: development uses testnet RPC (same chain) but different library addresses
 define get_network_config
-$(if $(filter mainnet,$(1)),$(MAINNET_RPC),$(if $(filter testnet development,$(1)),$(TESTNET_RPC),$(REGTEST_RPC)))
+$(if $(filter mainnet,$(1)),$(MAINNET_RPC),$(if $(filter testnet development,$(1)),$(TESTNET_RPC),$(if $(filter regtest rskRegtest,$(1)),$(REGTEST_RPC),$(REGTEST_RPC))))
 endef
 
 define get_network_key
@@ -99,13 +99,13 @@ $(if $(filter mainnet,$(1)),$(MAINNET_KEY),$(if $(filter testnet,$(1)),$(TESTNET
 endef
 
 define get_chain_id
-$(if $(filter mainnet,$(1)),$(MAINNET_CHAIN_ID),$(if $(filter testnet development,$(1)),$(TESTNET_CHAIN_ID),$(LOCAL_CHAIN_ID)))
+$(if $(filter mainnet,$(1)),$(MAINNET_CHAIN_ID),$(if $(filter testnet development,$(1)),$(TESTNET_CHAIN_ID),$(if $(filter regtest rskRegtest,$(1)),$(REGTEST_CHAIN_ID),$(LOCAL_CHAIN_ID))))
 endef
 
-# Map simplified network names to RSK network names for forge script
-# development uses rskDevelopment addresses (different from rskTestnet)
+# Map simplified network names to addresses.json / forge script NETWORK keys
+# regtest -> rskRegtest; development -> rskDevelopment
 define get_rsk_network_name
-$(if $(filter mainnet,$(1)),rskMainnet,$(if $(filter testnet,$(1)),rskTestnet,$(if $(filter development,$(1)),rskDevelopment,rskRegtest)))
+$(if $(filter mainnet,$(1)),rskMainnet,$(if $(filter testnet,$(1)),rskTestnet,$(if $(filter development,$(1)),rskDevelopment,$(if $(filter regtest rskRegtest,$(1)),rskRegtest,rskRegtest))))
 endef
 
 # Fork options (for simulation/testing)
@@ -131,11 +131,14 @@ help:
 	@echo "  mainnet     - RSK Mainnet (Chain ID: 30)"
 	@echo "  testnet     - RSK Testnet (Chain ID: 31)"
 	@echo "  development - RSK Testnet with development library addresses (Chain ID: 31)"
+	@echo "  regtest     - RSK Regtest (Chain ID: 33)"
 	@echo "  dev         - Local development (Chain ID: 1337)"
 	@echo ""
 	@echo "Targets:"
 	@echo ""
 	@echo "Flyover Deployment:"
+	@echo "  deploy-libraries-fork    - Deploy Quotes, SignatureValidator, BtcUtils (fork simulation)"
+	@echo "  deploy-libraries-broadcast - Deploy libraries (actual deployment)"
 	@echo "  deploy-flyover-fork      - Deploy full Flyover system (fork simulation)"
 	@echo "  deploy-flyover-broadcast - Deploy full Flyover system (actual deployment)"
 	@echo "  deploy-collateral-fork   - Deploy CollateralManagement (fork simulation)"
@@ -209,7 +212,8 @@ help:
 	@echo "  test-fuzz-libraries   - Run libraries fuzz tests"
 	@echo ""
 	@echo "Deployment examples:"
-	@echo "  make deploy-flyover-fork NETWORK=testnet               # Deploy with auto-linked libraries"
+	@echo "  make deploy-libraries-broadcast NETWORK=testnet      # Deploy libs, then update addresses.json"
+	@echo "  make deploy-flyover-fork NETWORK=testnet             # Deploy full Flyover (libraries from addresses.json)"
 	@echo "  make deploy-flyover-broadcast NETWORK=testnet          # Deploy full Flyover system (actual)"
 	@echo "  (Libraries are auto-linked from addresses.json via foundry.toml profiles)"
 	@echo "  make deploy-pegin-fork NETWORK=testnet                 # Deploy PegIn only (simulation)"
@@ -270,8 +274,33 @@ help:
 # FLYOVER DEPLOYMENT SCRIPTS
 # =============================================================================
 
+# Deploy Flyover libraries (fork simulation)
+.PHONY: deploy-libraries-fork
+deploy-libraries-fork:
+	@echo "Deploying Flyover libraries on $(NETWORK) (FORK SIMULATION)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	$(FORGE) script/deployment/DeployLibraries.s.sol:DeployLibraries \
+		$(FORK_OPTS) \
+		$(PRIVATE_KEY_OPTS) \
+		--gas-limit $(GAS_LIMIT) \
+		--legacy
+
+# Deploy Flyover libraries (actual deployment)
+.PHONY: deploy-libraries-broadcast
+deploy-libraries-broadcast:
+	@echo "Deploying Flyover libraries on $(NETWORK) (ACTUAL DEPLOYMENT)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	$(FORGE) script/deployment/DeployLibraries.s.sol:DeployLibraries \
+		$(RPC_OPTS) \
+		$(PRIVATE_KEY_OPTS) \
+		--gas-limit $(GAS_LIMIT) \
+		--legacy \
+		--broadcast
+
 # Deploy full Flyover system (fork simulation)
-# Libraries are auto-linked from addresses.json
+# Requires library addresses in addresses.json — run deploy-libraries-broadcast first on new networks
 .PHONY: deploy-flyover-fork
 deploy-flyover-fork:
 	@echo "Deploying full Flyover system on $(NETWORK) (FORK SIMULATION)..."
@@ -289,7 +318,7 @@ deploy-flyover-fork:
 		--legacy
 
 # Deploy full Flyover system (actual deployment)
-# Libraries are auto-linked from addresses.json
+# Requires library addresses in addresses.json — run deploy-libraries-broadcast first on new networks
 .PHONY: deploy-flyover-broadcast
 deploy-flyover-broadcast:
 	@echo "Deploying full Flyover system on $(NETWORK) (ACTUAL DEPLOYMENT)..."
@@ -366,6 +395,7 @@ deploy-pegin-fork:
 	$(FORGE) script/deployment/DeployPegIn.s.sol:DeployPegIn \
 		$(FORK_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
+		$(call get_library_flags,$(call get_rsk_network_name,$(NETWORK))) \
 		--gas-limit $(GAS_LIMIT) \
 		--legacy
 
@@ -378,6 +408,7 @@ deploy-pegin-broadcast:
 	$(FORGE) script/deployment/DeployPegIn.s.sol:DeployPegIn \
 		$(RPC_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
+		$(call get_library_flags,$(call get_rsk_network_name,$(NETWORK))) \
 		--gas-limit $(GAS_LIMIT) \
 		--legacy \
 		--broadcast
@@ -391,6 +422,7 @@ deploy-pegout-fork:
 	$(FORGE) script/deployment/DeployPegOut.s.sol:DeployPegOut \
 		$(FORK_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
+		$(call get_library_flags,$(call get_rsk_network_name,$(NETWORK))) \
 		--gas-limit $(GAS_LIMIT) \
 		--legacy
 
@@ -403,6 +435,7 @@ deploy-pegout-broadcast:
 	$(FORGE) script/deployment/DeployPegOut.s.sol:DeployPegOut \
 		$(RPC_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
+		$(call get_library_flags,$(call get_rsk_network_name,$(NETWORK))) \
 		--gas-limit $(GAS_LIMIT) \
 		--legacy \
 		--broadcast
