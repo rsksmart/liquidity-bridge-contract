@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import {DiscoveryTestBase} from "./DiscoveryTestBase.sol";
 import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
 import {IFlyoverDiscovery} from "../../src/interfaces/IFlyoverDiscovery.sol";
+import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 import {RegisterCaller} from "../../src/test/RegisterCaller.sol";
 
@@ -347,6 +348,59 @@ contract RegistrationTest is DiscoveryTestBase {
         assertEq(collateralManagement.getPegInCollateral(lp), 0);
     }
 
+    function test_WithdrawRegisterRequest_AllowsRefundDuringSoftPause() public {
+        address lp = makeAddr("lpWithdrawSoftPause");
+        vm.deal(lp, 100 ether);
+        uint256 startBalance = lp.balance;
+
+        vm.prank(lp, lp);
+        discovery.register{value: MIN_COLLATERAL}(
+            "Pending",
+            "url",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+
+        vm.prank(owner);
+        pauseRegistry.setPauseLevel(
+            IPauseRegistry.PauseLevel.Soft,
+            "soft pause"
+        );
+
+        vm.prank(lp);
+        discovery.withdrawRegisterRequest();
+
+        assertEq(
+            uint8(discovery.getRegistrationState(lp)),
+            uint8(IFlyoverDiscovery.RegistrationState.Withdrawn),
+            "State should be Withdrawn after withdrawal"
+        );
+        assertEq(lp.balance, startBalance, "Collateral should be refunded");
+    }
+
+    function test_WithdrawRegisterRequest_RevertsDuringHardPause() public {
+        address lp = makeAddr("lpWithdrawHardPause");
+        vm.deal(lp, 100 ether);
+
+        vm.prank(lp, lp);
+        discovery.register{value: MIN_COLLATERAL}(
+            "Pending",
+            "url",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+
+        vm.prank(owner);
+        pauseRegistry.setPauseLevel(
+            IPauseRegistry.PauseLevel.Hard,
+            "hard pause"
+        );
+
+        vm.prank(lp);
+        vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
+        discovery.withdrawRegisterRequest();
+    }
+
     function test_ApproveRegistration_RevertsForNonAdmin() public {
         address lp = makeAddr("lpNoAdmin");
         address stranger = makeAddr("stranger");
@@ -368,6 +422,59 @@ contract RegistrationTest is DiscoveryTestBase {
             )
         );
         discovery.approveRegistration(lp);
+    }
+
+    function test_RejectRegistration_AllowsRefundDuringSoftPause() public {
+        address lp = makeAddr("lpRejectSoftPause");
+        vm.deal(lp, 100 ether);
+        uint256 startBalance = lp.balance;
+
+        vm.prank(lp, lp);
+        discovery.register{value: MIN_COLLATERAL}(
+            "Pending",
+            "url",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+
+        vm.prank(owner);
+        pauseRegistry.setPauseLevel(
+            IPauseRegistry.PauseLevel.Soft,
+            "soft pause"
+        );
+
+        vm.prank(owner);
+        discovery.rejectRegistration(lp);
+
+        assertEq(
+            uint8(discovery.getRegistrationState(lp)),
+            uint8(IFlyoverDiscovery.RegistrationState.Rejected),
+            "State should be Rejected after rejection"
+        );
+        assertEq(lp.balance, startBalance, "Collateral should be refunded");
+    }
+
+    function test_RejectRegistration_RevertsDuringHardPause() public {
+        address lp = makeAddr("lpRejectHardPause");
+        vm.deal(lp, 100 ether);
+
+        vm.prank(lp, lp);
+        discovery.register{value: MIN_COLLATERAL}(
+            "Pending",
+            "url",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+
+        vm.prank(owner);
+        pauseRegistry.setPauseLevel(
+            IPauseRegistry.PauseLevel.Hard,
+            "hard pause"
+        );
+
+        vm.prank(owner);
+        vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
+        discovery.rejectRegistration(lp);
     }
 
     function test_GetRegistrationState_TracksLifecycle() public {

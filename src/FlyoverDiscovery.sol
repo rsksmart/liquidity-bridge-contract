@@ -42,7 +42,7 @@ contract FlyoverDiscovery is
 
     // v2.6.0
     mapping(address => PendingRegistration) private _pendingRegistrations;
-    mapping(address => IFlyoverDiscovery.RegistrationState) private _registrationStates;
+    mapping(address => RegistrationState) private _registrationStates;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -102,7 +102,7 @@ contract FlyoverDiscovery is
     }
 
     /// @inheritdoc IFlyoverDiscovery
-    function withdrawRegisterRequest() external whenNotSoftPaused {
+    function withdrawRegisterRequest() external whenNotHardPaused {
         if (_registrationStates[msg.sender] != RegistrationState.Pending) {
             revert RegistrationNotPending(msg.sender);
         }
@@ -134,7 +134,7 @@ contract FlyoverDiscovery is
     }
 
     /// @inheritdoc IFlyoverDiscovery
-    function rejectRegistration(address providerAddress) external whenNotSoftPaused {
+    function rejectRegistration(address providerAddress) external whenNotHardPaused {
         _checkAdminPendingRegistration(providerAddress);
 
         uint256 providerId = _providerIdByAddress[providerAddress];
