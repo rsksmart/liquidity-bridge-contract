@@ -923,8 +923,6 @@ clean:
 install:
 	@echo "Installing dependencies..."
 	forge install
-	forge install OpenZeppelin/openzeppelin-foundry-upgrades
-	forge install OpenZeppelin/openzeppelin-contracts-upgradeable
 
 # Update dependencies
 .PHONY: update
