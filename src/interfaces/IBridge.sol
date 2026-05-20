@@ -3,6 +3,12 @@ pragma solidity 0.8.25;
 
 interface IBridge {
 
+    event release_request_rejected(
+        address indexed sender,
+        uint256 amount,
+        int256 reason
+    );
+
     receive() external payable;
 
     function registerBtcTransaction(bytes calldata atx, int256 height, bytes calldata pmt) external;
