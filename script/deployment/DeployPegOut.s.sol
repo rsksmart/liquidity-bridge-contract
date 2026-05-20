@@ -7,6 +7,7 @@ import {ProxyReader} from "../helpers/ProxyReader.sol";
 import {PegOutContract} from "../../src/PegOutContract.sol";
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 /// @title DeployPegOut
 /// @notice Deploys the PegOutContract with proxy pattern
@@ -55,26 +56,25 @@ contract DeployPegOut is Script {
         address collateralManagementProxy,
         address pauseRegistryProxy
     ) private returns (DeploymentResult memory result) {
-        result.implementation = address(new PegOutContract());
-        result.proxy = address(
-            new TransparentUpgradeableProxy(
-                result.implementation,
-                defaultAdmin,
-                abi.encodeCall(
-                    PegOutContract.initialize,
-                    (
-                        defaultAdmin,
-                        payable(cfg.bridge),
-                        cfg.dustThreshold,
-                        collateralManagementProxy,
-                        cfg.mainnet,
-                        cfg.btcBlockTime,
-                        PauseRegistry(pauseRegistryProxy)
-                    )
+        address pegOutProxy = Upgrades.deployTransparentProxy(
+            "PegOutContract.sol",
+            defaultAdmin,
+            abi.encodeCall(
+                PegOutContract.initialize,
+                (
+                    defaultAdmin,
+                    payable(cfg.bridge),
+                    cfg.dustThreshold,
+                    collateralManagementProxy,
+                    cfg.mainnet,
+                    cfg.btcBlockTime,
+                    PauseRegistry(pauseRegistryProxy)
                 )
             )
         );
-        result.admin = ProxyReader.readAdmin(vm, result.proxy);
+        result.proxy = pegOutProxy;
+        result.implementation = ProxyReader.readImplementation(vm, pegOutProxy);
+        result.admin = ProxyReader.readAdmin(vm, pegOutProxy);
     }
 
     function _log(DeploymentResult memory r) private pure {

@@ -7,6 +7,7 @@ import {ProxyReader} from "../helpers/ProxyReader.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 /// @title DeployCollateralManagement
 /// @notice Deploys the CollateralManagement contract with proxy pattern
@@ -41,25 +42,27 @@ contract DeployCollateralManagement is Script {
         HelperConfig.FlyoverConfig memory cfg,
         address pauseRegistryProxy
     ) private returns (DeploymentResult memory result) {
-        result.implementation = address(new CollateralManagementContract());
-        result.proxy = address(
-            new TransparentUpgradeableProxy(
-                result.implementation,
-                defaultAdmin,
-                abi.encodeCall(
-                    CollateralManagementContract.initialize,
-                    (
-                        defaultAdmin,
-                        cfg.adminDelay,
-                        cfg.minimumCollateral,
-                        cfg.resignDelayBlocks,
-                        cfg.rewardPercentage,
-                        PauseRegistry(pauseRegistryProxy)
-                    )
+        address collateralManagementProxy = Upgrades.deployTransparentProxy(
+            "CollateralManagementContract.sol",
+            defaultAdmin,
+            abi.encodeCall(
+                CollateralManagementContract.initialize,
+                (
+                    defaultAdmin,
+                    cfg.adminDelay,
+                    cfg.minimumCollateral,
+                    cfg.resignDelayBlocks,
+                    cfg.rewardPercentage,
+                    PauseRegistry(pauseRegistryProxy)
                 )
             )
         );
-        result.admin = ProxyReader.readAdmin(vm, result.proxy);
+        result.proxy = collateralManagementProxy;
+        result.implementation = ProxyReader.readImplementation(
+            vm,
+            collateralManagementProxy
+        );
+        result.admin = ProxyReader.readAdmin(vm, collateralManagementProxy);
     }
 
     function _log(DeploymentResult memory r) private pure {

@@ -7,6 +7,7 @@ import {ProxyReader} from "../helpers/ProxyReader.sol";
 import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 /// @title DeployFlyoverDiscovery
 /// @notice Deploys the FlyoverDiscovery contract with proxy pattern
@@ -55,23 +56,25 @@ contract DeployFlyoverDiscovery is Script {
         address collateralManagementProxy,
         address pauseRegistryProxy
     ) private returns (DeploymentResult memory result) {
-        result.implementation = address(new FlyoverDiscovery());
-        result.proxy = address(
-            new TransparentUpgradeableProxy(
-                result.implementation,
-                defaultAdmin,
-                abi.encodeCall(
-                    FlyoverDiscovery.initialize,
-                    (
-                        defaultAdmin,
-                        cfg.adminDelay,
-                        collateralManagementProxy,
-                        PauseRegistry(pauseRegistryProxy)
-                    )
+        address flyoverDiscoveryProxy = Upgrades.deployTransparentProxy(
+            "FlyoverDiscovery.sol",
+            defaultAdmin,
+            abi.encodeCall(
+                FlyoverDiscovery.initialize,
+                (
+                    defaultAdmin,
+                    cfg.adminDelay,
+                    collateralManagementProxy,
+                    PauseRegistry(pauseRegistryProxy)
                 )
             )
         );
-        result.admin = ProxyReader.readAdmin(vm, result.proxy);
+        result.proxy = flyoverDiscoveryProxy;
+        result.implementation = ProxyReader.readImplementation(
+            vm,
+            flyoverDiscoveryProxy
+        );
+        result.admin = ProxyReader.readAdmin(vm, flyoverDiscoveryProxy);
     }
 
     function _log(DeploymentResult memory r) private pure {
