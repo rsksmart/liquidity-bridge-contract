@@ -18,6 +18,7 @@ contract PauseRegistry is
     IPauseRegistry
 {
     /// @custom:storage-location erc7201:rsk.flyover.PauseRegistry
+    // solhint-disable-next-line gas-struct-packing
     struct PauseRegistryStorage {
         bool paused;
         IPauseRegistry.PauseLevel pauseLevel;
@@ -60,24 +61,6 @@ contract PauseRegistry is
         string calldata reason
     ) external onlyRole(PAUSER_ROLE) {
         _setPauseLevelWithReason(level, reason);
-    }
-
-    function _setPauseLevelWithReason(
-        IPauseRegistry.PauseLevel level,
-        string memory reason
-    ) internal {
-        PauseRegistryStorage storage $ = _getPauseRegistryStorage();
-        bool wasPaused = $.pauseLevel != IPauseRegistry.PauseLevel.None;
-        if (level != IPauseRegistry.PauseLevel.None) {
-            $.pauseReason = reason;
-        }
-        _setPauseLevel(level);
-        bool isPaused = level != IPauseRegistry.PauseLevel.None;
-        if (!wasPaused && isPaused) {
-            emit EmergencyPaused(msg.sender, $.pauseReason);
-        } else if (wasPaused && !isPaused) {
-            emit EmergencyUnpaused(msg.sender);
-        }
     }
 
     /// @inheritdoc IPauseRegistry
@@ -218,6 +201,24 @@ contract PauseRegistry is
                     endBlock: 0
                 })
             );
+        }
+    }
+
+    function _setPauseLevelWithReason(
+        IPauseRegistry.PauseLevel level,
+        string memory reason
+    ) internal {
+        PauseRegistryStorage storage $ = _getPauseRegistryStorage();
+        bool wasPaused = $.pauseLevel != IPauseRegistry.PauseLevel.None;
+        if (level != IPauseRegistry.PauseLevel.None) {
+            $.pauseReason = reason;
+        }
+        _setPauseLevel(level);
+        bool isPaused = level != IPauseRegistry.PauseLevel.None;
+        if (!wasPaused && isPaused) {
+            emit EmergencyPaused(msg.sender, $.pauseReason);
+        } else if (wasPaused && !isPaused) {
+            emit EmergencyUnpaused(msg.sender);
         }
     }
 

@@ -61,6 +61,7 @@ contract SystemInvariantTest is Test {
             pegInContract,
             collateralManagement,
             discovery,
+            owner,
             adder,
             slasher,
             user,

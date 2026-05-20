@@ -135,6 +135,8 @@ abstract contract DiscoveryFuzzTestBase is Test {
             true,
             Flyover.ProviderType.PegIn
         );
+        vm.prank(owner);
+        discovery.approveRegistration(pegInLp);
 
         vm.prank(pegOutLp, pegOutLp);
         discovery.register{value: MIN_COLLATERAL}(
@@ -143,6 +145,8 @@ abstract contract DiscoveryFuzzTestBase is Test {
             true,
             Flyover.ProviderType.PegOut
         );
+        vm.prank(owner);
+        discovery.approveRegistration(pegOutLp);
 
         vm.prank(fullLp, fullLp);
         discovery.register{value: MIN_COLLATERAL * 2}(
@@ -151,6 +155,8 @@ abstract contract DiscoveryFuzzTestBase is Test {
             true,
             Flyover.ProviderType.Both
         );
+        vm.prank(owner);
+        discovery.approveRegistration(fullLp);
     }
 
     // ============ Helper Functions ============
@@ -232,12 +238,13 @@ abstract contract DiscoveryFuzzTestBase is Test {
         uint256 collateral
     ) internal returns (uint256 providerId) {
         vm.prank(provider, provider);
-        return
-            discovery.register{value: collateral}(
-                name,
-                url,
-                status,
-                providerType
-            );
+        providerId = discovery.register{value: collateral}(
+            name,
+            url,
+            status,
+            providerType
+        );
+        vm.prank(owner);
+        discovery.approveRegistration(provider);
     }
 }

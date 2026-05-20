@@ -110,27 +110,37 @@ abstract contract DiscoveryTestBase is Test {
 
         // Register providers
         vm.prank(pegInLp, pegInLp);
-        discovery.register{value: MIN_COLLATERAL}(
+        uint256 pegInId = discovery.register{value: MIN_COLLATERAL}(
             "Pegin Provider",
             "lp1.com",
             true,
             Flyover.ProviderType.PegIn
         );
+        vm.prank(owner);
+        discovery.approveRegistration(pegInLp);
 
         vm.prank(pegOutLp, pegOutLp);
-        discovery.register{value: MIN_COLLATERAL}(
+        uint256 pegOutId = discovery.register{value: MIN_COLLATERAL}(
             "PegOut Provider",
             "lp2.com",
             true,
             Flyover.ProviderType.PegOut
         );
+        vm.prank(owner);
+        discovery.approveRegistration(pegOutLp);
 
         vm.prank(fullLp, fullLp);
-        discovery.register{value: MIN_COLLATERAL * 2}(
+        uint256 fullId = discovery.register{value: MIN_COLLATERAL * 2}(
             "Full Provider",
             "lp3.com",
             true,
             Flyover.ProviderType.Both
         );
+        vm.prank(owner);
+        discovery.approveRegistration(fullLp);
+
+        assertEq(pegInId, 1, "Expected first provider id");
+        assertEq(pegOutId, 2, "Expected second provider id");
+        assertEq(fullId, 3, "Expected third provider id");
     }
 }

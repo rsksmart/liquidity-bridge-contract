@@ -5,7 +5,18 @@ import {Flyover} from "../libraries/Flyover.sol";
 import {IPausable} from "./IPausable.sol";
 
 interface IFlyoverDiscovery is IPausable {
+    enum RegistrationState {
+        None,
+        Pending,
+        Approved,
+        Rejected,
+        Withdrawn
+    }
+
     event Register(uint indexed id, address indexed from, uint256 indexed amount);
+    event RegistrationApproved(uint indexed id, address indexed provider, uint256 indexed amount);
+    event RegistrationRejected(uint indexed id, address indexed provider, uint256 indexed amount);
+    event RegistrationWithdrawn(uint indexed id, address indexed provider, uint256 indexed amount);
     event ProviderUpdate(address indexed from, string name, string apiBaseUrl);
     event ProviderStatusSet(uint indexed id, bool indexed status);
 
@@ -14,6 +25,8 @@ interface IFlyoverDiscovery is IPausable {
     error InvalidProviderData(string name, string apiBaseUrl);
     error InvalidProviderType(Flyover.ProviderType providerType);
     error AlreadyRegistered(address from);
+    error RegistrationAlreadyPending(address from);
+    error RegistrationNotPending(address from);
     error InsufficientCollateral(uint amount);
 
     /// @notice Registers the caller as a Liquidity Provider
@@ -30,6 +43,20 @@ interface IFlyoverDiscovery is IPausable {
         bool status,
         Flyover.ProviderType providerType
     ) external payable returns (uint);
+
+    /// @notice Withdraws the caller pending registration and refunds collateral
+    /// @dev Reverts if caller has no pending registration
+    function withdrawRegisterRequest() external;
+
+    /// @notice Approves a pending provider registration
+    /// @dev Callable only by the contract owner/admin. Adds pending collateral to CollateralManagement
+    /// @param providerAddress Provider address to approve
+    function approveRegistration(address providerAddress) external;
+
+    /// @notice Rejects a pending provider registration and refunds collateral
+    /// @dev Callable only by the contract owner/admin
+    /// @param providerAddress Provider address to reject
+    function rejectRegistration(address providerAddress) external;
 
     /// @notice Updates the caller LP metadata
     /// @dev Reverts if the caller is not registered or provides invalid fields
@@ -63,4 +90,9 @@ interface IFlyoverDiscovery is IPausable {
     /// @notice Returns the last assigned provider id
     /// @return lastId Last provider id
     function getProvidersId() external view returns (uint);
+
+    /// @notice Returns registration state for a provider address
+    /// @param providerAddress The provider address
+    /// @return state The registration state
+    function getRegistrationState(address providerAddress) external view returns (RegistrationState);
 }

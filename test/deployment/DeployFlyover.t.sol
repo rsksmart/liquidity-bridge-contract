@@ -357,8 +357,11 @@ contract DeployFlyoverTest is Test {
         console.log("   Provider registered with ID:", providerId);
         assertEq(providerId, 1, "First provider should have ID 1");
 
-        // Verify collateral was added
-        console.log("\n2. Verifying collateral...");
+        // Owner approval is required before collateral is forwarded and LP becomes operational
+        discovery.approveRegistration(provider);
+
+        // Verify collateral was added after approval
+        console.log("\n2. Verifying collateral after approval...");
         uint256 pegInCollateral = collateralManagement.getPegInCollateral(
             provider
         );

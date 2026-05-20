@@ -48,7 +48,9 @@ contract ListingFilterTest is DiscoveryTestBase {
             Flyover.ProviderType.PegIn
         );
 
-        // Provider is immediately listed because collateral is added automatically during registration
+        vm.prank(owner);
+        discovery.approveRegistration(lp);
+
         Flyover.LiquidityProvider[] memory providers = discovery.getProviders();
         assertEq(providers.length, 1, "Should have 1 provider");
         assertEq(
@@ -74,6 +76,8 @@ contract ListingFilterTest is DiscoveryTestBase {
             true,
             Flyover.ProviderType.PegIn
         );
+        vm.prank(owner);
+        discovery.approveRegistration(a);
 
         vm.prank(b, b);
         discovery.register{value: MIN_COLLATERAL}(
@@ -82,6 +86,8 @@ contract ListingFilterTest is DiscoveryTestBase {
             true,
             Flyover.ProviderType.PegIn
         );
+        vm.prank(owner);
+        discovery.approveRegistration(b);
 
         vm.prank(c, c);
         discovery.register{value: MIN_COLLATERAL}(
@@ -90,6 +96,8 @@ contract ListingFilterTest is DiscoveryTestBase {
             true,
             Flyover.ProviderType.PegIn
         );
+        vm.prank(owner);
+        discovery.approveRegistration(c);
 
         Flyover.LiquidityProvider[] memory providers = discovery.getProviders();
         assertEq(providers.length, 3, "Should have 3 providers");

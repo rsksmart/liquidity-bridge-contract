@@ -65,6 +65,8 @@ contract DiscoveryHandler is HandlerBase {
         try
             discovery.register{value: collateral}(name, url, true, providerType)
         returns (uint256 id) {
+            vm.prank(owner);
+            discovery.approveRegistration(provider);
             ghost_totalRegistered++;
             ghost_lastProviderId = id;
             registeredProviders.push(

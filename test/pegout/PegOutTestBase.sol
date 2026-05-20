@@ -169,6 +169,8 @@ abstract contract PegOutTestBase is Test {
             true,
             Flyover.ProviderType.PegIn
         );
+        vm.prank(owner);
+        discovery.approveRegistration(pegInLp);
 
         vm.prank(pegOutLp, pegOutLp);
         discovery.register{value: MIN_COLLATERAL}(
@@ -177,6 +179,8 @@ abstract contract PegOutTestBase is Test {
             true,
             Flyover.ProviderType.PegOut
         );
+        vm.prank(owner);
+        discovery.approveRegistration(pegOutLp);
 
         vm.prank(fullLp, fullLp);
         discovery.register{value: MIN_COLLATERAL * 2}(
@@ -185,6 +189,8 @@ abstract contract PegOutTestBase is Test {
             true,
             Flyover.ProviderType.Both
         );
+        vm.prank(owner);
+        discovery.approveRegistration(fullLp);
     }
 
     /// @notice Initialize BTC mock data

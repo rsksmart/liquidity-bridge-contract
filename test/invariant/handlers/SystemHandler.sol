@@ -16,6 +16,7 @@ contract SystemHandler is HandlerBase {
     PegInContract public pegInContract;
     CollateralManagementContract public collateralManagement;
     FlyoverDiscovery public discovery;
+    address public owner;
 
     address public adder;
 
@@ -60,6 +61,7 @@ contract SystemHandler is HandlerBase {
         PegInContract pegInContract_,
         CollateralManagementContract collateralManagement_,
         FlyoverDiscovery discovery_,
+        address owner_,
         address adder_,
         address slasher_,
         address user_,
@@ -69,6 +71,7 @@ contract SystemHandler is HandlerBase {
         pegInContract = pegInContract_;
         collateralManagement = collateralManagement_;
         discovery = discovery_;
+        owner = owner_;
         adder = adder_;
         slasher = slasher_;
         user = user_;
@@ -109,6 +112,8 @@ contract SystemHandler is HandlerBase {
         try
             discovery.register{value: collateral}(name, url, true, pType)
         returns (uint256 id) {
+            vm.prank(owner);
+            discovery.approveRegistration(provAddr);
             providers.push(
                 ProviderInfo({
                     addr: provAddr,

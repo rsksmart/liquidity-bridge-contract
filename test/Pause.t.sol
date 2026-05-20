@@ -301,6 +301,7 @@ contract PauseTest is Test {
             true,
             Flyover.ProviderType.PegIn
         );
+        flyoverDiscovery.approveRegistration(signers[1]);
 
         uint256 providerId = flyoverDiscovery.getProvidersId();
         assertEq(providerId, 1, "Provider should be registered");
@@ -397,6 +398,7 @@ contract PauseTest is Test {
             true,
             Flyover.ProviderType.PegIn
         );
+        flyoverDiscovery.approveRegistration(signers[1]);
 
         assertEq(flyoverDiscovery.getProvidersId(), 1);
 
@@ -753,6 +755,7 @@ contract PauseTest is Test {
             true,
             Flyover.ProviderType.PegIn
         );
+        flyoverDiscovery.approveRegistration(signers[2]);
 
         vm.prank(signers[2]);
         collateralManagement.resign();

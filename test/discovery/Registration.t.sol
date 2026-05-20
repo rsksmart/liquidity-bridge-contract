@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import {DiscoveryTestBase} from "./DiscoveryTestBase.sol";
 import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
 import {IFlyoverDiscovery} from "../../src/interfaces/IFlyoverDiscovery.sol";
+import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 import {RegisterCaller} from "../../src/test/RegisterCaller.sol";
 
@@ -209,6 +210,9 @@ contract RegistrationTest is DiscoveryTestBase {
             Flyover.ProviderType.PegIn
         );
 
+        vm.prank(owner);
+        discovery.approveRegistration(lp);
+
         // Second registration by the same EOA should fail
         vm.prank(lp, lp);
         vm.expectRevert(
@@ -224,13 +228,301 @@ contract RegistrationTest is DiscoveryTestBase {
             Flyover.ProviderType.PegOut
         );
 
-        // Verify only 1 provider exists
+        // Verify only 1 approved provider exists
         Flyover.LiquidityProvider[] memory providers = discovery.getProviders();
         assertEq(providers.length, 1, "Should have 1 provider");
         assertEq(
             providers[0].providerAddress,
             lp,
             "Provider address should match"
+        );
+    }
+
+    function test_Register_CreatesPendingRequestWithoutListingProvider()
+        public
+    {
+        address lp = makeAddr("lpPending");
+        vm.deal(lp, 100 ether);
+
+        vm.prank(lp, lp);
+        uint256 id = discovery.register{value: MIN_COLLATERAL}(
+            "Pending",
+            "url",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+        assertEq(id, 1, "Expected provider id 1");
+
+        Flyover.LiquidityProvider[] memory providers = discovery.getProviders();
+        assertEq(providers.length, 0, "Pending provider should not be listed");
+        assertEq(
+            collateralManagement.getPegInCollateral(lp),
+            0,
+            "Collateral should not be forwarded before approval"
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(Flyover.ProviderNotRegistered.selector, lp)
+        );
+        discovery.getProvider(lp);
+    }
+
+    function test_ApproveRegistration_ListsProviderAndForwardsCollateral()
+        public
+    {
+        address lp = makeAddr("lpApprove");
+        vm.deal(lp, 100 ether);
+
+        vm.prank(lp, lp);
+        discovery.register{value: MIN_COLLATERAL}(
+            "Pending",
+            "url",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+
+        vm.prank(owner);
+        discovery.approveRegistration(lp);
+
+        Flyover.LiquidityProvider[] memory providers = discovery.getProviders();
+        assertEq(providers.length, 1, "Approved provider should be listed");
+        assertEq(
+            collateralManagement.getPegInCollateral(lp),
+            MIN_COLLATERAL,
+            "Collateral should be forwarded on approval"
+        );
+    }
+
+    function test_RejectRegistration_RefundsCollateral() public {
+        address lp = makeAddr("lpReject");
+        vm.deal(lp, 100 ether);
+        uint256 startBalance = lp.balance;
+
+        vm.prank(lp, lp);
+        discovery.register{value: MIN_COLLATERAL}(
+            "Pending",
+            "url",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+
+        vm.prank(owner);
+        discovery.rejectRegistration(lp);
+
+        assertEq(
+            uint8(discovery.getRegistrationState(lp)),
+            uint8(IFlyoverDiscovery.RegistrationState.Rejected),
+            "State should be Rejected after rejection"
+        );
+
+        assertEq(lp.balance, startBalance, "Collateral should be refunded");
+        assertEq(collateralManagement.getPegInCollateral(lp), 0);
+
+        Flyover.LiquidityProvider[] memory providers = discovery.getProviders();
+        assertEq(providers.length, 0, "Rejected provider should not be listed");
+    }
+
+    function test_WithdrawRegisterRequest_RefundsCollateral() public {
+        address lp = makeAddr("lpWithdraw");
+        vm.deal(lp, 100 ether);
+        uint256 startBalance = lp.balance;
+
+        vm.prank(lp, lp);
+        discovery.register{value: MIN_COLLATERAL}(
+            "Pending",
+            "url",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+
+        vm.prank(lp);
+        discovery.withdrawRegisterRequest();
+
+        assertEq(
+            uint8(discovery.getRegistrationState(lp)),
+            uint8(IFlyoverDiscovery.RegistrationState.Withdrawn),
+            "State should be Withdrawn after withdrawal"
+        );
+
+        assertEq(lp.balance, startBalance, "Collateral should be refunded");
+        assertEq(collateralManagement.getPegInCollateral(lp), 0);
+    }
+
+    function test_WithdrawRegisterRequest_AllowsRefundDuringSoftPause() public {
+        address lp = makeAddr("lpWithdrawSoftPause");
+        vm.deal(lp, 100 ether);
+        uint256 startBalance = lp.balance;
+
+        vm.prank(lp, lp);
+        discovery.register{value: MIN_COLLATERAL}(
+            "Pending",
+            "url",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+
+        vm.prank(owner);
+        pauseRegistry.setPauseLevel(
+            IPauseRegistry.PauseLevel.Soft,
+            "soft pause"
+        );
+
+        vm.prank(lp);
+        discovery.withdrawRegisterRequest();
+
+        assertEq(
+            uint8(discovery.getRegistrationState(lp)),
+            uint8(IFlyoverDiscovery.RegistrationState.Withdrawn),
+            "State should be Withdrawn after withdrawal"
+        );
+        assertEq(lp.balance, startBalance, "Collateral should be refunded");
+    }
+
+    function test_WithdrawRegisterRequest_RevertsDuringHardPause() public {
+        address lp = makeAddr("lpWithdrawHardPause");
+        vm.deal(lp, 100 ether);
+
+        vm.prank(lp, lp);
+        discovery.register{value: MIN_COLLATERAL}(
+            "Pending",
+            "url",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+
+        vm.prank(owner);
+        pauseRegistry.setPauseLevel(
+            IPauseRegistry.PauseLevel.Hard,
+            "hard pause"
+        );
+
+        vm.prank(lp);
+        vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
+        discovery.withdrawRegisterRequest();
+    }
+
+    function test_ApproveRegistration_RevertsForNonAdmin() public {
+        address lp = makeAddr("lpNoAdmin");
+        address stranger = makeAddr("stranger");
+        vm.deal(lp, 100 ether);
+
+        vm.prank(lp, lp);
+        discovery.register{value: MIN_COLLATERAL}(
+            "Pending",
+            "url",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+
+        vm.prank(stranger);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IFlyoverDiscovery.NotAuthorized.selector,
+                stranger
+            )
+        );
+        discovery.approveRegistration(lp);
+    }
+
+    function test_RejectRegistration_AllowsRefundDuringSoftPause() public {
+        address lp = makeAddr("lpRejectSoftPause");
+        vm.deal(lp, 100 ether);
+        uint256 startBalance = lp.balance;
+
+        vm.prank(lp, lp);
+        discovery.register{value: MIN_COLLATERAL}(
+            "Pending",
+            "url",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+
+        vm.prank(owner);
+        pauseRegistry.setPauseLevel(
+            IPauseRegistry.PauseLevel.Soft,
+            "soft pause"
+        );
+
+        vm.prank(owner);
+        discovery.rejectRegistration(lp);
+
+        assertEq(
+            uint8(discovery.getRegistrationState(lp)),
+            uint8(IFlyoverDiscovery.RegistrationState.Rejected),
+            "State should be Rejected after rejection"
+        );
+        assertEq(lp.balance, startBalance, "Collateral should be refunded");
+    }
+
+    function test_RejectRegistration_RevertsDuringHardPause() public {
+        address lp = makeAddr("lpRejectHardPause");
+        vm.deal(lp, 100 ether);
+
+        vm.prank(lp, lp);
+        discovery.register{value: MIN_COLLATERAL}(
+            "Pending",
+            "url",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+
+        vm.prank(owner);
+        pauseRegistry.setPauseLevel(
+            IPauseRegistry.PauseLevel.Hard,
+            "hard pause"
+        );
+
+        vm.prank(owner);
+        vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
+        discovery.rejectRegistration(lp);
+    }
+
+    function test_GetRegistrationState_TracksLifecycle() public {
+        address lp = makeAddr("lpState");
+        vm.deal(lp, 100 ether);
+
+        assertEq(
+            uint8(discovery.getRegistrationState(lp)),
+            uint8(IFlyoverDiscovery.RegistrationState.None),
+            "Initial state should be None"
+        );
+
+        vm.prank(lp, lp);
+        discovery.register{value: MIN_COLLATERAL}(
+            "Pending",
+            "url",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+        assertEq(
+            uint8(discovery.getRegistrationState(lp)),
+            uint8(IFlyoverDiscovery.RegistrationState.Pending),
+            "State should be Pending after register"
+        );
+
+        vm.prank(owner);
+        discovery.approveRegistration(lp);
+        assertEq(
+            uint8(discovery.getRegistrationState(lp)),
+            uint8(IFlyoverDiscovery.RegistrationState.Approved),
+            "State should be Approved after approval"
+        );
+
+        address lp2 = makeAddr("lpState2");
+        vm.deal(lp2, 100 ether);
+        vm.prank(lp2, lp2);
+        discovery.register{value: MIN_COLLATERAL}(
+            "Pending2",
+            "url2",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+        vm.prank(lp2);
+        discovery.withdrawRegisterRequest();
+        assertEq(
+            uint8(discovery.getRegistrationState(lp2)),
+            uint8(IFlyoverDiscovery.RegistrationState.Withdrawn),
+            "State should be Withdrawn after withdraw"
         );
     }
 }
