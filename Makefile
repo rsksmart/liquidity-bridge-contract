@@ -39,6 +39,12 @@ endif
 # Default when unset or empty (e.g. empty NETWORK in the environment with make -e)
 override NETWORK := $(or $(strip $(NETWORK)),rskRegtest)
 
+# Export only names assigned in .env (not bare "export", which also exports make vars like
+# FORK_OPTS and breaks test-* targets on GNU Make 3.81). Forge scripts read these via vm.env*.
+ifneq (,$(wildcard $(ENV_FILE)))
+    export $(shell awk -F= '/^[A-Za-z_][A-Za-z0-9_]*=/ {print $$1}' $(ENV_FILE))
+endif
+
 # Network configurations
 MAINNET_RPC := $(or $(MAINNET_RPC_URL),https://public-node.rsk.co)
 TESTNET_RPC := $(or $(TESTNET_RPC_URL),https://public-node.testnet.rsk.co)
