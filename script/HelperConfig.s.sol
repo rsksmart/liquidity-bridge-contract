@@ -23,6 +23,10 @@ contract HelperConfig is Script {
         bool mainnet;
         address existingProxy;
         address existingAdmin;
+        uint256 timelockMinDelay;
+        address timelockProposer;
+        address timelockExecutor;
+        address timelockAdmin;
     }
 
     /// @notice Configuration for the new Flyover contracts
@@ -36,6 +40,10 @@ contract HelperConfig is Script {
         uint256 btcBlockTime;
         bool mainnet;
         uint48 adminDelay;
+        uint256 timelockMinDelay;
+        address timelockProposer;
+        address timelockExecutor;
+        address timelockAdmin;
     }
 
     NetworkConfig private cachedConfig;
@@ -101,7 +109,26 @@ contract HelperConfig is Script {
                 btcBlockTime: vm.envOr("BTC_BLOCK_TIME_MAINNET", uint256(600)),
                 mainnet: true,
                 existingProxy: vm.envOr("EXISTING_PROXY_MAINNET", address(0)),
-                existingAdmin: vm.envOr("EXISTING_ADMIN_MAINNET", address(0))
+                existingAdmin: vm.envOr("EXISTING_ADMIN_MAINNET", address(0)),
+                timelockMinDelay: vm.envOr(
+                    "TIMELOCK_MIN_DELAY_MAINNET",
+                    uint256(7 days)
+                ),
+                timelockProposer: vm.envOr(
+                    "TIMELOCK_PROPOSER_MAINNET",
+                    vm.envOr(
+                        "MULTISIG_ADDRESS_MAINNET",
+                        address(0x633D1233eD6251108b61A8365CEEd271BF3e3C9b)
+                    )
+                ),
+                timelockExecutor: vm.envOr(
+                    "TIMELOCK_EXECUTOR_MAINNET",
+                    vm.envOr(
+                        "MULTISIG_ADDRESS_MAINNET",
+                        address(0x633D1233eD6251108b61A8365CEEd271BF3e3C9b)
+                    )
+                ),
+                timelockAdmin: vm.envOr("TIMELOCK_ADMIN_MAINNET", address(0))
             });
     }
 
@@ -141,7 +168,26 @@ contract HelperConfig is Script {
                 existingAdmin: vm.envOr(
                     "EXISTING_ADMIN_TESTNET",
                     address(0x93891ACe405cC4F7b9974C22e34D6479eE6425e5)
-                )
+                ),
+                timelockMinDelay: vm.envOr(
+                    "TIMELOCK_MIN_DELAY_TESTNET",
+                    uint256(7 days)
+                ),
+                timelockProposer: vm.envOr(
+                    "TIMELOCK_PROPOSER_TESTNET",
+                    vm.envOr(
+                        "MULTISIG_ADDRESS_TESTNET",
+                        address(0x27ad02ABf893F8e01f0089EDE607A76FbB3F1Cd3)
+                    )
+                ),
+                timelockExecutor: vm.envOr(
+                    "TIMELOCK_EXECUTOR_TESTNET",
+                    vm.envOr(
+                        "MULTISIG_ADDRESS_TESTNET",
+                        address(0x27ad02ABf893F8e01f0089EDE607A76FbB3F1Cd3)
+                    )
+                ),
+                timelockAdmin: vm.envOr("TIMELOCK_ADMIN_TESTNET", address(0))
             });
     }
 
@@ -170,7 +216,20 @@ contract HelperConfig is Script {
                 btcBlockTime: vm.envOr("BTC_BLOCK_TIME_LOCAL", uint256(600)),
                 mainnet: false,
                 existingProxy: vm.envOr("EXISTING_PROXY_LOCAL", address(0)),
-                existingAdmin: vm.envOr("EXISTING_ADMIN_LOCAL", address(0))
+                existingAdmin: vm.envOr("EXISTING_ADMIN_LOCAL", address(0)),
+                timelockMinDelay: vm.envOr(
+                    "TIMELOCK_MIN_DELAY_LOCAL",
+                    uint256(7 days)
+                ),
+                timelockProposer: vm.envOr(
+                    "TIMELOCK_PROPOSER_LOCAL",
+                    address(0x1000000000000000000000000000000000000001)
+                ),
+                timelockExecutor: vm.envOr(
+                    "TIMELOCK_EXECUTOR_LOCAL",
+                    address(0x1000000000000000000000000000000000000002)
+                ),
+                timelockAdmin: vm.envOr("TIMELOCK_ADMIN_LOCAL", address(0))
             });
     }
 
@@ -238,6 +297,28 @@ contract HelperConfig is Script {
                 mainnet: isMainnet,
                 adminDelay: uint48(
                     vm.envOr(string.concat("ADMIN_DELAY_", suffix), uint256(0))
+                ),
+                timelockMinDelay: vm.envOr(
+                    string.concat("TIMELOCK_MIN_DELAY_", suffix),
+                    uint256(7 days)
+                ),
+                timelockProposer: vm.envOr(
+                    string.concat("TIMELOCK_PROPOSER_", suffix),
+                    vm.envOr(
+                        string.concat("MULTISIG_ADDRESS_", suffix),
+                        address(0)
+                    )
+                ),
+                timelockExecutor: vm.envOr(
+                    string.concat("TIMELOCK_EXECUTOR_", suffix),
+                    vm.envOr(
+                        string.concat("MULTISIG_ADDRESS_", suffix),
+                        address(0)
+                    )
+                ),
+                timelockAdmin: vm.envOr(
+                    string.concat("TIMELOCK_ADMIN_", suffix),
+                    address(0)
                 )
             });
     }
@@ -262,7 +343,20 @@ contract HelperConfig is Script {
                 ),
                 btcBlockTime: vm.envOr("BTC_BLOCK_TIME_LOCAL", uint256(600)),
                 mainnet: false,
-                adminDelay: uint48(vm.envOr("ADMIN_DELAY_LOCAL", uint256(0)))
+                adminDelay: uint48(vm.envOr("ADMIN_DELAY_LOCAL", uint256(0))),
+                timelockMinDelay: vm.envOr(
+                    "TIMELOCK_MIN_DELAY_LOCAL",
+                    uint256(7 days)
+                ),
+                timelockProposer: vm.envOr(
+                    "TIMELOCK_PROPOSER_LOCAL",
+                    address(0x1000000000000000000000000000000000000001)
+                ),
+                timelockExecutor: vm.envOr(
+                    "TIMELOCK_EXECUTOR_LOCAL",
+                    address(0x1000000000000000000000000000000000000002)
+                ),
+                timelockAdmin: vm.envOr("TIMELOCK_ADMIN_LOCAL", address(0))
             });
     }
 
