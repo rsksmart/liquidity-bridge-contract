@@ -172,16 +172,16 @@ These commands simulate deployments without broadcasting transactions:
 
 ```bash
 # Deploy LiquidityBridgeContract (simulation)
-make deploy-lbc NETWORK=testnet
+make deploy-lbc NETWORK=rskTestnet
 
 # Upgrade to V2 (simulation)
-make upgrade-lbc NETWORK=testnet
+make upgrade-lbc NETWORK=rskTestnet
 
 # Transfer ownership (simulation)
-make change-owner NETWORK=testnet
+make change-owner NETWORK=rskTestnet
 
 # High gas deployment (simulation)
-make deploy-lbc-high-gas NETWORK=testnet
+make deploy-lbc-high-gas NETWORK=rskTestnet
 ```
 
 ### Actual Deployment Commands
@@ -190,16 +190,16 @@ These commands broadcast real transactions:
 
 ```bash
 # Deploy LiquidityBridgeContract (actual)
-make deploy-lbc-broadcast NETWORK=testnet
+make deploy-lbc-broadcast NETWORK=rskTestnet
 
 # Upgrade to V2 (actual)
-make upgrade-lbc-broadcast NETWORK=testnet
+make upgrade-lbc-broadcast NETWORK=rskTestnet
 
 # Transfer ownership (actual)
-make change-owner-broadcast NETWORK=testnet
+make change-owner-broadcast NETWORK=rskTestnet
 
 # High gas deployment (actual)
-make deploy-lbc-high-gas-broadcast NETWORK=testnet
+make deploy-lbc-high-gas-broadcast NETWORK=rskTestnet
 ```
 
 ### Safe Deployment Commands
@@ -208,35 +208,36 @@ These include additional validation:
 
 ```bash
 # Safe deployment with validation
-make safe-deploy-lbc-broadcast NETWORK=mainnet
+make safe-deploy-lbc-broadcast NETWORK=rskMainnet
 
 # Safe upgrade with validation
-make safe-upgrade-lbc-broadcast NETWORK=mainnet
+make safe-upgrade-lbc-broadcast NETWORK=rskMainnet
 
 # Safe ownership transfer with validation
-make safe-change-owner-broadcast NETWORK=mainnet
+make safe-change-owner-broadcast NETWORK=rskMainnet
 ```
 
 ## Network Configuration
 
 ### Supported Networks
 
-| Network | Chain ID | RPC URL     | Description         |
-| ------- | -------- | ----------- | ------------------- |
-| mainnet | 30       | RSK Mainnet | Production network  |
-| testnet | 31       | RSK Testnet | Test network        |
-| dev     | 1337     | Local       | Development network |
+| Network        | Chain ID | RPC URL     | Description                                   |
+| -------------- | -------- | ----------- | --------------------------------------------- |
+| rskMainnet     | 30       | RSK Mainnet | Production network                            |
+| rskTestnet     | 31       | RSK Testnet | Test network                                  |
+| rskDevelopment | 31       | RSK Testnet | Development addresses (same chain as testnet) |
+| rskRegtest     | 33       | RSK Regtest | Local regtest node                            |
 
 ### Network-Specific Commands
 
 ```bash
 # Mainnet operations
-make deploy-lbc NETWORK=mainnet
-make upgrade-lbc-broadcast NETWORK=mainnet
+make deploy-lbc NETWORK=rskMainnet
+make upgrade-lbc-broadcast NETWORK=rskMainnet
 
 # Testnet operations
-make deploy-lbc NETWORK=testnet
-make change-owner-broadcast NETWORK=testnet
+make deploy-lbc NETWORK=rskTestnet
+make change-owner-broadcast NETWORK=rskTestnet
 
 # Dev operations
 make dev-deploy
@@ -267,10 +268,10 @@ make mainnet-fork-deploy-broadcast
 
 ```bash
 # Specify fork block
-make deploy-lbc NETWORK=testnet FORK_BLOCK=6020639
+make deploy-lbc NETWORK=rskTestnet FORK_BLOCK=6020639
 
 # Use latest block
-make deploy-lbc NETWORK=mainnet FORK_BLOCK=latest
+make deploy-lbc NETWORK=rskMainnet FORK_BLOCK=latest
 ```
 
 ## Safety Features
@@ -281,10 +282,10 @@ The Makefile includes built-in safety checks:
 
 ```bash
 # Check environment configuration
-make check-env NETWORK=testnet
+make check-env NETWORK=rskTestnet
 
 # Validate deployment prerequisites
-make validate-deploy NETWORK=mainnet
+make validate-deploy NETWORK=rskMainnet
 ```
 
 ### Mainnet Protection
@@ -293,20 +294,20 @@ Mainnet deployments require explicit confirmation:
 
 ```bash
 # This will prompt for confirmation
-make safe-deploy-lbc-broadcast NETWORK=mainnet
+make safe-deploy-lbc-broadcast NETWORK=rskMainnet
 ```
 
 ### Gas Management
 
 ```bash
 # Default gas limit (10M)
-make deploy-lbc NETWORK=testnet
+make deploy-lbc NETWORK=rskTestnet
 
 # High gas limit (15M)
-make deploy-lbc-high-gas NETWORK=testnet
+make deploy-lbc-high-gas NETWORK=rskTestnet
 
 # Custom gas limit
-make deploy-lbc NETWORK=testnet GAS_LIMIT=20000000
+make deploy-lbc NETWORK=rskTestnet GAS_LIMIT=20000000
 ```
 
 ## Utility Commands
@@ -370,7 +371,7 @@ make help
 **Solution**: Use high gas commands:
 
 ```bash
-make deploy-lbc-high-gas NETWORK=testnet
+make deploy-lbc-high-gas NETWORK=rskTestnet
 ```
 
 #### 3. EIP-1559 Fee Errors
@@ -403,7 +404,7 @@ forge install
 
 ```bash
 # Check if private key is set
-make check-env NETWORK=testnet
+make check-env NETWORK=rskTestnet
 
 # Set in .env file
 TESTNET_SIGNER_PRIVATE_KEY=your_private_key
@@ -432,13 +433,13 @@ make install
 make build
 
 # 4. Test deployment (simulation)
-make deploy-lbc NETWORK=testnet
+make deploy-lbc NETWORK=rskTestnet
 
 # 5. Check environment
-make check-env NETWORK=testnet
+make check-env NETWORK=rskTestnet
 
 # 6. Actual deployment
-make deploy-lbc-broadcast NETWORK=testnet
+make deploy-lbc-broadcast NETWORK=rskTestnet
 
 # 7. Verify deployment
 make get-versions
@@ -461,13 +462,13 @@ make testnet-fork-deploy-broadcast
 
 ```bash
 # 1. Test upgrade (simulation)
-make upgrade-lbc NETWORK=testnet
+make upgrade-lbc NETWORK=rskTestnet
 
 # 2. Check environment
-make check-env NETWORK=testnet
+make check-env NETWORK=rskTestnet
 
 # 3. Perform upgrade
-make upgrade-lbc-broadcast NETWORK=testnet
+make upgrade-lbc-broadcast NETWORK=rskTestnet
 
 # 4. Verify upgrade
 make get-versions
@@ -477,13 +478,13 @@ make get-versions
 
 ```bash
 # 1. Test ownership transfer (simulation)
-make change-owner NETWORK=testnet
+make change-owner NETWORK=rskTestnet
 
 # 2. Validate multisig configuration
-make check-env NETWORK=testnet
+make check-env NETWORK=rskTestnet
 
 # 3. Transfer ownership
-make change-owner-broadcast NETWORK=testnet
+make change-owner-broadcast NETWORK=rskTestnet
 ```
 
 ## Best Practices
@@ -492,8 +493,8 @@ make change-owner-broadcast NETWORK=testnet
 
 ```bash
 # Always run simulation before actual deployment
-make deploy-lbc NETWORK=testnet
-make deploy-lbc-broadcast NETWORK=testnet
+make deploy-lbc NETWORK=rskTestnet
+make deploy-lbc-broadcast NETWORK=rskTestnet
 ```
 
 ### 2. Use Fork Testing
@@ -508,14 +509,14 @@ make mainnet-fork-deploy
 
 ```bash
 # Check configuration before deployment
-make check-env NETWORK=mainnet
+make check-env NETWORK=rskMainnet
 ```
 
 ### 4. Use Safe Commands for Mainnet
 
 ```bash
 # Safe commands include additional validation
-make safe-deploy-lbc-broadcast NETWORK=mainnet
+make safe-deploy-lbc-broadcast NETWORK=rskMainnet
 ```
 
 ### 5. Monitor Gas Usage
@@ -525,7 +526,7 @@ make safe-deploy-lbc-broadcast NETWORK=mainnet
 make gas-report
 
 # Use high gas for complex deployments
-make deploy-lbc-high-gas NETWORK=testnet
+make deploy-lbc-high-gas NETWORK=rskTestnet
 ```
 
 ### 6. Keep Dependencies Updated
