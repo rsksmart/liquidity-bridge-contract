@@ -369,7 +369,6 @@ contract PegOutContract is
     /// @notice This function is used to check if a liquidity provider should be penalized
     /// according to the following rules:
     /// - If the transfer was not made on time, the liquidity provider should be penalized
-    /// - If the liquidity provider is refunding after expiration, the liquidity provider should be penalized
     /// @param quote the peg out quote
     /// @param quoteHash the hash of the quote
     /// @param blockHash the hash of the block that contains the first confirmation of the peg out transaction
