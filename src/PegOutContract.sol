@@ -392,11 +392,6 @@ contract PegOutContract is
             return true;
         }
 
-        // penalize if LP is refunding after expiration
-        if (block.timestamp > quote.expireDate || block.number > quote.expireBlock) {
-            return true;
-        }
-
         return false;
     }
 
