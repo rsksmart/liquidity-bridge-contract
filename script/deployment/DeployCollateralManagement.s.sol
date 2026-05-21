@@ -7,6 +7,8 @@ import {ProxyReader} from "../helpers/ProxyReader.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {Options} from "openzeppelin-foundry-upgrades/Options.sol";
+import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 /// @title DeployCollateralManagement
 /// @notice Deploys the CollateralManagement contract with proxy pattern
@@ -30,7 +32,12 @@ contract DeployCollateralManagement is Script {
         );
 
         vm.startBroadcast(deployerKey);
-        result = _deploy(deployer, cfg, pauseRegistryProxy);
+        result = _deploy(
+            deployer,
+            cfg,
+            pauseRegistryProxy,
+            helper.getOptions()
+        );
         vm.stopBroadcast();
 
         _log(result);
@@ -39,27 +46,31 @@ contract DeployCollateralManagement is Script {
     function _deploy(
         address defaultAdmin,
         HelperConfig.FlyoverConfig memory cfg,
-        address pauseRegistryProxy
+        address pauseRegistryProxy,
+        Options memory opts
     ) private returns (DeploymentResult memory result) {
-        result.implementation = address(new CollateralManagementContract());
-        result.proxy = address(
-            new TransparentUpgradeableProxy(
-                result.implementation,
-                defaultAdmin,
-                abi.encodeCall(
-                    CollateralManagementContract.initialize,
-                    (
-                        defaultAdmin,
-                        cfg.adminDelay,
-                        cfg.minimumCollateral,
-                        cfg.resignDelayBlocks,
-                        cfg.rewardPercentage,
-                        PauseRegistry(pauseRegistryProxy)
-                    )
+        address collateralManagementProxy = Upgrades.deployTransparentProxy(
+            "CollateralManagement.sol:CollateralManagementContract",
+            defaultAdmin,
+            abi.encodeCall(
+                CollateralManagementContract.initialize,
+                (
+                    defaultAdmin,
+                    cfg.adminDelay,
+                    cfg.minimumCollateral,
+                    cfg.resignDelayBlocks,
+                    cfg.rewardPercentage,
+                    PauseRegistry(pauseRegistryProxy)
                 )
-            )
+            ),
+            opts
         );
-        result.admin = ProxyReader.readAdmin(vm, result.proxy);
+        result.proxy = collateralManagementProxy;
+        result.implementation = ProxyReader.readImplementation(
+            vm,
+            collateralManagementProxy
+        );
+        result.admin = ProxyReader.readAdmin(vm, collateralManagementProxy);
     }
 
     function _log(DeploymentResult memory r) private pure {

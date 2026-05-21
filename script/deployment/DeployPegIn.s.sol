@@ -7,6 +7,8 @@ import {ProxyReader} from "../helpers/ProxyReader.sol";
 import {PegInContract} from "../../src/PegInContract.sol";
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {Options} from "openzeppelin-foundry-upgrades/Options.sol";
+import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 /// @title DeployPegIn
 /// @notice Deploys the PegInContract with proxy pattern
@@ -42,7 +44,8 @@ contract DeployPegIn is Script {
             deployer,
             cfg,
             collateralManagementProxy,
-            pauseRegistryProxy
+            pauseRegistryProxy,
+            helper.getOptions()
         );
         vm.stopBroadcast();
 
@@ -53,28 +56,29 @@ contract DeployPegIn is Script {
         address defaultAdmin,
         HelperConfig.FlyoverConfig memory cfg,
         address collateralManagementProxy,
-        address pauseRegistryProxy
+        address pauseRegistryProxy,
+        Options memory opts
     ) private returns (DeploymentResult memory result) {
-        result.implementation = address(new PegInContract());
-        result.proxy = address(
-            new TransparentUpgradeableProxy(
-                result.implementation,
-                defaultAdmin,
-                abi.encodeCall(
-                    PegInContract.initialize,
-                    (
-                        defaultAdmin,
-                        payable(cfg.bridge),
-                        cfg.dustThreshold,
-                        cfg.minimumPegIn,
-                        collateralManagementProxy,
-                        cfg.mainnet,
-                        PauseRegistry(pauseRegistryProxy)
-                    )
+        address pegInProxy = Upgrades.deployTransparentProxy(
+            "PegInContract.sol",
+            defaultAdmin,
+            abi.encodeCall(
+                PegInContract.initialize,
+                (
+                    defaultAdmin,
+                    payable(cfg.bridge),
+                    cfg.dustThreshold,
+                    cfg.minimumPegIn,
+                    collateralManagementProxy,
+                    cfg.mainnet,
+                    PauseRegistry(pauseRegistryProxy)
                 )
-            )
+            ),
+            opts
         );
-        result.admin = ProxyReader.readAdmin(vm, result.proxy);
+        result.proxy = pegInProxy;
+        result.admin = ProxyReader.readAdmin(vm, pegInProxy);
+        result.implementation = ProxyReader.readImplementation(vm, pegInProxy);
     }
 
     function _log(DeploymentResult memory r) private pure {

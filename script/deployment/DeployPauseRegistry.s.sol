@@ -6,6 +6,8 @@ import {HelperConfig} from "../HelperConfig.s.sol";
 import {ProxyReader} from "../helpers/ProxyReader.sol";
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {Options} from "openzeppelin-foundry-upgrades/Options.sol";
+import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 /// @title DeployPauseRegistry
 /// @notice Deploys the PauseRegistry with proxy pattern (no dependencies)
@@ -22,24 +24,28 @@ contract DeployPauseRegistry is Script {
         address deployer = vm.rememberKey(deployerKey);
 
         vm.startBroadcast(deployerKey);
-        result = _deploy(deployer);
+        result = _deploy(deployer, helper.getOptions());
         vm.stopBroadcast();
 
         _log(result);
     }
 
     function _deploy(
-        address defaultAdmin
+        address defaultAdmin,
+        Options memory opts
     ) private returns (DeploymentResult memory result) {
-        result.implementation = address(new PauseRegistry());
-        result.proxy = address(
-            new TransparentUpgradeableProxy(
-                result.implementation,
-                defaultAdmin,
-                abi.encodeCall(PauseRegistry.initialize, (0, defaultAdmin))
-            )
+        address pauseRegistryProxy = Upgrades.deployTransparentProxy(
+            "PauseRegistry.sol",
+            defaultAdmin,
+            abi.encodeCall(PauseRegistry.initialize, (0, defaultAdmin)),
+            opts
         );
-        result.admin = ProxyReader.readAdmin(vm, result.proxy);
+        result.proxy = pauseRegistryProxy;
+        result.implementation = ProxyReader.readImplementation(
+            vm,
+            pauseRegistryProxy
+        );
+        result.admin = ProxyReader.readAdmin(vm, pauseRegistryProxy);
     }
 
     function _log(DeploymentResult memory r) private pure {

@@ -1,8 +1,8 @@
 # Makefile for Liquidity Bridge Contract Forge Scripts
-# Supports mainnet, testnet, and dev environments with fork capabilities
+# NETWORK must match an addresses.json key: rskMainnet, rskTestnet, rskDevelopment, rskRegtest
 
 # Default values
-NETWORK ?= testnet
+NETWORK ?= rskRegtest
 FORK_BLOCK ?= latest
 VERIFY ?= false
 BROADCAST ?= true
@@ -34,7 +34,15 @@ ENV_FILE ?= .env
 # Load environment variables if .env file exists
 ifneq (,$(wildcard $(ENV_FILE)))
     include $(ENV_FILE)
-    export
+endif
+
+# Default when unset or empty (e.g. empty NETWORK in the environment with make -e)
+override NETWORK := $(or $(strip $(NETWORK)),rskRegtest)
+
+# Export only names assigned in .env (not bare "export", which also exports make vars like
+# FORK_OPTS and breaks test-* targets on GNU Make 3.81). Forge scripts read these via vm.env*.
+ifneq (,$(wildcard $(ENV_FILE)))
+    export $(shell awk -F= '/^[A-Za-z_][A-Za-z0-9_]*=/ {print $$1}' $(ENV_FILE))
 endif
 
 # Network configurations
@@ -76,7 +84,7 @@ ifeq ($(VERIFY),true)
 endif
 
 # Read library addresses from addresses.json using jq
-# Usage: $(call get_lib_address,network,library)
+# Usage: $(call get_lib_address,network-key,library)  network-key = rskMainnet | rskTestnet | rskDevelopment | rskRegtest
 define get_lib_address
 $(shell jq -r '.["$(1)"]["$(2)"].address // empty' addresses.json 2>/dev/null)
 endef
@@ -88,37 +96,32 @@ $(if $(call get_lib_address,$(1),SignatureValidator),--libraries src/libraries/S
 $(if $(call get_lib_address,$(1),BtcUtils),--libraries node_modules/@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol:BtcUtils:$(call get_lib_address,$(1),BtcUtils))
 endef
 
-# Network-specific RPC and key
-# Note: development uses testnet RPC (same chain) but different library addresses
+# Network-specific RPC and key (NETWORK = addresses.json top-level key)
+# rskDevelopment uses testnet RPC (chain 31) with separate addresses in addresses.json
 define get_network_config
-$(if $(filter mainnet,$(1)),$(MAINNET_RPC),$(if $(filter testnet development,$(1)),$(TESTNET_RPC),$(REGTEST_RPC)))
+$(if $(filter rskMainnet,$(1)),$(MAINNET_RPC),$(if $(filter rskTestnet rskDevelopment,$(1)),$(TESTNET_RPC),$(if $(filter rskRegtest,$(1)),$(REGTEST_RPC),$(error Unknown NETWORK '$(1)'. Valid: rskMainnet, rskTestnet, rskDevelopment, rskRegtest))))
 endef
 
 define get_network_key
-$(if $(filter mainnet,$(1)),$(MAINNET_KEY),$(if $(filter testnet,$(1)),$(TESTNET_KEY),$(if $(filter development,$(1)),$(DEVELOPMENT_KEY),$(DEV_KEY))))
+$(if $(filter rskMainnet,$(1)),$(MAINNET_KEY),$(if $(filter rskTestnet,$(1)),$(TESTNET_KEY),$(if $(filter rskDevelopment,$(1)),$(DEVELOPMENT_KEY),$(if $(filter rskRegtest,$(1)),$(DEV_KEY),$(error Unknown NETWORK '$(1)'. Valid: rskMainnet, rskTestnet, rskDevelopment, rskRegtest)))))
 endef
 
 define get_chain_id
-$(if $(filter mainnet,$(1)),$(MAINNET_CHAIN_ID),$(if $(filter testnet development,$(1)),$(TESTNET_CHAIN_ID),$(LOCAL_CHAIN_ID)))
+$(if $(filter rskMainnet,$(1)),$(MAINNET_CHAIN_ID),$(if $(filter rskTestnet rskDevelopment,$(1)),$(TESTNET_CHAIN_ID),$(if $(filter rskRegtest,$(1)),$(REGTEST_CHAIN_ID),$(error Unknown NETWORK '$(1)'. Valid: rskMainnet, rskTestnet, rskDevelopment, rskRegtest))))
 endef
 
-# Map simplified network names to RSK network names for forge script
-# development uses rskDevelopment addresses (different from rskTestnet)
-define get_rsk_network_name
-$(if $(filter mainnet,$(1)),rskMainnet,$(if $(filter testnet,$(1)),rskTestnet,$(if $(filter development,$(1)),rskDevelopment,rskRegtest)))
-endef
-
-# Fork options (for simulation/testing)
-FORK_OPTS := --fork-url $(call get_network_config,$(NETWORK))
+# Lazy expansion: only evaluated when a target uses these (not at parse time for test-* targets)
+FORK_OPTS = --fork-url $(call get_network_config,$(NETWORK))
 ifneq ($(FORK_BLOCK),latest)
     FORK_OPTS += --fork-block-number $(FORK_BLOCK)
 endif
 
-# RPC options (for actual deployments)
-RPC_OPTS := --rpc-url $(call get_network_config,$(NETWORK))
+RPC_OPTS = --rpc-url $(call get_network_config,$(NETWORK))
 
-# Private key option
-PRIVATE_KEY_OPTS := --private-key $(call get_network_key,$(NETWORK))
+PRIVATE_KEY_OPTS = --private-key $(call get_network_key,$(NETWORK))
+
+# Never export these; deploy recipes pass them on the forge command line
+unexport FORK_OPTS RPC_OPTS PRIVATE_KEY_OPTS
 
 # Help target
 .PHONY: help
@@ -127,15 +130,17 @@ help:
 	@echo ""
 	@echo "Usage: make <target> [NETWORK=<network>] [FORK_BLOCK=<block>] [VERIFY=<true|false>] [BROADCAST=<true|false>]"
 	@echo ""
-	@echo "Networks:"
-	@echo "  mainnet     - RSK Mainnet (Chain ID: 30)"
-	@echo "  testnet     - RSK Testnet (Chain ID: 31)"
-	@echo "  development - RSK Testnet with development library addresses (Chain ID: 31)"
-	@echo "  dev         - Local development (Chain ID: 1337)"
+	@echo "Networks (must match addresses.json keys):"
+	@echo "  rskMainnet      - RSK Mainnet (Chain ID: 30)"
+	@echo "  rskTestnet      - RSK Testnet (Chain ID: 31)"
+	@echo "  rskDevelopment  - RSK Testnet, development addresses (Chain ID: 31)"
+	@echo "  rskRegtest      - RSK Regtest (Chain ID: 33)"
 	@echo ""
 	@echo "Targets:"
 	@echo ""
 	@echo "Flyover Deployment:"
+	@echo "  deploy-libraries-fork    - Deploy Quotes, SignatureValidator, BtcUtils (fork simulation)"
+	@echo "  deploy-libraries-broadcast - Deploy libraries (actual deployment)"
 	@echo "  deploy-flyover-fork      - Deploy full Flyover system (fork simulation)"
 	@echo "  deploy-flyover-broadcast - Deploy full Flyover system (actual deployment)"
 	@echo "  deploy-collateral-fork   - Deploy CollateralManagement (fork simulation)"
@@ -209,13 +214,14 @@ help:
 	@echo "  test-fuzz-libraries   - Run libraries fuzz tests"
 	@echo ""
 	@echo "Deployment examples:"
-	@echo "  make deploy-flyover-fork NETWORK=testnet               # Deploy with auto-linked libraries"
-	@echo "  make deploy-flyover-broadcast NETWORK=testnet          # Deploy full Flyover system (actual)"
+	@echo "  make deploy-libraries-broadcast NETWORK=rskTestnet      # Deploy libs, then update addresses.json"
+	@echo "  make deploy-flyover-fork NETWORK=rskTestnet             # Deploy full Flyover (libraries from addresses.json)"
+	@echo "  make deploy-flyover-broadcast NETWORK=rskTestnet          # Deploy full Flyover system (actual)"
 	@echo "  (Libraries are auto-linked from addresses.json via foundry.toml profiles)"
-	@echo "  make deploy-pegin-fork NETWORK=testnet                 # Deploy PegIn only (simulation)"
-	@echo "  make deploy-collateral-fork NETWORK=testnet            # Deploy Collateral only (simulation)"
-	@echo "  make deploy-lbc-fork NETWORK=testnet                   # Legacy LBC fork simulation"
-	@echo "  make deploy-lbc-broadcast NETWORK=testnet              # Legacy LBC actual deployment"
+	@echo "  make deploy-pegin-fork NETWORK=rskTestnet                 # Deploy PegIn only (simulation)"
+	@echo "  make deploy-collateral-fork NETWORK=rskTestnet            # Deploy Collateral only (simulation)"
+	@echo "  make deploy-lbc-fork NETWORK=rskTestnet                   # Legacy LBC fork simulation"
+	@echo "  make deploy-lbc-broadcast NETWORK=rskTestnet              # Legacy LBC actual deployment"
 	@echo "  make testnet-fork-deploy                               # Testnet fork simulation"
 	@echo ""
 	@echo "Development network examples (testnet chain with rskDevelopment addresses):"
@@ -223,7 +229,7 @@ help:
 	@echo "  make development-fork-deploy-broadcast                 # Development LBC actual deployment"
 	@echo "  make development-deploy-flyover-fork                   # Development Flyover fork simulation"
 	@echo "  make development-deploy-flyover-broadcast              # Development Flyover actual deployment"
-	@echo "  make deploy-lbc-fork NETWORK=development               # Same as development-fork-deploy"
+	@echo "  make deploy-lbc-fork NETWORK=rskDevelopment               # Same as development-fork-deploy"
 	@echo "Fuzz Tests:"
 	@echo "  test-fuzz             - Run all fuzz tests"
 	@echo "  test-fuzz-collateral  - Run collateral fuzz tests"
@@ -233,24 +239,24 @@ help:
 	@echo "  test-fuzz-libraries   - Run libraries fuzz tests"
 	@echo ""
 	@echo "Examples:"
-	@echo "  make deploy-lbc-fork NETWORK=testnet                    # Fork simulation"
-	@echo "  make deploy-lbc-broadcast NETWORK=testnet               # Actual deployment"
+	@echo "  make deploy-lbc-fork NETWORK=rskTestnet                    # Fork simulation"
+	@echo "  make deploy-lbc-broadcast NETWORK=rskTestnet               # Actual deployment"
 	@echo "  make testnet-fork-deploy                                # Testnet fork simulation"
-	@echo "  make upgrade-lbc-fork NETWORK=mainnet FORK_BLOCK=6020639 # Fork simulation"
-	@echo "  make upgrade-lbc-broadcast NETWORK=mainnet             # Actual upgrade"
-	@echo "  make hash-quote pegin testnet                      # Hash PegIn quote"
+	@echo "  make upgrade-lbc-fork NETWORK=rskMainnet FORK_BLOCK=6020639 # Fork simulation"
+	@echo "  make upgrade-lbc-broadcast NETWORK=rskMainnet             # Actual upgrade"
+	@echo "  make hash-quote pegin rskTestnet                      # Hash PegIn quote"
 	@echo "  make hash-quote pegout mainnet my-quote.json       # Hash PegOut with custom file"
 	@echo "  make hash-quote HASH_QUOTE_FILE=my-quote.json     # Hash with named file parameter"
-	@echo "  make pause-status NETWORK=testnet                  # Check pause status"
-	@echo "  make query-proxy-admin NETWORK=mainnet PROXY_ADDRESS=0x... # ERC-1967 admin slot + ProxyAdmin owner"
-	@echo "  make pause-system NETWORK=testnet PAUSE_REASON=\"Security incident\" # Pause (simulation)"
-	@echo "  make pause-system-broadcast NETWORK=mainnet PAUSE_REASON=\"Emergency\" # Pause mainnet"
-	@echo "  make unpause-system-broadcast NETWORK=testnet      # Unpause testnet"
-	@echo "  make refund-user-pegout NETWORK=testnet QUOTE_HASH=abc123...  # Refund user (simulation)"
-	@echo "  make refund-user-pegout NETWORK=testnet QUOTE_FILE=script/tasks/quote.json # Refund from file (simulation)"
-	@echo "  make refund-user-pegout-broadcast NETWORK=testnet QUOTE_HASH=abc123... # Refund user (actual)"
-	@echo "  make register-pegin NETWORK=testnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc... # Register PegIn (simulation)"
-	@echo "  make register-pegin-broadcast NETWORK=testnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc... # Register PegIn (actual)"
+	@echo "  make pause-status NETWORK=rskTestnet                  # Check pause status"
+	@echo "  make query-proxy-admin NETWORK=rskMainnet PROXY_ADDRESS=0x... # ERC-1967 admin slot + ProxyAdmin owner"
+	@echo "  make pause-system NETWORK=rskTestnet PAUSE_REASON=\"Security incident\" # Pause (simulation)"
+	@echo "  make pause-system-broadcast NETWORK=rskMainnet PAUSE_REASON=\"Emergency\" # Pause mainnet"
+	@echo "  make unpause-system-broadcast NETWORK=rskTestnet      # Unpause testnet"
+	@echo "  make refund-user-pegout NETWORK=rskTestnet QUOTE_HASH=abc123...  # Refund user (simulation)"
+	@echo "  make refund-user-pegout NETWORK=rskTestnet QUOTE_FILE=script/tasks/quote.json # Refund from file (simulation)"
+	@echo "  make refund-user-pegout-broadcast NETWORK=rskTestnet QUOTE_HASH=abc123... # Refund user (actual)"
+	@echo "  make register-pegin NETWORK=rskTestnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc... # Register PegIn (simulation)"
+	@echo "  make register-pegin-broadcast NETWORK=rskTestnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc... # Register PegIn (actual)"
 	@echo ""
 	@echo "Test examples:"
 	@echo "  make test                                     # Run all tests (unit + fuzz)"
@@ -270,39 +276,64 @@ help:
 # FLYOVER DEPLOYMENT SCRIPTS
 # =============================================================================
 
+# Deploy Flyover libraries (fork simulation)
+.PHONY: deploy-libraries-fork
+deploy-libraries-fork:
+	@echo "Deploying Flyover libraries on $(NETWORK) (FORK SIMULATION)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@export NETWORK=$(NETWORK); \
+	$(FORGE) script/deployment/DeployLibraries.s.sol:DeployLibraries \
+		$(FORK_OPTS) \
+		$(PRIVATE_KEY_OPTS) \
+		--gas-limit $(GAS_LIMIT) \
+		--legacy
+
+# Deploy Flyover libraries (actual deployment)
+.PHONY: deploy-libraries-broadcast
+deploy-libraries-broadcast:
+	@echo "Deploying Flyover libraries on $(NETWORK) (ACTUAL DEPLOYMENT)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@export NETWORK=$(NETWORK); \
+	$(FORGE) script/deployment/DeployLibraries.s.sol:DeployLibraries \
+		$(RPC_OPTS) \
+		$(PRIVATE_KEY_OPTS) \
+		--gas-limit $(GAS_LIMIT) \
+		--legacy \
+		--broadcast
+
 # Deploy full Flyover system (fork simulation)
-# Libraries are auto-linked from addresses.json
+# Requires library addresses in addresses.json — run deploy-libraries-broadcast first on new networks
 .PHONY: deploy-flyover-fork
 deploy-flyover-fork:
 	@echo "Deploying full Flyover system on $(NETWORK) (FORK SIMULATION)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
-	@echo "Libraries from addresses.json ($(call get_rsk_network_name,$(NETWORK))):"
-	@echo "  Quotes: $(call get_lib_address,$(call get_rsk_network_name,$(NETWORK)),Quotes)"
-	@echo "  SignatureValidator: $(call get_lib_address,$(call get_rsk_network_name,$(NETWORK)),SignatureValidator)"
-	@echo "  BtcUtils: $(call get_lib_address,$(call get_rsk_network_name,$(NETWORK)),BtcUtils)"
-	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	@echo "Libraries from addresses.json ($(NETWORK)):"
+	@echo "  Quotes: $(call get_lib_address,$(NETWORK),Quotes)"
+	@echo "  SignatureValidator: $(call get_lib_address,$(NETWORK),SignatureValidator)"
+	@echo "  BtcUtils: $(call get_lib_address,$(NETWORK),BtcUtils)"
+	@export NETWORK=$(NETWORK); \
 	$(FORGE) script/deployment/DeployFlyover.s.sol:DeployFlyover \
 		$(FORK_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
-		$(call get_library_flags,$(call get_rsk_network_name,$(NETWORK))) \
+		$(call get_library_flags,$(NETWORK)) \
 		--gas-limit $(GAS_LIMIT) \
 		--legacy
 
 # Deploy full Flyover system (actual deployment)
-# Libraries are auto-linked from addresses.json
+# Requires library addresses in addresses.json — run deploy-libraries-broadcast first on new networks
 .PHONY: deploy-flyover-broadcast
 deploy-flyover-broadcast:
 	@echo "Deploying full Flyover system on $(NETWORK) (ACTUAL DEPLOYMENT)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
-	@echo "Libraries from addresses.json ($(call get_rsk_network_name,$(NETWORK))):"
-	@echo "  Quotes: $(call get_lib_address,$(call get_rsk_network_name,$(NETWORK)),Quotes)"
-	@echo "  SignatureValidator: $(call get_lib_address,$(call get_rsk_network_name,$(NETWORK)),SignatureValidator)"
-	@echo "  BtcUtils: $(call get_lib_address,$(call get_rsk_network_name,$(NETWORK)),BtcUtils)"
-	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	@echo "Libraries from addresses.json ($(NETWORK)):"
+	@echo "  Quotes: $(call get_lib_address,$(NETWORK),Quotes)"
+	@echo "  SignatureValidator: $(call get_lib_address,$(NETWORK),SignatureValidator)"
+	@echo "  BtcUtils: $(call get_lib_address,$(NETWORK),BtcUtils)"
+	@export NETWORK=$(NETWORK); \
 	$(FORGE) script/deployment/DeployFlyover.s.sol:DeployFlyover \
 		$(RPC_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
-		$(call get_library_flags,$(call get_rsk_network_name,$(NETWORK))) \
+		$(call get_library_flags,$(NETWORK)) \
 		--gas-limit $(GAS_LIMIT) \
 		--legacy \
 		--broadcast
@@ -312,7 +343,7 @@ deploy-flyover-broadcast:
 deploy-collateral-fork:
 	@echo "Deploying CollateralManagement on $(NETWORK) (FORK SIMULATION)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
-	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	@export NETWORK=$(NETWORK); \
 	$(FORGE) script/deployment/DeployCollateralManagement.s.sol:DeployCollateralManagement \
 		$(FORK_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
@@ -324,7 +355,7 @@ deploy-collateral-fork:
 deploy-collateral-broadcast:
 	@echo "Deploying CollateralManagement on $(NETWORK) (ACTUAL DEPLOYMENT)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
-	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	@export NETWORK=$(NETWORK); \
 	$(FORGE) script/deployment/DeployCollateralManagement.s.sol:DeployCollateralManagement \
 		$(RPC_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
@@ -337,7 +368,7 @@ deploy-collateral-broadcast:
 deploy-discovery-fork:
 	@echo "Deploying FlyoverDiscovery on $(NETWORK) (FORK SIMULATION)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
-	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	@export NETWORK=$(NETWORK); \
 	$(FORGE) script/deployment/DeployFlyoverDiscovery.s.sol:DeployFlyoverDiscovery \
 		$(FORK_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
@@ -349,7 +380,7 @@ deploy-discovery-fork:
 deploy-discovery-broadcast:
 	@echo "Deploying FlyoverDiscovery on $(NETWORK) (ACTUAL DEPLOYMENT)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
-	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	@export NETWORK=$(NETWORK); \
 	$(FORGE) script/deployment/DeployFlyoverDiscovery.s.sol:DeployFlyoverDiscovery \
 		$(RPC_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
@@ -362,10 +393,11 @@ deploy-discovery-broadcast:
 deploy-pegin-fork:
 	@echo "Deploying PegInContract on $(NETWORK) (FORK SIMULATION)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
-	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	@export NETWORK=$(NETWORK); \
 	$(FORGE) script/deployment/DeployPegIn.s.sol:DeployPegIn \
 		$(FORK_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
+		$(call get_library_flags,$(NETWORK)) \
 		--gas-limit $(GAS_LIMIT) \
 		--legacy
 
@@ -374,10 +406,11 @@ deploy-pegin-fork:
 deploy-pegin-broadcast:
 	@echo "Deploying PegInContract on $(NETWORK) (ACTUAL DEPLOYMENT)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
-	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	@export NETWORK=$(NETWORK); \
 	$(FORGE) script/deployment/DeployPegIn.s.sol:DeployPegIn \
 		$(RPC_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
+		$(call get_library_flags,$(NETWORK)) \
 		--gas-limit $(GAS_LIMIT) \
 		--legacy \
 		--broadcast
@@ -387,10 +420,11 @@ deploy-pegin-broadcast:
 deploy-pegout-fork:
 	@echo "Deploying PegOutContract on $(NETWORK) (FORK SIMULATION)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
-	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	@export NETWORK=$(NETWORK); \
 	$(FORGE) script/deployment/DeployPegOut.s.sol:DeployPegOut \
 		$(FORK_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
+		$(call get_library_flags,$(NETWORK)) \
 		--gas-limit $(GAS_LIMIT) \
 		--legacy
 
@@ -399,10 +433,11 @@ deploy-pegout-fork:
 deploy-pegout-broadcast:
 	@echo "Deploying PegOutContract on $(NETWORK) (ACTUAL DEPLOYMENT)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
-	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	@export NETWORK=$(NETWORK); \
 	$(FORGE) script/deployment/DeployPegOut.s.sol:DeployPegOut \
 		$(RPC_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
+		$(call get_library_flags,$(NETWORK)) \
 		--gas-limit $(GAS_LIMIT) \
 		--legacy \
 		--broadcast
@@ -542,8 +577,8 @@ get-btc-height:
 # Get contract versions
 .PHONY: get-versions
 get-versions:
-	@echo "Getting contract versions..."
-	@bash script/tasks/GetVersions.sh
+	@echo "Getting contract versions on $(NETWORK)..."
+	@bash script/tasks/GetVersions.sh "$(call get_network_config,$(NETWORK))" "$(NETWORK)"
 
 # Read ERC-1967 proxy admin (read-only; uses script/tasks/QueryProxyAdmin.s.sol)
 # Requires PROXY_ADDRESS (transparent / ERC-1967 proxy contract).
@@ -551,7 +586,7 @@ get-versions:
 query-proxy-admin:
 	@if [ -z "$(PROXY_ADDRESS)" ]; then \
 		echo "Error: Set PROXY_ADDRESS to the proxy contract address."; \
-		echo "  Example: make query-proxy-admin NETWORK=mainnet PROXY_ADDRESS=0x..."; \
+		echo "  Example: make query-proxy-admin NETWORK=rskMainnet PROXY_ADDRESS=0x..."; \
 		exit 1; \
 	fi
 	@echo "Querying ERC-1967 proxy admin on $(NETWORK)..."
@@ -563,8 +598,8 @@ query-proxy-admin:
 		-vv
 
 # Hash quote - supports both syntaxes:
-# make hash-quote pegin testnet
-# make hash-quote QUOTE_TYPE=pegin NETWORK=testnet HASH_QUOTE_FILE=file.json
+# make hash-quote pegin rskTestnet
+# make hash-quote QUOTE_TYPE=pegin NETWORK=rskTestnet HASH_QUOTE_FILE=file.json
 .PHONY: hash-quote
 hash-quote:
 	@$(eval ARGS := $(filter-out $@,$(MAKECMDGOALS)))
@@ -581,7 +616,7 @@ hash-quote:
 	@echo "Hashing $(FINAL_TYPE) quote on $(FINAL_NETWORK)..."
 	@echo "File: $(FINAL_FILE)"
 	@echo "RPC URL: $(call get_network_config,$(FINAL_NETWORK))"
-	@export NETWORK=$(call get_rsk_network_name,$(FINAL_NETWORK)); \
+	@export NETWORK=$(FINAL_NETWORK); \
 	if [ "$(FINAL_TYPE)" = "pegin" ]; then \
 		forge script script/tasks/HashQuote.s.sol:HashQuote \
 			--sig "hashPeginQuote(string)" "$(FINAL_FILE)" \
@@ -599,7 +634,7 @@ hash-quote:
 pause-status:
 	@echo "Checking pause status on $(NETWORK)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
-	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	@export NETWORK=$(NETWORK); \
 	forge script script/tasks/PauseSystem.s.sol:PauseSystem \
 		--sig "checkStatus()" \
 		--rpc-url $(call get_network_config,$(NETWORK)) \
@@ -611,7 +646,7 @@ pause-system:
 	@echo "Pausing system contracts on $(NETWORK) (SIMULATION)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Reason: $(PAUSE_REASON)"
-	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	@export NETWORK=$(NETWORK); \
 	forge script script/tasks/PauseSystem.s.sol:PauseSystem \
 		--sig "pauseAll(string)" "$(PAUSE_REASON)" \
 		--rpc-url $(call get_network_config,$(NETWORK)) \
@@ -623,7 +658,7 @@ pause-system-broadcast:
 	@echo "Pausing system contracts on $(NETWORK) (ACTUAL BROADCAST)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Reason: $(PAUSE_REASON)"
-	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	@export NETWORK=$(NETWORK); \
 	forge script script/tasks/PauseSystem.s.sol:PauseSystem \
 		--sig "pauseAll(string)" "$(PAUSE_REASON)" \
 		--rpc-url $(call get_network_config,$(NETWORK)) \
@@ -634,7 +669,7 @@ pause-system-broadcast:
 unpause-system:
 	@echo "Unpausing system contracts on $(NETWORK) (SIMULATION)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
-	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	@export NETWORK=$(NETWORK); \
 	forge script script/tasks/PauseSystem.s.sol:PauseSystem \
 		--sig "unpauseAll()" \
 		--rpc-url $(call get_network_config,$(NETWORK)) \
@@ -645,7 +680,7 @@ unpause-system:
 unpause-system-broadcast:
 	@echo "Unpausing system contracts on $(NETWORK) (ACTUAL BROADCAST)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
-	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	@export NETWORK=$(NETWORK); \
 	forge script script/tasks/PauseSystem.s.sol:PauseSystem \
 		--sig "unpauseAll()" \
 		--rpc-url $(call get_network_config,$(NETWORK)) \
@@ -656,8 +691,8 @@ unpause-system-broadcast:
 refund-user-pegout:
 	@if [ -z "$(QUOTE_HASH)" ] && [ -z "$(QUOTE_FILE)" ]; then \
 		echo "Error: Either QUOTE_HASH or QUOTE_FILE is required"; \
-		echo "Usage: make refund-user-pegout NETWORK=testnet QUOTE_HASH=abc123..."; \
-		echo "   or: make refund-user-pegout NETWORK=testnet QUOTE_FILE=script/tasks/quote.json"; \
+		echo "Usage: make refund-user-pegout NETWORK=rskTestnet QUOTE_HASH=abc123..."; \
+		echo "   or: make refund-user-pegout NETWORK=rskTestnet QUOTE_FILE=script/tasks/quote.json"; \
 		exit 1; \
 	fi
 	@if [ -n "$(QUOTE_HASH)" ] && [ -n "$(QUOTE_FILE)" ]; then \
@@ -666,7 +701,7 @@ refund-user-pegout:
 	fi
 	@echo "Refunding user PegOut on $(NETWORK) (SIMULATION)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
-	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	@export NETWORK=$(NETWORK); \
 	if [ -n "$(QUOTE_FILE)" ]; then \
 		echo "Quote File: $(QUOTE_FILE)"; \
 		forge script script/tasks/RefundUserPegout.s.sol:RefundUserPegout \
@@ -686,8 +721,8 @@ refund-user-pegout:
 refund-user-pegout-broadcast:
 	@if [ -z "$(QUOTE_HASH)" ] && [ -z "$(QUOTE_FILE)" ]; then \
 		echo "Error: Either QUOTE_HASH or QUOTE_FILE is required"; \
-		echo "Usage: make refund-user-pegout-broadcast NETWORK=testnet QUOTE_HASH=abc123..."; \
-		echo "   or: make refund-user-pegout-broadcast NETWORK=testnet QUOTE_FILE=script/tasks/quote.json"; \
+		echo "Usage: make refund-user-pegout-broadcast NETWORK=rskTestnet QUOTE_HASH=abc123..."; \
+		echo "   or: make refund-user-pegout-broadcast NETWORK=rskTestnet QUOTE_FILE=script/tasks/quote.json"; \
 		exit 1; \
 	fi
 	@if [ -n "$(QUOTE_HASH)" ] && [ -n "$(QUOTE_FILE)" ]; then \
@@ -696,7 +731,7 @@ refund-user-pegout-broadcast:
 	fi
 	@echo "Refunding user PegOut on $(NETWORK) (ACTUAL BROADCAST)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
-	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
+	@export NETWORK=$(NETWORK); \
 	if [ -n "$(QUOTE_FILE)" ]; then \
 		echo "Quote File: $(QUOTE_FILE)"; \
 		forge script script/tasks/RefundUserPegout.s.sol:RefundUserPegout \
@@ -716,25 +751,25 @@ refund-user-pegout-broadcast:
 register-pegin:
 	@if [ -z "$(PEGIN_QUOTE_FILE)" ]; then \
 		echo "Error: PEGIN_QUOTE_FILE is required"; \
-		echo "Usage: make register-pegin NETWORK=testnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc..."; \
+		echo "Usage: make register-pegin NETWORK=rskTestnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc..."; \
 		exit 1; \
 	fi
 	@if [ -z "$(PEGIN_SIGNATURE)" ]; then \
 		echo "Error: PEGIN_SIGNATURE is required"; \
-		echo "Usage: make register-pegin NETWORK=testnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc..."; \
+		echo "Usage: make register-pegin NETWORK=rskTestnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc..."; \
 		exit 1; \
 	fi
 	@if [ -z "$(PEGIN_TXID)" ]; then \
 		echo "Error: PEGIN_TXID is required"; \
-		echo "Usage: make register-pegin NETWORK=testnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc..."; \
+		echo "Usage: make register-pegin NETWORK=rskTestnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc..."; \
 		exit 1; \
 	fi
 	@echo "Registering PegIn on $(NETWORK) (SIMULATION)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Quote File: $(PEGIN_QUOTE_FILE)"
 	@echo "TX ID: $(PEGIN_TXID)"
-	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
-	export BTC_NETWORK=$(if $(filter mainnet,$(NETWORK)),mainnet,testnet); \
+	@export NETWORK=$(NETWORK); \
+	export BTC_NETWORK=$(if $(filter rskMainnet,$(NETWORK)),mainnet,testnet); \
 	forge script script/tasks/RegisterPegin.s.sol:RegisterPegin \
 		--sig "registerPegin(string,string,string)" "$(PEGIN_QUOTE_FILE)" "$(PEGIN_SIGNATURE)" "$(PEGIN_TXID)" \
 		--rpc-url $(call get_network_config,$(NETWORK)) \
@@ -745,25 +780,25 @@ register-pegin:
 register-pegin-broadcast:
 	@if [ -z "$(PEGIN_QUOTE_FILE)" ]; then \
 		echo "Error: PEGIN_QUOTE_FILE is required"; \
-		echo "Usage: make register-pegin-broadcast NETWORK=testnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc..."; \
+		echo "Usage: make register-pegin-broadcast NETWORK=rskTestnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc..."; \
 		exit 1; \
 	fi
 	@if [ -z "$(PEGIN_SIGNATURE)" ]; then \
 		echo "Error: PEGIN_SIGNATURE is required"; \
-		echo "Usage: make register-pegin-broadcast NETWORK=testnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc..."; \
+		echo "Usage: make register-pegin-broadcast NETWORK=rskTestnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc..."; \
 		exit 1; \
 	fi
 	@if [ -z "$(PEGIN_TXID)" ]; then \
 		echo "Error: PEGIN_TXID is required"; \
-		echo "Usage: make register-pegin-broadcast NETWORK=testnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc..."; \
+		echo "Usage: make register-pegin-broadcast NETWORK=rskTestnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc..."; \
 		exit 1; \
 	fi
 	@echo "Registering PegIn on $(NETWORK) (ACTUAL BROADCAST)..."
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Quote File: $(PEGIN_QUOTE_FILE)"
 	@echo "TX ID: $(PEGIN_TXID)"
-	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
-	export BTC_NETWORK=$(if $(filter mainnet,$(NETWORK)),mainnet,testnet); \
+	@export NETWORK=$(NETWORK); \
+	export BTC_NETWORK=$(if $(filter rskMainnet,$(NETWORK)),mainnet,testnet); \
 	forge script script/tasks/RegisterPegin.s.sol:RegisterPegin \
 		--sig "registerPegin(string,string,string)" "$(PEGIN_QUOTE_FILE)" "$(PEGIN_SIGNATURE)" "$(PEGIN_TXID)" \
 		--rpc-url $(call get_network_config,$(NETWORK)) \
@@ -952,7 +987,7 @@ gas-report:
 .PHONY: verify
 verify:
 	@echo "Verifying contracts on $(NETWORK)..."
-	@if [ "$(NETWORK)" = "mainnet" ] || [ "$(NETWORK)" = "testnet" ]; then \
+	@if [ "$(NETWORK)" = "rskMainnet" ] || [ "$(NETWORK)" = "rskTestnet" ]; then \
 		echo "Verification requires manual intervention. Please use:"; \
 		echo "forge verify-contract <CONTRACT_ADDRESS> <CONTRACT_NAME> --chain-id $(call get_chain_id,$(NETWORK)) --etherscan-api-key <API_KEY>"; \
 	else \
@@ -967,25 +1002,25 @@ deploy-all: deploy-lbc-fork upgrade-lbc-fork change-owner-fork
 .PHONY: dev-deploy
 dev-deploy:
 	@echo "Quick deployment on dev network (SIMULATION)..."
-	$(MAKE) deploy-lbc-fork NETWORK=dev VERIFY=false
+	$(MAKE) deploy-lbc-fork NETWORK=rskRegtest VERIFY=false
 
 # Quick test deployment on dev network (actual)
 .PHONY: dev-deploy-broadcast
 dev-deploy-broadcast:
 	@echo "Quick deployment on dev network (ACTUAL DEPLOYMENT)..."
-	$(MAKE) deploy-lbc-broadcast NETWORK=dev VERIFY=false
+	$(MAKE) deploy-lbc-broadcast NETWORK=rskRegtest VERIFY=false
 
 # Test deployment on testnet fork (simulation)
 .PHONY: testnet-fork-deploy
 testnet-fork-deploy:
 	@echo "Test deployment on testnet fork (SIMULATION)..."
-	$(MAKE) deploy-lbc-fork NETWORK=testnet FORK_BLOCK=6020639 VERIFY=false
+	$(MAKE) deploy-lbc-fork NETWORK=rskTestnet FORK_BLOCK=6020639 VERIFY=false
 
 # Test deployment on testnet fork (actual)
 .PHONY: testnet-fork-deploy-broadcast
 testnet-fork-deploy-broadcast:
 	@echo "Test deployment on testnet fork (ACTUAL DEPLOYMENT)..."
-	$(MAKE) deploy-lbc-broadcast NETWORK=testnet FORK_BLOCK=6020639 VERIFY=false
+	$(MAKE) deploy-lbc-broadcast NETWORK=rskTestnet FORK_BLOCK=6020639 VERIFY=false
 
 # =============================================================================
 # DEVELOPMENT NETWORK DEPLOYMENT (Testnet chain with development library addresses)
@@ -996,54 +1031,54 @@ testnet-fork-deploy-broadcast:
 development-fork-deploy:
 	@echo "Development network deployment (SIMULATION)..."
 	@echo "Using rskDevelopment library addresses on testnet chain"
-	$(MAKE) deploy-lbc-fork NETWORK=development VERIFY=false
+	$(MAKE) deploy-lbc-fork NETWORK=rskDevelopment VERIFY=false
 
 # Development network fork deploy (actual)
 .PHONY: development-fork-deploy-broadcast
 development-fork-deploy-broadcast:
 	@echo "Development network deployment (ACTUAL DEPLOYMENT)..."
 	@echo "Using rskDevelopment library addresses on testnet chain"
-	$(MAKE) deploy-lbc-broadcast NETWORK=development VERIFY=false
+	$(MAKE) deploy-lbc-broadcast NETWORK=rskDevelopment VERIFY=false
 
 # Deploy Flyover on development network (simulation)
 .PHONY: development-deploy-flyover-fork
 development-deploy-flyover-fork:
 	@echo "Deploying Flyover on development network (SIMULATION)..."
 	@echo "Using rskDevelopment library addresses on testnet chain"
-	$(MAKE) deploy-flyover-fork NETWORK=development
+	$(MAKE) deploy-flyover-fork NETWORK=rskDevelopment
 
 # Deploy Flyover on development network (actual)
 .PHONY: development-deploy-flyover-broadcast
 development-deploy-flyover-broadcast:
 	@echo "Deploying Flyover on development network (ACTUAL DEPLOYMENT)..."
 	@echo "Using rskDevelopment library addresses on testnet chain"
-	$(MAKE) deploy-flyover-broadcast NETWORK=development
+	$(MAKE) deploy-flyover-broadcast NETWORK=rskDevelopment
 
 # Upgrade LBC on development network (simulation)
 .PHONY: development-upgrade-lbc-fork
 development-upgrade-lbc-fork:
 	@echo "Upgrading LBC on development network (SIMULATION)..."
 	@echo "Using rskDevelopment library addresses on testnet chain"
-	$(MAKE) upgrade-lbc-fork NETWORK=development
+	$(MAKE) upgrade-lbc-fork NETWORK=rskDevelopment
 
 # Upgrade LBC on development network (actual)
 .PHONY: development-upgrade-lbc-broadcast
 development-upgrade-lbc-broadcast:
 	@echo "Upgrading LBC on development network (ACTUAL DEPLOYMENT)..."
 	@echo "Using rskDevelopment library addresses on testnet chain"
-	$(MAKE) upgrade-lbc-broadcast NETWORK=development
+	$(MAKE) upgrade-lbc-broadcast NETWORK=rskDevelopment
 
 # Mainnet fork deployment (simulation)
 .PHONY: mainnet-fork-deploy
 mainnet-fork-deploy:
 	@echo "Mainnet fork deployment (SIMULATION)..."
-	$(MAKE) deploy-lbc-fork NETWORK=mainnet FORK_BLOCK=latest VERIFY=false
+	$(MAKE) deploy-lbc-fork NETWORK=rskMainnet FORK_BLOCK=latest VERIFY=false
 
 # Mainnet fork deployment (actual)
 .PHONY: mainnet-fork-deploy-broadcast
 mainnet-fork-deploy-broadcast:
 	@echo "Mainnet fork deployment (ACTUAL DEPLOYMENT)..."
-	$(MAKE) deploy-lbc-broadcast NETWORK=mainnet FORK_BLOCK=latest VERIFY=false
+	$(MAKE) deploy-lbc-broadcast NETWORK=rskMainnet FORK_BLOCK=latest VERIFY=false
 
 # Environment setup check
 .PHONY: check-env
@@ -1064,7 +1099,7 @@ check-env:
 .PHONY: validate-deploy
 validate-deploy: check-env
 	@echo "Validating deployment prerequisites..."
-	@if [ "$(NETWORK)" = "mainnet" ] && [ "$(BROADCAST)" = "true" ]; then \
+	@if [ "$(NETWORK)" = "rskMainnet" ] && [ "$(BROADCAST)" = "true" ]; then \
 		echo "WARNING: You are about to deploy to MAINNET!"; \
 		echo "This will broadcast real transactions."; \
 		read -p "Are you sure? (y/N): " confirm; \
@@ -1097,9 +1132,9 @@ test-invariant:
 	forge test --match-path "test/invariant/**/*.t.sol" -vv
 
 # Catch-all target for hash-quote arguments (pegin/pegout, network names, file paths)
-# This prevents make from complaining about unknown targets when using: make hash-quote pegin testnet
+# This prevents make from complaining about unknown targets when using: make hash-quote pegin rskTestnet
 ifneq (,$(findstring hash-quote,$(MAKECMDGOALS)))
-pegin pegout mainnet testnet development local regtest rskMainnet rskTestnet rskRegtest rskDevelopment:
+pegin pegout rskMainnet rskTestnet rskDevelopment rskRegtest:
 	@:
 # Also catch file arguments (anything ending in .json)
 %.json:
