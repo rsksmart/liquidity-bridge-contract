@@ -692,7 +692,7 @@ refund-user-pegout-broadcast:
 			--broadcast --private-key $(call get_network_key,$(NETWORK)) -vv; \
 	fi
 
-# Register PegIn (simulation)
+# Register PegIn using cast wrapper (simulation)
 .PHONY: register-pegin
 register-pegin:
 	@if [ -z "$(PEGIN_QUOTE_FILE)" ]; then \
@@ -714,14 +714,15 @@ register-pegin:
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Quote File: $(PEGIN_QUOTE_FILE)"
 	@echo "TX ID: $(PEGIN_TXID)"
-	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
-	export BTC_NETWORK=$(if $(filter mainnet,$(NETWORK)),mainnet,testnet); \
-	forge script script/tasks/RegisterPegin.s.sol:RegisterPegin \
-		--sig "registerPegin(string,string,string)" "$(PEGIN_QUOTE_FILE)" "$(PEGIN_SIGNATURE)" "$(PEGIN_TXID)" \
-		--rpc-url $(call get_network_config,$(NETWORK)) \
-		--ffi -vv
+	@NETWORK=$(NETWORK) \
+	PEGIN_QUOTE_FILE=$(PEGIN_QUOTE_FILE) \
+	PEGIN_SIGNATURE=$(PEGIN_SIGNATURE) \
+	PEGIN_TXID=$(PEGIN_TXID) \
+	RPC_URL=$(call get_network_config,$(NETWORK)) \
+	BTC_NETWORK=$(if $(filter mainnet,$(NETWORK)),mainnet,testnet) \
+	bash script/tasks/register-pegin-cast.sh
 
-# Register PegIn (actual broadcast)
+# Register PegIn using cast wrapper (actual broadcast)
 .PHONY: register-pegin-broadcast
 register-pegin-broadcast:
 	@if [ -z "$(PEGIN_QUOTE_FILE)" ]; then \
@@ -743,12 +744,14 @@ register-pegin-broadcast:
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@echo "Quote File: $(PEGIN_QUOTE_FILE)"
 	@echo "TX ID: $(PEGIN_TXID)"
-	@export NETWORK=$(call get_rsk_network_name,$(NETWORK)); \
-	export BTC_NETWORK=$(if $(filter mainnet,$(NETWORK)),mainnet,testnet); \
-	forge script script/tasks/RegisterPegin.s.sol:RegisterPegin \
-		--sig "registerPegin(string,string,string)" "$(PEGIN_QUOTE_FILE)" "$(PEGIN_SIGNATURE)" "$(PEGIN_TXID)" \
-		--rpc-url $(call get_network_config,$(NETWORK)) \
-		--broadcast --private-key $(call get_network_key,$(NETWORK)) --ffi -vv
+	@NETWORK=$(NETWORK) \
+	PEGIN_QUOTE_FILE=$(PEGIN_QUOTE_FILE) \
+	PEGIN_SIGNATURE=$(PEGIN_SIGNATURE) \
+	PEGIN_TXID=$(PEGIN_TXID) \
+	RPC_URL=$(call get_network_config,$(NETWORK)) \
+	BTC_NETWORK=$(if $(filter mainnet,$(NETWORK)),mainnet,testnet) \
+	PRIVATE_KEY=$(call get_network_key,$(NETWORK)) \
+	bash script/tasks/register-pegin-cast.sh --broadcast
 
 # Build contracts
 .PHONY: build
