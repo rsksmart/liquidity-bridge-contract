@@ -2,6 +2,7 @@
 pragma solidity 0.8.25;
 
 import {PegInTestBase} from "./PegInTestBase.sol";
+import {P2PKH_ZERO_ADDRESS_TESTNET} from "../constants/btc.sol";
 import {IPegIn} from "../../src/interfaces/IPegIn.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
@@ -1461,8 +1462,7 @@ contract RegisterPegInTest is PegInTestBase {
     function createTestQuote(
         uint256 value
     ) internal view returns (Quotes.PegInQuote memory) {
-        bytes memory testBtcAddress = new bytes(21);
-        testBtcAddress[0] = 0x6f;
+        bytes memory testBtcAddress = P2PKH_ZERO_ADDRESS_TESTNET;
 
         return
             Quotes.PegInQuote({

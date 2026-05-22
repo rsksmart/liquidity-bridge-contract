@@ -8,6 +8,7 @@ import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol"
 import {Flyover} from "../../src/libraries/Flyover.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
 import {WalletMock} from "../../src/test-contracts/WalletMock.sol";
+import {P2PKH_ZERO_ADDRESS_TESTNET} from "../constants/btc.sol";
 
 contract SlashingTest is CollateralTestBase {
     address public punisher;
@@ -54,8 +55,7 @@ contract SlashingTest is CollateralTestBase {
         returns (Quotes.PegInQuote memory quote)
     {
         bytes memory emptyBytes = new bytes(0);
-        bytes memory testBtcAddress = new bytes(21);
-        testBtcAddress[0] = 0x6f;
+        bytes memory testBtcAddress = P2PKH_ZERO_ADDRESS_TESTNET;
 
         quote.callFee = CALL_FEE;
         quote.penaltyFee = PENALTY_FEE;

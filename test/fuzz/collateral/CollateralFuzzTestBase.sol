@@ -8,6 +8,7 @@ import {PauseRegistry} from "../../../src/PauseRegistry.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Flyover} from "../../../src/libraries/Flyover.sol";
 import {Quotes} from "../../../src/libraries/Quotes.sol";
+import {P2PKH_ZERO_ADDRESS_TESTNET} from "../../constants/btc.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 /// @title Base contract for CollateralManagement fuzz tests
@@ -138,8 +139,7 @@ abstract contract CollateralFuzzTestBase is Test {
         uint256 penaltyFee
     ) internal pure returns (Quotes.PegInQuote memory quote) {
         bytes memory emptyBytes = new bytes(0);
-        bytes memory testBtcAddress = new bytes(21);
-        testBtcAddress[0] = 0x6f;
+        bytes memory testBtcAddress = P2PKH_ZERO_ADDRESS_TESTNET;
 
         quote.callFee = DEFAULT_CALL_FEE;
         quote.penaltyFee = penaltyFee;
@@ -156,8 +156,7 @@ abstract contract CollateralFuzzTestBase is Test {
         address liquidityProvider,
         uint256 penaltyFee
     ) internal pure returns (Quotes.PegOutQuote memory quote) {
-        bytes memory testBtcAddress = new bytes(21);
-        testBtcAddress[0] = 0x6f;
+        bytes memory testBtcAddress = P2PKH_ZERO_ADDRESS_TESTNET;
 
         quote.callFee = DEFAULT_CALL_FEE;
         quote.penaltyFee = penaltyFee;
