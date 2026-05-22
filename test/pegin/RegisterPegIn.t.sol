@@ -1180,7 +1180,8 @@ contract RegisterPegInTest is PegInTestBase {
     function test_RegisterPegIn_RefundPegInWithWrongAmountWithoutPenalizingLP()
         public
     {
-        // Uses real mainnet transaction data to ensure compatibility with actual edge cases
+        // Uses real mainnet transaction data; redeploy with mainnet BTC prefix validation
+        pegInContract = deployPegInContract(true);
 
         // Decode BTC addresses from base58check format
         // "3LxPz39femVBL278mTiBvgzBNMVFqXssoH" (P2SH mainnet) -> slice(1) removes version byte

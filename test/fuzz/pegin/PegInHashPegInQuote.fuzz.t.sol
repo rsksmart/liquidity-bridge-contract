@@ -2,6 +2,7 @@
 pragma solidity 0.8.25;
 
 import {PegInFuzzTestBase} from "./PegInFuzzTestBase.sol";
+import {PegInContract} from "../../../src/PegInContract.sol";
 import {BtcAddressDataset} from "../../helpers/BtcAddressDataset.sol";
 import {Quotes} from "../../../src/libraries/Quotes.sol";
 import {IPegIn} from "../../../src/interfaces/IPegIn.sol";
@@ -9,13 +10,16 @@ import {IPegIn} from "../../../src/interfaces/IPegIn.sol";
 /// @title PegIn hashPegInQuote BTC address fuzz tests
 /// @notice Verifies hashPegInQuote rejects non-P2PKH/P2SH BTC addresses using test/datasets fixtures
 contract PegInHashPegInQuoteFuzzTest is PegInFuzzTestBase, BtcAddressDataset {
+    PegInContract internal pegInContractMainnet;
+
     bytes[] internal invalidTestnetAddresses;
     bytes[] internal validTestnetAddresses;
     bytes[] internal validMainnetAddresses;
     bytes[] internal invalidMainnetAddresses;
 
     function setUp() public {
-        deployPegInContract();
+        pegInContract = deployPegInContract(false);
+        pegInContractMainnet = deployPegInContract(true);
         fuzzUser = makeAddr("user");
 
         invalidTestnetAddresses = loadInvalidTestnetQuoteAddresses();
@@ -70,13 +74,12 @@ contract PegInHashPegInQuoteFuzzTest is PegInFuzzTestBase, BtcAddressDataset {
         pegInContract.hashPegInQuote(quote);
     }
 
-    /// @notice Fuzz: P2WSH/P2TR addresses revert on mainnet (chainId 30); P2WPKH shares P2PKH prefix
+    /// @notice Fuzz: P2WSH/P2TR addresses revert on mainnet deployment; P2WPKH shares the P2PKH prefix
     function testFuzz_HashPegInQuote_RevertsOnInvalidBtcAddress_Mainnet(
         uint8 addressIndex,
         uint8 validAddressIndex,
         bool targetRefundAddress
     ) public {
-        vm.chainId(30);
         addressIndex = uint8(
             bound(addressIndex, 0, invalidMainnetAddresses.length - 1)
         );
@@ -87,8 +90,7 @@ contract PegInHashPegInQuoteFuzzTest is PegInFuzzTestBase, BtcAddressDataset {
         bytes memory invalidAddress = invalidMainnetAddresses[addressIndex];
         bytes memory validAddress = validMainnetAddresses[validAddressIndex];
 
-        Quotes.PegInQuote memory quote = createFuzzTestQuote(TEST_MIN_PEGIN);
-        quote.chainId = 30;
+        Quotes.PegInQuote memory quote = _createMainnetFuzzQuote();
         quote.btcRefundAddress = validAddress;
         quote.liquidityProviderBtcAddress = validAddress;
 
@@ -104,7 +106,7 @@ contract PegInHashPegInQuoteFuzzTest is PegInFuzzTestBase, BtcAddressDataset {
                 invalidAddress
             )
         );
-        pegInContract.hashPegInQuote(quote);
+        pegInContractMainnet.hashPegInQuote(quote);
     }
 
     /// @notice Fuzz: valid P2PKH/P2SH dataset addresses hash successfully on testnet
@@ -122,5 +124,14 @@ contract PegInHashPegInQuoteFuzzTest is PegInFuzzTestBase, BtcAddressDataset {
 
         bytes32 hash = pegInContract.hashPegInQuote(quote);
         assertTrue(hash != bytes32(0), "Valid address should produce a hash");
+    }
+
+    function _createMainnetFuzzQuote()
+        internal
+        view
+        returns (Quotes.PegInQuote memory quote)
+    {
+        quote = createFuzzTestQuote(TEST_MIN_PEGIN);
+        quote.lbcAddress = address(pegInContractMainnet);
     }
 }

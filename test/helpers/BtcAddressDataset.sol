@@ -80,7 +80,7 @@ abstract contract BtcAddressDataset is Test, BtcAddressParser {
             loadAddresses(BtcAddressType.P2PKH, BtcAddressType.P2SH, "testnet");
     }
 
-    /// @notice P2PKH/P2SH types accepted on mainnet (chainId 30)
+    /// @notice P2PKH/P2SH types accepted when PegIn is deployed with mainnet=true
     function loadValidMainnetQuoteAddresses()
         internal
         returns (bytes[] memory)

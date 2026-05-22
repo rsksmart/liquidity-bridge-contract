@@ -69,7 +69,7 @@ contract DerivationAddressTest is Test {
     function test_HashPegInQuote_RevertsIfQuoteBelongsToOtherContract() public {
         PegInContract pegIn = deployPegInContract(true);
 
-        Quotes.PegInQuote memory quote = createTestQuote1(address(pegIn));
+        Quotes.PegInQuote memory quote = createTestQuote1(address(pegIn), true);
         quote.lbcAddress = address(0x123); // Wrong contract address
 
         vm.expectRevert(
@@ -83,10 +83,9 @@ contract DerivationAddressTest is Test {
     }
 
     function test_HashPegInQuote_IsDeterministic() public {
-        vm.chainId(30);
         PegInContract pegIn = deployPegInContract(true);
 
-        Quotes.PegInQuote memory quote = createTestQuote1(address(pegIn));
+        Quotes.PegInQuote memory quote = createTestQuote1(address(pegIn), true);
 
         bytes32 hash1 = pegIn.hashPegInQuote(quote);
         bytes32 hash2 = pegIn.hashPegInQuote(quote);
@@ -103,8 +102,8 @@ contract DerivationAddressTest is Test {
     function test_ValidatePegInDepositAddress_ValidatesMainnetAddresses()
         public
     {
+        // chainId 30 matches the fixtures used to derive MAINNET_DEPOSIT_ADDRESS_*
         vm.chainId(30);
-        // Deploy mainnet contract
         PegInContract pegInMainnet = deployPegInContract(true);
 
         // Verify it deployed to the expected address
@@ -116,7 +115,8 @@ contract DerivationAddressTest is Test {
 
         // Test Case 1: nonce 3635227228603468300
         Quotes.PegInQuote memory quote1 = createTestQuote1(
-            address(pegInMainnet)
+            address(pegInMainnet),
+            true
         );
         bool result1 = pegInMainnet.validatePegInDepositAddress(
             quote1,
@@ -126,7 +126,8 @@ contract DerivationAddressTest is Test {
 
         // Test Case 2: nonce 6080686644105603000
         Quotes.PegInQuote memory quote2 = createTestQuote2(
-            address(pegInMainnet)
+            address(pegInMainnet),
+            true
         );
         bool result2 = pegInMainnet.validatePegInDepositAddress(
             quote2,
@@ -136,7 +137,8 @@ contract DerivationAddressTest is Test {
 
         // Test Case 3: nonce 7756734892733337000
         Quotes.PegInQuote memory quote3 = createTestQuote3(
-            address(pegInMainnet)
+            address(pegInMainnet),
+            true
         );
         bool result3 = pegInMainnet.validatePegInDepositAddress(
             quote3,
@@ -160,7 +162,8 @@ contract DerivationAddressTest is Test {
 
         // Test Case 1: nonce 3635227228603468300
         Quotes.PegInQuote memory quote1 = createTestQuote1(
-            address(pegInTestnet)
+            address(pegInTestnet),
+            false
         );
         bool result1 = pegInTestnet.validatePegInDepositAddress(
             quote1,
@@ -170,7 +173,8 @@ contract DerivationAddressTest is Test {
 
         // Test Case 2: nonce 6080686644105603000
         Quotes.PegInQuote memory quote2 = createTestQuote2(
-            address(pegInTestnet)
+            address(pegInTestnet),
+            false
         );
         bool result2 = pegInTestnet.validatePegInDepositAddress(
             quote2,
@@ -180,7 +184,8 @@ contract DerivationAddressTest is Test {
 
         // Test Case 3: nonce 7756734892733337000
         Quotes.PegInQuote memory quote3 = createTestQuote3(
-            address(pegInTestnet)
+            address(pegInTestnet),
+            false
         );
         bool result3 = pegInTestnet.validatePegInDepositAddress(
             quote3,
@@ -286,7 +291,8 @@ contract DerivationAddressTest is Test {
 
     /// @notice Creates test quote 1 (nonce: 3635227228603468300)
     function createTestQuote1(
-        address lbcAddress
+        address lbcAddress,
+        bool mainnet
     ) internal view returns (Quotes.PegInQuote memory) {
         return
             Quotes.PegInQuote({
@@ -309,10 +315,10 @@ contract DerivationAddressTest is Test {
                 callTime: 7200,
                 depositConfirmations: 3,
                 callOnRegister: false,
-                btcRefundAddress: block.chainid == 30
+                btcRefundAddress: mainnet
                     ? BTC_REFUND_ADDRESS_MAINNET
                     : BTC_REFUND_ADDRESS_TESTNET,
-                liquidityProviderBtcAddress: block.chainid == 30
+                liquidityProviderBtcAddress: mainnet
                     ? LP_BTC_ADDRESS_MAINNET
                     : LP_BTC_ADDRESS_TESTNET,
                 data: new bytes(0)
@@ -321,7 +327,8 @@ contract DerivationAddressTest is Test {
 
     /// @notice Creates test quote 2 (nonce: 6080686644105603000)
     function createTestQuote2(
-        address lbcAddress
+        address lbcAddress,
+        bool mainnet
     ) internal view returns (Quotes.PegInQuote memory) {
         return
             Quotes.PegInQuote({
@@ -344,10 +351,10 @@ contract DerivationAddressTest is Test {
                 callTime: 10800,
                 depositConfirmations: 2,
                 callOnRegister: false,
-                btcRefundAddress: block.chainid == 30
+                btcRefundAddress: mainnet
                     ? BTC_REFUND_ADDRESS_MAINNET
                     : BTC_REFUND_ADDRESS_TESTNET,
-                liquidityProviderBtcAddress: block.chainid == 30
+                liquidityProviderBtcAddress: mainnet
                     ? LP_BTC_ADDRESS_MAINNET
                     : LP_BTC_ADDRESS_TESTNET,
                 data: new bytes(0)
@@ -356,7 +363,8 @@ contract DerivationAddressTest is Test {
 
     /// @notice Creates test quote 3 (nonce: 7756734892733337000)
     function createTestQuote3(
-        address lbcAddress
+        address lbcAddress,
+        bool mainnet
     ) internal view returns (Quotes.PegInQuote memory) {
         return
             Quotes.PegInQuote({
@@ -379,10 +387,10 @@ contract DerivationAddressTest is Test {
                 callTime: 10800,
                 depositConfirmations: 2,
                 callOnRegister: false,
-                btcRefundAddress: block.chainid == 30
+                btcRefundAddress: mainnet
                     ? BTC_REFUND_ADDRESS_MAINNET
                     : BTC_REFUND_ADDRESS_TESTNET,
-                liquidityProviderBtcAddress: block.chainid == 30
+                liquidityProviderBtcAddress: mainnet
                     ? LP_BTC_ADDRESS_MAINNET
                     : LP_BTC_ADDRESS_TESTNET,
                 data: new bytes(0)

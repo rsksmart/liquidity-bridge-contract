@@ -567,7 +567,7 @@ contract PegInContract is
     /// @param prefix The prefix of the address
     /// @return isValid Whether the prefix is valid or not
     function _isValidBtcPrefix(bytes1 prefix) private view returns (bool) {
-        return block.chainid == 30 ?
+        return _mainnet ?
             prefix == 0x00 || prefix == 0x05 : // p2pkh and p2sh mainnet
             prefix == 0x6f || prefix == 0xc4; // p2pkh and p2sh testnet
     }
