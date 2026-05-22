@@ -542,10 +542,16 @@ contract PegInContract is
         ) {
             revert Flyover.NoContract(quote.contractAddress);
         }
-        if (quote.btcRefundAddress.length != _REFUND_ADDRESS_LENGTH) {
+        if (
+            quote.btcRefundAddress.length != _REFUND_ADDRESS_LENGTH ||
+            !_isValidBtcPrefix(quote.btcRefundAddress[0])
+        ) {
             revert InvalidRefundAddress(quote.btcRefundAddress);
         }
-        if (quote.liquidityProviderBtcAddress.length != _REFUND_ADDRESS_LENGTH) {
+        if (
+            quote.liquidityProviderBtcAddress.length != _REFUND_ADDRESS_LENGTH ||
+            !_isValidBtcPrefix(quote.liquidityProviderBtcAddress[0])
+        ) {
             revert InvalidRefundAddress(quote.liquidityProviderBtcAddress);
         }
         uint256 total = quote.value + quote.callFee + quote.gasFee;
@@ -555,6 +561,15 @@ contract PegInContract is
         if (type(uint32).max < uint64(quote.agreementTimestamp) + uint64(quote.timeForDeposit)) {
             revert Flyover.Overflow(type(uint32).max);
         }
+    }
+
+    /// @notice This function is used to check if the prefix of a btc address is valid
+    /// @param prefix The prefix of the address
+    /// @return isValid Whether the prefix is valid or not
+    function _isValidBtcPrefix(bytes1 prefix) private view returns (bool) {
+        return block.chainid == 30 ?
+            prefix == 0x00 || prefix == 0x05 : // p2pkh and p2sh mainnet
+            prefix == 0x6f || prefix == 0xc4; // p2pkh and p2sh testnet
     }
 
     /// @notice This function is used to determine if the liquidity provider should be penalized

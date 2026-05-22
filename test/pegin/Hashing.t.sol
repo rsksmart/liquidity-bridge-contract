@@ -342,6 +342,7 @@ contract HashingTest is PegInTestBase {
         returns (Quotes.PegInQuote memory)
     {
         bytes memory testBtcAddress = new bytes(21);
+        testBtcAddress[0] = 0x6f;
 
         return
             Quotes.PegInQuote({
@@ -375,6 +376,7 @@ contract HashingTest is PegInTestBase {
     {
         // This matches QUOTE_MOCK from the TypeScript test
         bytes memory testBtcAddress = new bytes(21);
+        testBtcAddress[0] = 0x6f;
 
         return
             Quotes.PegInQuote({
@@ -411,6 +413,7 @@ contract HashingTest is PegInTestBase {
         returns (Quotes.PegInQuote memory)
     {
         bytes memory testBtcAddress = new bytes(21);
+        testBtcAddress[0] = 0x6f;
 
         return
             Quotes.PegInQuote({
@@ -447,6 +450,7 @@ contract HashingTest is PegInTestBase {
         returns (Quotes.PegInQuote memory)
     {
         bytes memory testBtcAddress = new bytes(21);
+        testBtcAddress[0] = 0x6f;
 
         return
             Quotes.PegInQuote({

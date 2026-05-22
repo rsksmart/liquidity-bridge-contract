@@ -1187,6 +1187,7 @@ contract RegisterPegInTest is PegInTestBase {
         bytes20 fedBtcAddr = bytes20(
             hex"a157fd1a536371656f3c19c2005199308a49bc9c"
         );
+        vm.chainId(30);
         // "17kksixYkbHeLy9okV16kr4eAxVhFkRhP" (P2PKH mainnet) -> full decoded bytes
         bytes
             memory lpBtcAddr = hex"00840098213fec4001cdc4a77cc3340f5bb83d9ed5";
@@ -1460,6 +1461,7 @@ contract RegisterPegInTest is PegInTestBase {
         uint256 value
     ) internal view returns (Quotes.PegInQuote memory) {
         bytes memory testBtcAddress = new bytes(21);
+        testBtcAddress[0] = 0x6f;
 
         return
             Quotes.PegInQuote({

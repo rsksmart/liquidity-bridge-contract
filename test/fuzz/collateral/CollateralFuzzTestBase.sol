@@ -138,7 +138,8 @@ abstract contract CollateralFuzzTestBase is Test {
         uint256 penaltyFee
     ) internal pure returns (Quotes.PegInQuote memory quote) {
         bytes memory emptyBytes = new bytes(0);
-        bytes memory testBtcAddress = new bytes(20);
+        bytes memory testBtcAddress = new bytes(21);
+        testBtcAddress[0] = 0x6f;
 
         quote.callFee = DEFAULT_CALL_FEE;
         quote.penaltyFee = penaltyFee;
@@ -155,7 +156,8 @@ abstract contract CollateralFuzzTestBase is Test {
         address liquidityProvider,
         uint256 penaltyFee
     ) internal pure returns (Quotes.PegOutQuote memory quote) {
-        bytes memory testBtcAddress = new bytes(20);
+        bytes memory testBtcAddress = new bytes(21);
+        testBtcAddress[0] = 0x6f;
 
         quote.callFee = DEFAULT_CALL_FEE;
         quote.penaltyFee = penaltyFee;

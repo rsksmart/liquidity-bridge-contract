@@ -673,6 +673,7 @@ contract CallForUserTest is PegInTestBase {
         bytes memory data
     ) internal view returns (Quotes.PegInQuote memory) {
         bytes memory testBtcAddress = new bytes(21);
+        testBtcAddress[0] = 0x6f;
 
         return
             Quotes.PegInQuote({

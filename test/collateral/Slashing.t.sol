@@ -54,7 +54,8 @@ contract SlashingTest is CollateralTestBase {
         returns (Quotes.PegInQuote memory quote)
     {
         bytes memory emptyBytes = new bytes(0);
-        bytes memory testBtcAddress = new bytes(20);
+        bytes memory testBtcAddress = new bytes(21);
+        testBtcAddress[0] = 0x6f;
 
         quote.callFee = CALL_FEE;
         quote.penaltyFee = PENALTY_FEE;
@@ -74,7 +75,8 @@ contract SlashingTest is CollateralTestBase {
         view
         returns (Quotes.PegOutQuote memory quote)
     {
-        bytes memory testBtcAddress = new bytes(20);
+        bytes memory testBtcAddress = new bytes(21);
+        testBtcAddress[0] = 0x6f;
 
         quote.callFee = CALL_FEE;
         quote.penaltyFee = PENALTY_FEE;
