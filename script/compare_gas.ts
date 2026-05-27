@@ -90,6 +90,12 @@ Object.keys(currentGasValues).forEach((testName) => {
   )},${String(difference)}\n`;
 });
 
+Object.keys(previousGasValues).forEach((testName) => {
+  if (!(testName in currentGasValues)) {
+    csvContent += `${testName},REMOVED,${String(previousGasValues[testName])},N/A\n`;
+  }
+});
+
 const outputFilePath = "gas_comparison.csv";
 writeFileSync(outputFilePath, csvContent);
 console.log(`Gas comparison written to ${outputFilePath}`);
