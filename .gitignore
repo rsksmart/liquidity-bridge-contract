@@ -29,3 +29,6 @@ broadcast/**
 # solidity-coverage files
 /coverage
 /coverage.json
+
+# Python virtualenv (created by `make python-setup`)
+.venv/
