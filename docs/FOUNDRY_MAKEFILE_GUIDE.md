@@ -545,14 +545,16 @@ The **property catalog** — what each proof actually claims, its assumptions, a
 
 ### Prerequisites
 
+Python dev dependencies (Halmos, pre-commit) are pinned in [`requirements-dev.txt`](../requirements-dev.txt) for reproducibility. Install them with:
+
 ```bash
 # Python 3.12+ is required
-pip install halmos==0.3.3
-# Or using uv (recommended):
-uv tool install --python 3.12 halmos==0.3.3
+pip install -r requirements-dev.txt
+# Or using uv (recommended), which manages its own Python 3.12:
+uv pip install --python 3.12 -r requirements-dev.txt
 ```
 
-Pin the same Halmos version that CI uses (see `.github/workflows/formal.yml`) so that proof results are reproducible across local and CI runs. Bump the pin in both places together.
+`requirements-dev.txt` is the single source of truth for Halmos and pre-commit versions; both CI (`.github/workflows/formal.yml`) and the `npm prepare` script install from it. Bump the pin in this file (and the `lib/halmos-cheatcodes` submodule when bumping Halmos — see below) rather than in workflows or `package.json`.
 
 The `halmos-cheatcodes` Foundry library is tracked as a git submodule at `lib/halmos-cheatcodes/`, pinned to a specific upstream commit of [`a16z/halmos-cheatcodes`](https://github.com/a16z/halmos-cheatcodes). After cloning the repo run:
 

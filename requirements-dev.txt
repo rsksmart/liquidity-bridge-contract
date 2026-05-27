@@ -1,0 +1,16 @@
+# Python development dependencies for liquidity-bridge-contract.
+#
+# Pinned for reproducibility across local and CI environments. When bumping
+# `halmos`, also bump the `lib/halmos-cheatcodes` submodule in lockstep so the
+# Python tool and the Solidity cheatcode sources stay compatible (see
+# `docs/FOUNDRY_MAKEFILE_GUIDE.md`).
+#
+# Used by:
+#   - .github/workflows/formal.yml      (installs halmos for symbolic tests)
+#   - package.json `prepare` script     (installs pre-commit for git hooks)
+
+# Git pre-commit hooks (see .pre-commit-config.yaml)
+pre-commit==4.6.0
+
+# Formal verification (only exercised by `make test-formal`)
+halmos==0.3.3

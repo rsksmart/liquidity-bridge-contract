@@ -50,8 +50,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install Halmos
-        run: pip install halmos==0.3.3
+      - name: Install Python dev dependencies (Halmos)
+        run: pip install -r requirements-dev.txt
 
       - name: Compile contracts
         run: npm run compile
