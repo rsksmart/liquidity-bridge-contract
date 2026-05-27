@@ -92,7 +92,9 @@ Object.keys(currentGasValues).forEach((testName) => {
 
 Object.keys(previousGasValues).forEach((testName) => {
   if (!(testName in currentGasValues)) {
-    csvContent += `${testName},REMOVED,${String(previousGasValues[testName])},N/A\n`;
+    csvContent += `${testName},REMOVED,${String(
+      previousGasValues[testName]
+    )},N/A\n`;
   }
 });
 
