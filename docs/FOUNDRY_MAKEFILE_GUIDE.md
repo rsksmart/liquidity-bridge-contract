@@ -545,10 +545,12 @@ The project uses [Halmos](https://github.com/a16z/halmos) for symbolic testing, 
 
 ```bash
 # Python 3.12+ is required
-pip install halmos
+pip install halmos==0.3.3
 # Or using uv (recommended):
-uv tool install --python 3.12 halmos
+uv tool install --python 3.12 halmos==0.3.3
 ```
+
+Pin the same Halmos version that CI uses (see `.github/workflows/formal.yml`) so that proof results are reproducible across local and CI runs. Bump the pin in both places together.
 
 The `halmos-cheatcodes` Foundry library is already installed in `lib/halmos-cheatcodes/`.
 

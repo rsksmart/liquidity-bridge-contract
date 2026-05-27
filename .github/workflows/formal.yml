@@ -51,7 +51,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install Halmos
-        run: pip install halmos
+        run: pip install halmos==0.3.3
 
       - name: Compile contracts
         run: npm run compile
