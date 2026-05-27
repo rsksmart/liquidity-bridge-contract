@@ -2,6 +2,7 @@
 pragma solidity 0.8.25;
 
 import {FormalBase} from "./FormalBase.sol";
+import {ICollateralManagement} from "../../src/interfaces/ICollateralManagement.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
 
@@ -191,10 +192,19 @@ contract CollateralManagementFormalTest is FormalBase {
         vm.prank(adder);
         collateralManagement.addPegInCollateralTo{value: collateral}(lp);
 
+        // Halmos 0.3.x does not support `vm.expectRevert`, so we assert the
+        // exact selector inside the catch block. This is stronger than an empty
+        // catch: it fails if the call reverts for any reason other than
+        // `NotResigned`, ensuring the proof cannot pass on an unrelated revert.
         vm.prank(lp);
         try collateralManagement.withdrawCollateral() {
             assert(false); // must not succeed
-        } catch {}
+        } catch (bytes memory revertData) {
+            assert(
+                bytes4(revertData) ==
+                    ICollateralManagement.NotResigned.selector
+            );
+        }
     }
 
     /// @notice withdrawCollateral must revert when the resign delay has not
@@ -217,10 +227,16 @@ contract CollateralManagementFormalTest is FormalBase {
 
         vm.roll(block.number + blocksAfterResign);
 
+        // See note in `check_WithdrawRevertsIfNotResigned` re: `vm.expectRevert`.
         vm.prank(lp);
         try collateralManagement.withdrawCollateral() {
             assert(false); // must not succeed before delay
-        } catch {}
+        } catch (bytes memory revertData) {
+            assert(
+                bytes4(revertData) ==
+                    ICollateralManagement.ResignationDelayNotMet.selector
+            );
+        }
     }
 
     // ------------------------------------------------------------------
