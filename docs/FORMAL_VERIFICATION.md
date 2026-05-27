@@ -36,7 +36,7 @@ and the interface in `src/interfaces/ICollateralManagement.sol`.
 ### 1. Slash conservation (peg-in)
 
 - **Property.** When a peg-in provider is slashed, the punisher's reward plus
-  the protocol's penalty remainder equals the *effective penalty* taken from
+  the protocol's penalty remainder equals the _effective penalty_ taken from
   the provider's collateral. No value is created or destroyed by the slashing
   operation.
 
@@ -49,6 +49,7 @@ and the interface in `src/interfaces/ICollateralManagement.sol`.
   ```
 
 - **Assumptions / bounds.**
+
   - `0 < collateral ≤ 100 ether`
   - `0 < penaltyFee ≤ 100 ether`
   - `rewardPercentage ∈ [0, TOTAL_REWARD_PERCENTAGE]` (symbolic; covers
@@ -91,6 +92,7 @@ and the interface in `src/interfaces/ICollateralManagement.sol`.
   `pegInCollateral[lp] >= minCollateral`.
 
 - **Assumptions / bounds.**
+
   - `0 < collateral ≤ 100 ether`
   - Provider has not resigned (resignation handled separately in property 4).
 
@@ -109,6 +111,7 @@ and the interface in `src/interfaces/ICollateralManagement.sol`.
   returns `false` regardless of the collateral amount held.
 
 - **Assumptions / bounds.**
+
   - `MIN_COLLATERAL ≤ collateral ≤ 100 ether` (the property is only
     interesting in the regime where sufficiency would otherwise hold).
   - `block.number > 0` (enforced by `FormalBase.setUp`), because `resign()`
@@ -132,6 +135,7 @@ and the interface in `src/interfaces/ICollateralManagement.sol`.
   the current block number.
 
 - **Assumptions / bounds.**
+
   - `0 < collateral ≤ 100 ether`
 
 - **Why it matters.** Withdraw is a fund-moving call. Allowing it before
@@ -145,7 +149,7 @@ and the interface in `src/interfaces/ICollateralManagement.sol`.
 
 - **Status.** Proven, with a tooling caveat: Halmos 0.3.x does not support
   `vm.expectRevert`, so the test decodes the revert data inside `catch (bytes
-  memory revertData)` and asserts `bytes4(revertData) == NotResigned.selector`.
+memory revertData)` and asserts `bytes4(revertData) == NotResigned.selector`.
   This catches the selector but not the encoded `(address from)` argument.
   Arg-matching is left as a follow-up if/when Halmos adds `vm.expectRevert`
   support.
@@ -157,6 +161,7 @@ and the interface in `src/interfaces/ICollateralManagement.sol`.
   earlier than `resignationBlock + resignDelayInBlocks`.
 
 - **Assumptions / bounds.**
+
   - `0 < collateral ≤ 100 ether`
   - `blocksAfterResign < RESIGN_DELAY` (symbolic across the entire pre-delay
     range, including `0`).

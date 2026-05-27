@@ -201,8 +201,7 @@ contract CollateralManagementFormalTest is FormalBase {
             assert(false); // must not succeed
         } catch (bytes memory revertData) {
             assert(
-                bytes4(revertData) ==
-                    ICollateralManagement.NotResigned.selector
+                bytes4(revertData) == ICollateralManagement.NotResigned.selector
             );
         }
     }
