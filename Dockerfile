@@ -1,6 +1,6 @@
 FROM node:20.15.1@sha256:6326b52a508f0d99ffdbfaa29a69380321b215153db6f32974835bac71b38fa4
 
-ARG VCS_REF
+ARG VCS_REF=unknown
 ARG VERSION=dev
 LABEL org.opencontainers.image.source="https://github.com/rsksmart/liquidity-bridge-contract"
 LABEL org.opencontainers.image.revision="${VCS_REF}"
