@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
 
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 
 type GasValues = Partial<Record<string, number>>;
@@ -48,12 +48,12 @@ function loadPreviousSnapshot(baseRef: string, baseFile?: string): string {
   }
 
   try {
-    const commit = execSync(`git rev-parse ${baseRef}`, {
+    const commit = execFileSync("git", ["rev-parse", baseRef], {
       stdio: ["pipe", "pipe", "pipe"],
     })
       .toString()
       .trim();
-    return execSync(`git show ${commit}:.gas-snapshot`, {
+    return execFileSync("git", ["show", `${commit}:.gas-snapshot`], {
       stdio: ["pipe", "pipe", "pipe"],
     })
       .toString()
