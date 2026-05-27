@@ -8,6 +8,7 @@
     "test": "npm run compile && make test-unit",
     "test:fuzz": "npm run compile && make test-fuzz",
     "test:invariant": "npm run compile && make test-invariant",
+    "test:formal": "npm run compile && make test-formal",
     "coverage": "forge coverage",
     "lint:ts": "npx prettier --check . && npx eslint .",
     "lint:sol": "solhint 'src/**/*.sol'",
@@ -17,7 +18,7 @@
     "contract-size": "forge build --sizes",
     "test:integration": "forge test --match-path 'test/integration/**/*.t.sol'",
     "test:e2e": "forge test --match-path 'test/deployment/ChangeOwnerToMultiSig.t.sol'",
-    "prepare": "pip3 install pre-commit && pre-commit install"
+    "prepare": "pip3 install -r requirements-dev.txt && pre-commit install"
   },
   "repository": {
     "type": "git",

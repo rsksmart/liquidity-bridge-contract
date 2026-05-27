@@ -763,11 +763,11 @@ test:
 	@echo "Running all tests..."
 	forge test
 
-# Run unit tests only (excludes fuzz/invariant/differential)
+# Run unit tests only (excludes fuzz/invariant/differential/formal)
 .PHONY: test-unit
 test-unit:
-	@echo "Running unit tests only (excluding fuzz/invariant/differential)..."
-	forge test --no-match-path "test/{fuzz,invariant,differential}/**/*"
+	@echo "Running unit tests only (excluding fuzz/invariant/differential/formal)..."
+	forge test --no-match-path "test/{fuzz,invariant,differential,formal}/**/*"
 
 # Run differential tests
 .PHONY: test-differential
@@ -1083,6 +1083,13 @@ docs:
 test-invariant:
 	@echo "Running invariant tests..."
 	forge test --match-path "test/invariant/**/*.t.sol" -vv
+
+# Formal verification (Halmos symbolic tests)
+# Uses the 'halmos' Foundry profile (shanghai EVM) to avoid unsupported Cancun opcodes.
+.PHONY: test-formal
+test-formal:
+	@echo "Running formal verification tests (Halmos)..."
+	FOUNDRY_PROFILE=halmos halmos --match-contract FormalTest --function check --solver-timeout-assertion 10000
 
 # Catch-all target for hash-quote arguments (pegin/pegout, network names, file paths)
 # This prevents make from complaining about unknown targets when using: make hash-quote pegin testnet

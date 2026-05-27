@@ -535,6 +535,91 @@ make deploy-lbc-high-gas NETWORK=testnet
 make update
 ```
 
+## Formal Verification (Halmos)
+
+### What It Adds
+
+The project uses [Halmos](https://github.com/a16z/halmos) for symbolic testing, which complements existing fuzz and invariant tests. While fuzzing explores random inputs and invariant tests check properties after random sequences of calls, Halmos converts test assertions into SMT constraints and proves they hold for **all** possible inputs within bounded execution. If Halmos finds no counterexample, the property is mathematically proven correct within the explored bounds.
+
+The **property catalog** — what each proof actually claims, its assumptions, and why it matters — lives in [`FORMAL_VERIFICATION.md`](./FORMAL_VERIFICATION.md). Treat that document as the source of truth for the specification; the Solidity in `test/formal/` is one encoding of those claims.
+
+### Prerequisites
+
+Halmos and its supporting Python dependencies are pinned in [`requirements-formal.txt`](../requirements-formal.txt). Install with:
+
+```bash
+# Python 3.12+ is required (Halmos itself requires >=3.11)
+pip install -r requirements-formal.txt
+# Or using uv (recommended), which manages its own Python 3.12:
+uv pip install --python 3.12 -r requirements-formal.txt
+```
+
+`requirements-formal.txt` is the source of truth for the Halmos pin; CI (`.github/workflows/formal.yml`) installs from it. Bump the pin here (and the `lib/halmos-cheatcodes` submodule in lockstep — see below) rather than in the workflow.
+
+> **Why a separate file?** [`requirements-dev.txt`](../requirements-dev.txt) lists pre-commit and is installed by the `npm prepare` script in every environment that runs `npm install`, including the `crytic/slither-action` container which ships Python 3.9. Halmos requires Python ≥3.11, so it cannot live in the shared dev file without breaking Slither.
+
+The `halmos-cheatcodes` Foundry library is tracked as a git submodule at `lib/halmos-cheatcodes/`, pinned to a specific upstream commit of [`a16z/halmos-cheatcodes`](https://github.com/a16z/halmos-cheatcodes). After cloning the repo run:
+
+```bash
+git submodule update --init --recursive
+# or, equivalently:
+forge install
+```
+
+To bump the cheatcodes version, update the submodule commit in lockstep with the Halmos Python pin so both halves of the toolchain stay compatible:
+
+```bash
+cd lib/halmos-cheatcodes
+git fetch origin
+git checkout <new-commit-or-tag>
+cd ../..
+git add lib/halmos-cheatcodes
+```
+
+### Writing Formal Tests
+
+Formal tests live in `test/formal/` and follow Halmos conventions:
+
+- **Function prefix**: Use `check_` instead of `test` or `testFuzz_`. Halmos treats parameters as symbolic (all possible values), not random.
+- **Base contract**: Extend `FormalBase` (in `test/formal/FormalBase.sol`) which provides the deployed CollateralManagement system and `SymTest` helpers.
+- **Assertions**: Use `assert()` for properties Halmos will prove. Use `vm.assume()` to constrain symbolic inputs.
+- **File naming**: `<Contract>.check.t.sol` (the `.check.` distinguishes formal from unit/fuzz tests).
+
+Example:
+
+```solidity
+function check_SlashConservation(
+  uint256 collateral,
+  uint256 penaltyFee
+) public {
+  vm.assume(collateral > 0 && collateral <= 100 ether);
+  vm.assume(penaltyFee > 0 && penaltyFee <= 100 ether);
+  // ... setup and call ...
+  assert(rewardDelta + penaltyDelta == effectivePenalty);
+}
+
+```
+
+### Running Formal Tests
+
+```bash
+# Run all formal verification tests
+make test-formal
+
+# Or via npm
+npm run test:formal
+```
+
+Halmos runs are significantly slower than Foundry tests (minutes rather than seconds) because they solve SMT constraints. CI runs formal tests in a dedicated workflow (`.github/workflows/formal.yml`).
+
+### When to Run
+
+Run formal verification (`npm run test:formal`) when:
+
+- Arithmetic logic changes (slashing, rewards, collateral accounting)
+- Access control or state-transition guards change
+- New invariant properties are added
+
 ## Security Considerations
 
 ### Private Key Management

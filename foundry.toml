@@ -24,8 +24,14 @@ remappings = [
   "@rsksmart/=node_modules/@rsksmart/",
   "@rsksmart/btc-transaction-solidity-helper/=node_modules/@rsksmart/btc-transaction-solidity-helper/",
   "forge-std/=lib/forge-std/src/",
+  "halmos-cheatcodes/=lib/halmos-cheatcodes/src/",
   "src/=src/"
 ]
+
+# Halmos profile: targets shanghai EVM (pre-Cancun) to avoid MCOPY opcode
+# that older Halmos versions do not support.
+[profile.halmos]
+evm_version = "shanghai"
 
 [fuzz]
 runs = 128

@@ -26,7 +26,7 @@ Explain the motivation, bug, risk, or product/security need behind this PR.
 - [ ] Quote hashing/signature logic
 - [ ] Bitcoin tx / PMT / merkle validation
 - [ ] Deployment or upgrade scripts / Makefile targets
-- [ ] CI workflows (`ci`, `fuzz`, `slither`, `codeql`)
+- [ ] CI workflows (`ci`, `fuzz`, `formal`, `slither`, `codeql`)
 - [ ] Docs
 
 ## Risk & Security Review
@@ -48,6 +48,7 @@ List what you ran locally and the outcome:
 - [ ] `npm test`
 - [ ] `npm run test:fuzz` (if logic/state transitions changed)
 - [ ] `npm run test:invariant` (if invariant-sensitive logic changed)
+- [ ] `npm run test:formal` (if formal-verification-sensitive logic changed)
 - [ ] `npm run test:integration` (if integration paths changed)
 - [ ] `npm run test:e2e` (if deployment/ownership flows changed)
 
