@@ -552,7 +552,23 @@ uv tool install --python 3.12 halmos==0.3.3
 
 Pin the same Halmos version that CI uses (see `.github/workflows/formal.yml`) so that proof results are reproducible across local and CI runs. Bump the pin in both places together.
 
-The `halmos-cheatcodes` Foundry library is already installed in `lib/halmos-cheatcodes/`.
+The `halmos-cheatcodes` Foundry library is tracked as a git submodule at `lib/halmos-cheatcodes/`, pinned to a specific upstream commit of [`a16z/halmos-cheatcodes`](https://github.com/a16z/halmos-cheatcodes). After cloning the repo run:
+
+```bash
+git submodule update --init --recursive
+# or, equivalently:
+forge install
+```
+
+To bump the cheatcodes version, update the submodule commit in lockstep with the Halmos Python pin so both halves of the toolchain stay compatible:
+
+```bash
+cd lib/halmos-cheatcodes
+git fetch origin
+git checkout <new-commit-or-tag>
+cd ../..
+git add lib/halmos-cheatcodes
+```
 
 ### Writing Formal Tests
 
