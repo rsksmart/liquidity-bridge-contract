@@ -47,8 +47,23 @@ function loadPreviousSnapshot(baseRef: string, baseFile?: string): string {
     return readFileSync(baseFile, "utf-8");
   }
 
-  const commit = execSync(`git rev-parse ${baseRef}`).toString().trim();
-  return execSync(`git show ${commit}:.gas-snapshot`).toString().trim();
+  try {
+    const commit = execSync(`git rev-parse ${baseRef}`, {
+      stdio: ["pipe", "pipe", "pipe"],
+    })
+      .toString()
+      .trim();
+    return execSync(`git show ${commit}:.gas-snapshot`, {
+      stdio: ["pipe", "pipe", "pipe"],
+    })
+      .toString()
+      .trim();
+  } catch {
+    console.warn(
+      `Warning: .gas-snapshot not found in ${baseRef}. Treating previous snapshot as empty.`
+    );
+    return "";
+  }
 }
 
 const { baseRef, baseFile } = parseArgs();
