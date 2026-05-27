@@ -541,6 +541,8 @@ make update
 
 The project uses [Halmos](https://github.com/a16z/halmos) for symbolic testing, which complements existing fuzz and invariant tests. While fuzzing explores random inputs and invariant tests check properties after random sequences of calls, Halmos converts test assertions into SMT constraints and proves they hold for **all** possible inputs within bounded execution. If Halmos finds no counterexample, the property is mathematically proven correct within the explored bounds.
 
+The **property catalog** — what each proof actually claims, its assumptions, and why it matters — lives in [`FORMAL_VERIFICATION.md`](./FORMAL_VERIFICATION.md). Treat that document as the source of truth for the specification; the Solidity in `test/formal/` is one encoding of those claims.
+
 ### Prerequisites
 
 ```bash
