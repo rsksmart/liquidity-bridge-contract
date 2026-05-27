@@ -1,16 +1,14 @@
-# Python development dependencies for liquidity-bridge-contract.
+# Common Python development dependencies for liquidity-bridge-contract.
 #
-# Pinned for reproducibility across local and CI environments. When bumping
-# `halmos`, also bump the `lib/halmos-cheatcodes` submodule in lockstep so the
-# Python tool and the Solidity cheatcode sources stay compatible (see
-# `docs/FOUNDRY_MAKEFILE_GUIDE.md`).
+# Installed by the `npm prepare` script and therefore by every job that runs
+# `npm install`/`npm ci` — including the `crytic/slither-action` container,
+# which runs Python 3.9. Pins here MUST stay compatible with Python 3.9+.
 #
-# Used by:
-#   - .github/workflows/formal.yml      (installs halmos for symbolic tests)
-#   - package.json `prepare` script     (installs pre-commit for git hooks)
+# Formal-verification tooling (Halmos) lives in `requirements-formal.txt` and
+# is installed only by `.github/workflows/formal.yml`, where Python 3.12 is
+# set up explicitly.
 
-# Git pre-commit hooks (see .pre-commit-config.yaml)
-pre-commit==4.6.0
-
-# Formal verification (only exercised by `make test-formal`)
-halmos==0.3.3
+# Git pre-commit hooks (see .pre-commit-config.yaml).
+# Pinned to 4.3.0 — the last release that still supports Python 3.9. Versions
+# 4.4.0+ require Python >=3.10, which the Slither container does not provide.
+pre-commit==4.3.0
