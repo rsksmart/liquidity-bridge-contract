@@ -1,7 +1,7 @@
 #!/usr/bin/env ts-node
 
 import { execSync } from "child_process";
-import { readFileSync, writeFileSync } from "fs";
+import { existsSync, readFileSync, writeFileSync } from "fs";
 
 type GasValues = Partial<Record<string, number>>;
 
@@ -22,14 +22,39 @@ function readGasValues(content: string): GasValues {
   return gasValues;
 }
 
-const previousCommit = execSync("git rev-parse HEAD~1").toString().trim();
+function parseArgs(): { baseRef: string; baseFile?: string } {
+  const args = process.argv.slice(2);
+  let baseRef = "HEAD~1";
+  let baseFile: string | undefined;
+
+  for (const arg of args) {
+    if (arg.startsWith("--base-file=")) {
+      baseFile = arg.split("=")[1];
+    } else if (arg.startsWith("--base=")) {
+      baseRef = arg.split("=")[1];
+    }
+  }
+
+  return { baseRef, baseFile };
+}
+
+function loadPreviousSnapshot(baseRef: string, baseFile?: string): string {
+  if (baseFile) {
+    if (!existsSync(baseFile)) {
+      console.error(`Error: base file not found: ${baseFile}`);
+      process.exit(1);
+    }
+    return readFileSync(baseFile, "utf-8");
+  }
+
+  const commit = execSync(`git rev-parse ${baseRef}`).toString().trim();
+  return execSync(`git show ${commit}:.gas-snapshot`).toString().trim();
+}
+
+const { baseRef, baseFile } = parseArgs();
 
 const currentGasSnapshotContent = readFileSync(".gas-snapshot", "utf-8");
-const previousGasSnapshotContent = execSync(
-  `git show ${previousCommit}:.gas-snapshot`
-)
-  .toString()
-  .trim();
+const previousGasSnapshotContent = loadPreviousSnapshot(baseRef, baseFile);
 
 const currentGasValues = readGasValues(currentGasSnapshotContent);
 const previousGasValues = readGasValues(previousGasSnapshotContent);
