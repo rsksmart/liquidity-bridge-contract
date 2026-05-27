@@ -2,8 +2,6 @@
 pragma solidity 0.8.25;
 
 import {FormalBase} from "./FormalBase.sol";
-import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
-import {ICollateralManagement} from "../../src/interfaces/ICollateralManagement.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
 
@@ -12,8 +10,6 @@ import {Quotes} from "../../src/libraries/Quotes.sol";
 ///         constraints. Each test is verified for ALL possible inputs within
 ///         bounded execution, unlike fuzz tests which sample randomly.
 contract CollateralManagementFormalTest is FormalBase {
-    uint256 constant TOTAL_REWARD_PERCENTAGE = 10_000;
-
     // ------------------------------------------------------------------
     // Proof 1: Slash conservation -- reward + penalty remainder == slashed
     // ------------------------------------------------------------------
