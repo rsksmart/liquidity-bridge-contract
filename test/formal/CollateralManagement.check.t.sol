@@ -18,15 +18,23 @@ contract CollateralManagementFormalTest is FormalBase {
     // Proof 1: Slash conservation -- reward + penalty remainder == slashed
     // ------------------------------------------------------------------
 
-    /// @notice For any penalty amount and any reward percentage, slashing
-    ///         never creates or destroys value: the punisher reward plus the
-    ///         protocol penalty remainder always equals the effective penalty.
+    /// @notice For any penalty amount and any reward percentage in
+    ///         [0, TOTAL_REWARD_PERCENTAGE], slashing never creates or destroys
+    ///         value: the punisher reward plus the protocol penalty remainder
+    ///         always equals the effective penalty.
     function check_SlashPegInConservation(
         uint256 collateral,
         uint256 penaltyFee
     ) public {
         vm.assume(collateral > 0 && collateral <= 100 ether);
         vm.assume(penaltyFee > 0 && penaltyFee <= 100 ether);
+
+        uint256 rewardPercentage = svm.createUint256("rewardPct");
+        vm.assume(
+            rewardPercentage <= collateralManagement.TOTAL_REWARD_PERCENTAGE()
+        );
+        vm.prank(owner);
+        collateralManagement.setRewardPercentage(rewardPercentage);
 
         address lp = address(0xA1);
         address punisher = address(0xCAFE);
@@ -63,13 +71,21 @@ contract CollateralManagementFormalTest is FormalBase {
         assert(collateralBefore - collateralAfter == effectivePenalty);
     }
 
-    /// @notice Mirror of the above for PegOut slashing.
+    /// @notice Mirror of the above for PegOut slashing: holds for any reward
+    ///         percentage in [0, TOTAL_REWARD_PERCENTAGE].
     function check_SlashPegOutConservation(
         uint256 collateral,
         uint256 penaltyFee
     ) public {
         vm.assume(collateral > 0 && collateral <= 100 ether);
         vm.assume(penaltyFee > 0 && penaltyFee <= 100 ether);
+
+        uint256 rewardPercentage = svm.createUint256("rewardPct");
+        vm.assume(
+            rewardPercentage <= collateralManagement.TOTAL_REWARD_PERCENTAGE()
+        );
+        vm.prank(owner);
+        collateralManagement.setRewardPercentage(rewardPercentage);
 
         address lp = address(0xA1);
         address punisher = address(0xCAFE);
