@@ -112,40 +112,36 @@
   },
   "rskTestnet": {
     "SignatureValidator": {
-      "address": "",
-      "deployed": false
+      "address": "0x94DD5D58619f1747AF16B3C87f29a6BA9Bb5b4D1",
+      "deployed": true
     },
     "Quotes": {
-      "address": "",
-      "deployed": false
+      "address": "0xb273b2259c133029F02B0f59Fbad81285717592f",
+      "deployed": true
     },
     "BtcUtils": {
-      "address": "",
-      "deployed": false
+      "address": "0x05a428AdCC86de5e4fdA9EEC0be7807455b4c2cC",
+      "deployed": true
     },
     "FlyoverDiscovery": {
-      "address": "",
-      "deployed": false
+      "address": "0xE8610c632c4219b0245b39d5Cd216A31F491d919",
+      "deployed": true
     },
     "PegOutContract": {
-      "address": "",
-      "deployed": false
+      "address": "0x48d19e10A166E20746af5037e79A5cEa5BD38Cc8",
+      "deployed": true
     },
     "PegInContract": {
-      "address": "",
-      "deployed": false
+      "address": "0xB29fa9754D41C3Bb17d5f89290294F48C13Af59b",
+      "deployed": true
     },
     "CollateralManagementContract": {
-      "address": "",
-      "deployed": false
-    },
-    "ProxyAdmin": {
-      "address": "",
-      "deployed": false
+      "address": "0xF4CeD744227E0c50F822e40eF64917093bcf09b3",
+      "deployed": true
     },
     "PauseRegistry": {
-      "address": "",
-      "deployed": false
+      "address": "0xf30F9c50b727860389F0D54B19C899baBC5be86B",
+      "deployed": true
     }
   },
   "ganache": {
