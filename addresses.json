@@ -74,16 +74,16 @@
   },
   "rskMainnet": {
     "SignatureValidator": {
-      "address": "",
-      "deployed": false
+      "address": "0xB0824559dF4a0872A61B228466bAd12E733F7DEC",
+      "deployed": true
     },
     "Quotes": {
-      "address": "",
-      "deployed": false
+      "address": "0xaAFf2c6D3185Ccd03d9781E689005c314b936ac1",
+      "deployed": true
     },
     "BtcUtils": {
-      "address": "",
-      "deployed": false
+      "address": "0xd8D956312222D8AcaBb58569Cc960A93B1AA2F7A",
+      "deployed": true
     },
     "FlyoverDiscovery": {
       "address": "",
@@ -98,10 +98,6 @@
       "deployed": false
     },
     "CollateralManagementContract": {
-      "address": "",
-      "deployed": false
-    },
-    "ProxyAdmin": {
       "address": "",
       "deployed": false
     },
