@@ -86,24 +86,24 @@
       "deployed": true
     },
     "FlyoverDiscovery": {
-      "address": "",
-      "deployed": false
+      "address": "0x9A48C6b18Aa000d0bd35D55616bCc98aD3553e7a",
+      "deployed": true
     },
     "PegOutContract": {
-      "address": "",
-      "deployed": false
+      "address": "0x9A0678742cfb567874eb4e99Df2106BDED78F5E4",
+      "deployed": true
     },
     "PegInContract": {
-      "address": "",
-      "deployed": false
+      "address": "0x9270733402Dc7C5730Ea24268fC11039fD75E189",
+      "deployed": true
     },
     "CollateralManagementContract": {
-      "address": "",
-      "deployed": false
+      "address": "0xBe4D93B3aFD9921CAC66704fFD3Caf662886fb73",
+      "deployed": true
     },
     "PauseRegistry": {
-      "address": "",
-      "deployed": false
+      "address": "0xb2c65Bbf276CC5CCae73c0ab29B609a129080639",
+      "deployed": true
     }
   },
   "rskTestnet": {
