@@ -1,1 +1,5 @@
-contracts/safe-test-contracts
+src/test-contracts/safe-test-contracts
+src/legacy
+
+# TEMPORARY
+src/split
