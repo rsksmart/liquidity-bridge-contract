@@ -30,7 +30,7 @@
   },
   "homepage": "https://github.com/rsksmart/liquidity-bridge-contract#readme",
   "devDependencies": {
-    "@eslint/js": "^9.16.0",
+    "@eslint/js": "^10.0.1",
     "@mempool/mempool.js": "^2.3.0",
     "@rsksmart/pmt-builder": "^3.0.0",
     "bech32": "^2.0.0",
