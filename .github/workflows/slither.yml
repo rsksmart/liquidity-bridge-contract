@@ -26,6 +26,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: "Install Foundry"
+        uses: "foundry-rs/foundry-toolchain@50d5a8956f2e319df19e6b57539d7e2acb9f8c1e" # v1.5.0
+        with:
+          version: stable
+
+      - name: Build contracts
+        run: forge build --build-info
+
       - name: Run Slither
         uses: crytic/slither-action@4fd765aeef19915d04ddf0be90c2930036a774d8 # v0.4.1
         id: slither
@@ -33,7 +41,7 @@ jobs:
           sarif: results.sarif
           fail-on: none
           target: .
-          slither-args: --filter-paths "node_modules/|contracts/safe-test-contracts/"
+          slither-args: --filter-paths "node_modules/|src/test-contracts/|src/test/|src/legacy"
       - name: Upload SARIF file
         uses: github/codeql-action/upload-sarif@48ab28a6f5dbc2a99bf1e0131198dd8f1df78169 # v3.28.0
         with:
