@@ -224,7 +224,7 @@ function wasRevertedOn(branch, sha) {
 
 const extractPrNumber = (subject) => subject.match(/\(#(\d+)\)\s*$/)?.[1] ?? '';
 
-const mdEscapeCell = (s) => String(s).replace(/\|/g, '\\|').replace(/\n/g, ' ');
+const mdEscapeCell = (s) => String(s).replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\n/g, ' ');
 
 function renderSha(sha) {
   const short = sha.slice(0, 12);
