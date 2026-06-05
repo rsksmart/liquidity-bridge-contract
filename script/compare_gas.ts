@@ -67,7 +67,21 @@ function loadPreviousSnapshot(baseRef: string, baseFile?: string): string {
 }
 
 const { baseRef, baseFile } = parseArgs();
+const previousCommit = execSync("git rev-parse HEAD~1").toString().trim();
 
+const currentGasSnapshotContent = readFileSync(".gas-snapshot", "utf-8");
+let previousGasSnapshotContent: string;
+try {
+  previousGasSnapshotContent = execSync(
+    `git show ${previousCommit}:.gas-snapshot`,
+    { encoding: "utf-8" }
+  ).trim();
+} catch {
+  console.error(
+    `No .gas-snapshot at ${previousCommit}. Commit a baseline first or use a ref that contains the file.`
+  );
+  process.exit(1);
+}
 const currentGasSnapshotContent = readFileSync(".gas-snapshot", "utf-8");
 const previousGasSnapshotContent = loadPreviousSnapshot(baseRef, baseFile);
 
