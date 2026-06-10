@@ -5,7 +5,7 @@ import {
     AccessControlDefaultAdminRulesUpgradeable
 } from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
 import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCodes.sol";
 import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
@@ -24,7 +24,7 @@ import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 contract PegInContract is
     AccessControlDefaultAdminRulesUpgradeable,
     EmergencyPause,
-    ReentrancyGuard,
+    ReentrancyGuardUpgradeable,
     EIP712Upgradeable,
     IPegIn
 {
@@ -106,6 +106,7 @@ contract PegInContract is
         if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
         if (address(pauseRegistry).code.length == 0) revert Flyover.NoContract(address(pauseRegistry));
         __AccessControlDefaultAdminRules_init(0, defaultAdmin);
+        __ReentrancyGuard_init();
         __EIP712_init(NAME, VERSION);
         __EmergencyPause_init(pauseRegistry);
         _bridge = IBridge(bridge);

@@ -4,7 +4,7 @@ pragma solidity 0.8.25;
 import {
     AccessControlDefaultAdminRulesUpgradeable
 } from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {ICollateralManagement} from "./interfaces/ICollateralManagement.sol";
@@ -18,7 +18,7 @@ import {Quotes} from "./libraries/Quotes.sol";
 /// @author Rootstock Labs
 contract CollateralManagementContract is
     AccessControlDefaultAdminRulesUpgradeable,
-    ReentrancyGuard,
+    ReentrancyGuardUpgradeable,
     EmergencyPause,
     ICollateralManagement
 {
@@ -124,6 +124,7 @@ contract CollateralManagementContract is
         }
         if (address(pauseRegistry).code.length == 0) revert Flyover.NoContract(address(pauseRegistry));
         __AccessControlDefaultAdminRules_init(initialDelay, defaultAdmin);
+        __ReentrancyGuard_init();
         __EmergencyPause_init(pauseRegistry);
         _minCollateral = minCollateral;
         _resignDelayInBlocks = resignDelayInBlocks;

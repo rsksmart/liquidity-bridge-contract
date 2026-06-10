@@ -8,13 +8,13 @@ import "./SignatureValidator.sol";
 import "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import "@rsksmart/btc-transaction-solidity-helper/contracts/OpCodes.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 /**
     @title Contract that assists with the Flyover protocol
  */
 
-contract LiquidityBridgeContractV2 is OwnableUpgradeable, ReentrancyGuard {
+contract LiquidityBridgeContractV2 is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -145,6 +145,7 @@ contract LiquidityBridgeContractV2 is OwnableUpgradeable, ReentrancyGuard {
 
     function initializeV2() public initializer {
         __Ownable_init_unchained(msg.sender);
+        __ReentrancyGuard_init_unchained();
     }
 
     function setProviderStatus(
