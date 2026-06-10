@@ -7,13 +7,13 @@ import "./Quotes.sol";
 import "./SignatureValidator.sol";
 import "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
     @title Contract that assists with the Flyover protocol
  */
 
-contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
+contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, ReentrancyGuard {
     uint16 constant public MAX_CALL_GAS_COST = 35000;
     uint16 constant public MAX_REFUND_GAS_LIMIT = 2300;
 
@@ -158,7 +158,6 @@ contract LiquidityBridgeContract is Initializable, OwnableUpgradeable, Reentranc
         require(_minimumCollateral >= 0.03 ether, "LBC072");
         require(_resignDelayBlocks >= 60, "LBC073");
         __Ownable_init_unchained(msg.sender);
-        __ReentrancyGuard_init_unchained();
         bridge = IBridge(_bridgeAddress);
         minCollateral = _minimumCollateral;
         minPegIn = _minimumPegIn;
