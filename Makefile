@@ -1085,7 +1085,7 @@ test-invariant:
 	forge test --match-path "test/invariant/**/*.t.sol" -vv
 
 # Formal verification (Halmos symbolic tests)
-# Uses the 'halmos' Foundry profile (shanghai EVM) to avoid unsupported Cancun opcodes.
+# Uses the 'halmos' Foundry profile (cancun EVM; required for OZ 5.5+ Bytes.sol/mcopy).
 .PHONY: test-formal
 test-formal:
 	@echo "Running formal verification tests (Halmos)..."
