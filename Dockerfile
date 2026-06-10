@@ -1,5 +1,11 @@
 FROM node:20.15.1@sha256:6326b52a508f0d99ffdbfaa29a69380321b215153db6f32974835bac71b38fa4
 
+ARG VCS_REF=unknown
+ARG VERSION=dev
+LABEL org.opencontainers.image.source="https://github.com/rsksmart/liquidity-bridge-contract"
+LABEL org.opencontainers.image.revision="${VCS_REF}"
+LABEL org.opencontainers.image.version="${VERSION}"
+
 # Install Foundry and required tools
 RUN apt-get update -y && \
     apt-get install -y -qq --no-install-recommends jq make curl && \
@@ -21,7 +27,6 @@ COPY --chown=node:node package.json \
     deploy.sh \
     .solhintignore \
     .solhint.json \
-    .solhintignore \
     tsconfig.json \
     addresses.json \
     foundry.toml \
