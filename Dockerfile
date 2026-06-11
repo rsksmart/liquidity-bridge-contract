@@ -1,4 +1,4 @@
-FROM node:20.15.1@sha256:6326b52a508f0d99ffdbfaa29a69380321b215153db6f32974835bac71b38fa4
+FROM node:26.3.0@sha256:f9a1756160a9e1c3dca456bc0b185bf8f2f112a6771c694df87288046f4306f1
 
 # Install Foundry and required tools
 RUN apt-get update -y && \
