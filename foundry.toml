@@ -28,10 +28,10 @@ remappings = [
   "src/=src/"
 ]
 
-# Halmos profile: targets shanghai EVM (pre-Cancun) to avoid MCOPY opcode
-# that older Halmos versions do not support.
+# Halmos profile: OZ 5.5+ pulls Bytes.sol (mcopy) via EIP712 → Strings; requires Cancun.
+# Halmos 0.3.3 supports mcopy. Default deployment profile is unchanged.
 [profile.halmos]
-evm_version = "shanghai"
+evm_version = "cancun"
 
 [fuzz]
 runs = 128
