@@ -17,8 +17,7 @@
     "upgrade-rskMainnet": "npm run lint:sol && npm run compile && make upgrade-lbc-broadcast NETWORK=mainnet VERIFY=true",
     "contract-size": "forge build --sizes",
     "test:integration": "forge test --match-path 'test/integration/**/*.t.sol'",
-    "test:e2e": "forge test --match-path 'test/deployment/ChangeOwnerToMultiSig.t.sol'",
-    "prepare": "pip3 install -r requirements-dev.txt && pre-commit install"
+    "test:e2e": "forge test --match-path 'test/deployment/ChangeOwnerToMultiSig.t.sol'"
   },
   "repository": {
     "type": "git",

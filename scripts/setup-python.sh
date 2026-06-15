@@ -3,8 +3,8 @@
 # One-command Python dev-environment setup for liquidity-bridge-contract.
 #
 # Creates `.venv/` at the repo root and installs the pinned Python tooling
-# (pre-commit + Halmos) from the project's two requirements files. Re-running
-# is safe -- it upgrades the existing venv in place rather than recreating it.
+# (pre-commit + Halmos) from requirements.txt. Re-running is safe -- it upgrades
+# the existing venv in place rather than recreating it.
 #
 # Strategy:
 #   1. If `uv` is on PATH, use it -- it can fetch its own Python 3.12 if the
@@ -17,15 +17,14 @@ set -euo pipefail
 
 VENV_DIR=".venv"
 TARGET_PYTHON="3.12"   # used by uv; matches CI's actions/setup-python step
-REQ_DEV="requirements-dev.txt"
-REQ_FORMAL="requirements-formal.txt"
+REQ_FILE="requirements.txt"
 
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &>/dev/null && pwd )"
 REPO_ROOT="$( cd -- "$SCRIPT_DIR/.." &>/dev/null && pwd )"
 cd "$REPO_ROOT"
 
-if [ ! -f "$REQ_DEV" ] || [ ! -f "$REQ_FORMAL" ]; then
-    echo "error: $REQ_DEV or $REQ_FORMAL not found in $REPO_ROOT" >&2
+if [ ! -f "$REQ_FILE" ]; then
+    echo "error: $REQ_FILE not found in $REPO_ROOT" >&2
     exit 1
 fi
 
@@ -38,7 +37,7 @@ if command -v uv >/dev/null 2>&1; then
     fi
     uv pip install \
         --python "$VENV_DIR/bin/python" \
-        -r "$REQ_DEV" -r "$REQ_FORMAL"
+        -r "$REQ_FILE"
 else
     echo "==> uv not found; falling back to system python"
     PY=""
@@ -67,7 +66,7 @@ EOF
         echo "    reusing existing $VENV_DIR/"
     fi
     "$VENV_DIR/bin/pip" install --upgrade --quiet pip
-    "$VENV_DIR/bin/pip" install -r "$REQ_DEV" -r "$REQ_FORMAL"
+    "$VENV_DIR/bin/pip" install -r "$REQ_FILE"
 fi
 
 if [ -d ".git" ]; then

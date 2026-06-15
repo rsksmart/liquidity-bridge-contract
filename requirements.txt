@@ -1,0 +1,15 @@
+# Python tooling for liquidity-bridge-contract.
+#
+# Installed by `make python-setup` (creates `.venv/`) and by formal CI
+# (`.github/workflows/formal.yml`). Requires Python >=3.11 (Halmos); the setup
+# script provisions Python 3.12 when using `uv`.
+#
+# When bumping `halmos`, also bump the `lib/halmos-cheatcodes` submodule in
+# lockstep so the Python tool and the Solidity cheatcode sources stay
+# compatible. See `docs/FOUNDRY_MAKEFILE_GUIDE.md`.
+
+# Git pre-commit hooks (see .pre-commit-config.yaml).
+pre-commit==4.6.0
+
+# Formal verification (Halmos).
+halmos==0.3.3

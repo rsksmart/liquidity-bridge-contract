@@ -554,20 +554,15 @@ source .venv/bin/activate
 
 The setup script (`scripts/setup-python.sh`) prefers [`uv`](https://docs.astral.sh/uv/) when available — it can fetch its own Python 3.12 if the system doesn't have one — and falls back to a system `python3.12` or `python3.11`. Re-running is safe; the existing venv is upgraded in place.
 
-If you'd rather install manually, the pins live in two separate files:
+If you'd rather install manually (Python 3.12+ recommended; Halmos requires ≥3.11):
 
 ```bash
-# Python 3.12+ is required (Halmos itself requires >=3.11)
-pip install -r requirements-formal.txt
-
-# pre-commit (git hooks) — kept Python 3.9-compatible because the
-# `crytic/slither-action` container installs from this file too.
-pip install -r requirements-dev.txt
+pip install -r requirements.txt
 ```
 
-`requirements-formal.txt` is the source of truth for the Halmos pin; CI (`.github/workflows/formal.yml`) installs from it. Bump the pin here (and the `lib/halmos-cheatcodes` submodule in lockstep — see below) rather than in the workflow.
+`requirements.txt` is the source of truth for Halmos and pre-commit pins. CI (`.github/workflows/formal.yml`) installs from it. Bump the Halmos pin here (and the `lib/halmos-cheatcodes` submodule in lockstep — see below) rather than in the workflow.
 
-> **Why two files?** The `npm prepare` script installs `requirements-dev.txt` in every environment that runs `npm install`, including the `crytic/slither-action` container which ships Python 3.9. Halmos requires Python ≥3.11, so it cannot live in the shared dev file without breaking Slither. `make python-setup` installs both files together in a single venv where Python 3.11+ is guaranteed.
+> **Note:** Python tooling is not installed by `npm ci`. Run `make python-setup` once after cloning (or when pins change) to create `.venv/` and install git hooks.
 
 The `halmos-cheatcodes` Foundry library is tracked as a git submodule at `lib/halmos-cheatcodes/`, pinned to a specific upstream commit of [`a16z/halmos-cheatcodes`](https://github.com/a16z/halmos-cheatcodes). After cloning the repo run:
 
