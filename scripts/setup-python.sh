@@ -2,11 +2,11 @@
 #
 # One-command Python dev-environment setup for liquidity-bridge-contract.
 #
-# Creates `.venv/` at the repo root and installs the pinned Python tooling
-# (pre-commit + Halmos) from requirements-dev.txt and requirements-formal.txt.
-# Re-running is safe -- it upgrades the existing venv in place rather than
-# recreating it.
+# Creates `.venv/` at the repo root and installs pinned Halmos for formal
+# verification. Re-running is safe — upgrades the existing venv in place.
 #
+# Do not add a root-level requirements.txt — crytic/slither-action auto-installs
+# it in CI inside a Python 3.9 container.
 # Strategy:
 #   1. If `uv` is on PATH, use it -- it can fetch its own Python 3.12 if the
 #      system doesn't have one.
@@ -20,8 +20,8 @@ VENV_DIR=".venv"
 TARGET_PYTHON="3.12"   # used by uv; matches CI's actions/setup-python step
 MIN_PYTHON_MAJOR=3
 MIN_PYTHON_MINOR=11
-REQ_DEV="requirements-dev.txt"
-REQ_FORMAL="requirements-formal.txt"
+# Bump in lockstep with lib/halmos-cheatcodes and formal.yml.
+HALMOS_VERSION="0.3.3"
 
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &>/dev/null && pwd )"
 REPO_ROOT="$( cd -- "$SCRIPT_DIR/.." &>/dev/null && pwd )"
@@ -43,10 +43,15 @@ remove_incompatible_venv() {
     rm -rf "$VENV_DIR"
 }
 
-if [ ! -f "$REQ_DEV" ] || [ ! -f "$REQ_FORMAL" ]; then
-    echo "error: $REQ_DEV or $REQ_FORMAL not found in $REPO_ROOT" >&2
-    exit 1
-fi
+install_halmos() {
+    local py="$1"
+    if command -v uv >/dev/null 2>&1; then
+        uv pip install --python "$py" "halmos==${HALMOS_VERSION}"
+    else
+        "$py" -m pip install --upgrade --quiet pip
+        "$py" -m pip install "halmos==${HALMOS_VERSION}"
+    fi
+}
 
 remove_incompatible_venv
 
@@ -61,9 +66,7 @@ if command -v uv >/dev/null 2>&1; then
         echo "error: $VENV_DIR/bin/python is too old (need >= ${MIN_PYTHON_MAJOR}.${MIN_PYTHON_MINOR})" >&2
         exit 1
     fi
-    uv pip install \
-        --python "$VENV_DIR/bin/python" \
-        -r "$REQ_DEV" -r "$REQ_FORMAL"
+    install_halmos "$VENV_DIR/bin/python"
 else
     echo "==> uv not found; falling back to system python"
     PY=""
@@ -96,16 +99,10 @@ EOF
         echo "error: $VENV_DIR/bin/python is too old (need >= ${MIN_PYTHON_MAJOR}.${MIN_PYTHON_MINOR})" >&2
         exit 1
     fi
-    "$VENV_DIR/bin/pip" install --upgrade --quiet pip
-    "$VENV_DIR/bin/pip" install -r "$REQ_DEV" -r "$REQ_FORMAL"
-fi
-
-if [ -d ".git" ]; then
-    "$VENV_DIR/bin/pre-commit" install --install-hooks >/dev/null
+    install_halmos "$VENV_DIR/bin/python"
 fi
 
 echo ""
 echo "==> Python dev environment ready at $VENV_DIR/"
 echo "    Activate with:  source $VENV_DIR/bin/activate"
 echo "    halmos:         $($VENV_DIR/bin/halmos --version 2>/dev/null || echo 'not installed')"
-echo "    pre-commit:     $($VENV_DIR/bin/pre-commit --version 2>/dev/null || echo 'not installed')"

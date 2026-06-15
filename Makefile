@@ -180,7 +180,7 @@ help:
 	@echo "  register-pegin-broadcast - Register a PegIn Bitcoin transaction (actual)"
 	@echo ""
 	@echo "Setup:"
-	@echo "  python-setup      - Create .venv/ with pinned Python deps (Halmos + pre-commit)"
+	@echo "  python-setup      - Create .venv/ with pinned Halmos for formal verification"
 	@echo ""
 	@echo "Build & Clean:"
 	@echo "  clean             - Clean build artifacts"
@@ -1094,9 +1094,9 @@ test-formal:
 	@echo "Running formal verification tests (Halmos)..."
 	FOUNDRY_PROFILE=halmos halmos --match-contract FormalTest --function check --solver-timeout-assertion 10000
 
-# Python development environment setup (Halmos + pre-commit)
-# Creates `.venv/` at the repo root with the pinned versions from
-# requirements-dev.txt and requirements-formal.txt. Prefers `uv` if available,
+# Python development environment setup (Halmos for formal verification)
+# Creates `.venv/` at the repo root with pinned versions from
+# scripts/setup-python.sh. Prefers `uv` if available,
 # otherwise falls back to system python3.12 or python3.11. Idempotent.
 .PHONY: python-setup
 python-setup:

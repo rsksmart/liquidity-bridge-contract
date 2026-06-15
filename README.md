@@ -411,7 +411,7 @@ This project uses **Foundry** for smart contract development and deployment. We 
 cp example.env .env
 make install
 npm ci
-make python-setup   # Halmos + pre-commit hooks (once per clone)
+make python-setup   # Halmos for formal verification (once per clone)
 make build
 
 # Test deployment (simulation)

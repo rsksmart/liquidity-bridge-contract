@@ -1,8 +1,0 @@
-# Git hook tooling for local development.
-#
-# Installed by `make python-setup` (into `.venv/`). Not installed by `npm ci`.
-# Keep a root-level `requirements.txt` out of the repo — crytic/slither-action
-# auto-installs it inside a Python 3.9 container during CI.
-
-# Git pre-commit hooks (see .pre-commit-config.yaml).
-pre-commit==4.6.0
