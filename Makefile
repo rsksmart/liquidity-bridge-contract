@@ -1096,7 +1096,7 @@ test-formal:
 
 # Python development environment setup (Halmos + pre-commit)
 # Creates `.venv/` at the repo root with the pinned versions from
-# requirements.txt. Prefers `uv` if available,
+# requirements-dev.txt and requirements-formal.txt. Prefers `uv` if available,
 # otherwise falls back to system python3.12 or python3.11. Idempotent.
 .PHONY: python-setup
 python-setup:

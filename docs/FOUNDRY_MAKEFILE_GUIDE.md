@@ -557,10 +557,13 @@ The setup script (`scripts/setup-python.sh`) prefers [`uv`](https://docs.astral.
 If you'd rather install manually (Python 3.12+ recommended; Halmos requires ≥3.11):
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements-dev.txt -r requirements-formal.txt
+pre-commit install
 ```
 
-`requirements.txt` is the source of truth for Halmos and pre-commit pins. CI (`.github/workflows/formal.yml`) installs from it. Bump the Halmos pin here (and the `lib/halmos-cheatcodes` submodule in lockstep — see below) rather than in the workflow.
+`requirements-formal.txt` is the source of truth for the Halmos pin; CI (`.github/workflows/formal.yml`) installs from it. Bump the Halmos pin there (and the `lib/halmos-cheatcodes` submodule in lockstep — see below) rather than in the workflow.
+
+> **Why two files?** Do not add a root-level `requirements.txt` — `crytic/slither-action` auto-installs it in CI inside a Python 3.9 container, which cannot satisfy Halmos or recent pre-commit pins. `make python-setup` installs both files into `.venv/` with Python 3.12.
 
 > **Note:** Python tooling is not installed by `npm ci`. Run `make python-setup` once after cloning (or when pins change) to create `.venv/` and install git hooks.
 

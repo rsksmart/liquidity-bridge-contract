@@ -1,0 +1,10 @@
+# Python dependencies for formal verification (Halmos).
+#
+# Installed by `.github/workflows/formal.yml` (Python 3.12) and by
+# `make python-setup` (into `.venv/`). Halmos requires Python >=3.11.
+#
+# When bumping `halmos`, also bump the `lib/halmos-cheatcodes` submodule in
+# lockstep so the Python tool and the Solidity cheatcode sources stay
+# compatible. See `docs/FOUNDRY_MAKEFILE_GUIDE.md`.
+
+halmos==0.3.3
