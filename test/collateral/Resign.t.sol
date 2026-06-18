@@ -241,8 +241,10 @@ contract ResignTest is CollateralTestBase {
         }
     }
 
-    function test_WithdrawCollateral_RevertsIfNoCollateralToWithdraw() public {
-        // Slash all collateral from pegInLp
+    function test_WithdrawCollateral_ClearsResignationWhenCollateralZeroAfterSlash()
+        public
+    {
+        // Peg-in collateral fully slashed after resign
         vm.prank(pegInLp);
         collateralManagement.resign();
 
@@ -257,19 +259,32 @@ contract ResignTest is CollateralTestBase {
             bytes32(0)
         );
 
-        // Wait for resign delay
         vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS);
 
-        vm.prank(pegInLp);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ICollateralManagement.NothingToWithdraw.selector,
-                pegInLp
-            )
+        assertEq(
+            collateralManagement.getPegInCollateral(pegInLp),
+            0,
+            "slash zeroed peg-in collateral"
         );
+        assertGt(
+            collateralManagement.getResignationBlock(pegInLp),
+            0,
+            "still resigned before withdraw"
+        );
+
+        uint256 balanceBefore = pegInLp.balance;
+        vm.prank(pegInLp);
         collateralManagement.withdrawCollateral();
 
-        // Slash all collateral from pegOutLp
+        assertEq(
+            pegInLp.balance,
+            balanceBefore,
+            "peg-in: no transfer when slash already zeroed collateral"
+        );
+        assertEq(collateralManagement.getPegInCollateral(pegInLp), 0);
+        assertEq(collateralManagement.getResignationBlock(pegInLp), 0);
+
+        // Peg-out collateral fully slashed after resign
         vm.prank(pegOutLp);
         collateralManagement.resign();
 
@@ -284,19 +299,32 @@ contract ResignTest is CollateralTestBase {
             bytes32(0)
         );
 
-        // Wait for resign delay
         vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS);
 
-        vm.prank(pegOutLp);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ICollateralManagement.NothingToWithdraw.selector,
-                pegOutLp
-            )
+        assertEq(
+            collateralManagement.getPegOutCollateral(pegOutLp),
+            0,
+            "slash zeroed peg-out collateral"
         );
+        assertGt(
+            collateralManagement.getResignationBlock(pegOutLp),
+            0,
+            "still resigned before withdraw"
+        );
+
+        balanceBefore = pegOutLp.balance;
+        vm.prank(pegOutLp);
         collateralManagement.withdrawCollateral();
 
-        // Slash all collateral from fullLp (both pegIn and pegOut)
+        assertEq(
+            pegOutLp.balance,
+            balanceBefore,
+            "peg-out: no transfer when slash already zeroed collateral"
+        );
+        assertEq(collateralManagement.getPegOutCollateral(pegOutLp), 0);
+        assertEq(collateralManagement.getResignationBlock(pegOutLp), 0);
+
+        // Both buckets slashed for fullLp
         vm.prank(fullLp);
         collateralManagement.resign();
 
@@ -316,17 +344,26 @@ contract ResignTest is CollateralTestBase {
             bytes32(0)
         );
 
-        // Wait for resign delay
         vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS);
 
-        vm.prank(fullLp);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ICollateralManagement.NothingToWithdraw.selector,
-                fullLp
-            )
+        assertEq(collateralManagement.getPegInCollateral(fullLp), 0);
+        assertEq(
+            collateralManagement.getPegOutCollateral(fullLp),
+            0,
+            "slash zeroed both buckets"
         );
+        assertGt(collateralManagement.getResignationBlock(fullLp), 0);
+
+        balanceBefore = fullLp.balance;
+        vm.prank(fullLp);
         collateralManagement.withdrawCollateral();
+
+        assertEq(
+            fullLp.balance,
+            balanceBefore,
+            "both buckets: no transfer when slash already zeroed collateral"
+        );
+        assertEq(collateralManagement.getResignationBlock(fullLp), 0);
     }
 
     function test_WithdrawCollateral_RevertsWithInvalidAddressWhenRecipientIsZeroAddress()

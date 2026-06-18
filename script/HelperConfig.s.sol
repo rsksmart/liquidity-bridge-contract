@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 import {Script} from "lib/forge-std/src/Script.sol";
 import {BridgeMock} from "../src/test-contracts/BridgeMock.sol";
+import {Options} from "openzeppelin-foundry-upgrades/Options.sol";
 
 contract HelperConfig is Script {
     struct NetworkConfig {
@@ -237,11 +238,13 @@ contract HelperConfig is Script {
 
     function getFlyoverLocalConfig() internal returns (FlyoverConfig memory) {
         // Deploy mock bridge locally
-        BridgeMock bridge = new BridgeMock();
+        address bridge = block.chainid == 33
+            ? address(0x0000000000000000000000000000000001000006)
+            : address(new BridgeMock());
 
         return
             FlyoverConfig({
-                bridge: address(bridge),
+                bridge: bridge,
                 minimumCollateral: vm.envOr(
                     "MIN_COLLATERAL_LOCAL",
                     uint256(0.05 ether)
@@ -257,5 +260,11 @@ contract HelperConfig is Script {
                 mainnet: false,
                 adminDelay: uint48(vm.envOr("ADMIN_DELAY_LOCAL", uint256(0)))
             });
+    }
+
+    function getOptions() public pure returns (Options memory) {
+        Options memory opts;
+        opts.unsafeAllow = "external-library-linking";
+        return opts;
     }
 }

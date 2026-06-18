@@ -1,0 +1,4 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.25;
+
+bytes constant P2PKH_ZERO_ADDRESS_TESTNET = hex"6f0000000000000000000000000000000000000000";

@@ -57,6 +57,30 @@ contract HashingTest is PegOutTestBase {
         pegOutContract.hashPegOutQuote(quote);
     }
 
+    function test_HashPegOutQuote_RevertsIfRskRefundAddressIsZero() public {
+        Quotes.PegOutQuote memory quote = createSpecificPegOutQuote1();
+        quote.lbcAddress = address(pegOutContract);
+        quote.rskRefundAddress = address(0);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(Flyover.InvalidAddress.selector, address(0))
+        );
+        pegOutContract.hashPegOutQuote(quote);
+    }
+
+    function test_HashPegOutQuoteEIP712_RevertsIfRskRefundAddressIsZero()
+        public
+    {
+        Quotes.PegOutQuote memory quote = createSpecificPegOutQuote1();
+        quote.lbcAddress = address(pegOutContract);
+        quote.rskRefundAddress = address(0);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(Flyover.InvalidAddress.selector, address(0))
+        );
+        pegOutContract.hashPegOutQuoteEIP712(quote);
+    }
+
     function test_HashPegOutQuote_AcceptsQuoteWithinNativePegoutLimits()
         public
         view

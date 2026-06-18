@@ -18,7 +18,6 @@ import {Flyover} from "../../src/libraries/Flyover.sol";
 
 // OpenZeppelin
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
 // Config
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
@@ -121,11 +120,10 @@ abstract contract FlyoverTestBase is Test {
     /// @notice Deploy PauseRegistry (used by all pausable contracts)
     function _deployPauseRegistry() internal {
         PauseRegistry prImpl = new PauseRegistry();
-        address admin = address(new ProxyAdmin(owner));
         address proxy = address(
             new TransparentUpgradeableProxy(
                 address(prImpl),
-                admin,
+                owner,
                 abi.encodeCall(prImpl.initialize, (0, owner))
             )
         );
@@ -141,11 +139,10 @@ abstract contract FlyoverTestBase is Test {
         _deployPauseRegistry();
 
         address impl = address(new CollateralManagementContract());
-        address admin = address(new ProxyAdmin(owner));
         address proxy = address(
             new TransparentUpgradeableProxy(
                 impl,
-                admin,
+                owner,
                 abi.encodeCall(
                     CollateralManagementContract.initialize,
                     (
@@ -170,11 +167,10 @@ abstract contract FlyoverTestBase is Test {
         HelperConfig.FlyoverConfig memory cfg = _getTestConfig();
 
         address impl = address(new FlyoverDiscovery());
-        address admin = address(new ProxyAdmin(owner));
         address proxy = address(
             new TransparentUpgradeableProxy(
                 impl,
-                admin,
+                owner,
                 abi.encodeCall(
                     FlyoverDiscovery.initialize,
                     (
@@ -212,7 +208,6 @@ abstract contract FlyoverTestBase is Test {
 
         // Inline deployment - split to avoid stack too deep
         address impl = address(new PegInContract());
-        address admin = address(new ProxyAdmin(owner));
         bytes memory initData = abi.encodeCall(
             PegInContract.initialize,
             (
@@ -226,7 +221,7 @@ abstract contract FlyoverTestBase is Test {
             )
         );
         address proxy = address(
-            new TransparentUpgradeableProxy(impl, admin, initData)
+            new TransparentUpgradeableProxy(impl, owner, initData)
         );
 
         pegInContract = PegInContract(payable(proxy));
@@ -249,7 +244,6 @@ abstract contract FlyoverTestBase is Test {
 
         // Inline deployment - split to avoid stack too deep
         address impl = address(new PegOutContract());
-        address admin = address(new ProxyAdmin(owner));
         bytes memory initData = abi.encodeCall(
             PegOutContract.initialize,
             (
@@ -263,7 +257,7 @@ abstract contract FlyoverTestBase is Test {
             )
         );
         address proxy = address(
-            new TransparentUpgradeableProxy(impl, admin, initData)
+            new TransparentUpgradeableProxy(impl, owner, initData)
         );
 
         pegOutContract = PegOutContract(payable(proxy));
@@ -288,14 +282,12 @@ abstract contract FlyoverTestBase is Test {
 
         HelperConfig.FlyoverConfig memory cfg = _getTestConfig();
 
-        address proxyAdmin = address(new ProxyAdmin(owner));
-
         // 0) PauseRegistry
         PauseRegistry prImpl = new PauseRegistry();
         address prProxy = address(
             new TransparentUpgradeableProxy(
                 address(prImpl),
-                proxyAdmin,
+                owner,
                 abi.encodeCall(prImpl.initialize, (0, owner))
             )
         );
@@ -306,7 +298,7 @@ abstract contract FlyoverTestBase is Test {
         address cmProxy = address(
             new TransparentUpgradeableProxy(
                 cmImpl,
-                proxyAdmin,
+                owner,
                 abi.encodeCall(
                     CollateralManagementContract.initialize,
                     (
@@ -327,7 +319,7 @@ abstract contract FlyoverTestBase is Test {
         address fdProxy = address(
             new TransparentUpgradeableProxy(
                 fdImpl,
-                proxyAdmin,
+                owner,
                 abi.encodeCall(
                     FlyoverDiscovery.initialize,
                     (owner, cfg.adminDelay, cmProxy, IPauseRegistry(prProxy))
@@ -352,7 +344,7 @@ abstract contract FlyoverTestBase is Test {
                 )
             );
             address piProxy = address(
-                new TransparentUpgradeableProxy(piImpl, proxyAdmin, piInitData)
+                new TransparentUpgradeableProxy(piImpl, owner, piInitData)
             );
             pegInContract = PegInContract(payable(piProxy));
         }
@@ -373,7 +365,7 @@ abstract contract FlyoverTestBase is Test {
                 )
             );
             address poProxy = address(
-                new TransparentUpgradeableProxy(poImpl, proxyAdmin, poInitData)
+                new TransparentUpgradeableProxy(poImpl, owner, poInitData)
             );
             pegOutContract = PegOutContract(payable(poProxy));
         }
