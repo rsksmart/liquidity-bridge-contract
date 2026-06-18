@@ -12,7 +12,7 @@
  */
 
 import { bech32, bech32m } from "bech32";
-import * as bs58check from "bs58check";
+import bs58check from "bs58check";
 
 type BtcAddressType = "p2pkh" | "p2sh" | "p2wpkh" | "p2wsh" | "p2tr";
 
