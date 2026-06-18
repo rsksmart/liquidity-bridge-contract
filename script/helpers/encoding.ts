@@ -26,7 +26,7 @@ export const fromLeHex: (hex: string) => bigint = (hex: string) =>
           hex
             .match(/.{1,2}/g)!
             .reverse()
-            .join("")
+            .join(""),
       );
 
 /**

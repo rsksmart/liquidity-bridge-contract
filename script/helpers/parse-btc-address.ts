@@ -32,7 +32,7 @@ function parseBtcAddress(address: string): string {
         return fullAddress.toString("hex");
       } catch {
         throw new Error(
-          `Invalid Bitcoin address: ${address}. Not valid base58 or bech32 format.`
+          `Invalid Bitcoin address: ${address}. Not valid base58 or bech32 format.`,
         );
       }
     }

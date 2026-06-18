@@ -13,7 +13,7 @@ import bs58 from "bs58";
 
 function getP2SHAddressFromScript(
   redeemScriptHex: string,
-  isMainnet: boolean
+  isMainnet: boolean,
 ): string {
   try {
     // Convert hex string to buffer
@@ -54,10 +54,10 @@ if (require.main === module) {
 
   if (args.length !== 2) {
     console.error(
-      "Usage: ts-node get-p2sh-address-from-script.ts <redeemScriptHex> <mainnet>"
+      "Usage: ts-node get-p2sh-address-from-script.ts <redeemScriptHex> <mainnet>",
     );
     console.error(
-      "  redeemScriptHex: Hex string of the redeem script (without 0x prefix)"
+      "  redeemScriptHex: Hex string of the redeem script (without 0x prefix)",
     );
     console.error("  mainnet: 'true' for mainnet, 'false' for testnet");
     process.exit(1);

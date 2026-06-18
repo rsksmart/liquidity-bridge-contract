@@ -28,7 +28,7 @@ function generateRawTx(
   quoteHash: string,
   depositAddress: string,
   weiAmount: bigint,
-  scriptType: BtcAddressType
+  scriptType: BtcAddressType,
 ): string {
   // Clean up inputs - remove 0x prefix if present
   quoteHash = quoteHash.replace(/^0x/, "");
@@ -36,7 +36,7 @@ function generateRawTx(
 
   // Convert deposit address hex to Uint8Array
   const addressBytes = new Uint8Array(
-    depositAddress.match(/.{2}/g)!.map((byte) => parseInt(byte, 16))
+    depositAddress.match(/.{2}/g)!.map((byte) => parseInt(byte, 16)),
   );
 
   let outputScript: number[];
@@ -128,10 +128,10 @@ if (require.main === module) {
 
   if (args.length !== 4) {
     console.error(
-      "Usage: ts-node generate-btc-tx.ts <quoteHash> <depositAddress> <weiAmount> <scriptType>"
+      "Usage: ts-node generate-btc-tx.ts <quoteHash> <depositAddress> <weiAmount> <scriptType>",
     );
     console.error(
-      "Example: ts-node generate-btc-tx.ts 0x123... 0xabc... 1000000000000000000 p2pkh"
+      "Example: ts-node generate-btc-tx.ts 0x123... 0xabc... 1000000000000000000 p2pkh",
     );
     process.exit(1);
   }
@@ -149,7 +149,7 @@ if (require.main === module) {
     ];
     if (!validTypes.includes(scriptType as BtcAddressType)) {
       throw new Error(
-        `Invalid script type. Must be one of: ${validTypes.join(", ")}`
+        `Invalid script type. Must be one of: ${validTypes.join(", ")}`,
       );
     }
 
@@ -158,7 +158,7 @@ if (require.main === module) {
       quoteHash,
       depositAddress,
       weiAmount,
-      scriptType as BtcAddressType
+      scriptType as BtcAddressType,
     );
 
     // Output without 0x prefix for Solidity
