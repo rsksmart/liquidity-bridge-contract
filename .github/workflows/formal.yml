@@ -51,7 +51,8 @@ jobs:
           python-version: "3.12"
 
       - name: Install Halmos
-        run: pip install -r requirements-formal.txt
+        # Keep in sync with HALMOS_VERSION in scripts/setup-python.sh
+        run: pip install "halmos==0.3.3"
 
       - name: Compile contracts
         run: npm run compile

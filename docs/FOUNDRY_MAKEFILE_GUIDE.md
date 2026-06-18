@@ -545,18 +545,18 @@ The **property catalog** — what each proof actually claims, its assumptions, a
 
 ### Prerequisites
 
-Halmos and its supporting Python dependencies are pinned in [`requirements-formal.txt`](../requirements-formal.txt). Install with:
+The recommended one-command setup creates a project-local virtualenv at `.venv/` with the pinned Halmos version:
 
 ```bash
-# Python 3.12+ is required (Halmos itself requires >=3.11)
-pip install -r requirements-formal.txt
-# Or using uv (recommended), which manages its own Python 3.12:
-uv pip install --python 3.12 -r requirements-formal.txt
+make python-setup
+source .venv/bin/activate
 ```
 
-`requirements-formal.txt` is the source of truth for the Halmos pin; CI (`.github/workflows/formal.yml`) installs from it. Bump the pin here (and the `lib/halmos-cheatcodes` submodule in lockstep — see below) rather than in the workflow.
+The setup script (`scripts/setup-python.sh`) prefers [`uv`](https://docs.astral.sh/uv/) when available — it can fetch its own Python 3.12 if the system doesn't have one — and falls back to a system `python3.12` or `python3.11`. Re-running is safe; the existing venv is upgraded in place.
 
-> **Why a separate file?** [`requirements-dev.txt`](../requirements-dev.txt) lists pre-commit and is installed by the `npm prepare` script in every environment that runs `npm install`, including the `crytic/slither-action` container which ships Python 3.9. Halmos requires Python ≥3.11, so it cannot live in the shared dev file without breaking Slither.
+The Halmos pin lives at the top of `scripts/setup-python.sh` (`HALMOS_VERSION`). When bumping it, update the matching pin in `.github/workflows/formal.yml` and the `lib/halmos-cheatcodes` submodule in lockstep (see below).
+
+> **Note:** Do not add a root-level `requirements.txt` — `crytic/slither-action` auto-installs it in CI inside a Python 3.9 container. Python tooling is not installed by `npm ci`; run `make python-setup` once after cloning (or when the Halmos pin changes). Optional git hooks live in `.pre-commit-config.yaml`; install with `pip install pre-commit && pre-commit install` if you want them.
 
 The `halmos-cheatcodes` Foundry library is tracked as a git submodule at `lib/halmos-cheatcodes/`, pinned to a specific upstream commit of [`a16z/halmos-cheatcodes`](https://github.com/a16z/halmos-cheatcodes). After cloning the repo run:
 

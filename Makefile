@@ -179,6 +179,9 @@ help:
 	@echo "  register-pegin           - Register a PegIn Bitcoin transaction (simulation)"
 	@echo "  register-pegin-broadcast - Register a PegIn Bitcoin transaction (actual)"
 	@echo ""
+	@echo "Setup:"
+	@echo "  python-setup      - Create .venv/ with pinned Halmos for formal verification"
+	@echo ""
 	@echo "Build & Clean:"
 	@echo "  clean             - Clean build artifacts"
 	@echo "  build             - Build contracts"
@@ -1090,6 +1093,14 @@ test-invariant:
 test-formal:
 	@echo "Running formal verification tests (Halmos)..."
 	FOUNDRY_PROFILE=halmos halmos --match-contract FormalTest --function check --solver-timeout-assertion 10000
+
+# Python development environment setup (Halmos for formal verification)
+# Creates `.venv/` at the repo root with pinned versions from
+# scripts/setup-python.sh. Prefers `uv` if available,
+# otherwise falls back to system python3.12 or python3.11. Idempotent.
+.PHONY: python-setup
+python-setup:
+	@scripts/setup-python.sh
 
 # Catch-all target for hash-quote arguments (pegin/pegout, network names, file paths)
 # This prevents make from complaining about unknown targets when using: make hash-quote pegin testnet

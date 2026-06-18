@@ -408,10 +408,10 @@ This project uses **Foundry** for smart contract development and deployment. We 
 
 ```bash
 # Setup environment
-# Optional: create and activate a Python virtualenv before installing
 cp example.env .env
 make install
 npm ci
+make python-setup   # Halmos for formal verification (once per clone)
 make build
 
 # Test deployment (simulation)
