@@ -926,6 +926,21 @@ snapshot:
 	@echo "Creating snapshot..."
 	forge snapshot
 
+.PHONY: gas-compare
+gas-compare:
+	@echo "Comparing current gas snapshot with HEAD~1..."
+	npx ts-node --transpile-only script/compare_gas.ts
+
+.PHONY: gas-snapshot-compare
+gas-snapshot-compare:
+	@if [ -n "$(BASE_FILE)" ]; then \
+		echo "Comparing current gas snapshot with file $(BASE_FILE)..."; \
+		npx ts-node --transpile-only script/compare_gas.ts --base-file="$(BASE_FILE)"; \
+	else \
+		echo "Comparing current gas snapshot with $(or $(BASE),HEAD~1)..."; \
+		npx ts-node --transpile-only script/compare_gas.ts --base="$(or $(BASE),HEAD~1)"; \
+	fi
+
 # Gas report
 .PHONY: gas-report
 gas-report:
