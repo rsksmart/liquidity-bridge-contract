@@ -67,6 +67,61 @@ contract DepositTest is PegOutTestBase {
         );
     }
 
+    /// @notice depositPegOut requires sufficient peg-out collateral vs minimum, not merely a positive balance
+    function test_DepositPegOut_RevertsIfLPPegOutCollateralBelowMinimum()
+        public
+    {
+        vm.prank(owner);
+        collateralManagement.setMinCollateral(1 ether);
+
+        assertTrue(
+            collateralManagement.isRegistered(
+                Flyover.ProviderType.PegOut,
+                pegOutLp
+            ),
+            "LP should still count as registered with non-zero collateral"
+        );
+        assertFalse(
+            collateralManagement.isCollateralSufficient(
+                Flyover.ProviderType.PegOut,
+                pegOutLp
+            ),
+            "LP should be below the new minimum peg-out collateral"
+        );
+
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            1 ether,
+            pegOutLp
+        );
+        bytes memory signature = signQuote(pegOutLp, quote);
+
+        vm.prank(user);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Flyover.ProviderNotRegistered.selector,
+                pegOutLp
+            )
+        );
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(
+            quote,
+            signature
+        );
+    }
+
+    function test_DepositPegOut_RevertsIfRskRefundAddressIsZero() public {
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            1.03 ether,
+            fullLp
+        );
+        quote.rskRefundAddress = address(0);
+
+        vm.prank(user);
+        vm.expectRevert(
+            abi.encodeWithSelector(Flyover.InvalidAddress.selector, address(0))
+        );
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(quote, "");
+    }
+
     function test_DepositPegOut_RevertsIfAmountIsNotEnough() public {
         Quotes.PegOutQuote memory quote = createTestPegOutQuote(
             1.03 ether,
