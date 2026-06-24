@@ -90,7 +90,7 @@ contract PegOutContract is
         Quotes.PegOutQuote calldata quote,
         bytes calldata signature
     ) external payable nonReentrant whenNotPaused override {
-        if(!_collateralManagement.isRegistered(_PEG_TYPE, quote.lpRskAddress)) {
+        if(!_collateralManagement.isCollateralSufficient(_PEG_TYPE, quote.lpRskAddress)) {
             revert Flyover.ProviderNotRegistered(quote.lpRskAddress);
         }
         uint256 requiredAmount = quote.value + quote.callFee + quote.gasFee;
@@ -226,6 +226,10 @@ contract PegOutContract is
         emit PegOutRefunded(quoteHash);
 
         if (_shouldPenalize(quote, quoteHash, btcBlockHeaderHash)) {
+            uint256 collateral = _collateralManagement.getPegOutCollateral(quote.lpRskAddress);
+            if (collateral < quote.penaltyFee) {
+                revert IPegOut.InsufficientCollateral(collateral);
+            }
             _collateralManagement.slashPegOutCollateral(msg.sender, quote, quoteHash);
         }
 
@@ -349,6 +353,10 @@ contract PegOutContract is
             quote.expireBlock > block.number + _NATIVE_PEGOUT_BLOCKS ||
             quote.expireDate > block.timestamp + _NATIVE_PEGOUT_SECONDS
         ) revert UnfairQuote();
+
+        if (quote.rskRefundAddress == address(0)) {
+            revert Flyover.InvalidAddress(quote.rskRefundAddress);
+        }
     }
 
     /// @notice This function is used to check if a quote has been completed (refunded by any party)
@@ -361,7 +369,6 @@ contract PegOutContract is
     /// @notice This function is used to check if a liquidity provider should be penalized
     /// according to the following rules:
     /// - If the transfer was not made on time, the liquidity provider should be penalized
-    /// - If the liquidity provider is refunding after expiration, the liquidity provider should be penalized
     /// @param quote the peg out quote
     /// @param quoteHash the hash of the quote
     /// @param blockHash the hash of the block that contains the first confirmation of the peg out transaction
@@ -384,11 +391,6 @@ contract PegOutContract is
             return true;
         }
 
-        // penalize if LP is refunding after expiration
-        if (block.timestamp > quote.expireDate || block.number > quote.expireBlock) {
-            return true;
-        }
-
         return false;
     }
 
@@ -403,9 +405,6 @@ contract PegOutContract is
         bytes32 quoteHash,
         bytes calldata btcTx
     ) private view returns (Quotes.PegOutQuote memory quote) {
-        if(!_collateralManagement.isRegistered(_PEG_TYPE, msg.sender)) {
-            revert Flyover.ProviderNotRegistered(msg.sender);
-        }
         if (_isQuoteCompleted(quoteHash)) revert QuoteAlreadyCompleted(quoteHash);
 
         quote = _pegOutQuotes[quoteHash];

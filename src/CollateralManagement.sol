@@ -116,6 +116,7 @@ contract CollateralManagementContract is
         if (rewardPercentage > TOTAL_REWARD_PERCENTAGE) {
             revert InvalidRewardPercentage(TOTAL_REWARD_PERCENTAGE, rewardPercentage);
         }
+        if (minCollateral < 1) revert MinCollateralTooLow(minCollateral);
         if (address(pauseRegistry).code.length == 0) revert Flyover.NoContract(address(pauseRegistry));
         __AccessControlDefaultAdminRules_init(initialDelay, defaultAdmin);
         __ReentrancyGuard_init();
@@ -129,6 +130,7 @@ contract CollateralManagementContract is
     /// @param minCollateral The new minimum collateral
     // solhint-disable-next-line comprehensive-interface
     function setMinCollateral(uint minCollateral) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (minCollateral < 1) revert MinCollateralTooLow(minCollateral);
         emit MinCollateralSet(_minCollateral, minCollateral);
         _minCollateral = minCollateral;
     }
@@ -313,7 +315,10 @@ contract CollateralManagementContract is
         }
 
         uint256 amount = _pegOutCollateral[providerAddress] + _pegInCollateral[providerAddress];
-        if (amount < 1) revert NothingToWithdraw(providerAddress);
+        if (amount < 1) {
+            _resignationBlockNum[providerAddress] = 0;
+            return;
+        }
         _pegOutCollateral[providerAddress] = 0;
         _pegInCollateral[providerAddress] = 0;
         _resignationBlockNum[providerAddress] = 0;

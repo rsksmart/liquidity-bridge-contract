@@ -42,22 +42,18 @@ abstract contract PegInTestBase is Test {
 
     address constant ZERO_ADDRESS = address(0);
 
-    /// @notice Deploy PegInContract with all dependencies
+    /// @notice Deploy PegInContract with all dependencies (testnet BTC prefixes)
     function deployPegInContract() internal {
-        // Create owner
-        owner = makeAddr("owner");
-        vm.deal(owner, 100 ether);
+        pegInContract = deployPegInContract(false);
+    }
 
-        // Deploy CollateralManagement
-        deployCollateralManagement();
+    /// @notice Deploy PegInContract with all dependencies
+    /// @param mainnet When true, validates P2PKH/P2SH mainnet prefixes (0x00, 0x05)
+    function deployPegInContract(
+        bool mainnet
+    ) internal returns (PegInContract pegIn) {
+        _deployPegInDependencies();
 
-        // Deploy Discovery
-        deployDiscovery();
-
-        // Deploy BridgeMock
-        bridgeMock = new BridgeMock();
-
-        // Deploy PegInContract
         PegInContract implementation = new PegInContract();
 
         bytes memory initData = abi.encodeCall(
@@ -68,7 +64,7 @@ abstract contract PegInTestBase is Test {
                 TEST_DUST_THRESHOLD,
                 TEST_MIN_PEGIN,
                 address(collateralManagement),
-                false, // mainnet
+                mainnet,
                 pauseRegistry
             )
         );
@@ -77,13 +73,23 @@ abstract contract PegInTestBase is Test {
             address(implementation),
             initData
         );
-        pegInContract = PegInContract(payable(address(proxy)));
+        pegIn = PegInContract(payable(address(proxy)));
 
-        // Grant COLLATERAL_SLASHER role to PegInContract
         bytes32 slasherRole = collateralManagement.COLLATERAL_SLASHER();
-
         vm.prank(owner);
-        collateralManagement.grantRole(slasherRole, address(pegInContract));
+        collateralManagement.grantRole(slasherRole, address(pegIn));
+    }
+
+    function _deployPegInDependencies() internal {
+        if (address(collateralManagement) != address(0)) {
+            return;
+        }
+
+        owner = makeAddr("owner");
+        vm.deal(owner, 100 ether);
+        deployCollateralManagement();
+        deployDiscovery();
+        bridgeMock = new BridgeMock();
     }
 
     function deployCollateralManagement() internal {

@@ -4,9 +4,11 @@ pragma solidity 0.8.25;
 import "lib/forge-std/src/Test.sol";
 import "lib/forge-std/src/console.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
+import {ProxyReader} from "../../script/helpers/ProxyReader.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
-import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {TransparentUpgradeableProxy, ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
 /**
@@ -60,18 +62,18 @@ contract DeployCollateralManagementTest is Test {
         CollateralManagementContract implementation = new CollateralManagementContract();
         console.log("   Implementation deployed at:", address(implementation));
 
-        console.log("\n2. Deploying Proxy Admin...");
-        ProxyAdmin admin = new ProxyAdmin(deployer);
-        console.log("   Admin deployed at:", address(admin));
-
-        console.log("\n2b. Deploying PauseRegistry...");
+        console.log("\n2. Deploying PauseRegistry proxy...");
         PauseRegistry prImpl = new PauseRegistry();
         address pauseRegistryProxy = address(
             new TransparentUpgradeableProxy(
                 address(prImpl),
-                address(admin),
+                deployer,
                 abi.encodeCall(prImpl.initialize, (0, deployer))
             )
+        );
+        address pauseRegistryProxyAdmin = ProxyReader.readAdmin(
+            vm,
+            pauseRegistryProxy
         );
 
         console.log("\n3. Preparing initializer calldata...");
@@ -91,10 +93,14 @@ contract DeployCollateralManagementTest is Test {
         console.log("\n4. Deploying Proxy...");
         TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
             address(implementation),
-            address(admin),
+            deployer,
             initData
         );
         console.log("   Proxy deployed at:", address(proxy));
+        address collateralProxyAdmin = ProxyReader.readAdmin(
+            vm,
+            address(proxy)
+        );
 
         console.log("\n5. Verifying deployment...");
         CollateralManagementContract cm = CollateralManagementContract(
@@ -117,6 +123,18 @@ contract DeployCollateralManagementTest is Test {
             "Reward percentage mismatch"
         );
 
+        assertEq(
+            Ownable(collateralProxyAdmin).owner(),
+            address(this),
+            "ProxyAdmin owner mismatch"
+        );
+
+        assertEq(
+            Ownable(pauseRegistryProxyAdmin).owner(),
+            address(this),
+            "ProxyAdmin owner mismatch"
+        );
+
         console.log("   Min Collateral:", cm.getMinCollateral());
         console.log("   Resign Delay:", cm.getResignDelayInBlocks());
         console.log("   Reward %:", cm.getRewardPercentage());
@@ -134,12 +152,11 @@ contract DeployCollateralManagementTest is Test {
         address deployer = address(this);
 
         // Inline deployment (script.run() uses private _deploy internally)
-        address admin = address(new ProxyAdmin(deployer));
         PauseRegistry prImpl = new PauseRegistry();
         address pauseRegistryProxy = address(
             new TransparentUpgradeableProxy(
                 address(prImpl),
-                admin,
+                deployer,
                 abi.encodeCall(prImpl.initialize, (0, deployer))
             )
         );
@@ -147,7 +164,7 @@ contract DeployCollateralManagementTest is Test {
         address proxy = address(
             new TransparentUpgradeableProxy(
                 impl,
-                admin,
+                deployer,
                 abi.encodeCall(
                     CollateralManagementContract.initialize,
                     (
@@ -162,14 +179,21 @@ contract DeployCollateralManagementTest is Test {
             )
         );
 
+        address proxyAdminAddr = ProxyReader.readAdmin(vm, proxy);
+
         console.log("Deployment Result:");
         console.log("  Implementation:", impl);
         console.log("  Proxy:", proxy);
-        console.log("  Admin:", admin);
+        console.log("  ProxyAdmin:", proxyAdminAddr);
 
         assertTrue(impl != address(0), "Implementation should not be zero");
         assertTrue(proxy != address(0), "Proxy should not be zero");
-        assertTrue(admin != address(0), "Admin should not be zero");
+
+        assertEq(
+            Ownable(proxyAdminAddr).owner(),
+            address(this),
+            "ProxyAdmin owner mismatch"
+        );
 
         // Verify proxy points to implementation
         CollateralManagementContract cm = CollateralManagementContract(
@@ -193,12 +217,11 @@ contract DeployCollateralManagementTest is Test {
         address deployer = address(this);
 
         // Inline deployment
-        address admin = address(new ProxyAdmin(deployer));
         PauseRegistry prImpl = new PauseRegistry();
         address pauseRegistryProxy = address(
             new TransparentUpgradeableProxy(
                 address(prImpl),
-                admin,
+                deployer,
                 abi.encodeCall(prImpl.initialize, (0, deployer))
             )
         );
@@ -206,7 +229,7 @@ contract DeployCollateralManagementTest is Test {
         address proxy = address(
             new TransparentUpgradeableProxy(
                 impl,
-                admin,
+                deployer,
                 abi.encodeCall(
                     CollateralManagementContract.initialize,
                     (
@@ -222,6 +245,17 @@ contract DeployCollateralManagementTest is Test {
         );
         CollateralManagementContract cm = CollateralManagementContract(
             payable(proxy)
+        );
+
+        assertEq(
+            Ownable(ProxyReader.readAdmin(vm, pauseRegistryProxy)).owner(),
+            deployer,
+            "PauseRegistry ProxyAdmin owner mismatch"
+        );
+        assertEq(
+            Ownable(ProxyReader.readAdmin(vm, proxy)).owner(),
+            deployer,
+            "CollateralManagement ProxyAdmin owner mismatch"
         );
 
         // Check deployer has DEFAULT_ADMIN_ROLE
@@ -246,5 +280,60 @@ contract DeployCollateralManagementTest is Test {
         );
 
         console.log("\n[PASS] Roles are set correctly!");
+    }
+
+    function test_ContractIsUpgradeable() public {
+        console.log("\n=== CONTRACT IS UPGRADEABLE ===\n");
+
+        HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
+        address deployer = address(this);
+
+        // Inline deployment
+        PauseRegistry prImpl = new PauseRegistry();
+        address pauseRegistryProxy = address(
+            new TransparentUpgradeableProxy(
+                address(prImpl),
+                deployer,
+                abi.encodeCall(prImpl.initialize, (0, deployer))
+            )
+        );
+        address impl = address(new CollateralManagementContract());
+        TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
+            impl,
+            deployer,
+            abi.encodeCall(
+                CollateralManagementContract.initialize,
+                (
+                    deployer,
+                    cfg.adminDelay,
+                    cfg.minimumCollateral,
+                    cfg.resignDelayBlocks,
+                    cfg.rewardPercentage,
+                    PauseRegistry(pauseRegistryProxy)
+                )
+            )
+        );
+
+        ProxyAdmin proxyAdmin = ProxyAdmin(
+            ProxyReader.readAdmin(vm, address(proxy))
+        );
+        address newImplementation = address(new CollateralManagementContract());
+        assertEq(
+            ProxyReader.readImplementation(vm, address(proxy)),
+            address(impl),
+            "Implementation mismatch"
+        );
+        proxyAdmin.upgradeAndCall(
+            ITransparentUpgradeableProxy(address(proxy)),
+            newImplementation,
+            ""
+        );
+        assertEq(
+            ProxyReader.readImplementation(vm, address(proxy)),
+            newImplementation,
+            "Implementation mismatch"
+        );
+
+        console.log("[PASS] Contract is upgradeable");
     }
 }

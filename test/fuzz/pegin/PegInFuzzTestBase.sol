@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
+import {P2PKH_ZERO_ADDRESS_TESTNET} from "../../constants/btc.sol";
 import {PegInTestBase} from "../../pegin/PegInTestBase.sol";
 import {Quotes} from "../../../src/libraries/Quotes.sol";
 import {IPegIn} from "../../../src/interfaces/IPegIn.sol";
@@ -96,8 +97,7 @@ abstract contract PegInFuzzTestBase is PegInTestBase {
         address lp,
         bytes memory data
     ) internal view returns (Quotes.PegInQuote memory) {
-        bytes memory testBtcAddress = new bytes(21);
-        testBtcAddress[0] = 0x6f; // Testnet version byte
+        bytes memory testBtcAddress = P2PKH_ZERO_ADDRESS_TESTNET; // Testnet version byte
 
         return
             Quotes.PegInQuote({

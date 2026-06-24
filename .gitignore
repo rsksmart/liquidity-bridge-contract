@@ -21,6 +21,7 @@ node_modules
 broadcast/**
 !broadcast/**/
 !broadcast/**/31/**
+!broadcast/**/30/**
 
 # TypeChain files
 /typechain
