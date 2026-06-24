@@ -139,6 +139,54 @@ contract ConfigurationTest is CollateralTestBase {
         new ERC1967Proxy(address(implementation), initData);
     }
 
+    function test_Initialize_RevertsWhenMinCollateralIsZero() public {
+        CollateralManagementContract implementation = new CollateralManagementContract();
+        bytes memory initData = abi.encodeCall(
+            CollateralManagementContract.initialize,
+            (
+                owner,
+                TEST_DEFAULT_ADMIN_DELAY,
+                0,
+                TEST_RESIGN_DELAY_BLOCKS,
+                TEST_REWARD_PERCENTAGE,
+                pauseRegistry
+            )
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ICollateralManagement.MinCollateralTooLow.selector,
+                uint256(0)
+            )
+        );
+        new ERC1967Proxy(address(implementation), initData);
+    }
+
+    function test_Initialize_AllowsMinimumBoundaryMinCollateral() public {
+        CollateralManagementContract implementation = new CollateralManagementContract();
+        uint256 minOneWei = 1;
+        bytes memory initData = abi.encodeCall(
+            CollateralManagementContract.initialize,
+            (
+                owner,
+                TEST_DEFAULT_ADMIN_DELAY,
+                minOneWei,
+                TEST_RESIGN_DELAY_BLOCKS,
+                TEST_REWARD_PERCENTAGE,
+                pauseRegistry
+            )
+        );
+
+        ERC1967Proxy proxy = new ERC1967Proxy(
+            address(implementation),
+            initData
+        );
+        CollateralManagementContract cm = CollateralManagementContract(
+            payable(address(proxy))
+        );
+        assertEq(cm.getMinCollateral(), minOneWei);
+    }
+
     function test_Initialize_AllowsMaximumBoundary() public {
         uint256 maxRewardPercentage = collateralManagement
             .TOTAL_REWARD_PERCENTAGE();
@@ -319,5 +367,30 @@ contract ConfigurationTest is CollateralTestBase {
             newMinCollateral,
             "MinCollateral should be updated"
         );
+    }
+
+    function test_SetMinCollateral_RevertsWhenMinCollateralIsZero() public {
+        uint256 currentMin = collateralManagement.getMinCollateral();
+
+        vm.prank(owner);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ICollateralManagement.MinCollateralTooLow.selector,
+                uint256(0)
+            )
+        );
+        collateralManagement.setMinCollateral(0);
+
+        assertEq(
+            collateralManagement.getMinCollateral(),
+            currentMin,
+            "MinCollateral should be unchanged after revert"
+        );
+    }
+
+    function test_SetMinCollateral_AllowsMinimumBoundary() public {
+        vm.prank(owner);
+        collateralManagement.setMinCollateral(1);
+        assertEq(collateralManagement.getMinCollateral(), 1);
     }
 }

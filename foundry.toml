@@ -9,6 +9,9 @@ optimizer = true
 optimizer_runs = 1
 via_ir = false
 ffi = true
+ast = true
+build_info = true
+extra_output = ["storageLayout"]
 fs_permissions = [
     { access = "read", path = "./" },
     { access = "read-write", path = "./broadcast" },
@@ -25,7 +28,9 @@ remappings = [
   "@rsksmart/btc-transaction-solidity-helper/=node_modules/@rsksmart/btc-transaction-solidity-helper/",
   "forge-std/=lib/forge-std/src/",
   "halmos-cheatcodes/=lib/halmos-cheatcodes/src/",
-  "src/=src/"
+  "src/=src/",
+  "@openzeppelin/contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/",
+  "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/"
 ]
 
 # Halmos profile: OZ 5.5+ pulls Bytes.sol (mcopy) via EIP712 → Strings; requires Cancun.

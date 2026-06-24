@@ -415,10 +415,10 @@ make python-setup   # Halmos for formal verification (once per clone)
 make build
 
 # Test deployment (simulation)
-make deploy-lbc NETWORK=testnet
+make deploy-lbc NETWORK=rskTestnet
 
 # Actual deployment
-make deploy-lbc-broadcast NETWORK=testnet
+make deploy-lbc-broadcast NETWORK=rskTestnet
 ```
 
 #### Documentation
@@ -436,12 +436,12 @@ make deploy-lbc-broadcast NETWORK=testnet
 
 ```bash
 # Deployment
-make deploy-lbc NETWORK=testnet                    # Simulation
-make deploy-lbc-broadcast NETWORK=testnet          # Actual deployment
+make deploy-lbc NETWORK=rskTestnet                    # Simulation
+make deploy-lbc-broadcast NETWORK=rskTestnet          # Actual deployment
 
 # Upgrades
-make upgrade-lbc NETWORK=testnet                   # Simulation
-make upgrade-lbc-broadcast NETWORK=testnet         # Actual upgrade
+make upgrade-lbc NETWORK=rskTestnet                   # Simulation
+make upgrade-lbc-broadcast NETWORK=rskTestnet         # Actual upgrade
 
 # Fork testing
 make testnet-fork-deploy                           # Testnet fork simulation
@@ -449,7 +449,7 @@ make testnet-fork-deploy-broadcast                 # Testnet fork actual deploym
 
 # Utilities
 make get-versions                                  # Get contract versions
-make check-env NETWORK=testnet                     # Environment validation
+make check-env NETWORK=rskTestnet                     # Environment validation
 make help                                          # Show all commands
 ```
 

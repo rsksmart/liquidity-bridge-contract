@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
+import {Options} from "openzeppelin-foundry-upgrades/Options.sol";
+import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
+
 import {Script, console} from "lib/forge-std/src/Script.sol";
 
 import {HelperConfig} from "../HelperConfig.s.sol";
+import {ProxyReader} from "../helpers/ProxyReader.sol";
 
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
@@ -12,28 +16,37 @@ import {PegInContract} from "../../src/PegInContract.sol";
 import {PegOutContract} from "../../src/PegOutContract.sol";
 
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
 /// @title DeployFlyover
 /// @notice Orchestrates the deployment of all Flyover contracts and sets up roles
-/// @dev Gas optimized: single ProxyAdmin, inlined deployment logic, linked libraries
 contract DeployFlyover is Script {
     struct FlyoverDeployment {
+        address pauseRegistryImpl;
         address pauseRegistryProxy;
+        address pauseRegistryProxyAdmin;
         address collateralManagementImpl;
         address collateralManagementProxy;
+        address collateralManagementProxyAdmin;
         address flyoverDiscoveryImpl;
         address flyoverDiscoveryProxy;
+        address flyoverDiscoveryProxyAdmin;
         address pegInImpl;
         address pegInProxy;
+        address pegInProxyAdmin;
         address pegOutImpl;
         address pegOutProxy;
-        address proxyAdmin; // Single ProxyAdmin for all
+        address pegOutProxyAdmin;
     }
 
     function run() external returns (FlyoverDeployment memory) {
         HelperConfig helper = new HelperConfig();
         HelperConfig.FlyoverConfig memory cfg = helper.getFlyoverConfig();
+
+        uint256 deployerKey = helper.getDeployerPrivateKey();
+        address deployer = vm.rememberKey(deployerKey);
+
+        address defaultAdmin = deployer;
+
         console.log(
             "======================== Config =========================="
         );
@@ -46,16 +59,18 @@ contract DeployFlyover is Script {
         console.log("BTC Block Time:", cfg.btcBlockTime);
         console.log("Mainnet:", cfg.mainnet);
         console.log("Admin Delay:", cfg.adminDelay);
+        console.log("Default Admin:", defaultAdmin);
         console.log(
             "=========================================================="
         );
 
-        uint256 deployerKey = helper.getDeployerPrivateKey();
-        address deployer = vm.rememberKey(deployerKey);
-
         vm.startBroadcast(deployerKey);
 
-        FlyoverDeployment memory d = _deployAll(deployer, cfg);
+        FlyoverDeployment memory d = _deployAll(
+            defaultAdmin,
+            cfg,
+            helper.getOptions()
+        );
         _setupRoles(d);
 
         vm.stopBroadcast();
@@ -76,102 +91,124 @@ contract DeployFlyover is Script {
 
     function _deployAll(
         address defaultAdmin,
-        HelperConfig.FlyoverConfig memory cfg
+        HelperConfig.FlyoverConfig memory cfg,
+        Options memory opts
     ) private returns (FlyoverDeployment memory d) {
-        // Single ProxyAdmin for all contracts
-        d.proxyAdmin = address(new ProxyAdmin(defaultAdmin));
-
         // 0) PauseRegistry (shared by all)
-        PauseRegistry prImpl = new PauseRegistry();
-        d.pauseRegistryProxy = address(
-            new TransparentUpgradeableProxy(
-                address(prImpl),
-                d.proxyAdmin,
-                abi.encodeCall(prImpl.initialize, (0, defaultAdmin))
-            )
+        address pauseRegistryProxy = Upgrades.deployTransparentProxy(
+            "PauseRegistry.sol",
+            defaultAdmin,
+            abi.encodeCall(
+                PauseRegistry.initialize,
+                (cfg.adminDelay, defaultAdmin)
+            ),
+            opts
+        );
+        d.pauseRegistryProxy = pauseRegistryProxy;
+        d.pauseRegistryImpl = ProxyReader.readImplementation(
+            vm,
+            pauseRegistryProxy
+        );
+        d.pauseRegistryProxyAdmin = ProxyReader.readAdmin(
+            vm,
+            pauseRegistryProxy
         );
 
         // 1) CollateralManagement
-        d.collateralManagementImpl = address(
-            new CollateralManagementContract()
-        );
-        d.collateralManagementProxy = address(
-            new TransparentUpgradeableProxy(
-                d.collateralManagementImpl,
-                d.proxyAdmin,
-                abi.encodeCall(
-                    CollateralManagementContract.initialize,
-                    (
-                        defaultAdmin,
-                        cfg.adminDelay,
-                        cfg.minimumCollateral,
-                        cfg.resignDelayBlocks,
-                        cfg.rewardPercentage,
-                        PauseRegistry(d.pauseRegistryProxy)
-                    )
+        address collateralManagementProxy = Upgrades.deployTransparentProxy(
+            "CollateralManagement.sol:CollateralManagementContract",
+            defaultAdmin,
+            abi.encodeCall(
+                CollateralManagementContract.initialize,
+                (
+                    defaultAdmin,
+                    cfg.adminDelay,
+                    cfg.minimumCollateral,
+                    cfg.resignDelayBlocks,
+                    cfg.rewardPercentage,
+                    PauseRegistry(pauseRegistryProxy)
                 )
-            )
+            ),
+            opts
+        );
+        d.collateralManagementProxy = collateralManagementProxy;
+        d.collateralManagementImpl = ProxyReader.readImplementation(
+            vm,
+            collateralManagementProxy
+        );
+        d.collateralManagementProxyAdmin = ProxyReader.readAdmin(
+            vm,
+            d.collateralManagementProxy
         );
 
         // 2) FlyoverDiscovery
-        d.flyoverDiscoveryImpl = address(new FlyoverDiscovery());
-        d.flyoverDiscoveryProxy = address(
-            new TransparentUpgradeableProxy(
-                d.flyoverDiscoveryImpl,
-                d.proxyAdmin,
-                abi.encodeCall(
-                    FlyoverDiscovery.initialize,
-                    (
-                        defaultAdmin,
-                        cfg.adminDelay,
-                        d.collateralManagementProxy,
-                        PauseRegistry(d.pauseRegistryProxy)
-                    )
+        address flyoverDiscoveryProxy = Upgrades.deployTransparentProxy(
+            "FlyoverDiscovery.sol",
+            defaultAdmin,
+            abi.encodeCall(
+                FlyoverDiscovery.initialize,
+                (
+                    defaultAdmin,
+                    cfg.adminDelay,
+                    d.collateralManagementProxy,
+                    PauseRegistry(pauseRegistryProxy)
                 )
-            )
+            ),
+            opts
+        );
+        d.flyoverDiscoveryProxy = flyoverDiscoveryProxy;
+        d.flyoverDiscoveryImpl = ProxyReader.readImplementation(
+            vm,
+            flyoverDiscoveryProxy
+        );
+        d.flyoverDiscoveryProxyAdmin = ProxyReader.readAdmin(
+            vm,
+            flyoverDiscoveryProxy
         );
 
         // 3) PegInContract
-        d.pegInImpl = address(new PegInContract());
-        d.pegInProxy = address(
-            new TransparentUpgradeableProxy(
-                d.pegInImpl,
-                d.proxyAdmin,
-                abi.encodeCall(
-                    PegInContract.initialize,
-                    (
-                        defaultAdmin,
-                        payable(cfg.bridge),
-                        cfg.dustThreshold,
-                        cfg.minimumPegIn,
-                        d.collateralManagementProxy,
-                        cfg.mainnet,
-                        PauseRegistry(d.pauseRegistryProxy)
-                    )
+        address pegInProxy = Upgrades.deployTransparentProxy(
+            "PegInContract.sol",
+            defaultAdmin,
+            abi.encodeCall(
+                PegInContract.initialize,
+                (
+                    defaultAdmin,
+                    payable(cfg.bridge),
+                    cfg.dustThreshold,
+                    cfg.minimumPegIn,
+                    d.collateralManagementProxy,
+                    cfg.mainnet,
+                    PauseRegistry(pauseRegistryProxy)
                 )
-            )
+            ),
+            opts
         );
+        d.pegInProxy = pegInProxy;
+        d.pegInImpl = ProxyReader.readImplementation(vm, pegInProxy);
+        d.pegInProxyAdmin = ProxyReader.readAdmin(vm, pegInProxy);
 
         // 4) PegOutContract
-        d.pegOutImpl = address(new PegOutContract());
-        d.pegOutProxy = address(
-            new TransparentUpgradeableProxy(
-                d.pegOutImpl,
-                d.proxyAdmin,
-                abi.encodeCall(
-                    PegOutContract.initialize,
-                    (
-                        defaultAdmin,
-                        payable(cfg.bridge),
-                        cfg.dustThreshold,
-                        d.collateralManagementProxy,
-                        cfg.mainnet,
-                        cfg.btcBlockTime,
-                        PauseRegistry(d.pauseRegistryProxy)
-                    )
+        address pegOutProxy = Upgrades.deployTransparentProxy(
+            "PegOutContract.sol",
+            defaultAdmin,
+            abi.encodeCall(
+                PegOutContract.initialize,
+                (
+                    defaultAdmin,
+                    payable(cfg.bridge),
+                    cfg.dustThreshold,
+                    d.collateralManagementProxy,
+                    cfg.mainnet,
+                    cfg.btcBlockTime,
+                    PauseRegistry(pauseRegistryProxy)
                 )
-            )
+            ),
+            opts
         );
+        d.pegOutProxy = pegOutProxy;
+        d.pegOutImpl = ProxyReader.readImplementation(vm, pegOutProxy);
+        d.pegOutProxyAdmin = ProxyReader.readAdmin(vm, pegOutProxy);
     }
 
     function _setupRoles(FlyoverDeployment memory d) private {
@@ -188,15 +225,25 @@ contract DeployFlyover is Script {
 
     function _log(FlyoverDeployment memory d) private pure {
         console.log("=== FLYOVER DEPLOYMENT ===");
-        console.log("ProxyAdmin:", d.proxyAdmin);
         console.log("PauseRegistry proxy:", d.pauseRegistryProxy);
+        console.log("PauseRegistry ProxyAdmin:", d.pauseRegistryProxyAdmin);
         console.log("CollateralManagement impl:", d.collateralManagementImpl);
         console.log("CollateralManagement proxy:", d.collateralManagementProxy);
+        console.log(
+            "CollateralManagement ProxyAdmin:",
+            d.collateralManagementProxyAdmin
+        );
         console.log("FlyoverDiscovery impl:", d.flyoverDiscoveryImpl);
         console.log("FlyoverDiscovery proxy:", d.flyoverDiscoveryProxy);
+        console.log(
+            "FlyoverDiscovery ProxyAdmin:",
+            d.flyoverDiscoveryProxyAdmin
+        );
         console.log("PegInContract impl:", d.pegInImpl);
         console.log("PegInContract proxy:", d.pegInProxy);
+        console.log("PegInContract ProxyAdmin:", d.pegInProxyAdmin);
         console.log("PegOutContract impl:", d.pegOutImpl);
         console.log("PegOutContract proxy:", d.pegOutProxy);
+        console.log("PegOutContract ProxyAdmin:", d.pegOutProxyAdmin);
     }
 }

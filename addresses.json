@@ -74,53 +74,69 @@
   },
   "rskMainnet": {
     "SignatureValidator": {
-      "address": "0xb107cc96A5CfC4Be502e9BBB1208dE4792044ba7",
+      "address": "0xB0824559dF4a0872A61B228466bAd12E733F7DEC",
       "deployed": true
     },
     "Quotes": {
-      "address": "0xecfF1feFa8814c980330ca1000B067BBC9D2ee25",
+      "address": "0xaAFf2c6D3185Ccd03d9781E689005c314b936ac1",
       "deployed": true
     },
     "BtcUtils": {
-      "address": "0x0FCf6ed9DBA0AE3AD3f6908a9499285720a6d43d",
+      "address": "0xd8D956312222D8AcaBb58569Cc960A93B1AA2F7A",
       "deployed": true
     },
-    "LiquidityBridgeContract": {
-      "address": "0xAA9cAf1e3967600578727F975F283446A3Da6612",
+    "FlyoverDiscovery": {
+      "address": "0x9A48C6b18Aa000d0bd35D55616bCc98aD3553e7a",
       "deployed": true
     },
-    "Migrations": {
-      "address": "0x22183DB087d1Fed621435d00aa9cac4B5CdC9aE1",
+    "PegOutContract": {
+      "address": "0x9A0678742cfb567874eb4e99Df2106BDED78F5E4",
       "deployed": true
     },
-    "QuotesV2": {
-      "address": "0x0123eF8Ae46F9FCBF67c706f73d46bCCE3df44F7",
+    "PegInContract": {
+      "address": "0x9270733402Dc7C5730Ea24268fC11039fD75E189",
+      "deployed": true
+    },
+    "CollateralManagementContract": {
+      "address": "0xBe4D93B3aFD9921CAC66704fFD3Caf662886fb73",
+      "deployed": true
+    },
+    "PauseRegistry": {
+      "address": "0xb2c65Bbf276CC5CCae73c0ab29B609a129080639",
       "deployed": true
     }
   },
   "rskTestnet": {
-    "Migrations": {
-      "address": "0x96B4493B3390F6556979b002daC6D0A091973beE",
-      "deployed": true
-    },
     "SignatureValidator": {
-      "address": "0xA66B2938b6cC837821cF4Be27F7016951047E03D",
+      "address": "0x94DD5D58619f1747AF16B3C87f29a6BA9Bb5b4D1",
       "deployed": true
     },
     "Quotes": {
-      "address": "0x82Ae9f2609FA360D73B12D735356eE467eC1445e",
+      "address": "0xb273b2259c133029F02B0f59Fbad81285717592f",
       "deployed": true
     },
     "BtcUtils": {
-      "deployed": true,
-      "address": "0x147F172c8a7434D10FDac6E2c8045116683f277B"
-    },
-    "LiquidityBridgeContract": {
-      "address": "0xc2A630c053D12D63d32b025082f6Ba268db18300",
+      "address": "0x05a428AdCC86de5e4fdA9EEC0be7807455b4c2cC",
       "deployed": true
     },
-    "QuotesV2": {
-      "address": "0xC5173CAE944b9CB527B386A51c7353fEf0d4794c",
+    "FlyoverDiscovery": {
+      "address": "0xE8610c632c4219b0245b39d5Cd216A31F491d919",
+      "deployed": true
+    },
+    "PegOutContract": {
+      "address": "0x48d19e10A166E20746af5037e79A5cEa5BD38Cc8",
+      "deployed": true
+    },
+    "PegInContract": {
+      "address": "0xB29fa9754D41C3Bb17d5f89290294F48C13Af59b",
+      "deployed": true
+    },
+    "CollateralManagementContract": {
+      "address": "0xF4CeD744227E0c50F822e40eF64917093bcf09b3",
+      "deployed": true
+    },
+    "PauseRegistry": {
+      "address": "0xf30F9c50b727860389F0D54B19C899baBC5be86B",
       "deployed": true
     }
   },
@@ -148,39 +164,35 @@
   },
   "rskDevelopment": {
     "SignatureValidator": {
-      "address": "0xb5698C36773aE6eAE9F8D399beF24B33C3519454",
+      "address": "0x07cD5fAD0A6654Cc9f3F05c097b50251d17a66a6",
       "deployed": true
     },
     "Quotes": {
-      "address": "0xC2Fac578B41e092543db8Dda0C990F64Bb18b6F5",
+      "address": "0x38E1A06dDe6377A1bd49695CD0Ce6984D4918404",
       "deployed": true
     },
     "BtcUtils": {
-      "address": "0xddFb077cD156095e31ADE2e53F5153d53b770054",
+      "address": "0xF2d479241b77aB0F6B6e90d2F1346509A3E890EB",
       "deployed": true
     },
     "FlyoverDiscovery": {
-      "address": "0xe16b04a1a87aC65a4aF8D46a8b797D0d46572408",
+      "address": "0x9BD4Bd617D2a5df4b59A5bA78F52dD85681A3F4e",
       "deployed": true
     },
     "PegOutContract": {
-      "address": "0x15c240d9Fb91224c0d3Ca9b04Ff63844aA3dF040",
+      "address": "0x4dd0f80E26eD2416bf02550FF8e42DE1D59170cb",
       "deployed": true
     },
     "PegInContract": {
-      "address": "0xcf871fB1D934301dD161A3AD5eB50379527B1CDc",
+      "address": "0xB1e0F1F0a29F8b4c4a2f8eB161711c6527Be6a81",
       "deployed": true
     },
     "CollateralManagementContract": {
-      "address": "0x4036AC5c4C24C4Ae11BD29D709Dd5d057ca8F39d",
-      "deployed": true
-    },
-    "ProxyAdmin": {
-      "address": "0x46b2Ff811543FA43f5c3378972571e239624E69B",
+      "address": "0xce2Af4eBEd8355968159f2A766329FBb6028dF23",
       "deployed": true
     },
     "PauseRegistry": {
-      "address": "0x2FDe2c000AB628D6F4B72f671eA8C2f4Be7A451f",
+      "address": "0x939647E729B9A1D9c1e30468B6c7b409bfCE1e59",
       "deployed": true
     }
   }

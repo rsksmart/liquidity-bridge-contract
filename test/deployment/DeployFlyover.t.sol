@@ -4,13 +4,15 @@ pragma solidity 0.8.25;
 import "lib/forge-std/src/Test.sol";
 import "lib/forge-std/src/console.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
+import {ProxyReader} from "../../script/helpers/ProxyReader.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {PegInContract} from "../../src/PegInContract.sol";
 import {PegOutContract} from "../../src/PegOutContract.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
-import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {TransparentUpgradeableProxy, ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import {BridgeMock} from "../../src/test-contracts/BridgeMock.sol";
 
@@ -25,15 +27,40 @@ contract DeployFlyoverTest is Test {
 
     // Deployed contracts
     address public pauseRegistryProxy;
+    address public collateralManagementImplementation;
+    address public flyoverDiscoveryImplementation;
+    address public pegInImplementation;
+    address public pegOutImplementation;
+    address public pauseRegistryImplementation;
     CollateralManagementContract public collateralManagement;
     FlyoverDiscovery public discovery;
     PegInContract public pegInContract;
     PegOutContract public pegOutContract;
-    address public proxyAdmin;
 
     function setUp() public {
         helperConfig = new HelperConfig();
         bridgeMock = new BridgeMock();
+    }
+
+    function _assertTransparentProxyAdmin(
+        address proxy,
+        address deployer_
+    ) internal view {
+        address admin = ProxyReader.readAdmin(vm, proxy);
+        assertTrue(admin != address(0), "ProxyAdmin should not be zero");
+        assertEq(
+            Ownable(admin).owner(),
+            deployer_,
+            "ProxyAdmin owner mismatch"
+        );
+    }
+
+    function _assertAllProxyAdminsOwnedBy(address deployer_) internal view {
+        _assertTransparentProxyAdmin(pauseRegistryProxy, deployer_);
+        _assertTransparentProxyAdmin(address(collateralManagement), deployer_);
+        _assertTransparentProxyAdmin(address(discovery), deployer_);
+        _assertTransparentProxyAdmin(address(pegInContract), deployer_);
+        _assertTransparentProxyAdmin(address(pegOutContract), deployer_);
     }
 
     /// @notice Deploy all contracts inline (mirrors DeployFlyover script)
@@ -41,9 +68,6 @@ contract DeployFlyoverTest is Test {
         address deployer,
         HelperConfig.FlyoverConfig memory cfg
     ) internal {
-        // Single ProxyAdmin for all contracts
-        proxyAdmin = address(new ProxyAdmin(deployer));
-
         // 1) CollateralManagement
         _deployCollateralManagement(deployer, cfg);
 
@@ -62,14 +86,16 @@ contract DeployFlyoverTest is Test {
         HelperConfig.FlyoverConfig memory cfg
     ) private {
         PauseRegistry prImpl = new PauseRegistry();
+        pauseRegistryImplementation = address(prImpl);
         pauseRegistryProxy = address(
             new TransparentUpgradeableProxy(
                 address(prImpl),
-                proxyAdmin,
+                deployer,
                 abi.encodeCall(prImpl.initialize, (0, deployer))
             )
         );
         address impl = address(new CollateralManagementContract());
+        collateralManagementImplementation = impl;
         bytes memory initData = abi.encodeCall(
             CollateralManagementContract.initialize,
             (
@@ -82,7 +108,7 @@ contract DeployFlyoverTest is Test {
             )
         );
         address proxy = address(
-            new TransparentUpgradeableProxy(impl, proxyAdmin, initData)
+            new TransparentUpgradeableProxy(impl, deployer, initData)
         );
         collateralManagement = CollateralManagementContract(payable(proxy));
     }
@@ -92,6 +118,7 @@ contract DeployFlyoverTest is Test {
         HelperConfig.FlyoverConfig memory cfg
     ) private {
         address impl = address(new FlyoverDiscovery());
+        flyoverDiscoveryImplementation = impl;
         bytes memory initData = abi.encodeCall(
             FlyoverDiscovery.initialize,
             (
@@ -102,7 +129,7 @@ contract DeployFlyoverTest is Test {
             )
         );
         address proxy = address(
-            new TransparentUpgradeableProxy(impl, proxyAdmin, initData)
+            new TransparentUpgradeableProxy(impl, deployer, initData)
         );
         discovery = FlyoverDiscovery(proxy);
     }
@@ -112,6 +139,7 @@ contract DeployFlyoverTest is Test {
         HelperConfig.FlyoverConfig memory cfg
     ) private {
         address impl = address(new PegInContract());
+        pegInImplementation = impl;
         bytes memory initData = abi.encodeCall(
             PegInContract.initialize,
             (
@@ -125,7 +153,7 @@ contract DeployFlyoverTest is Test {
             )
         );
         address proxy = address(
-            new TransparentUpgradeableProxy(impl, proxyAdmin, initData)
+            new TransparentUpgradeableProxy(impl, deployer, initData)
         );
         pegInContract = PegInContract(payable(proxy));
     }
@@ -135,6 +163,7 @@ contract DeployFlyoverTest is Test {
         HelperConfig.FlyoverConfig memory cfg
     ) private {
         address impl = address(new PegOutContract());
+        pegOutImplementation = impl;
         bytes memory initData = abi.encodeCall(
             PegOutContract.initialize,
             (
@@ -148,7 +177,7 @@ contract DeployFlyoverTest is Test {
             )
         );
         address proxy = address(
-            new TransparentUpgradeableProxy(impl, proxyAdmin, initData)
+            new TransparentUpgradeableProxy(impl, deployer, initData)
         );
         pegOutContract = PegOutContract(payable(proxy));
     }
@@ -161,6 +190,7 @@ contract DeployFlyoverTest is Test {
 
         console.log("Deploying all Flyover contracts...");
         _deployAll(deployer, cfg);
+        _assertAllProxyAdminsOwnedBy(deployer);
 
         // Verify all contracts deployed
         console.log("\n1. Verifying CollateralManagement...");
@@ -198,6 +228,7 @@ contract DeployFlyoverTest is Test {
         address deployer = address(this);
 
         _deployAll(deployer, cfg);
+        _assertAllProxyAdminsOwnedBy(deployer);
 
         bytes32 collateralAdderRole = collateralManagement.COLLATERAL_ADDER();
         bytes32 collateralSlasherRole = collateralManagement
@@ -258,6 +289,7 @@ contract DeployFlyoverTest is Test {
         address deployer = address(this);
 
         _deployAll(deployer, cfg);
+        _assertAllProxyAdminsOwnedBy(deployer);
 
         // Check CollateralManagement
         console.log("1. CollateralManagement:");
@@ -332,6 +364,7 @@ contract DeployFlyoverTest is Test {
         address deployer = address(this);
 
         _deployAll(deployer, cfg);
+        _assertAllProxyAdminsOwnedBy(deployer);
 
         // Setup roles
         bytes32 collateralAdderRole = collateralManagement.COLLATERAL_ADDER();
@@ -391,6 +424,7 @@ contract DeployFlyoverTest is Test {
         address deployer = address(this);
 
         _deployAll(deployer, cfg);
+        _assertAllProxyAdminsOwnedBy(deployer);
 
         bytes32 defaultAdminRole = collateralManagement.DEFAULT_ADMIN_ROLE();
 
@@ -423,5 +457,111 @@ contract DeployFlyoverTest is Test {
         console.log("  PegOutContract: true");
 
         console.log("\n[PASS] Deployer has admin role on all contracts!");
+    }
+
+    function test_ContractIsUpgradeable() public {
+        console.log("\n=== CONTRACT IS UPGRADEABLE ===\n");
+
+        HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
+        address deployer = address(this);
+
+        _deployAll(deployer, cfg);
+
+        address cmProxy = address(collateralManagement);
+        ProxyAdmin proxyAdmin = ProxyAdmin(ProxyReader.readAdmin(vm, cmProxy));
+        address newImplementation = address(new CollateralManagementContract());
+
+        assertEq(
+            ProxyReader.readImplementation(vm, cmProxy),
+            collateralManagementImplementation,
+            "Implementation mismatch"
+        );
+        proxyAdmin.upgradeAndCall(
+            ITransparentUpgradeableProxy(cmProxy),
+            newImplementation,
+            ""
+        );
+        assertEq(
+            ProxyReader.readImplementation(vm, cmProxy),
+            newImplementation,
+            "Implementation mismatch"
+        );
+
+        address fdProxy = address(discovery);
+        proxyAdmin = ProxyAdmin(ProxyReader.readAdmin(vm, fdProxy));
+        newImplementation = address(new FlyoverDiscovery());
+        assertEq(
+            ProxyReader.readImplementation(vm, fdProxy),
+            flyoverDiscoveryImplementation,
+            "Implementation mismatch"
+        );
+        proxyAdmin.upgradeAndCall(
+            ITransparentUpgradeableProxy(fdProxy),
+            newImplementation,
+            ""
+        );
+        assertEq(
+            ProxyReader.readImplementation(vm, fdProxy),
+            newImplementation,
+            "Implementation mismatch"
+        );
+
+        address piProxy = address(pegInContract);
+        proxyAdmin = ProxyAdmin(ProxyReader.readAdmin(vm, piProxy));
+        newImplementation = address(new PegInContract());
+        assertEq(
+            ProxyReader.readImplementation(vm, piProxy),
+            pegInImplementation,
+            "Implementation mismatch"
+        );
+        proxyAdmin.upgradeAndCall(
+            ITransparentUpgradeableProxy(piProxy),
+            newImplementation,
+            ""
+        );
+        assertEq(
+            ProxyReader.readImplementation(vm, piProxy),
+            newImplementation,
+            "Implementation mismatch"
+        );
+
+        address poProxy = address(pegOutContract);
+        proxyAdmin = ProxyAdmin(ProxyReader.readAdmin(vm, poProxy));
+        newImplementation = address(new PegOutContract());
+        assertEq(
+            ProxyReader.readImplementation(vm, poProxy),
+            pegOutImplementation,
+            "Implementation mismatch"
+        );
+        proxyAdmin.upgradeAndCall(
+            ITransparentUpgradeableProxy(poProxy),
+            newImplementation,
+            ""
+        );
+        assertEq(
+            ProxyReader.readImplementation(vm, poProxy),
+            newImplementation,
+            "Implementation mismatch"
+        );
+
+        proxyAdmin = ProxyAdmin(ProxyReader.readAdmin(vm, pauseRegistryProxy));
+        newImplementation = address(new PauseRegistry());
+        assertEq(
+            ProxyReader.readImplementation(vm, pauseRegistryProxy),
+            pauseRegistryImplementation,
+            "Implementation mismatch"
+        );
+        proxyAdmin.upgradeAndCall(
+            ITransparentUpgradeableProxy(pauseRegistryProxy),
+            newImplementation,
+            ""
+        );
+        assertEq(
+            ProxyReader.readImplementation(vm, pauseRegistryProxy),
+            newImplementation,
+            "Implementation mismatch"
+        );
+
+        console.log("\n[PASS] Contracts are upgradeable");
     }
 }

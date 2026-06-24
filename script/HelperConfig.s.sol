@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 import {Script} from "lib/forge-std/src/Script.sol";
 import {BridgeMock} from "../src/test-contracts/BridgeMock.sol";
+import {Options} from "openzeppelin-foundry-upgrades/Options.sol";
 
 contract HelperConfig is Script {
     struct DifferentialNetworkConfig {
@@ -403,5 +404,11 @@ contract HelperConfig is Script {
                 });
         }
         revert("DIFF_NETWORK must be mainnet|testnet");
+    }
+
+    function getOptions() public pure returns (Options memory) {
+        Options memory opts;
+        opts.unsafeAllow = "external-library-linking";
+        return opts;
     }
 }

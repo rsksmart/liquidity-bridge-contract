@@ -30,6 +30,8 @@ contract FlyoverDiscovery is
 
     /// @notice The version of the contract
     string constant public VERSION = "1.0.0";
+    uint256 constant private _MAX_PROVIDER_NAME_LENGTH = 256;
+    uint256 constant private _MAX_PROVIDER_API_BASE_URL_LENGTH = 512;
 
     // ------------------------------------------------------------
     // FlyoverDiscovery State Variables
@@ -157,7 +159,7 @@ contract FlyoverDiscovery is
 
     /// @inheritdoc IFlyoverDiscovery
     function updateProvider(string calldata name, string calldata apiBaseUrl) external whenNotHardPaused {
-        if (bytes(name).length < 1 || bytes(apiBaseUrl).length < 1) revert InvalidProviderData(name, apiBaseUrl);
+        _validateProviderData(name, apiBaseUrl);
         address providerAddress = msg.sender;
         uint providerId = _providerIdByAddress[providerAddress];
         if (providerId == 0) revert Flyover.ProviderNotRegistered(providerAddress);
@@ -264,11 +266,11 @@ contract FlyoverDiscovery is
     }
 
     /// @notice Checks if a liquidity provider should be listed in the public provider list
-    /// @dev A provider is listed if it is registered and has status enabled
+    /// @dev A provider is listed if it is registered, has the min collateral, and has status enabled
     /// @param lp The liquidity provider storage reference
     /// @return True if the provider should be listed, false otherwise
     function _shouldBeListed(Flyover.LiquidityProvider storage lp) private view returns(bool){
-        return _collateralManagement.isRegistered(lp.providerType, lp.providerAddress) && lp.status;
+        return _collateralManagement.isCollateralSufficient(lp.providerType, lp.providerAddress) && lp.status;
     }
 
     /// @notice Validates registration parameters and requirements
@@ -290,12 +292,7 @@ contract FlyoverDiscovery is
             msg.sender != tx.origin // solhint-disable-line avoid-tx-origin
         ) revert NotEOA(providerAddress);
 
-        if (
-            bytes(name).length < 1 ||
-            bytes(apiBaseUrl).length < 1
-        ) {
-            revert InvalidProviderData(name, apiBaseUrl);
-        }
+        _validateProviderData(name, apiBaseUrl);
 
         if (providerType > type(Flyover.ProviderType).max) revert InvalidProviderType(providerType);
 
@@ -334,5 +331,27 @@ contract FlyoverDiscovery is
             revert Flyover.ProviderNotRegistered(providerAddress);
         }
         return _liquidityProviders[providerId];
+    }
+
+    /// @notice Validates provider metadata fields
+    /// @dev Requires `name` and `apiBaseUrl` to be non-empty and within their configured max lengths
+    /// @param name The provider display name to validate
+    /// @param apiBaseUrl The provider API base URL to validate
+    function _validateProviderData(string memory name, string memory apiBaseUrl) private pure {
+        uint256 nameLength = bytes(name).length;
+        uint256 apiBaseUrlLength = bytes(apiBaseUrl).length;
+        if (
+            nameLength < 1 ||
+            nameLength > _MAX_PROVIDER_NAME_LENGTH ||
+            apiBaseUrlLength < 1 ||
+            apiBaseUrlLength > _MAX_PROVIDER_API_BASE_URL_LENGTH
+        ) {
+             revert IFlyoverDiscovery.ProviderDataLengthOutOfBounds(
+                 nameLength,
+                 apiBaseUrlLength,
+                 _MAX_PROVIDER_NAME_LENGTH,
+                 _MAX_PROVIDER_API_BASE_URL_LENGTH
+             );
+        }
     }
 }
