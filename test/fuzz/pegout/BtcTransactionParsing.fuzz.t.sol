@@ -64,8 +64,8 @@ contract BtcTransactionParsingFuzzTest is PegOutFuzzTestBase {
         quoteValue = uint128(bound(quoteValue, 0.001 ether, 10 ether));
         btcTxAmount = uint128(bound(btcTxAmount, 0.0001 ether, 10 ether));
 
-        // Skip if amounts match (that's the success case)
-        vm.assume(btcTxAmount < quoteValue);
+        // Skip when BTC payment is sufficient at satoshi precision
+        vm.assume(btcTxAmount < quoteValue - (quoteValue % 1e10));
 
         Quotes.PegOutQuote memory quote = createAndDepositFuzzQuote(quoteValue);
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
