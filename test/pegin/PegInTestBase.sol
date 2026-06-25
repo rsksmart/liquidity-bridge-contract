@@ -11,6 +11,7 @@ import {WalletMock} from "../../src/test-contracts/WalletMock.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
+import {P2PKH_ZERO_ADDRESS_TESTNET} from "../constants/btc.sol";
 
 /// @title Base contract for PegIn tests
 /// @notice Provides shared deployment and setup logic for PegIn tests
@@ -206,7 +207,7 @@ abstract contract PegInTestBase is Test {
         address destinationContract,
         uint256 nonce
     ) internal view returns (Quotes.PegInQuote memory) {
-        bytes memory testBtcAddress = new bytes(21);
+        bytes memory testBtcAddress = P2PKH_ZERO_ADDRESS_TESTNET;
 
         return
             Quotes.PegInQuote({
