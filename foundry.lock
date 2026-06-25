@@ -1,12 +1,15 @@
 {
-  "lib/forge-std": {
-    "rev": "8bbcf6e3f8f62f419e5429a0bd89331c85c37824"
+  "lib/halmos-cheatcodes": {
+    "rev": "6da4e692c357ba6d641a2e677a28298cac9f76ab"
   },
   "lib/openzeppelin-contracts-upgradeable": {
     "tag": {
       "name": "v5.6.1",
       "rev": "7bf4727aacdbfaa0f36cbd664654d0c9e1dc52bf"
     }
+  },
+  "lib/forge-std": {
+    "rev": "8bbcf6e3f8f62f419e5429a0bd89331c85c37824"
   },
   "lib/openzeppelin-foundry-upgrades": {
     "tag": {

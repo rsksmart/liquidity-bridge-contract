@@ -624,12 +624,13 @@ contract FlyoverDiscoveryIntegrationTest is Test {
         assertEq(collateralManagement.getResignationBlock(lp), 0);
         assertEq(collateralManagement.getPegOutCollateral(lp), 0);
 
-        vm.prank(lp, lp);
-        uint reregisteredId = discovery.register{value: MIN_COLLATERAL}(
+        uint reregisteredId = _registerAndApprove(
+            lp,
             "PegOut Provider Again",
             "lp2.com",
             true,
-            Flyover.ProviderType.PegOut
+            Flyover.ProviderType.PegOut,
+            MIN_COLLATERAL
         );
 
         assertEq(reregisteredId, originalProviderId);

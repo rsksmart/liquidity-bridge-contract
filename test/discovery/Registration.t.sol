@@ -174,6 +174,9 @@ contract RegistrationTest is DiscoveryTestBase {
             Flyover.ProviderType.PegIn
         );
 
+        vm.prank(owner);
+        discovery.approveRegistration(lp);
+
         Flyover.LiquidityProvider memory p = discovery.getProvider(lp);
         assertEq(bytes(p.name).length, MAX_PROVIDER_NAME_LENGTH);
         assertEq(bytes(p.apiBaseUrl).length, MAX_PROVIDER_API_BASE_URL_LENGTH);

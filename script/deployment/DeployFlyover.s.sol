@@ -83,9 +83,10 @@ contract DeployFlyover is Script {
     /// @dev Reuses the same deployment and role wiring logic as run().
     function deployForTesting(
         address defaultAdmin,
-        HelperConfig.FlyoverConfig memory cfg
+        HelperConfig.FlyoverConfig memory cfg,
+        Options memory opts
     ) external returns (FlyoverDeployment memory d) {
-        d = _deployAll(defaultAdmin, cfg);
+        d = _deployAll(defaultAdmin, cfg, opts);
         _setupRoles(d);
     }
 
