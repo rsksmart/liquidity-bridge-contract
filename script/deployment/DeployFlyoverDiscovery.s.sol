@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import {Script, console} from "lib/forge-std/src/Script.sol";
 import {HelperConfig} from "../HelperConfig.s.sol";
 import {ProxyReader} from "../helpers/ProxyReader.sol";
+import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
@@ -79,6 +80,12 @@ contract DeployFlyoverDiscovery is Script {
             flyoverDiscoveryProxy
         );
         result.admin = ProxyReader.readAdmin(vm, flyoverDiscoveryProxy);
+
+        FlyoverDiscovery discovery = FlyoverDiscovery(flyoverDiscoveryProxy);
+        discovery.initializeV2_1_0();
+
+        CollateralManagementContract(payable(collateralManagementProxy))
+            .initializeV2_1_0(flyoverDiscoveryProxy);
     }
 
     function _log(DeploymentResult memory r) private pure {

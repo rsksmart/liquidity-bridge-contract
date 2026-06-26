@@ -88,6 +88,8 @@ contract BenchmarkTest is Test {
         // Grant COLLATERAL_ADDER role
         bytes32 collateralAdder = collateralManagement.COLLATERAL_ADDER();
         collateralManagement.grantRole(collateralAdder, address(discovery));
+        collateralManagement.initializeV2_1_0(address(discovery));
+        discovery.initializeV2_1_0();
     }
 
     function test_RegisterAndFetchLPOfEachType() public {

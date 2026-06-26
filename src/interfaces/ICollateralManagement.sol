@@ -164,6 +164,10 @@ interface ICollateralManagement is IPausable {
     /// @notice Resigns a liquidity provider
     function resign() external;
 
+    /// @notice Sets the FlyoverDiscovery contract address
+    /// @param flyoverDiscovery The FlyoverDiscovery proxy address
+    function setFlyoverDiscovery(address flyoverDiscovery) external;
+
     /// @notice Gets the peg in collateral of an account
     /// @param addr The address of the account
     /// @return The amount of peg in collateral

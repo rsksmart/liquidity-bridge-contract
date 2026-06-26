@@ -80,6 +80,11 @@ interface IFlyoverDiscovery is IPausable {
     /// @param status The new status value
     function setProviderStatus(uint providerId, bool status) external;
 
+    /// @notice Removes a provider from active discovery enumeration after full collateral withdrawal
+    /// @dev Intended to be called by the configured collateral-management contract; no-ops for unknown providers
+    /// @param providerAddress The LP address to remove from active enumeration
+    function removeProvider(address providerAddress) external;
+
     /// @notice Lists LPs that should be visible to users
     /// @dev A provider is listed if it has sufficient collateral for at least one side and `status` is true
     /// @return providersToReturn Array of LP records to display

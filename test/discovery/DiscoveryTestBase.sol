@@ -7,6 +7,9 @@ import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {ICollateralManagement} from "../../src/interfaces/ICollateralManagement.sol";
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {TransparentUpgradeableProxy, ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import {ProxyReader} from "../../script/helpers/ProxyReader.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 import {IFlyoverDiscovery} from "../../src/interfaces/IFlyoverDiscovery.sol";
 
@@ -16,6 +19,7 @@ abstract contract DiscoveryTestBase is Test {
     PauseRegistry public pauseRegistry;
     FlyoverDiscovery public discovery;
     CollateralManagementContract public collateralManagement;
+    ProxyAdmin public proxyAdmin;
 
     address public owner;
     address public pegInLp;
@@ -127,6 +131,99 @@ abstract contract DiscoveryTestBase is Test {
         collateralManagement.grantRole(
             collateralManagement.COLLATERAL_ADDER(),
             address(discovery)
+        );
+        collateralManagement.initializeV2_1_0(address(discovery));
+        discovery.initializeV2_1_0();
+        vm.stopPrank();
+    }
+
+    /// @notice Deploy Discovery and CollateralManagement without v2.1.0 initialization (for migration tests)
+    /// @dev Uses TransparentUpgradeableProxy so implementations can be upgraded in tests
+    function deployDiscoveryWithoutV2_1_0() internal {
+        owner = makeAddr("owner");
+        vm.deal(owner, 100 ether);
+
+        PauseRegistry prImpl = new PauseRegistry();
+        TransparentUpgradeableProxy prProxy = new TransparentUpgradeableProxy(
+            address(prImpl),
+            owner,
+            abi.encodeCall(prImpl.initialize, (0, owner))
+        );
+        pauseRegistry = PauseRegistry(payable(address(prProxy)));
+
+        CollateralManagementContract cmImplementation = new CollateralManagementContract();
+        bytes memory cmInitData = abi.encodeCall(
+            CollateralManagementContract.initialize,
+            (
+                owner,
+                TEST_DEFAULT_ADMIN_DELAY,
+                TEST_MIN_COLLATERAL,
+                TEST_RESIGN_DELAY_BLOCKS,
+                TEST_REWARD_PERCENTAGE,
+                pauseRegistry
+            )
+        );
+        TransparentUpgradeableProxy cmProxy = new TransparentUpgradeableProxy(
+            address(cmImplementation),
+            owner,
+            cmInitData
+        );
+        collateralManagement = CollateralManagementContract(
+            payable(address(cmProxy))
+        );
+
+        FlyoverDiscovery discoveryImplementation = new FlyoverDiscovery();
+        bytes memory discoveryInitData = abi.encodeCall(
+            FlyoverDiscovery.initialize,
+            (
+                owner,
+                uint48(INITIAL_DELAY),
+                address(collateralManagement),
+                pauseRegistry
+            )
+        );
+        TransparentUpgradeableProxy discoveryProxy = new TransparentUpgradeableProxy(
+                address(discoveryImplementation),
+                owner,
+                discoveryInitData
+            );
+        discovery = FlyoverDiscovery(payable(address(discoveryProxy)));
+        proxyAdmin = ProxyAdmin(
+            ProxyReader.readAdmin(vm, address(discoveryProxy))
+        );
+
+        vm.startPrank(owner);
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_ADDER(),
+            owner
+        );
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_ADDER(),
+            address(discovery)
+        );
+        vm.stopPrank();
+    }
+
+    /// @notice Upgrade Discovery and CollateralManagement to fresh implementations
+    function upgradeDiscoveryContracts() internal {
+        address newDiscoveryImpl = address(new FlyoverDiscovery());
+        address newCmImpl = address(new CollateralManagementContract());
+        ProxyAdmin discoveryAdmin = ProxyAdmin(
+            ProxyReader.readAdmin(vm, address(discovery))
+        );
+        ProxyAdmin cmAdmin = ProxyAdmin(
+            ProxyReader.readAdmin(vm, address(collateralManagement))
+        );
+        vm.startPrank(owner);
+        discoveryAdmin.upgradeAndCall(
+            ITransparentUpgradeableProxy(address(discovery)),
+            newDiscoveryImpl,
+            ""
+        );
+        cmAdmin.upgradeAndCall(
+            ITransparentUpgradeableProxy(address(collateralManagement)),
+            newCmImpl,
+            ""
         );
         vm.stopPrank();
     }

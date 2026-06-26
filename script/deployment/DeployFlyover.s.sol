@@ -72,6 +72,7 @@ contract DeployFlyover is Script {
             helper.getOptions()
         );
         _setupRoles(d);
+        _initializeV2_1_0(d);
 
         vm.stopBroadcast();
 
@@ -88,6 +89,7 @@ contract DeployFlyover is Script {
     ) external returns (FlyoverDeployment memory d) {
         d = _deployAll(defaultAdmin, cfg, opts);
         _setupRoles(d);
+        _initializeV2_1_0(d);
     }
 
     function _deployAll(
@@ -222,6 +224,16 @@ contract DeployFlyover is Script {
         cm.grantRole(adder, d.flyoverDiscoveryProxy);
         cm.grantRole(slasher, d.pegInProxy);
         cm.grantRole(slasher, d.pegOutProxy);
+    }
+
+    function _initializeV2_1_0(FlyoverDeployment memory d) private {
+        CollateralManagementContract cm = CollateralManagementContract(
+            payable(d.collateralManagementProxy)
+        );
+        FlyoverDiscovery discovery = FlyoverDiscovery(d.flyoverDiscoveryProxy);
+
+        cm.initializeV2_1_0(d.flyoverDiscoveryProxy);
+        discovery.initializeV2_1_0();
     }
 
     function _log(FlyoverDeployment memory d) private pure {

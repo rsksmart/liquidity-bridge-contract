@@ -195,6 +195,8 @@ abstract contract FlyoverTestBase is Test {
             collateralManagement.COLLATERAL_ADDER(),
             address(discovery)
         );
+        collateralManagement.initializeV2_1_0(address(discovery));
+        discovery.initializeV2_1_0();
         vm.stopPrank();
     }
 
@@ -388,6 +390,8 @@ abstract contract FlyoverTestBase is Test {
             collateralManagement.COLLATERAL_SLASHER(),
             address(pegOutContract)
         );
+        collateralManagement.initializeV2_1_0(address(discovery));
+        discovery.initializeV2_1_0();
         vm.stopPrank();
 
         // Initialize BTC mocks

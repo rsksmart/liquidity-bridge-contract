@@ -182,6 +182,11 @@ contract DeployFlyoverTest is Test {
         pegOutContract = PegOutContract(payable(proxy));
     }
 
+    function _initializeV2_1_0() internal {
+        collateralManagement.initializeV2_1_0(address(discovery));
+        discovery.initializeV2_1_0();
+    }
+
     function test_FullDeploymentFlow() public {
         console.log("\n=== TEST FULL FLYOVER DEPLOYMENT ===\n");
 
@@ -229,6 +234,7 @@ contract DeployFlyoverTest is Test {
 
         _deployAll(deployer, cfg);
         _assertAllProxyAdminsOwnedBy(deployer);
+        _initializeV2_1_0();
 
         bytes32 collateralAdderRole = collateralManagement.COLLATERAL_ADDER();
         bytes32 collateralSlasherRole = collateralManagement
@@ -365,6 +371,7 @@ contract DeployFlyoverTest is Test {
 
         _deployAll(deployer, cfg);
         _assertAllProxyAdminsOwnedBy(deployer);
+        _initializeV2_1_0();
 
         // Setup roles
         bytes32 collateralAdderRole = collateralManagement.COLLATERAL_ADDER();

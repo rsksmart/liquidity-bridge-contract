@@ -10,6 +10,8 @@ contract CollateralManagementMock is ICollateralManagement {
 
     uint256 private _balance;
 
+    event FlyoverDiscoverySet(address indexed oldFlyoverDiscovery, address indexed newFlyoverDiscovery);
+
     function addPegInCollateralTo(address) external payable {
         _balance += msg.value;
     }
@@ -52,6 +54,10 @@ contract CollateralManagementMock is ICollateralManagement {
 
     function resign() external {
         emit Resigned(address(0));
+    }
+
+    function setFlyoverDiscovery(address addr) external {
+        emit FlyoverDiscoverySet(address(0), addr);
     }
 
     function getRewards(address) external pure returns (uint256) {

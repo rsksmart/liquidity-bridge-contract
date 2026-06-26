@@ -403,6 +403,8 @@ contract SystemInvariantTest is Test {
             collateralManagement.COLLATERAL_SLASHER(),
             slasher
         );
+        collateralManagement.initializeV2_1_0(address(discovery));
+        discovery.initializeV2_1_0();
         vm.stopPrank();
     }
 }
