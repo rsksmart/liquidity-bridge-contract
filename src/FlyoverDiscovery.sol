@@ -80,11 +80,15 @@ contract FlyoverDiscovery is
     // solhint-disable-next-line comprehensive-interface,func-name-mixedcase
     function initializeV2_1_0() external reinitializer(2) onlyRole(DEFAULT_ADMIN_ROLE) {
         Flyover.LiquidityProvider storage lp;
+        bool providerExists;
         for (uint i = 1; i < lastProviderId + 1; ++i) {
             lp = _liquidityProviders[i];
-            if (_collateralManagement.isRegistered(lp.providerType, lp.providerAddress)) {
-                _addActiveProvider(i);
+            providerExists = lp.providerAddress != address(0);
+            if (providerExists) {
                 _registrationStates[lp.providerAddress] = RegistrationState.Approved;
+            }
+            if (providerExists && _collateralManagement.isRegistered(lp.providerType, lp.providerAddress)) {
+                _addActiveProvider(i);
             }
         }
     }

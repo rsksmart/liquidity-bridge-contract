@@ -273,6 +273,41 @@ contract ActiveListingTest is DiscoveryTestBase {
         _assertProvidersExclude(lp);
     }
 
+    function test_WithdrawCollateral_SucceedsWhenRemoveProviderReverts()
+        public
+    {
+        deployDiscovery();
+        address lp = makeAddr("revertCallbackLp");
+        _registerAndApprove(
+            lp,
+            "LP",
+            Flyover.ProviderType.PegIn,
+            MIN_COLLATERAL
+        );
+
+        RemoveProviderRevertMock brokenDiscovery = new RemoveProviderRevertMock();
+        vm.prank(owner);
+        collateralManagement.setFlyoverDiscovery(address(brokenDiscovery));
+
+        uint256 balanceBefore = lp.balance;
+
+        vm.prank(lp);
+        collateralManagement.resign();
+        vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS);
+
+        vm.expectEmit(true, true, false, true);
+        emit CollateralManagementContract.FlyoverDiscoveryError(
+            abi.encodeWithSelector(
+                RemoveProviderRevertMock.RemoveProviderFailed.selector
+            )
+        );
+        vm.prank(lp);
+        collateralManagement.withdrawCollateral();
+
+        assertEq(lp.balance, balanceBefore + MIN_COLLATERAL);
+        assertEq(collateralManagement.getPegInCollateral(lp), 0);
+    }
+
     // ============ Initialization — FlyoverDiscovery ============
 
     function test_InitializeV2_1_0_EmptyStateSucceeds() public {
@@ -411,6 +446,37 @@ contract ActiveListingTest is DiscoveryTestBase {
 
         assertEq(discovery.getProviders().length, 1);
         _assertProvidersContain(keptLp);
+
+        assertEq(
+            uint256(discovery.getRegistrationState(pendingLp)),
+            uint256(IFlyoverDiscovery.RegistrationState.Pending),
+            "pending-only slots must not be backfilled to Approved"
+        );
+
+        assertEq(
+            uint256(discovery.getRegistrationState(resignedLp)),
+            uint256(IFlyoverDiscovery.RegistrationState.Approved),
+            "resigned LPs with discovery records should be marked Approved"
+        );
+        assertEq(discovery.getProvider(resignedLp).providerAddress, resignedLp);
+        assertFalse(
+            discovery.isOperational(Flyover.ProviderType.PegIn, resignedLp)
+        );
+        _assertProvidersExclude(resignedLp);
+
+        assertEq(
+            uint256(discovery.getRegistrationState(withdrawnLp)),
+            uint256(IFlyoverDiscovery.RegistrationState.Approved),
+            "withdrawn LPs with discovery records should be marked Approved"
+        );
+        assertEq(
+            discovery.getProvider(withdrawnLp).providerAddress,
+            withdrawnLp
+        );
+        assertFalse(
+            discovery.isOperational(Flyover.ProviderType.PegIn, withdrawnLp)
+        );
+        _assertProvidersExclude(withdrawnLp);
     }
 
     function test_InitializeV2_1_0_BackfillIgnoresInflatedLastProviderId()
@@ -453,6 +519,11 @@ contract ActiveListingTest is DiscoveryTestBase {
             MIN_COLLATERAL
         );
 
+        vm.expectEmit(true, true, false, true);
+        emit CollateralManagementContract.FlyoverDiscoverySet(
+            address(0),
+            address(discovery)
+        );
         vm.prank(owner);
         collateralManagement.initializeV2_1_0(address(discovery));
 
@@ -537,6 +608,11 @@ contract ActiveListingTest is DiscoveryTestBase {
         cm.initializeV2_1_0(address(discoveryA));
         discoveryA.initializeV2_1_0();
         cm.grantRole(cm.COLLATERAL_ADDER(), address(discoveryB));
+        vm.expectEmit(true, true, false, true);
+        emit CollateralManagementContract.FlyoverDiscoverySet(
+            address(discoveryA),
+            address(discoveryB)
+        );
         cm.setFlyoverDiscovery(address(discoveryB));
         discoveryB.initializeV2_1_0();
         vm.stopPrank();
@@ -675,5 +751,14 @@ contract ActiveListingTest is DiscoveryTestBase {
         upgradeDiscoveryContracts();
 
         assertEq(discovery.getProviders().length, 0);
+    }
+}
+
+/// @dev Discovery stand-in that always reverts on removeProvider
+contract RemoveProviderRevertMock {
+    error RemoveProviderFailed();
+
+    function removeProvider(address) external pure {
+        revert RemoveProviderFailed();
     }
 }

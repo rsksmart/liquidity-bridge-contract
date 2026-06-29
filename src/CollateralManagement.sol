@@ -50,6 +50,9 @@ contract CollateralManagementContract is
     /// @param oldFlyoverDiscovery The previous FlyoverDiscovery address
     /// @param newFlyoverDiscovery The new FlyoverDiscovery address
     event FlyoverDiscoverySet(address indexed oldFlyoverDiscovery, address indexed newFlyoverDiscovery);
+    /// @notice Emitted when an error occurs while removing a provider from the FlyoverDiscovery contract
+    /// @param reason The error message
+    event FlyoverDiscoveryError(bytes reason);
     /// @notice Emitted when the minimum collateral is set
     /// @param oldMinCollateral The old minimum collateral
     /// @param newMinCollateral The new minimum collateral
@@ -146,6 +149,7 @@ contract CollateralManagementContract is
         address flyoverDiscovery
     ) external reinitializer(2) onlyRole(DEFAULT_ADMIN_ROLE) {
         if (address(flyoverDiscovery).code.length == 0) revert Flyover.NoContract(flyoverDiscovery);
+        emit FlyoverDiscoverySet(address(_flyoverDiscovery), flyoverDiscovery);
         _flyoverDiscovery = IFlyoverDiscovery(flyoverDiscovery);
     }
 
@@ -390,7 +394,12 @@ contract CollateralManagementContract is
     /// @param providerAddress The address of the provider
     function _notifyCollateralWithdrawal(address providerAddress) private {
         if (address(_flyoverDiscovery) != address(0)) {
-            _flyoverDiscovery.removeProvider(providerAddress);
+            // try / catch  is to avoid blocking the collateral withdrawal if the discovery is misconfigured
+            // solhint-disable-next-line no-empty-blocks
+            try _flyoverDiscovery.removeProvider(providerAddress) {} 
+            catch (bytes memory reason) {
+                emit FlyoverDiscoveryError(reason);
+            }
         }
     }
 
