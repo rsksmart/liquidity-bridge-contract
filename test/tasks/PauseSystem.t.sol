@@ -1,18 +1,152 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {console} from "forge-std/console.sol";
-import {FlyoverTestBase} from "../helpers/FlyoverTestBase.sol";
+import {Test, console} from "forge-std/Test.sol";
 import {PauseSystem} from "../../script/tasks/PauseSystem.s.sol";
 import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
 
+/// @dev Mirrors PauseSystem registry checks with explicit addresses (parallel-safe; no vm.setEnv).
+interface IPauseRegistryGetter {
+    function pauseRegistry() external view returns (IPauseRegistry);
+}
+
+/// @dev Test-only helper: same behavior as PauseSystem but takes addresses as arguments.
+contract PauseSystemTestRunner is PauseSystem {
+    function _verifyAllContractsUseRegistryAt(
+        IPauseRegistry registry,
+        address pegInAddr,
+        address pegOutAddr,
+        address collateralAddr,
+        address discoveryAddr
+    ) internal view {
+        address expected = address(registry);
+
+        require(
+            address(IPauseRegistryGetter(pegInAddr).pauseRegistry()) ==
+                expected,
+            "PauseSystem: PegInContract has different PauseRegistry"
+        );
+        require(
+            address(IPauseRegistryGetter(pegOutAddr).pauseRegistry()) ==
+                expected,
+            "PauseSystem: PegOutContract has different PauseRegistry"
+        );
+        require(
+            address(IPauseRegistryGetter(collateralAddr).pauseRegistry()) ==
+                expected,
+            "PauseSystem: CollateralManagement has different PauseRegistry"
+        );
+        require(
+            address(IPauseRegistryGetter(discoveryAddr).pauseRegistry()) ==
+                expected,
+            "PauseSystem: FlyoverDiscovery has different PauseRegistry"
+        );
+    }
+
+    function checkStatusAt(
+        address registryAddr,
+        address pegInAddr,
+        address pegOutAddr,
+        address collateralAddr,
+        address discoveryAddr
+    ) public view {
+        console.log("\n=== FLYOVER PAUSE STATUS ===\n");
+
+        IPauseRegistry registry = IPauseRegistry(registryAddr);
+        _verifyAllContractsUseRegistryAt(
+            registry,
+            pegInAddr,
+            pegOutAddr,
+            collateralAddr,
+            discoveryAddr
+        );
+
+        console.log(
+            string.concat("PauseRegistry: ", vm.toString(address(registry)))
+        );
+        console.log("");
+
+        (bool isPaused, string memory reason, uint64 since) = registry
+            .pauseStatus();
+
+        console.log(string.concat("System: ", isPaused ? "PAUSED" : "ACTIVE"));
+        if (isPaused) {
+            console.log(string.concat("  Reason: ", reason));
+            console.log(string.concat("  Since: ", vm.toString(since)));
+        }
+
+        console.log("\n=============================\n");
+    }
+
+    function pauseAllAt(
+        address registryAddr,
+        address pegInAddr,
+        address pegOutAddr,
+        address collateralAddr,
+        address discoveryAddr,
+        string memory reason
+    ) public {
+        require(bytes(reason).length > 0, "Reason cannot be empty");
+
+        console.log("\n=== PAUSE OPERATION ===\n");
+        console.log(string.concat("Reason: ", reason));
+
+        IPauseRegistry registry = IPauseRegistry(registryAddr);
+        _verifyAllContractsUseRegistryAt(
+            registry,
+            pegInAddr,
+            pegOutAddr,
+            collateralAddr,
+            discoveryAddr
+        );
+
+        vm.startBroadcast();
+        registry.setPauseLevel(IPauseRegistry.PauseLevel.Soft, reason);
+        vm.stopBroadcast();
+
+        console.log(
+            "  [OK] PauseRegistry paused - all Flyover contracts are now paused"
+        );
+        console.log("\n[SUCCESS] System paused successfully!");
+    }
+
+    function unpauseAllAt(
+        address registryAddr,
+        address pegInAddr,
+        address pegOutAddr,
+        address collateralAddr,
+        address discoveryAddr
+    ) public {
+        console.log("\n=== UNPAUSE OPERATION ===\n");
+
+        IPauseRegistry registry = IPauseRegistry(registryAddr);
+        _verifyAllContractsUseRegistryAt(
+            registry,
+            pegInAddr,
+            pegOutAddr,
+            collateralAddr,
+            discoveryAddr
+        );
+
+        vm.startBroadcast();
+        registry.setPauseLevel(IPauseRegistry.PauseLevel.None, "");
+        vm.stopBroadcast();
+
+        console.log(
+            "  [OK] PauseRegistry unpaused - all Flyover contracts are now active"
+        );
+        console.log("\n[SUCCESS] System unpaused successfully!");
+    }
+}
+
 /**
  * @title PauseSystemTest
- * @notice Test for the pause-system task: registry from env, verify all contracts use same registry
+ * @notice Test for the pause-system task: registry verification and pause/unpause via script
  * @dev Uses mocks that expose pauseRegistry() and delegate pauseStatus() to the registry.
+ *      Tests pass addresses explicitly (not via vm.setEnv) so they are safe under parallel execution.
  */
-contract PauseSystemTest is FlyoverTestBase {
-    PauseSystem public pauseScript;
+contract PauseSystemTest is Test {
+    PauseSystemTestRunner public pauseScript;
 
     MockPauseRegistry public mockRegistry;
     MockPausableContract public mockDiscovery;
@@ -41,36 +175,50 @@ contract PauseSystemTest is FlyoverTestBase {
         console.log("  PegOutContract:", address(mockPegOut));
         console.log("  CollateralManagement:", address(mockCollateral));
 
-        pauseScript = new PauseSystem();
+        pauseScript = new PauseSystemTestRunner();
     }
 
-    /**
-     * @notice Set environment variables: registry from env, and all four contract addresses
-     */
-    function _setEnvVars() internal {
-        vm.setEnv("PAUSE_REGISTRY_ADDRESS", vm.toString(address(mockRegistry)));
-        vm.setEnv(
-            "FLYOVER_DISCOVERY_ADDRESS",
-            vm.toString(address(mockDiscovery))
-        );
-        vm.setEnv("PEGIN_CONTRACT_ADDRESS", vm.toString(address(mockPegIn)));
-        vm.setEnv("PEGOUT_CONTRACT_ADDRESS", vm.toString(address(mockPegOut)));
-        vm.setEnv(
-            "COLLATERAL_MANAGEMENT_ADDRESS",
-            vm.toString(address(mockCollateral))
+    function _mockAddresses()
+        internal
+        view
+        returns (
+            address registry,
+            address pegIn,
+            address pegOut,
+            address collateral,
+            address discovery
+        )
+    {
+        return (
+            address(mockRegistry),
+            address(mockPegIn),
+            address(mockPegOut),
+            address(mockCollateral),
+            address(mockDiscovery)
         );
     }
 
     function test_CheckStatus() public {
-        _setEnvVars();
         console.log("\n=== TEST CHECK STATUS ===\n");
 
         (bool r1, , ) = mockRegistry.pauseStatus();
         assertFalse(r1, "Registry should not be paused initially");
 
-        pauseScript.checkStatus();
+        (
+            address registry,
+            address pegIn,
+            address pegOut,
+            address collateral,
+            address discovery
+        ) = _mockAddresses();
+        pauseScript.checkStatusAt(
+            registry,
+            pegIn,
+            pegOut,
+            collateral,
+            discovery
+        );
 
-        // Pause the registry (central source of truth)
         mockRegistry.setPauseLevel(
             IPauseRegistry.PauseLevel.Soft,
             "Test pause for status check"
@@ -79,8 +227,13 @@ contract PauseSystemTest is FlyoverTestBase {
         (r1, , ) = mockRegistry.pauseStatus();
         assertTrue(r1, "Registry should be paused");
 
-        _setEnvVars();
-        pauseScript.checkStatus();
+        pauseScript.checkStatusAt(
+            registry,
+            pegIn,
+            pegOut,
+            collateral,
+            discovery
+        );
 
         console.log("\n[PASS] PauseSystem checkStatus works correctly!");
     }
@@ -156,11 +309,24 @@ contract PauseSystemTest is FlyoverTestBase {
     }
 
     function test_CompleteCycle() public {
-        _setEnvVars();
         console.log("\n=== TEST COMPLETE PAUSE/UNPAUSE CYCLE ===\n");
 
+        (
+            address registry,
+            address pegIn,
+            address pegOut,
+            address collateral,
+            address discovery
+        ) = _mockAddresses();
+
         console.log("1. Initial status check");
-        pauseScript.checkStatus();
+        pauseScript.checkStatusAt(
+            registry,
+            pegIn,
+            pegOut,
+            collateral,
+            discovery
+        );
 
         console.log("\n2. Pausing via registry");
         mockRegistry.setPauseLevel(
@@ -169,24 +335,48 @@ contract PauseSystemTest is FlyoverTestBase {
         );
 
         console.log("\n3. Status while paused");
-        _setEnvVars();
-        pauseScript.checkStatus();
+        pauseScript.checkStatusAt(
+            registry,
+            pegIn,
+            pegOut,
+            collateral,
+            discovery
+        );
 
         console.log("\n4. Unpausing registry");
         mockRegistry.setPauseLevel(IPauseRegistry.PauseLevel.None, "");
 
         console.log("\n5. Final status check");
-        _setEnvVars();
-        pauseScript.checkStatus();
+        pauseScript.checkStatusAt(
+            registry,
+            pegIn,
+            pegOut,
+            collateral,
+            discovery
+        );
 
         console.log("\n[PASS] Complete cycle successful!");
     }
 
     function test_PauseAllViaScript() public {
-        _setEnvVars();
         console.log("\n=== TEST PAUSE ALL VIA SCRIPT ===\n");
 
-        pauseScript.pauseAll("Script-initiated pause");
+        (
+            address registry,
+            address pegIn,
+            address pegOut,
+            address collateral,
+            address discovery
+        ) = _mockAddresses();
+
+        pauseScript.pauseAllAt(
+            registry,
+            pegIn,
+            pegOut,
+            collateral,
+            discovery,
+            "Script-initiated pause"
+        );
 
         (bool r1, string memory rReason, ) = mockRegistry.pauseStatus();
         assertTrue(r1, "Registry should be paused");
@@ -207,11 +397,31 @@ contract PauseSystemTest is FlyoverTestBase {
     }
 
     function test_UnpauseAllViaScript() public {
-        _setEnvVars();
         console.log("\n=== TEST UNPAUSE ALL VIA SCRIPT ===\n");
 
-        pauseScript.pauseAll("Pre-test pause");
-        pauseScript.unpauseAll();
+        (
+            address registry,
+            address pegIn,
+            address pegOut,
+            address collateral,
+            address discovery
+        ) = _mockAddresses();
+
+        pauseScript.pauseAllAt(
+            registry,
+            pegIn,
+            pegOut,
+            collateral,
+            discovery,
+            "Pre-test pause"
+        );
+        pauseScript.unpauseAllAt(
+            registry,
+            pegIn,
+            pegOut,
+            collateral,
+            discovery
+        );
 
         (bool r1, , ) = mockRegistry.pauseStatus();
         assertFalse(r1, "Registry should be unpaused");
@@ -227,85 +437,111 @@ contract PauseSystemTest is FlyoverTestBase {
     }
 
     function test_RevertsWhenContractHasDifferentRegistry() public {
-        _setEnvVars();
-
-        // Deploy another registry and a mock that points to it
         MockPauseRegistry otherRegistry = new MockPauseRegistry();
         MockPausableContract mockWithOtherRegistry = new MockPausableContract(
             "Other",
             otherRegistry
         );
 
-        // Point PegIn to a contract that has a *different* registry
-        vm.setEnv(
-            "PEGIN_CONTRACT_ADDRESS",
-            vm.toString(address(mockWithOtherRegistry))
-        );
+        (
+            address registry,
+            ,
+            address pegOut,
+            address collateral,
+            address discovery
+        ) = _mockAddresses();
 
         vm.expectRevert(
             "PauseSystem: PegInContract has different PauseRegistry"
         );
-        pauseScript.checkStatus();
+        pauseScript.checkStatusAt(
+            registry,
+            address(mockWithOtherRegistry),
+            pegOut,
+            collateral,
+            discovery
+        );
     }
 
     function test_RevertsWhenPegOutHasDifferentRegistry() public {
-        _setEnvVars();
-
         MockPauseRegistry otherRegistry = new MockPauseRegistry();
         MockPausableContract mockWithOtherRegistry = new MockPausableContract(
             "Other",
             otherRegistry
         );
 
-        vm.setEnv(
-            "PEGOUT_CONTRACT_ADDRESS",
-            vm.toString(address(mockWithOtherRegistry))
-        );
+        (
+            address registry,
+            address pegIn,
+            ,
+            address collateral,
+            address discovery
+        ) = _mockAddresses();
 
         vm.expectRevert(
             "PauseSystem: PegOutContract has different PauseRegistry"
         );
-        pauseScript.checkStatus();
+        pauseScript.checkStatusAt(
+            registry,
+            pegIn,
+            address(mockWithOtherRegistry),
+            collateral,
+            discovery
+        );
     }
 
     function test_RevertsWhenCollateralHasDifferentRegistry() public {
-        _setEnvVars();
-
         MockPauseRegistry otherRegistry = new MockPauseRegistry();
         MockPausableContract mockWithOtherRegistry = new MockPausableContract(
             "Other",
             otherRegistry
         );
 
-        vm.setEnv(
-            "COLLATERAL_MANAGEMENT_ADDRESS",
-            vm.toString(address(mockWithOtherRegistry))
-        );
+        (
+            address registry,
+            address pegIn,
+            address pegOut,
+            ,
+            address discovery
+        ) = _mockAddresses();
 
         vm.expectRevert(
             "PauseSystem: CollateralManagement has different PauseRegistry"
         );
-        pauseScript.checkStatus();
+        pauseScript.checkStatusAt(
+            registry,
+            pegIn,
+            pegOut,
+            address(mockWithOtherRegistry),
+            discovery
+        );
     }
 
     function test_RevertsWhenDiscoveryHasDifferentRegistry() public {
-        _setEnvVars();
-
         MockPauseRegistry otherRegistry = new MockPauseRegistry();
         MockPausableContract mockWithOtherRegistry = new MockPausableContract(
             "Other",
             otherRegistry
         );
 
-        vm.setEnv(
-            "FLYOVER_DISCOVERY_ADDRESS",
-            vm.toString(address(mockWithOtherRegistry))
-        );
+        (
+            address registry,
+            address pegIn,
+            address pegOut,
+            address collateral,
+
+        ) = _mockAddresses();
 
         vm.expectRevert(
             "PauseSystem: FlyoverDiscovery has different PauseRegistry"
         );
-        pauseScript.checkStatus();
+        pauseScript.checkStatusAt(
+            registry,
+            pegIn,
+            pegOut,
+            collateral,
+            address(mockWithOtherRegistry)
+        );
     }
 }
 
