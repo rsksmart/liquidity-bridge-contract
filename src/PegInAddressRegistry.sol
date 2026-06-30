@@ -108,25 +108,15 @@ contract PegInAddressRegistry is
             revert Flyover.Overflow(_MAX_BTC_HEIGHT);
         }
 
-        // The derivation value is the same fast-bridge derivation argument the Bridge uses to
-        // reconstruct the flyover redeem script, so a positive result means the BTC tx pays the
-        // address derived for `addr`. Permissionless: msg.sender is never checked against addr.
-        bytes32 derivationValue = _derivationValue(addr);
-        int256 bridgeResult = $.bridge.registerFastBridgeBtcTransaction(
-            btcTx,
-            blockHeight,
-            merkleProof,
-            derivationValue,
-            // No user/LP refund or call semantics in the registry: register the deposit only.
-            new bytes(0),
-            payable(this),
-            new bytes(0),
-            false
-        );
-        if (bridgeResult < _MIN_VALID_BRIDGE_RESULT) {
-            revert InvalidDepositProof(addr, bridgeResult);
-        }
-
+        // PoC: registration is RECORD-ONLY and permissionless (msg.sender is never checked
+        // against addr). Deposit-gating must VALIDATE — without consuming — that a BTC tx pays
+        // the derived address. The Bridge's registerFastBridgeBtcTransaction is the one-shot
+        // peg-in SETTLEMENT that resolvePegIn uses; calling it here would consume the peg-in and
+        // break the LP's claim, and land funds in this registry. The deposit is fully validated
+        // downstream at requestPegIn (confirmations) and resolvePegIn (the single bridge
+        // settlement). Proper read-only SPV deposit-gating (confirmations + in-contract output
+        // parsing to match the derived address) is follow-up hardening; (btcTx, blockHeight,
+        // merkleProof) are retained in the signature for it.
         $.registrationBlock[addr] = block.number;
         $.count += 1;
         _updateRoot(addr);

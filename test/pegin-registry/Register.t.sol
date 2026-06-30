@@ -6,7 +6,9 @@ import {PegInAddressRegistry} from "../../src/PegInAddressRegistry.sol";
 import {IPegInAddressRegistry} from "../../src/interfaces/IPegInAddressRegistry.sol";
 
 /// @title Registration tests (E2.4)
-/// @notice Deposit-gated, permissionless registration plus the view getters.
+/// @notice PoC: record-only, permissionless registration plus the view getters.
+/// Deposit-gating that validates (without consuming) the BTC deposit is follow-up
+/// hardening; the deposit is validated downstream at requestPegIn / resolvePegIn.
 contract RegisterTest is PegInRegistryTestBase {
     address internal constant USER = address(0xCAFE);
     address internal constant WATCHTOWER = address(0xBEEF);
@@ -17,9 +19,7 @@ contract RegisterTest is PegInRegistryTestBase {
         _deploy(false);
     }
 
-    function test_ValidDepositRegisters() public {
-        bridge.setPegin{value: 1 ether}(_derivationValue(USER));
-
+    function test_RegistersRecordOnly() public {
         bytes32 expectedRoot = keccak256(abi.encodePacked(bytes32(0), USER));
         vm.expectEmit(true, true, false, true, address(registry));
         emit AddressRegistered(USER, expectedRoot);
@@ -33,33 +33,25 @@ contract RegisterTest is PegInRegistryTestBase {
         assertEq(registry.getRegistrationRoot(), expectedRoot, "root updated");
     }
 
-    function test_InvalidProofReverts() public {
-        // No setPegin: the mock returns a bridge error (-303), so registration must revert.
-        vm.expectRevert(
-            abi.encodeWithSelector(PegInAddressRegistry.InvalidDepositProof.selector, USER, int256(-303))
-        );
+    function test_NoDepositProofNeeded() public {
+        // PoC record-only: registration succeeds without any bridge-validated deposit proof.
         vm.prank(USER);
-        registry.registerAddress(USER, hex"00", 1, hex"00");
-
-        assertFalse(registry.isRegistered(USER), "nothing registered on invalid proof");
-        assertEq(registry.getRegistrationCount(), 0, "count unchanged");
+        registry.registerAddress(USER, hex"", 0, hex"");
+        assertTrue(registry.isRegistered(USER), "registers without a deposit proof");
+        assertEq(registry.getRegistrationCount(), 1, "count incremented");
     }
 
     function test_PermissionlessCaller() public {
-        // A caller other than USER registers USER with a valid deposit, no signature.
-        bridge.setPegin{value: 1 ether}(_derivationValue(USER));
+        // A caller other than USER registers USER, no signature, no deposit.
         vm.prank(WATCHTOWER);
         registry.registerAddress(USER, hex"00", 1, hex"00");
-
         assertTrue(registry.isRegistered(USER), "third party can register on behalf of USER");
     }
 
     function test_DoubleRegisterReverts() public {
-        bridge.setPegin{value: 1 ether}(_derivationValue(USER));
         vm.prank(USER);
         registry.registerAddress(USER, hex"00", 1, hex"00");
 
-        bridge.setPegin{value: 1 ether}(_derivationValue(USER));
         vm.expectRevert(
             abi.encodeWithSelector(PegInAddressRegistry.AlreadyRegistered.selector, USER)
         );
