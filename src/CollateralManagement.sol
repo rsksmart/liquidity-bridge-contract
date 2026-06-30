@@ -6,6 +6,7 @@ import {
 } from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {ICollateralManagement} from "./interfaces/ICollateralManagement.sol";
 import {IPauseRegistry} from "./interfaces/IPauseRegistry.sol";
@@ -22,8 +23,14 @@ contract CollateralManagementContract is
     EmergencyPause,
     ICollateralManagement
 {
+    using EnumerableSet for EnumerableSet.AddressSet;
+
     /// @notice The version of the contract
     string constant public VERSION = "1.0.0";
+
+    /// @notice Default registration grace window in blocks (S0.3 provisional value).
+    /// A freshly registered LP is exempt from a global slash while it is inside this window.
+    uint256 public constant DEFAULT_GRACE_WINDOW = 100;
 
     /// @notice The role that can add collateral to the contract by using
     /// the addPegInCollateralTo or addPegOutCollateralTo functions
@@ -41,6 +48,30 @@ contract CollateralManagementContract is
     mapping(address => uint256) private _pegOutCollateral;
     mapping(address => uint256) private _resignationBlockNum;
     mapping(address => uint256) private _rewards;
+
+    // ------------------------------------------------------------
+    // E3 global-slash / grace-window state.
+    // Appended after the pre-existing fields above to preserve the storage
+    // layout of the upgradeable contract (existing slots are never reordered).
+    // ------------------------------------------------------------
+
+    /// @notice Set of currently registered LPs. Added on the registration path,
+    /// removed on resign or full collateral withdrawal.
+    EnumerableSet.AddressSet private _registeredLPs;
+    /// @notice Block number at which each LP was (most recently) registered.
+    mapping(address => uint256) private _registrationBlock;
+    /// @notice Number of blocks a freshly registered LP is exempt from a global slash.
+    uint256 private _graceWindow;
+
+    /// @notice Emitted when the grace window is set
+    /// @param oldGraceWindow The old grace window in blocks
+    /// @param newGraceWindow The new grace window in blocks
+    event GraceWindowSet(uint256 indexed oldGraceWindow, uint256 indexed newGraceWindow);
+
+    /// @notice Thrown when globalSlash is called with a zero total
+    error InvalidGlobalSlashAmount();
+    /// @notice Thrown when globalSlash finds no past-grace LP collateral to slash
+    error NoEligibleCollateral();
 
     /// @notice Emitted when the minimum collateral is set
     /// @param oldMinCollateral The old minimum collateral
@@ -128,6 +159,7 @@ contract CollateralManagementContract is
         _minCollateral = minCollateral;
         _resignDelayInBlocks = resignDelayInBlocks;
         _rewardPercentage = rewardPercentage;
+        _graceWindow = DEFAULT_GRACE_WINDOW;
     }
 
     /// @notice Sets the minimum collateral required for a liquidity provider **per operation**
@@ -155,6 +187,17 @@ contract CollateralManagementContract is
         }
         emit RewardPercentageSet(_rewardPercentage, rewardPercentage);
         _rewardPercentage = rewardPercentage;
+    }
+
+    /// @notice Sets the registration grace window in blocks. A freshly registered LP whose
+    /// `block.number <= registrationBlock + graceWindow` is exempt from a global slash.
+    /// @dev Restricted to DEFAULT_ADMIN_ROLE, matching the existing time-locked setter style
+    /// (the admin role transitions are governed by AccessControlDefaultAdminRules).
+    /// @param graceWindow The new grace window in blocks
+    // solhint-disable-next-line comprehensive-interface
+    function setGraceWindow(uint256 graceWindow) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        emit GraceWindowSet(_graceWindow, graceWindow);
+        _graceWindow = graceWindow;
     }
 
     /// @inheritdoc ICollateralManagement
@@ -209,6 +252,65 @@ contract CollateralManagementContract is
         );
     }
 
+    /// @notice Distributes a total penalty proportionally across all registered LPs that are
+    /// past their grace window, reusing the existing reward/penalty split.
+    /// @dev Eligible LPs are those with `block.number > registrationBlock[lp] + graceWindow`.
+    /// Each eligible LP is reduced by `total * lpCollateral / sumEligible` (capped at its
+    /// collateral). LPs inside their grace window are skipped and excluded from the
+    /// denominator. Reverts if there is no eligible collateral to slash.
+    /// Not paused, consistent with the individual slash functions.
+    /// @param total The total penalty to distribute (S0.3: one penaltyFee).
+    function globalSlash(uint256 total) external onlyRole(COLLATERAL_SLASHER) override {
+        if (total == 0) revert InvalidGlobalSlashAmount();
+
+        uint256 length = _registeredLPs.length();
+
+        // First pass: sum collateral of eligible (past-grace) LPs.
+        uint256 sumEligible = 0;
+        for (uint256 i = 0; i < length; ++i) {
+            address lp = _registeredLPs.at(i);
+            if (_isPastGraceWindow(lp)) {
+                sumEligible += _lpCollateral(lp);
+            }
+        }
+        if (sumEligible == 0) revert NoEligibleCollateral();
+
+        // Second pass: reduce each eligible LP proportionally and split per the
+        // existing reward/penalty scheme.
+        for (uint256 i = 0; i < length; ++i) {
+            address lp = _registeredLPs.at(i);
+            if (!_isPastGraceWindow(lp)) continue;
+
+            uint256 lpCollateral = _lpCollateral(lp);
+            if (lpCollateral == 0) continue;
+
+            // Proportional share, capped at the LP's collateral.
+            uint256 penalty = Math.min((total * lpCollateral) / sumEligible, lpCollateral);
+            if (penalty == 0) continue;
+
+            // Reduce peg-in first, then peg-out, to drain the LP's total collateral.
+            uint256 fromPegIn = Math.min(penalty, _pegInCollateral[lp]);
+            _pegInCollateral[lp] -= fromPegIn;
+            uint256 fromPegOut = penalty - fromPegIn;
+            if (fromPegOut > 0) {
+                _pegOutCollateral[lp] -= fromPegOut;
+            }
+
+            uint256 punisherReward = (penalty * _rewardPercentage) / TOTAL_REWARD_PERCENTAGE;
+            _penalties += penalty - punisherReward;
+            _rewards[msg.sender] += punisherReward;
+
+            emit Penalized(
+                lp,
+                msg.sender,
+                bytes32(0),
+                Flyover.ProviderType.Both,
+                penalty,
+                punisherReward
+            );
+        }
+    }
+
     /// @inheritdoc ICollateralManagement
     function withdrawCollateral() external nonReentrant whenNotHardPaused override {
         _withdrawCollateralTo(payable(msg.sender));
@@ -237,6 +339,7 @@ contract CollateralManagementContract is
             revert Flyover.ProviderNotRegistered(providerAddress);
         }
         _resignationBlockNum[providerAddress] = block.number;
+        _deregisterLP(providerAddress);
         emit Resigned(providerAddress);
     }
 
@@ -301,6 +404,36 @@ contract CollateralManagementContract is
         return _penalties;
     }
 
+    /// @notice The number of currently registered LPs in the enumerable set.
+    /// @return The set size
+    // solhint-disable-next-line comprehensive-interface
+    function registeredLPCount() external view returns (uint256) {
+        return _registeredLPs.length();
+    }
+
+    /// @notice Whether the given address is in the registered-LP set.
+    /// @param addr The address to check
+    /// @return True if the address is a registered LP
+    // solhint-disable-next-line comprehensive-interface
+    function isRegisteredLP(address addr) external view returns (bool) {
+        return _registeredLPs.contains(addr);
+    }
+
+    /// @notice The block at which the given LP was registered (0 if not registered).
+    /// @param addr The LP address
+    /// @return The registration block number
+    // solhint-disable-next-line comprehensive-interface
+    function getRegistrationBlock(address addr) external view returns (uint256) {
+        return _registrationBlock[addr];
+    }
+
+    /// @notice The current registration grace window in blocks.
+    /// @return The grace window
+    // solhint-disable-next-line comprehensive-interface
+    function getGraceWindow() external view returns (uint256) {
+        return _graceWindow;
+    }
+
     function _withdrawRewardsTo(address payable to) private {
         if (to == address(0)) revert Flyover.InvalidAddress(to);
         address addr = msg.sender;
@@ -327,6 +460,9 @@ contract CollateralManagementContract is
         _pegOutCollateral[providerAddress] = 0;
         _pegInCollateral[providerAddress] = 0;
         _resignationBlockNum[providerAddress] = 0;
+        // Full withdrawal: ensure the LP is out of the registered set (normally
+        // already removed at resign, which is a prerequisite for withdrawal).
+        _deregisterLP(providerAddress);
 
         emit WithdrawCollateral(providerAddress, to, amount);
         (bool success,) = to.call{value: amount}("");
@@ -340,6 +476,7 @@ contract CollateralManagementContract is
     /// @param amount The amount of peg in collateral to add
     function _addPegInCollateralTo(address addr, uint256 amount) private {
         _pegInCollateral[addr] += amount;
+        _registerLP(addr);
         emit ICollateralManagement.PegInCollateralAdded(addr, amount);
     }
 
@@ -350,7 +487,42 @@ contract CollateralManagementContract is
     /// @param amount The amount of peg out collateral to add
     function _addPegOutCollateralTo(address addr, uint256 amount) private {
         _pegOutCollateral[addr] += amount;
+        _registerLP(addr);
         emit ICollateralManagement.PegOutCollateralAdded(addr, amount);
+    }
+
+    /// @notice Adds an LP to the registered-LP set on its first registration and
+    /// records the registration block. No-op if the LP is already in the set, so a
+    /// later top-up does not reset its grace window.
+    /// @param addr The address of the LP
+    function _registerLP(address addr) private {
+        if (_registeredLPs.add(addr)) {
+            _registrationBlock[addr] = block.number;
+        }
+    }
+
+    /// @notice Removes an LP from the registered-LP set and clears its registration block.
+    /// @param addr The address of the LP
+    function _deregisterLP(address addr) private {
+        if (_registeredLPs.remove(addr)) {
+            _registrationBlock[addr] = 0;
+        }
+    }
+
+    /// @notice True if the LP is past its registration grace window and so is eligible
+    /// for a global slash. Boundary: an LP at exactly registrationBlock + graceWindow is
+    /// still in grace; one block later it is eligible.
+    /// @param lp The LP address
+    /// @return True if `block.number > registrationBlock[lp] + graceWindow`
+    function _isPastGraceWindow(address lp) private view returns (bool) {
+        return block.number > _registrationBlock[lp] + _graceWindow;
+    }
+
+    /// @notice The total (peg-in + peg-out) collateral held by an LP.
+    /// @param lp The LP address
+    /// @return The combined collateral
+    function _lpCollateral(address lp) private view returns (uint256) {
+        return _pegInCollateral[lp] + _pegOutCollateral[lp];
     }
 
     /// @notice Checks if an account is registered
