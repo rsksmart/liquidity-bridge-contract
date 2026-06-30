@@ -34,11 +34,12 @@ contract PegInAddressRegistry is
     /// address is a base58check-encoded P2SH address, matching the construction in PegInContract.
     Encoding public constant ADDRESS_ENCODING = Encoding.BASE58;
 
-    /// @dev Bridge error code threshold: a positive return value is the deposited amount; any
-    /// value below 1 is a bridge error / no valid deposit.
-    int256 private constant _MIN_VALID_BRIDGE_RESULT = 1;
-    /// @dev RSKj caps the BTC block height to a java int (int32).
-    uint256 private constant _MAX_BTC_HEIGHT = uint256(uint32(type(int32).max)) - 1;
+    /// @dev Minimum BTC confirmations required for a deposit proof to gate a registration.
+    /// `getBtcTransactionConfirmations` returns the confirmation count (>= 0) on success, or a
+    /// negative error code when the tx/block is unknown to the Bridge. PoC uses 1.
+    int256 private constant _MIN_CONFIRMATIONS = 1;
+    /// @dev Length in bytes of the HASH160 (ripemd160 of sha256) digest.
+    uint256 private constant _HASH160_SIZE = 20;
 
     /// @custom:storage-location erc7201:rsk.flyover.PegInAddressRegistry
     struct PegInAddressRegistryStorage {
@@ -56,6 +57,8 @@ contract PegInAddressRegistry is
 
     /// @notice Raised when an address that is already registered is registered again
     error AlreadyRegistered(address addr);
+    /// @notice Raised when no output of the supplied BTC tx pays the address derived for `addr`
+    error DepositAddressMismatch(address addr);
     /// @notice Raised when the bridge does not confirm a valid deposit to the derived address
     error InvalidDepositProof(address addr, int256 bridgeResult);
 
@@ -96,27 +99,55 @@ contract PegInAddressRegistry is
     /// @inheritdoc IPegInAddressRegistry
     function registerAddress(
         address addr,
-        bytes calldata btcTx,
-        uint256 blockHeight,
-        bytes calldata merkleProof
+        bytes calldata btcTxSerialized,
+        bytes32 btcBlockHash,
+        uint256 merkleBranchPath,
+        bytes32[] calldata merkleBranchHashes
     ) external nonReentrant override {
         PegInAddressRegistryStorage storage $ = _getStorage();
         if ($.registrationBlock[addr] != 0) {
             revert AlreadyRegistered(addr);
         }
-        if (blockHeight > _MAX_BTC_HEIGHT) {
-            revert Flyover.Overflow(_MAX_BTC_HEIGHT);
+
+        // READ-ONLY deposit-gating: this VALIDATES — without consuming — that a confirmed BTC tx
+        // pays the address derived for `addr`. It is permissionless (msg.sender is never checked
+        // against addr) and changes no state until every check passes.
+        //
+        // 1. Parse the tx outputs in-contract and require at least one pays the derived P2SH.
+        // 2. Read confirmations for the tx from the Bridge VIEW `getBtcTransactionConfirmations`.
+        //
+        // We deliberately do NOT call the Bridge's `registerFastBridgeBtcTransaction`: that is the
+        // one-shot peg-in SETTLEMENT owned by `PegInContract.resolvePegIn`. Calling it here would
+        // consume the peg-in (breaking the LP's claim) and land funds in this registry. The
+        // registry only proves a deposit exists; the actual settlement stays in resolvePegIn.
+
+        // (1) Output must pay the address derived for `addr` against the active powpeg.
+        bytes memory expectedScriptPubkey = _p2shScriptPubkey(addr);
+        BtcUtils.TxRawOutput[] memory outputs = BtcUtils.getOutputs(btcTxSerialized);
+        bool paysDerived = false;
+        for (uint256 i = 0; i < outputs.length; ++i) {
+            if (keccak256(outputs[i].pkScript) == keccak256(expectedScriptPubkey)) {
+                paysDerived = true;
+                break;
+            }
+        }
+        if (!paysDerived) {
+            revert DepositAddressMismatch(addr);
         }
 
-        // PoC: registration is RECORD-ONLY and permissionless (msg.sender is never checked
-        // against addr). Deposit-gating must VALIDATE — without consuming — that a BTC tx pays
-        // the derived address. The Bridge's registerFastBridgeBtcTransaction is the one-shot
-        // peg-in SETTLEMENT that resolvePegIn uses; calling it here would consume the peg-in and
-        // break the LP's claim, and land funds in this registry. The deposit is fully validated
-        // downstream at requestPegIn (confirmations) and resolvePegIn (the single bridge
-        // settlement). Proper read-only SPV deposit-gating (confirmations + in-contract output
-        // parsing to match the derived address) is follow-up hardening; (btcTx, blockHeight,
-        // merkleProof) are retained in the signature for it.
+        // (2) The tx must be confirmed on the BTC chain per the Bridge (read-only).
+        // txHash is the canonical BTC txid: byte-reversed double-SHA256 of the serialized tx.
+        bytes32 btcTxHash = BtcUtils.hashBtcTx(btcTxSerialized);
+        int256 confirmations = $.bridge.getBtcTransactionConfirmations(
+            btcTxHash,
+            btcBlockHash,
+            merkleBranchPath,
+            merkleBranchHashes
+        );
+        if (confirmations < _MIN_CONFIRMATIONS) {
+            revert InvalidDepositProof(addr, confirmations);
+        }
+
         $.registrationBlock[addr] = block.number;
         $.count += 1;
         _updateRoot(addr);
@@ -195,21 +226,38 @@ contract PegInAddressRegistry is
     /// @param addr The RSK address
     /// @return The encoded BTC deposit address
     function _deriveAddress(address addr) private view returns (bytes memory) {
-        PegInAddressRegistryStorage storage $ = _getStorage();
+        // Self-call to satisfy BtcUtils' calldata signature while keeping the construction here.
+        return this.p2shAddressFromScript(_segwitScript(addr), _getStorage().mainnet);
+    }
+
+    /// @notice Builds the segwit redeem script (OP_0 OP_PUSHBYTES_32 sha256(flyoverRedeemScript))
+    /// whose P2SH wrap is the BTC deposit address for `addr`. Reads the active powpeg redeem
+    /// script live from the Bridge. Shared by the address getters and the deposit-gating match.
+    /// @param addr The RSK address
+    /// @return The segwit script for `addr` against the current powpeg
+    function _segwitScript(address addr) private view returns (bytes memory) {
         bytes32 derivationValue = _derivationValue(addr);
         bytes memory flyoverRedeemScript = bytes.concat(
             OpCodes.OP_PUSHBYTES_32,
             derivationValue,
             OpCodes.OP_DROP,
-            $.bridge.getActivePowpegRedeemScript()
+            _getStorage().bridge.getActivePowpegRedeemScript()
         );
-        bytes memory segwitScript = bytes.concat(
+        return bytes.concat(
             OpCodes.OP_0,
             OpCodes.OP_PUSHBYTES_32,
             sha256(flyoverRedeemScript)
         );
-        // Self-call to satisfy BtcUtils' calldata signature while keeping the construction here.
-        return this.p2shAddressFromScript(segwitScript, $.mainnet);
+    }
+
+    /// @notice Builds the on-chain P2SH output script that a BTC deposit to `addr` must carry:
+    /// OP_HASH160 <ripemd160(sha256(segwitScript))> OP_EQUAL. This is the raw pkScript form a
+    /// parsed tx output exposes, so the deposit-gating compares it directly against the outputs.
+    /// @param addr The RSK address
+    /// @return The 25-byte P2SH scriptPubkey for `addr`
+    function _p2shScriptPubkey(address addr) private view returns (bytes memory) {
+        bytes20 scriptHash = ripemd160(abi.encodePacked(sha256(_segwitScript(addr))));
+        return bytes.concat(OpCodes.OP_HASH160, bytes1(uint8(_HASH160_SIZE)), scriptHash, OpCodes.OP_EQUAL);
     }
 
     /// @notice Computes the locked derivation value for an RSK address

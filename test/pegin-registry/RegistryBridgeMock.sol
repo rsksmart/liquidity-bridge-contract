@@ -13,6 +13,9 @@ contract RegistryBridgeMock is IBridge {
     mapping(bytes32 => uint256) private _amounts;
     int256 private _registerError;
     bytes private _redeemScript;
+    // Confirmations the bridge VIEW reports for any tx. Defaults to 6 (enough to gate a
+    // registration); a test can force an insufficient count (0) or a negative error code.
+    int256 private _confirmations = 6;
 
     constructor() {
         // Default: the same redeem script the shared BridgeMock returns, so off-chain
@@ -44,6 +47,12 @@ contract RegistryBridgeMock is IBridge {
     /// @notice Forces a bridge error code from registerFastBridgeBtcTransaction
     function setPeginError(int256 errorCode) external {
         _registerError = errorCode;
+    }
+
+    /// @notice Sets the confirmation count the read-only getBtcTransactionConfirmations reports.
+    /// Use a negative value to emulate an unknown tx/block (bridge error code).
+    function setConfirmations(int256 confirmations) external {
+        _confirmations = confirmations;
     }
 
     // solhint-disable-next-line gas-calldata-parameters
@@ -132,7 +141,7 @@ contract RegistryBridgeMock is IBridge {
     function getFeePerKb() external pure override returns (int256) { return 0; }
     function getMinimumLockTxValue() external pure override returns (int256) { return 2; }
     function getBtcTransactionConfirmations(bytes32, bytes32, uint256, bytes32[] calldata)
-        external pure override returns (int256) { return 2; }
+        external view override returns (int256) { return _confirmations; }
     function getLockingCap() external pure override returns (int256) { return 0; }
     function hasBtcBlockCoinbaseTransactionInformation(bytes32) external pure override returns (bool) { return false; }
     function getActiveFederationCreationBlockHeight() external pure override returns (uint256) { return 0; }

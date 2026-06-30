@@ -15,17 +15,22 @@ interface IPegInAddressRegistry {
     /// @param registrationRoot The running-hash root after this registration
     event AddressRegistered(address indexed addr, bytes32 indexed registrationRoot);
 
-    /// @notice Register an RSK address, gated by an SPV proof of a BTC deposit to the
-    /// address derived for `addr`. Permissionless: any caller may register on behalf of `addr`.
+    /// @notice Register an RSK address, gated by a read-only SPV proof of a BTC deposit to the
+    /// address derived for `addr`. The registry parses the tx outputs to confirm one pays the
+    /// derived P2SH and reads the tx's confirmations from the Bridge VIEW
+    /// `getBtcTransactionConfirmations`; it never consumes the peg-in (settlement stays in
+    /// `PegInContract.resolvePegIn`). Permissionless: any caller may register on behalf of `addr`.
     /// @param addr The RSK address to register
-    /// @param btcTx The raw BTC transaction (without witness data)
-    /// @param blockHeight The BTC block height of the transaction
-    /// @param merkleProof The partial merkle tree proving inclusion of the transaction
+    /// @param btcTxSerialized The raw BTC transaction (without witness data)
+    /// @param btcBlockHash The hash of the BTC block including the transaction
+    /// @param merkleBranchPath The merkle branch path proving inclusion of the transaction
+    /// @param merkleBranchHashes The merkle branch hashes proving inclusion of the transaction
     function registerAddress(
         address addr,
-        bytes calldata btcTx,
-        uint256 blockHeight,
-        bytes calldata merkleProof
+        bytes calldata btcTxSerialized,
+        bytes32 btcBlockHash,
+        uint256 merkleBranchPath,
+        bytes32[] calldata merkleBranchHashes
     ) external;
 
     /// @notice Returns the BTC deposit address derived for `addr` against the current powpeg

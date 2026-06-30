@@ -137,12 +137,35 @@ abstract contract E4TestBase is Test {
         return config.calculatePegInFee(amount);
     }
 
+    /// @notice Builds the 25-byte P2SH scriptPubkey (OP_HASH160 <hash160> OP_EQUAL) of the address
+    /// the registry derives for `addr`. The derived address is versionByte || hash160(20) || checksum(4).
+    function _derivedScriptPubkey(address addr) internal view returns (bytes memory) {
+        (bytes memory a, ) = registry.getPegInAddress(addr);
+        require(a.length == 25, "unexpected derived address length");
+        bytes20 hash160;
+        assembly {
+            hash160 := mload(add(a, 33))
+        }
+        return bytes.concat(hex"a914", hash160, hex"87");
+    }
+
+    /// @notice Builds a minimal serialized BTC tx (single P2SH output) paying the derived address.
+    function _btcTxForAddr(address addr) internal view returns (bytes memory) {
+        bytes memory scriptPubkey = _derivedScriptPubkey(addr);
+        return bytes.concat(
+            hex"02000000", hex"01", bytes32(0), hex"00000000", hex"00", hex"ffffffff",
+            hex"01", hex"00ca9a3b00000000", bytes1(uint8(scriptPubkey.length)), scriptPubkey,
+            hex"00000000"
+        );
+    }
+
     /// @notice Registers `addr` in the registry by proving a BTC deposit to its derived address. The
     /// deposit is left funded in the bridge mock so a later resolvePegIn can settle it.
     function _register(address addr, uint256 amount) internal {
         vm.deal(address(this), address(this).balance + amount);
         bridge.fund{value: amount}(_derivationValue(addr));
-        registry.registerAddress(addr, hex"00", 1, hex"00");
+        bytes32[] memory branches;
+        registry.registerAddress(addr, _btcTxForAddr(addr), bytes32(0), 0, branches);
     }
 
     /// @notice Builds an OP_RETURN SC-call payload: destContract(20) || maxGasFee(32) || callData.

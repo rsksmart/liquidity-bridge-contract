@@ -14,8 +14,8 @@ contract RootTest is PegInRegistryTestBase {
     }
 
     function test_RootFoldsInOrder() public {
-        _registerWithDeposit(A, address(0x1), 1 ether);
-        _registerWithDeposit(B, address(0x2), 1 ether);
+        _registerWithDeposit(A, address(0x1));
+        _registerWithDeposit(B, address(0x2));
 
         bytes32 expected = keccak256(
             abi.encodePacked(
@@ -28,14 +28,14 @@ contract RootTest is PegInRegistryTestBase {
 
     function test_OrderMatters() public {
         // A then B
-        _registerWithDeposit(A, address(0x1), 1 ether);
-        _registerWithDeposit(B, address(0x2), 1 ether);
+        _registerWithDeposit(A, address(0x1));
+        _registerWithDeposit(B, address(0x2));
         bytes32 rootAB = registry.getRegistrationRoot();
 
         // Fresh registry: B then A
         _deploy(false);
-        _registerWithDeposit(B, address(0x2), 1 ether);
-        _registerWithDeposit(A, address(0x1), 1 ether);
+        _registerWithDeposit(B, address(0x2));
+        _registerWithDeposit(A, address(0x1));
         bytes32 rootBA = registry.getRegistrationRoot();
 
         assertTrue(rootAB != rootBA, "A-then-B root differs from B-then-A");
