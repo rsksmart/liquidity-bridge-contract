@@ -77,7 +77,7 @@ contract UnclaimedSlashTest is E4TestBase {
         uint256 net = AMOUNT - _fee(AMOUNT);
         bytes32 txHash = keccak256("claimed");
         vm.prank(lp);
-        pegIn.requestPegIn{value: net}(user, AMOUNT, txHash, new bytes(0));
+        pegIn.requestPegIn{value: net}(user, AMOUNT, txHash, new bytes(0), bytes32(0), 0, _noBranches());
 
         _pastDeadline(user);
         vm.prank(otherLp);

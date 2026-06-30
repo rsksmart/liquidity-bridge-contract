@@ -22,7 +22,7 @@ contract RequestPegInTest is E4TestBase {
         uint256 userBefore = user.balance;
 
         vm.prank(lp);
-        pegIn.requestPegIn{value: net}(user, AMOUNT, TX_HASH, new bytes(0));
+        pegIn.requestPegIn{value: net}(user, AMOUNT, TX_HASH, new bytes(0), bytes32(0), 0, _noBranches());
 
         assertEq(user.balance - userBefore, net, "user receives amount - fee");
         assertEq(lpBefore - lp.balance, net, "LP wallet debited by the fronted amount");
@@ -37,13 +37,13 @@ contract RequestPegInTest is E4TestBase {
     function test_DoubleClaim_Reverts() public {
         uint256 net = AMOUNT - _fee(AMOUNT);
         vm.prank(lp);
-        pegIn.requestPegIn{value: net}(user, AMOUNT, TX_HASH, new bytes(0));
+        pegIn.requestPegIn{value: net}(user, AMOUNT, TX_HASH, new bytes(0), bytes32(0), 0, _noBranches());
 
         vm.prank(otherLp);
         vm.expectRevert(
             abi.encodeWithSelector(PegInContract.PegInAlreadyProcessed.selector, pegIn.pegInId(user, TX_HASH))
         );
-        pegIn.requestPegIn{value: net}(user, AMOUNT, TX_HASH, new bytes(0));
+        pegIn.requestPegIn{value: net}(user, AMOUNT, TX_HASH, new bytes(0), bytes32(0), 0, _noBranches());
     }
 
     function test_UnregisteredAddress_Reverts() public {
@@ -51,7 +51,7 @@ contract RequestPegInTest is E4TestBase {
         uint256 net = AMOUNT - _fee(AMOUNT);
         vm.prank(lp);
         vm.expectRevert(abi.encodeWithSelector(PegInContract.AddressNotRegistered.selector, stranger));
-        pegIn.requestPegIn{value: net}(stranger, AMOUNT, TX_HASH, new bytes(0));
+        pegIn.requestPegIn{value: net}(stranger, AMOUNT, TX_HASH, new bytes(0), bytes32(0), 0, _noBranches());
     }
 
     function test_InsufficientConfirmations_Reverts() public {
@@ -59,7 +59,7 @@ contract RequestPegInTest is E4TestBase {
         uint256 net = AMOUNT - _fee(AMOUNT);
         vm.prank(lp);
         vm.expectRevert(abi.encodeWithSelector(PegInContract.InsufficientConfirmations.selector, 5, 6));
-        pegIn.requestPegIn{value: net}(user, AMOUNT, TX_HASH, new bytes(0));
+        pegIn.requestPegIn{value: net}(user, AMOUNT, TX_HASH, new bytes(0), bytes32(0), 0, _noBranches());
     }
 
     function test_WrongFrontedValue_Reverts() public {
@@ -68,6 +68,6 @@ contract RequestPegInTest is E4TestBase {
         vm.expectRevert(
             abi.encodeWithSelector(PegInContract.IncorrectFronting.selector, net, net - 1)
         );
-        pegIn.requestPegIn{value: net - 1}(user, AMOUNT, TX_HASH, new bytes(0));
+        pegIn.requestPegIn{value: net - 1}(user, AMOUNT, TX_HASH, new bytes(0), bytes32(0), 0, _noBranches());
     }
 }

@@ -137,6 +137,13 @@ abstract contract E4TestBase is Test {
         return config.calculatePegInFee(amount);
     }
 
+    /// @notice An empty merkle-branch array for the SPV-proof claim args. The E4BridgeMock reads the
+    /// confirmation count from setConfirmations and ignores the proof contents, so a dummy block hash
+    /// (bytes32(0)), path (0) and empty branch exercise the proof-based gate without a real Merkle path.
+    function _noBranches() internal pure returns (bytes32[] memory) {
+        return new bytes32[](0);
+    }
+
     /// @notice Builds the 25-byte P2SH scriptPubkey (OP_HASH160 <hash160> OP_EQUAL) of the address
     /// the registry derives for `addr`. The derived address is versionByte || hash160(20) || checksum(4).
     function _derivedScriptPubkey(address addr) internal view returns (bytes memory) {

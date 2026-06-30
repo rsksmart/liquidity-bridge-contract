@@ -27,7 +27,7 @@ contract OpReturnCallTest is E4TestBase {
         bytes32 txHash = keccak256("sc-call");
 
         vm.prank(lp);
-        bool ok = pegIn.requestPegIn{value: net}(user, AMOUNT, txHash, opReturn);
+        bool ok = pegIn.requestPegIn{value: net}(user, AMOUNT, txHash, opReturn, bytes32(0), 0, _noBranches());
 
         assertTrue(ok, "call reported success");
         assertTrue(target.called(), "destination invoked");
@@ -41,7 +41,7 @@ contract OpReturnCallTest is E4TestBase {
         bytes32 txHash = keccak256("plain");
 
         vm.prank(lp);
-        bool ok = pegIn.requestPegIn{value: net}(user, AMOUNT, txHash, new bytes(0));
+        bool ok = pegIn.requestPegIn{value: net}(user, AMOUNT, txHash, new bytes(0), bytes32(0), 0, _noBranches());
 
         assertTrue(ok, "plain peg-in reports success");
         assertEq(user.balance - userBefore, net, "RSK address received net amount");
@@ -57,7 +57,7 @@ contract OpReturnCallTest is E4TestBase {
 
         vm.prank(lp);
         // The peg-in must NOT revert even though the destination reverts.
-        bool ok = pegIn.requestPegIn{value: net}(user, AMOUNT, txHash, opReturn);
+        bool ok = pegIn.requestPegIn{value: net}(user, AMOUNT, txHash, opReturn, bytes32(0), 0, _noBranches());
 
         assertFalse(ok, "failed call reported");
         // Funds went to the refund address (the RSK address).

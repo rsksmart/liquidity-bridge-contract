@@ -381,20 +381,29 @@ contract PegInContract is
     /// wallet (msg.value), delivering `amount - fee` to the user or an OP_RETURN-described destination.
     /// The fee and the required confirmations come from FlyoverConfigurations, not a quote. The claim is
     /// later settled by resolvePegIn, which returns the fronted RBTC plus the fee to the claimer.
-    /// @dev Reverts on the FIRST line if the peg-in id is already processed (cheap double-claim guard).
+    /// @dev The deposit's confirmation count is read from the Bridge with a FULL SPV proof
+    /// (blockHash + merkle branch). This is the only confirmation path the rskj Bridge supports: the
+    /// hash-only lookup (getBtcTransactionConfirmations with a zero block hash and empty branch) has no
+    /// by-hash tx index and always returns -1, so a proof-free claim could never pass the gate.
+    /// Reverts on the FIRST line if the peg-in id is already processed (cheap double-claim guard).
     /// @param rskAddr The registered RSK address whose deposit address received the BTC
     /// @param amount The full peg-in amount (LP fronts amount - fee; fee is config-sourced)
-    /// @param btcTxHash The BTC transaction id of the deposit (identifies the peg-in)
+    /// @param btcTxHash The BTC transaction id of the deposit (BIG-ENDIAN display order, as the Bridge expects)
     /// @param opReturn The OP_RETURN script bytes for an SC-call peg-in, or empty for a plain peg-in
+    /// @param btcBlockHash The block hash containing the deposit (BIG-ENDIAN display order)
+    /// @param merkleBranchPath The merkle branch path bits
+    /// @param merkleBranchHashes The merkle branch sibling hashes (BIG-ENDIAN display order)
     /// @return callSuccess Whether the destination call (if any) succeeded
     function requestPegIn(
         address rskAddr,
         uint256 amount,
         bytes32 btcTxHash,
-        bytes calldata opReturn
+        bytes calldata opReturn,
+        bytes32 btcBlockHash,
+        uint256 merkleBranchPath,
+        bytes32[] calldata merkleBranchHashes
     ) external payable nonReentrant whenNotHardPaused returns (bool callSuccess) {
         bytes32 id = _pegInId(rskAddr, btcTxHash);
-        // First line: cheap revert on a double claim.
         if (_claims[id].claimer != address(0)) revert PegInAlreadyProcessed(id);
 
         if (address(_registry) == address(0) || address(_configurations) == address(0)) {
@@ -403,9 +412,22 @@ contract PegInContract is
         if (!_registry.isRegistered(rskAddr)) revert AddressNotRegistered(rskAddr);
 
         uint256 required = _configurations.getRequiredPegInConfirmations(amount);
-        uint256 confirmations = _confirmationsFor(btcTxHash);
+        uint256 confirmations = _confirmationsFor(
+            btcTxHash, btcBlockHash, merkleBranchPath, merkleBranchHashes
+        );
         if (confirmations < required) revert InsufficientConfirmations(confirmations, required);
 
+        callSuccess = _finalizeClaim(id, rskAddr, amount, opReturn);
+    }
+
+    /// @notice Shared tail of the claim path: charges the config fee, requires the LP to front
+    /// `amount - fee` as msg.value, records the claim, and delivers to the user/destination.
+    function _finalizeClaim(
+        bytes32 id,
+        address rskAddr,
+        uint256 amount,
+        bytes calldata opReturn
+    ) private returns (bool callSuccess) {
         uint256 fee = _configurations.calculatePegInFee(amount);
         uint256 netToUser = amount - fee;
         // The LP fronts the net amount from its own wallet, NOT from contract _balances.
@@ -710,13 +732,23 @@ contract PegInContract is
         isCall = true;
     }
 
-    /// @notice Reads the confirmations for a BTC transaction from the Bridge.
-    /// @dev Canonical confirmations count is read by tx hash; PoC/mock scope does not need block/merkle inputs.
-    /// @param btcTxHash The BTC transaction id
+    /// @notice Reads confirmations from the Bridge using a FULL SPV proof (tx hash + block hash + merkle
+    /// branch). The rskj Bridge supports this path; the hash-only lookup always returns -1, so this is the
+    /// only working confirmation gate.
+    /// @param btcTxHash The BTC transaction id (BIG-ENDIAN display order)
+    /// @param btcBlockHash The block hash containing the deposit (BIG-ENDIAN display order)
+    /// @param merkleBranchPath The merkle branch path bits
+    /// @param merkleBranchHashes The merkle branch sibling hashes (BIG-ENDIAN display order)
     /// @return The number of confirmations (0 if the Bridge returns a negative error code)
-    function _confirmationsFor(bytes32 btcTxHash) private view returns (uint256) {
-        bytes32[] memory empty;
-        int256 result = _bridge.getBtcTransactionConfirmations(btcTxHash, bytes32(0), 0, empty);
+    function _confirmationsFor(
+        bytes32 btcTxHash,
+        bytes32 btcBlockHash,
+        uint256 merkleBranchPath,
+        bytes32[] calldata merkleBranchHashes
+    ) private view returns (uint256) {
+        int256 result = _bridge.getBtcTransactionConfirmations(
+            btcTxHash, btcBlockHash, merkleBranchPath, merkleBranchHashes
+        );
         return result < 0 ? 0 : uint256(result);
     }
 

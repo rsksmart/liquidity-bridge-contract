@@ -23,7 +23,7 @@ contract OpReturnParseTest is E4TestBase {
         uint256 net = AMOUNT - _fee(AMOUNT);
 
         vm.prank(lp);
-        bool ok = pegIn.requestPegIn{value: net}(user, AMOUNT, keccak256("wf"), opReturn);
+        bool ok = pegIn.requestPegIn{value: net}(user, AMOUNT, keccak256("wf"), opReturn, bytes32(0), 0, _noBranches());
 
         assertTrue(ok, "well-formed SC-call succeeds");
         assertTrue(target.called(), "destination invoked");
@@ -37,7 +37,7 @@ contract OpReturnParseTest is E4TestBase {
         uint256 userBefore = user.balance;
 
         vm.prank(lp);
-        bool ok = pegIn.requestPegIn{value: net}(user, AMOUNT, keccak256("short"), opReturn);
+        bool ok = pegIn.requestPegIn{value: net}(user, AMOUNT, keccak256("short"), opReturn, bytes32(0), 0, _noBranches());
 
         assertTrue(ok, "plain peg-in succeeds");
         assertEq(user.balance - userBefore, net, "malformed OP_RETURN paid out as plain peg-in");
@@ -50,7 +50,7 @@ contract OpReturnParseTest is E4TestBase {
         uint256 userBefore = user.balance;
 
         vm.prank(lp);
-        bool ok = pegIn.requestPegIn{value: net}(user, AMOUNT, keccak256("big"), opReturn);
+        bool ok = pegIn.requestPegIn{value: net}(user, AMOUNT, keccak256("big"), opReturn, bytes32(0), 0, _noBranches());
 
         assertTrue(ok, "plain peg-in succeeds");
         assertEq(user.balance - userBefore, net, "oversized OP_RETURN paid out as plain peg-in");
@@ -62,7 +62,7 @@ contract OpReturnParseTest is E4TestBase {
         uint256 userBefore = user.balance;
 
         vm.prank(lp);
-        bool ok = pegIn.requestPegIn{value: net}(user, AMOUNT, keccak256("zero"), opReturn);
+        bool ok = pegIn.requestPegIn{value: net}(user, AMOUNT, keccak256("zero"), opReturn, bytes32(0), 0, _noBranches());
 
         assertTrue(ok, "zero-destination treated as plain");
         assertEq(user.balance - userBefore, net, "net sent to RSK address");

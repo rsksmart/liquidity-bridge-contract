@@ -21,7 +21,7 @@ contract ConfigFeesTest is E4TestBase {
         uint256 userBefore = user.balance;
 
         vm.prank(lp);
-        pegIn.requestPegIn{value: net}(user, amount, keccak256("fee"), new bytes(0));
+        pegIn.requestPegIn{value: net}(user, amount, keccak256("fee"), new bytes(0), bytes32(0), 0, _noBranches());
 
         // The fee withheld from the user equals calculatePegInFee.
         assertEq(amount - (user.balance - userBefore), expectedFee, "fee == calculatePegInFee");
@@ -42,11 +42,11 @@ contract ConfigFeesTest is E4TestBase {
         bridge.setConfirmations(1);
         vm.prank(lp);
         vm.expectRevert(abi.encodeWithSelector(PegInContract.InsufficientConfirmations.selector, 1, 2));
-        pegIn.requestPegIn{value: net}(user, amount, keccak256("c0"), new bytes(0));
+        pegIn.requestPegIn{value: net}(user, amount, keccak256("c0"), new bytes(0), bytes32(0), 0, _noBranches());
 
         bridge.setConfirmations(2);
         vm.prank(lp);
-        pegIn.requestPegIn{value: net}(user, amount, keccak256("c0"), new bytes(0));
+        pegIn.requestPegIn{value: net}(user, amount, keccak256("c0"), new bytes(0), bytes32(0), 0, _noBranches());
     }
 
     function test_ConfirmationsMatchTier_HighTier() public {
@@ -60,6 +60,6 @@ contract ConfigFeesTest is E4TestBase {
         vm.deal(lp, 200 ether);
         vm.prank(lp);
         vm.expectRevert(abi.encodeWithSelector(PegInContract.InsufficientConfirmations.selector, 19, 20));
-        pegIn.requestPegIn{value: net}(otherLp, amount, keccak256("big"), new bytes(0));
+        pegIn.requestPegIn{value: net}(otherLp, amount, keccak256("big"), new bytes(0), bytes32(0), 0, _noBranches());
     }
 }

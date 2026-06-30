@@ -22,7 +22,7 @@ contract ResolvePegInTest is E4TestBase {
     function _claim(bytes32 txHash) internal {
         uint256 net = AMOUNT - _fee(AMOUNT);
         vm.prank(lp);
-        pegIn.requestPegIn{value: net}(user, AMOUNT, txHash, new bytes(0));
+        pegIn.requestPegIn{value: net}(user, AMOUNT, txHash, new bytes(0), bytes32(0), 0, _noBranches());
     }
 
     function test_ClaimerRecoversFrontedPlusFee() public {
