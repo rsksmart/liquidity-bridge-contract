@@ -42,7 +42,7 @@ the order bitcoin-cli prints. RSK-internal little-endian returns `-1`/`-5`. Mine
 only coinbase + the deposit tx so the merkle branch is a single sibling (the coinbase txid),
 path bit `1`.
 
-## Findings (see ../../../POC-FINDINGS.md)
+## Findings (see ../../docs/dos-removal/POC-FINDINGS.md)
 - **A (fixed):** the claim's confirmation check must pass a FULL SPV proof; the rskj bridge has
   no by-hash lookup. The original hash-only `requestPegIn` reverted `InsufficientConfirmations`.
 - **B (FIXED, EB.1):** `resolvePegIn` now settles. The registry and `_settleWithBridge` share the

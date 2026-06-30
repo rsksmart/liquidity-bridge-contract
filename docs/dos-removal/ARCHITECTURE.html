@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flyover liquidity-DoS removal — architecture</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: {
+        display: ['Fraunces', 'ui-serif', 'Georgia', 'serif'],
+        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'Menlo', 'monospace'],
+      },
+      colors: {
+        ink: '#11151c',
+        body: '#363c47',
+        muted: '#5d6675',
+        line: '#e6e9ef',
+        accent: '#3257d6',
+        sand: '#f7f8fb',
+      },
+    },
+  },
+};
+</script>
+<style>
+  html{scroll-behavior:smooth}
+  body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  .balance{text-wrap:balance}
+  .pretty{text-wrap:pretty}
+  .fade{opacity:0;transform:translateY(10px);animation:rise .7s cubic-bezier(.22,1,.36,1) forwards}
+  @keyframes rise{to{opacity:1;transform:none}}
+  tbody tr{transition:background-color .15s ease}
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto}
+    .fade{animation:none;opacity:1;transform:none}
+    tbody tr{transition:none}
+  }
+</style>
+</head>
+<body class="bg-sand font-sans text-body antialiased">
+
+<!-- top accent line -->
+<div class="h-1 w-full bg-accent"></div>
+
+<header class="mx-auto max-w-3xl px-6 pt-16 sm:pt-24 fade">
+  <p class="font-mono text-xs font-medium uppercase tracking-[0.18em] text-accent">Flyover · Rootstock</p>
+  <h1 class="mt-3 font-display text-4xl sm:text-5xl font-semibold leading-[1.05] tracking-[-0.02em] text-ink balance">
+    Removing the liquidity&#8209;DoS with a commit&#8209;first peg&#8209;in
+  </h1>
+  <p class="mt-5 max-w-2xl text-lg leading-relaxed text-body pretty">
+    Flyover's off-chain quote negotiation is replaced by a <strong class="font-semibold text-ink">user-commits-first</strong> model:
+    the user makes the on-chain commitment first, then liquidity providers detect it and compete to serve it. No LP liquidity is
+    reserved before the user commits — which removes the denial-of-service vector at its root.
+  </p>
+  <div class="mt-6 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-1.5 text-sm font-medium text-emerald-800">
+    <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+    Full cycle proven on a live regtest (rskj 9.0.2) — no bridge changes required
+  </div>
+</header>
+
+<main class="mx-auto max-w-3xl px-6 py-14 sm:py-20">
+
+  <!-- 1 problem -->
+  <section class="border-t border-line pt-12">
+    <h2 class="font-display text-2xl font-semibold tracking-[-0.01em] text-ink balance">The problem</h2>
+    <p class="mt-4 leading-relaxed pretty">
+      In the legacy model the user requests a quote and <em>accepts</em> it off-chain; at that moment the LP reserves liquidity
+      for a ~1&nbsp;hour window before any on-chain payment exists. An attacker accepts genuine, LP-signed quotes and never funds
+      them, locking liquidity for the full window at <strong class="font-semibold text-ink">zero cost</strong>, and repeats — keeping
+      an LP dark indefinitely. The same per-quote design also blocks institutions: the deposit address is single-use (nothing stable
+      to whitelist) and the acceptance window expires during multi-hour multisig signing.
+    </p>
+  </section>
+
+  <!-- 2 model -->
+  <section class="border-t border-line pt-12 mt-14">
+    <h2 class="font-display text-2xl font-semibold tracking-[-0.01em] text-ink balance">The model</h2>
+    <div class="mt-5 grid gap-4 sm:grid-cols-3">
+      <div class="rounded-xl border border-line bg-white p-5">
+        <div class="font-display text-lg font-semibold text-ink">Commit first</div>
+        <p class="mt-1.5 text-sm leading-relaxed text-muted">The user sends BTC to a deterministic address derived from their RSK address. No quote, no acceptance.</p>
+      </div>
+      <div class="rounded-xl border border-line bg-white p-5">
+        <div class="font-display text-lg font-semibold text-ink">LPs compete</div>
+        <p class="mt-1.5 text-sm leading-relaxed text-muted">LPs detect the on-chain commitment and race to serve it. The first to claim wins; the rest revert cheaply.</p>
+      </div>
+      <div class="rounded-xl border border-line bg-white p-5">
+        <div class="font-display text-lg font-semibold text-ink">Nothing reserved</div>
+        <p class="mt-1.5 text-sm leading-relaxed text-muted">No liquidity is held before the user commits — so there is nothing for an attacker to spam.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 architecture -->
+  <section class="border-t border-line pt-12 mt-14">
+    <h2 class="font-display text-2xl font-semibold tracking-[-0.01em] text-ink balance">Architecture</h2>
+    <p class="mt-4 leading-relaxed pretty">Three layers, plus the <strong class="font-semibold text-ink">unmodified</strong> Rootstock bridge and the Bitcoin network.</p>
+
+    <div class="mt-6 overflow-x-auto rounded-xl border border-line bg-ink p-5">
+<pre class="font-mono text-[12.5px] leading-7 text-slate-200">  USER ──BTC──▶ deterministic deposit address  (P2SH, derived from the RSK address)
+    │                                  ▲
+    │ SDK reads address + fees         │ derive against live powpeg
+    ▼                                  │
+ <span class="text-sky-300">flyover-sdk</span> ─▶ <span class="text-amber-300">PegInAddressRegistry</span> ─┘   <span class="text-amber-300">FlyoverConfigurations</span>  (fees · confirmations · deadlines, time-locked)
+ (client)         │ emits AddressRegistered                  ▲ reads
+                  ▼                                          │
+              <span class="text-sky-300">LPS</span> ─ watches events + Bitcoin ─▶ <span class="text-amber-300">PegInContract</span> ─▶ <span class="text-emerald-300">Rootstock Bridge</span> (precompile)
+              competes to claim       requestPegIn / resolvePegIn   registerFastBridgeBtcTransaction
+                                              │
+                                              ▼
+                                  <span class="text-amber-300">CollateralManagement</span>  (global + individual slash · grace window)</pre>
+    </div>
+
+    <h3 class="mt-8 font-display text-lg font-semibold text-ink">New &amp; changed contracts <span class="font-sans text-sm font-normal text-muted">(liquidity-bridge-contract, Foundry)</span></h3>
+    <div class="mt-3 overflow-x-auto rounded-xl border border-line">
+      <table class="w-full border-collapse text-sm">
+        <thead>
+          <tr class="bg-sand text-left">
+            <th class="border-b border-line px-4 py-3 font-semibold text-ink">Contract</th>
+            <th class="border-b border-line px-4 py-3 font-semibold text-ink">Role</th>
+          </tr>
+        </thead>
+        <tbody class="align-top">
+          <tr class="hover:bg-sand">
+            <td class="border-b border-line px-4 py-3"><code class="font-mono text-[12.5px] text-ink">FlyoverConfigurations</code> <span class="text-xs text-emerald-700">new</span></td>
+            <td class="border-b border-line px-4 py-3 leading-relaxed">Economics on-chain: fixed-floor + percentage fee, amount-keyed confirmation tiers, deadlines and limits. Setters are <strong class="font-medium text-ink">time-locked</strong> with immutable deployment bounds.</td>
+          </tr>
+          <tr class="hover:bg-sand">
+            <td class="border-b border-line px-4 py-3"><code class="font-mono text-[12.5px] text-ink">PegInAddressRegistry</code> <span class="text-xs text-emerald-700">new</span></td>
+            <td class="border-b border-line px-4 py-3 leading-relaxed">Derives the deterministic deposit address from the RSK address; records registrations (permissionless, <strong class="font-medium text-ink">read-only SPV deposit-gated</strong>); keeps a running hash <code class="font-mono text-[12px] text-ink">registrationRoot</code> for watch-list integrity. Emits <code class="font-mono text-[12px] text-ink">AddressRegistered</code>.</td>
+          </tr>
+          <tr class="hover:bg-sand">
+            <td class="border-b border-line px-4 py-3"><code class="font-mono text-[12.5px] text-ink">PegInContract</code> <span class="text-xs text-accent">reworked</span></td>
+            <td class="border-b border-line px-4 py-3 leading-relaxed"><code class="font-mono text-[12px] text-ink">requestPegIn</code> (LP fronts RBTC from its own wallet against a full SPV proof) and <code class="font-mono text-[12px] text-ink">resolvePegIn</code> (settles with the bridge to reimburse the LP). OP_RETURN carries optional contract-call data; first-mined claim wins.</td>
+          </tr>
+          <tr class="hover:bg-sand">
+            <td class="px-4 py-3"><code class="font-mono text-[12.5px] text-ink">CollateralManagement</code> <span class="text-xs text-accent">extended</span></td>
+            <td class="px-4 py-3 leading-relaxed">Adds a <strong class="font-medium text-ink">proportional global slash</strong> across all registered LPs when nobody serves a valid peg-in, plus a <strong class="font-medium text-ink">no-penalty grace window</strong> after registration; keeps the per-LP individual slash.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="mt-8 font-display text-lg font-semibold text-ink">Server &amp; client</h3>
+    <ul class="mt-3 space-y-3 leading-relaxed">
+      <li class="pretty"><strong class="font-semibold text-ink">liquidity-provider-server (Go)</strong> — a new event-driven discovery watcher (watch <code class="font-mono text-[12px] text-ink">AddressRegistered</code>, monitor Bitcoin for deposits), a competitive claim path, and the <strong class="font-medium text-ink">removal of the off-chain accept-time reservation</strong> that was the DoS surface.</li>
+      <li class="pretty"><strong class="font-semibold text-ink">flyover-sdk + bridges-core-sdk (TypeScript)</strong> — the client reads the deposit address from the registry and fees from configuration, and builds the BTC transaction (optional OP_RETURN) instead of negotiating a quote. The registry is the single source of truth for the address, so SDK and LPS never re-implement derivation.</li>
+    </ul>
+  </section>
+
+  <!-- 4 steps -->
+  <section class="border-t border-line pt-12 mt-14">
+    <h2 class="font-display text-2xl font-semibold tracking-[-0.01em] text-ink balance">How a peg-in works</h2>
+    <p class="mt-4 leading-relaxed pretty">A real ordered sequence — each step names who acts.</p>
+    <ol class="mt-6 space-y-0">
+      <li class="flex gap-4 border-b border-line py-5">
+        <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">1</span>
+        <div>
+          <div class="font-mono text-[11px] font-medium uppercase tracking-wider text-muted">SDK · view</div>
+          <p class="mt-1 leading-relaxed"><strong class="font-semibold text-ink">Derive the deposit address.</strong> The client calls <code class="font-mono text-[12px] text-ink">getPegInAddress(rskAddr)</code>, which derives a deterministic P2SH against the live powpeg redeem script. Stable across calls; changes only on a federation change.</p>
+        </div>
+      </li>
+      <li class="flex gap-4 border-b border-line py-5">
+        <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">2</span>
+        <div>
+          <div class="font-mono text-[11px] font-medium uppercase tracking-wider text-muted">User · Bitcoin</div>
+          <p class="mt-1 leading-relaxed"><strong class="font-semibold text-ink">Commit BTC.</strong> The user sends BTC to that address (optionally an <code class="font-mono text-[12px] text-ink">OP_RETURN</code> output <code class="font-mono text-[12px] text-ink">destContract ‖ maxGas ‖ callData</code> for a smart-contract peg-in). The only user action — no quote, no acceptance, no reservation.</p>
+        </div>
+      </li>
+      <li class="flex gap-4 border-b border-line py-5">
+        <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">3</span>
+        <div>
+          <div class="font-mono text-[11px] font-medium uppercase tracking-wider text-muted">Watchtower / user · on-chain</div>
+          <p class="mt-1 leading-relaxed"><strong class="font-semibold text-ink">Register the address.</strong> Once the deposit confirms, <code class="font-mono text-[12px] text-ink">registerAddress</code> records it, gated by a <strong class="font-medium text-ink">read-only SPV proof</strong>: the contract parses the BTC tx outputs to confirm one pays the derived address and checks confirmations via the bridge's <em>view</em> method — without consuming the peg-in.</p>
+        </div>
+      </li>
+      <li class="flex gap-4 border-b border-line py-5">
+        <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">4</span>
+        <div>
+          <div class="font-mono text-[11px] font-medium uppercase tracking-wider text-muted">LPS · discovery</div>
+          <p class="mt-1 leading-relaxed"><strong class="font-semibold text-ink">Discover &amp; watch.</strong> LPs watch <code class="font-mono text-[12px] text-ink">AddressRegistered</code> (verified against <code class="font-mono text-[12px] text-ink">registrationRoot</code>) and monitor Bitcoin for a confirmed deposit to each registered address.</p>
+        </div>
+      </li>
+      <li class="flex gap-4 border-b border-line py-5">
+        <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">5</span>
+        <div>
+          <div class="font-mono text-[11px] font-medium uppercase tracking-wider text-muted">LP · requestPegIn</div>
+          <p class="mt-1 leading-relaxed"><strong class="font-semibold text-ink">Claim and front RBTC.</strong> The first LP calls <code class="font-mono text-[12px] text-ink">requestPegIn</code> with the full SPV proof, validates the deposit and confirmations, and <strong class="font-medium text-ink">forwards RBTC from its own wallet</strong> to the user (<code class="font-mono text-[12px] text-ink">amount − fee</code>) — or to the OP_RETURN destination. Competing LPs revert cheaply.</p>
+        </div>
+      </li>
+      <li class="flex gap-4 py-5">
+        <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">6</span>
+        <div>
+          <div class="font-mono text-[11px] font-medium uppercase tracking-wider text-muted">LP · resolvePegIn</div>
+          <p class="mt-1 leading-relaxed"><strong class="font-semibold text-ink">Settle &amp; get reimbursed.</strong> The LP calls <code class="font-mono text-[12px] text-ink">resolvePegIn</code>, which invokes the bridge's one-shot <code class="font-mono text-[12px] text-ink">registerFastBridgeBtcTransaction</code> with the SPV proof; the bridge releases the pegged funds to the LBC, reimbursing the LP plus the fee.</p>
+        </div>
+      </li>
+    </ol>
+    <div class="mt-6 rounded-xl border border-line bg-white p-4 text-sm leading-relaxed text-body">
+      If no LP claims a valid peg-in by the deadline (anchored to the registration block), the network takes a <strong class="font-medium text-ink">global slash</strong> — so every LP is incentivized to ensure someone serves it.
+    </div>
+  </section>
+
+  <!-- 5 decisions -->
+  <section class="border-t border-line pt-12 mt-14">
+    <h2 class="font-display text-2xl font-semibold tracking-[-0.01em] text-ink balance">Key design decisions</h2>
+    <div class="mt-5 overflow-x-auto rounded-xl border border-line">
+      <table class="w-full border-collapse text-sm">
+        <thead><tr class="bg-sand text-left">
+          <th class="border-b border-line px-4 py-3 font-semibold text-ink">Decision</th>
+          <th class="border-b border-line px-4 py-3 font-semibold text-ink">Why</th>
+        </tr></thead>
+        <tbody class="align-top">
+          <tr class="hover:bg-sand"><td class="border-b border-line px-4 py-3 font-medium text-ink">Commit-first, no off-chain reservation</td><td class="border-b border-line px-4 py-3 leading-relaxed">The only way to satisfy "no liquidity reserved before the user commits comparable capital" — closes the DoS structurally.</td></tr>
+          <tr class="hover:bg-sand"><td class="border-b border-line px-4 py-3 font-medium text-ink">Deterministic address from the RSK address</td><td class="border-b border-line px-4 py-3 leading-relaxed">Stable, whitelist-once for institutions; not tied to any LP, so any LP can serve it.</td></tr>
+          <tr class="hover:bg-sand"><td class="border-b border-line px-4 py-3 font-medium text-ink">Read-only SPV deposit-gating</td><td class="border-b border-line px-4 py-3 leading-relaxed">The bridge's settlement call is one-shot — registration must validate the deposit without consuming it, or the LP's claim would fail.</td></tr>
+          <tr class="hover:bg-sand"><td class="border-b border-line px-4 py-3 font-medium text-ink">Full SPV proof in the claim</td><td class="border-b border-line px-4 py-3 leading-relaxed">The rskj bridge has no by-hash confirmation lookup; a hash-only check always fails against a real node.</td></tr>
+          <tr class="hover:bg-sand"><td class="border-b border-line px-4 py-3 font-medium text-ink">Bridge-compatible derivation, fixed placeholders</td><td class="border-b border-line px-4 py-3 leading-relaxed">So the address the user pays matches what the unmodified bridge re-derives at settlement; fixed placeholder refund/LP values keep it LP-agnostic.</td></tr>
+          <tr class="hover:bg-sand"><td class="px-4 py-3 font-medium text-ink">Global slash + grace window; time-locked config</td><td class="px-4 py-3 leading-relaxed">Incentivize serving every peg-in without punishing freshly-onboarded LPs; prevent economics changing mid-operation.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 6 what changed -->
+  <section class="border-t border-line pt-12 mt-14">
+    <h2 class="font-display text-2xl font-semibold tracking-[-0.01em] text-ink balance">What changed</h2>
+    <p class="mt-4 leading-relaxed pretty">Legacy quote-based Flyover versus the new commit-first model.</p>
+    <div class="mt-5 overflow-x-auto rounded-xl border border-line">
+      <table class="w-full border-collapse text-sm">
+        <thead><tr class="bg-sand text-left">
+          <th class="border-b border-line px-4 py-3 font-semibold text-ink">Area</th>
+          <th class="border-b border-line px-4 py-3 font-semibold text-ink">Legacy</th>
+          <th class="border-b border-line px-4 py-3 font-semibold text-ink">New</th>
+        </tr></thead>
+        <tbody class="align-top leading-relaxed">
+          <tr class="hover:bg-sand"><td class="border-b border-line px-4 py-3 font-medium text-ink">Deposit address</td><td class="border-b border-line px-4 py-3 text-muted">Single-use P2SH per quote; changes every peg-in.</td><td class="border-b border-line px-4 py-3">Deterministic from the RSK address; stable, whitelist-once.</td></tr>
+          <tr class="hover:bg-sand"><td class="border-b border-line px-4 py-3 font-medium text-ink">User flow</td><td class="border-b border-line px-4 py-3 text-muted">Get quote → accept off-chain → send BTC.</td><td class="border-b border-line px-4 py-3">Send BTC to the derived address first; no negotiation.</td></tr>
+          <tr class="hover:bg-sand"><td class="border-b border-line px-4 py-3 font-medium text-ink">Liquidity reservation</td><td class="border-b border-line px-4 py-3"><span class="font-semibold text-red-700">Reserved at off-chain accept</span> — the DoS surface.</td><td class="border-b border-line px-4 py-3"><span class="font-semibold text-emerald-700">None.</span> Committed only at claim, against an on-chain commitment.</td></tr>
+          <tr class="hover:bg-sand"><td class="border-b border-line px-4 py-3 font-medium text-ink">Who serves</td><td class="border-b border-line px-4 py-3 text-muted">The specific LP that signed the quote.</td><td class="border-b border-line px-4 py-3">Any authorized LP competes (first-mined wins).</td></tr>
+          <tr class="hover:bg-sand"><td class="border-b border-line px-4 py-3 font-medium text-ink">Fees &amp; confirmations</td><td class="border-b border-line px-4 py-3 text-muted">Per-quote, LP-signed off-chain.</td><td class="border-b border-line px-4 py-3">On-chain configuration (fixed floor + %, tiers), time-locked.</td></tr>
+          <tr class="hover:bg-sand"><td class="border-b border-line px-4 py-3 font-medium text-ink">LP capital at claim</td><td class="border-b border-line px-4 py-3 text-muted">Tied to the reserved quote.</td><td class="border-b border-line px-4 py-3">LP fronts RBTC from its own wallet; recovers at <code class="font-mono text-[12px] text-ink">resolvePegIn</code>.</td></tr>
+          <tr class="hover:bg-sand"><td class="border-b border-line px-4 py-3 font-medium text-ink">Registration</td><td class="border-b border-line px-4 py-3 text-muted">None (no registry).</td><td class="border-b border-line px-4 py-3">Permissionless, read-only SPV deposit-gated; <code class="font-mono text-[12px] text-ink">registrationRoot</code>.</td></tr>
+          <tr class="hover:bg-sand"><td class="border-b border-line px-4 py-3 font-medium text-ink">Slashing</td><td class="border-b border-line px-4 py-3 text-muted">Individual, per quote.</td><td class="border-b border-line px-4 py-3">Individual + proportional global slash + grace window.</td></tr>
+          <tr class="hover:bg-sand"><td class="border-b border-line px-4 py-3 font-medium text-ink">Bridge settlement</td><td class="border-b border-line px-4 py-3 text-muted">Quote-derived inputs to <code class="font-mono text-[12px] text-ink">registerFastBridgeBtcTransaction</code>.</td><td class="border-b border-line px-4 py-3"><strong class="font-medium text-ink">Same unmodified bridge call</strong>, RSK-address-derived value + fixed placeholders.</td></tr>
+          <tr class="hover:bg-sand"><td class="border-b border-line px-4 py-3 font-medium text-ink">DoS vector</td><td class="border-b border-line px-4 py-3"><span class="font-semibold text-red-700">Open</span> — free, repeatable accept-spam.</td><td class="border-b border-line px-4 py-3"><span class="font-semibold text-emerald-700">Structurally closed</span> — nothing to spam.</td></tr>
+          <tr class="hover:bg-sand"><td class="px-4 py-3 font-medium text-ink">Institutional peg-in</td><td class="px-4 py-3 text-muted">No stable address; window expires mid-signing.</td><td class="px-4 py-3">Whitelist-once address; no acceptance window.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 7 open item -->
+  <section class="border-t border-line pt-12 mt-14">
+    <h2 class="font-display text-2xl font-semibold tracking-[-0.01em] text-ink balance">Open item</h2>
+    <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-5">
+      <div class="font-semibold text-amber-900">Failure-refund placeholder</div>
+      <p class="mt-1.5 text-sm leading-relaxed text-amber-900/90 pretty">
+        Because the deposit-address derivation uses fixed placeholder refund/LP BTC addresses (to stay LP-agnostic while matching
+        the bridge), the bridge's failure-refund branch would send funds to the <code class="font-mono text-[12px]">REFUND_PLACEHOLDER</code>
+        address. It must be a single protocol-owned, monitored BTC address (never empty). The branch should be unreachable given the
+        pre-front validity and minimum-amount checks, but it is an operational requirement before production.
+      </p>
+    </div>
+  </section>
+
+  <footer class="mt-16 border-t border-line pt-6 text-xs text-muted font-mono">
+    Companion docs: PRD-dos-removal.md · EPICS-dos-removal.md · POC-FINDINGS.md · lbc/script/regtest-pegin/ (runnable step-by-step).
+  </footer>
+
+</main>
+</body>
+</html>
