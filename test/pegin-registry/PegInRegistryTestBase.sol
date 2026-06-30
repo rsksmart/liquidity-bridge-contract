@@ -4,6 +4,8 @@ pragma solidity 0.8.25;
 import {Test} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {PegInAddressRegistry} from "../../src/PegInAddressRegistry.sol";
+import {PegInDerivation} from "../../src/libraries/PegInDerivation.sol";
+import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCodes.sol";
 import {RegistryBridgeMock} from "./RegistryBridgeMock.sol";
 
 /// @title PegInRegistryTestBase
@@ -12,6 +14,10 @@ import {RegistryBridgeMock} from "./RegistryBridgeMock.sol";
 /// pays the P2SH address derived for a given RSK address (the read-only deposit-gating input).
 abstract contract PegInRegistryTestBase is Test {
     uint48 internal constant ADMIN_DELAY = 0;
+
+    /// @notice The PegInContract (lbcAddress) mixed into the derivation. A fixed test value wired via
+    /// setPegInContract; the registry reverts {PegInContractNotSet} until it is set.
+    address internal constant PEGIN_CONTRACT = address(0x00000000000000000000000000000000C0FFEE01);
 
     address internal owner = address(0xA11CE);
 
@@ -27,11 +33,27 @@ abstract contract PegInRegistryTestBase is Test {
         );
         ERC1967Proxy proxy = new ERC1967Proxy(address(impl), initData);
         registry = PegInAddressRegistry(payable(address(proxy)));
+        vm.prank(owner);
+        registry.setPegInContract(PEGIN_CONTRACT);
     }
 
-    /// @notice The locked derivation value mixed into the derived BTC deposit address.
+    /// @notice Deploys a registry WITHOUT wiring the PegInContract (lbcAddress), to exercise the
+    /// PegInContractNotSet guard. Reuses the suite's bridge mock.
+    function _deployUnwired(bool mainnet) internal returns (PegInAddressRegistry r) {
+        if (address(bridge) == address(0)) bridge = new RegistryBridgeMock();
+        PegInAddressRegistry impl = new PegInAddressRegistry();
+        bytes memory initData = abi.encodeCall(
+            PegInAddressRegistry.initialize,
+            (owner, ADMIN_DELAY, address(bridge), mainnet)
+        );
+        ERC1967Proxy proxy = new ERC1967Proxy(address(impl), initData);
+        r = PegInAddressRegistry(payable(address(proxy)));
+    }
+
+    /// @notice The bridge-compatible derivation value mixed into the derived BTC deposit address,
+    /// computed via the shared {PegInDerivation} library so the test mirrors the contract exactly.
     function _derivationValue(address addr) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(registryDomain(), addr));
+        return PegInDerivation.derivationValue(addr, PEGIN_CONTRACT);
     }
 
     function registryDomain() internal pure returns (bytes memory) {

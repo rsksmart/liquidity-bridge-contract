@@ -6,17 +6,19 @@ import {
 } from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
-import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCodes.sol";
 import {IBridge} from "./interfaces/IBridge.sol";
 import {IPegInAddressRegistry} from "./interfaces/IPegInAddressRegistry.sol";
 import {Flyover} from "./libraries/Flyover.sol";
+import {PegInDerivation} from "./libraries/PegInDerivation.sol";
 
 /// @title PegInAddressRegistry
 /// @notice Upgradeable registry that derives a static BTC deposit address from an RSK
 /// address against the current powpeg, and lets any caller register that RSK address by
 /// presenting an SPV proof of a BTC deposit to the derived address (no signature required).
-/// @dev The derivation mirrors `PegInContract.validatePegInDepositAddress`, but keys the
-/// derivation value on the RSK address plus a versioned domain tag instead of the quote hash.
+/// @dev The derivation is the bridge-compatible PLAIN P2SH built by the shared
+/// {PegInDerivation} library — the SAME construction `PegInContract` settles against. The
+/// derivation value mixes `keccak256(DERIVATION_DOMAIN, rskAddr)` with the protocol placeholder
+/// BTC addresses and the wired PegInContract (lbcAddress); see {PegInDerivation} for the proof.
 /// @author Rootstock Labs
 contract PegInAddressRegistry is
     AccessControlDefaultAdminRulesUpgradeable,
@@ -28,6 +30,7 @@ contract PegInAddressRegistry is
 
     /// @notice Versioned scheme tag mixed into every derivation. Bumping it deterministically
     /// changes every derived address, the same path the system handles for a federation change.
+    /// @dev Mirrors {PegInDerivation.DERIVATION_DOMAIN} (the single source of truth).
     bytes public constant DERIVATION_DOMAIN = "FLYOVER_PEGIN_V1";
 
     /// @notice The encoding of the addresses returned by the derivation getters. The derived
@@ -38,8 +41,6 @@ contract PegInAddressRegistry is
     /// `getBtcTransactionConfirmations` returns the confirmation count (>= 0) on success, or a
     /// negative error code when the tx/block is unknown to the Bridge. PoC uses 1.
     int256 private constant _MIN_CONFIRMATIONS = 1;
-    /// @dev Length in bytes of the HASH160 (ripemd160 of sha256) digest.
-    uint256 private constant _HASH160_SIZE = 20;
 
     /// @custom:storage-location erc7201:rsk.flyover.PegInAddressRegistry
     struct PegInAddressRegistryStorage {
@@ -48,6 +49,10 @@ contract PegInAddressRegistry is
         uint256 count;
         bytes32 registrationRoot;
         mapping(address => uint256) registrationBlock;
+        // APPENDED (never reorder the fields above): the PegInContract (lbcAddress) that calls the
+        // native fast bridge. It is mixed into the deposit-address derivation, so the registry and
+        // the settlement path agree on the address the bridge re-derives. Wired post-deploy.
+        address pegInContract;
     }
 
     // ERC-7201: keccak256(abi.encode(uint256(keccak256("rsk.flyover.PegInAddressRegistry")) - 1)) &
@@ -61,6 +66,12 @@ contract PegInAddressRegistry is
     error DepositAddressMismatch(address addr);
     /// @notice Raised when the bridge does not confirm a valid deposit to the derived address
     error InvalidDepositProof(address addr, int256 bridgeResult);
+    /// @notice Raised when an address derivation is attempted before the PegInContract is wired.
+    /// The PegInContract (lbcAddress) is mixed into the derivation, so it MUST be set first.
+    error PegInContractNotSet();
+
+    /// @notice Emitted when the PegInContract (lbcAddress) mixed into the derivation is set.
+    event PegInContractSet(address indexed oldPegInContract, address indexed newPegInContract);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -198,17 +209,23 @@ contract PegInAddressRegistry is
         return _getStorage().bridge;
     }
 
-    /// @notice Generate the base58check P2SH address for a segwit script. Exposed so the
-    /// in-memory derivation can reuse `BtcUtils.getP2SHAddressFromScript` (which takes calldata)
-    /// via an external self-call. Pure passthrough; not part of the frozen interface.
-    /// @param segwitScript The OP_0 OP_PUSHBYTES_32 <sha256(redeemScript)> script
-    /// @param mainnet Whether to encode for mainnet or testnet
-    function p2shAddressFromScript(bytes calldata segwitScript, bool mainnet)
-        external
-        pure
-        returns (bytes memory)
-    {
-        return BtcUtils.getP2SHAddressFromScript(segwitScript, mainnet);
+    /// @notice Sets the PegInContract (lbcAddress) mixed into the deposit-address derivation.
+    /// @dev MUST equal `address(PegInContract)` — the contract that calls the native fast bridge's
+    /// `registerFastBridgeBtcTransaction` — so the address the registry shows is the address the
+    /// bridge re-derives at settlement. Admin-only, append-only wiring; settable post-deploy.
+    /// @param pegInContract The PegInContract address
+    // solhint-disable-next-line comprehensive-interface
+    function setPegInContract(address pegInContract) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
+        if (pegInContract == address(0)) revert Flyover.NoContract(pegInContract);
+        PegInAddressRegistryStorage storage $ = _getStorage();
+        emit PegInContractSet($.pegInContract, pegInContract);
+        $.pegInContract = pegInContract;
+    }
+
+    /// @notice Returns the PegInContract (lbcAddress) mixed into the derivation (0 if unset).
+    // solhint-disable-next-line comprehensive-interface
+    function getPegInContract() external view returns (address) {
+        return _getStorage().pegInContract;
     }
 
     /// @notice Updates the running-hash accumulator over the registered set
@@ -220,52 +237,38 @@ contract PegInAddressRegistry is
     }
 
     /// @notice Derives the BTC deposit address for an RSK address against the current powpeg
-    /// @dev Mirrors `PegInContract.validatePegInDepositAddress`, sourcing the derivation value
-    /// from the RSK address plus the versioned domain tag instead of the quote hash. Reads the
-    /// active powpeg redeem script live from the Bridge on every call.
+    /// @dev Builds the bridge-compatible PLAIN P2SH via the shared {PegInDerivation} library — the
+    /// SAME construction `PegInContract` settles against. Reads the active powpeg redeem script live
+    /// from the Bridge on every call. Reverts {PegInContractNotSet} until the lbcAddress is wired.
     /// @param addr The RSK address
-    /// @return The encoded BTC deposit address
+    /// @return The base58check payload of the derived BTC deposit address
     function _deriveAddress(address addr) private view returns (bytes memory) {
-        // Self-call to satisfy BtcUtils' calldata signature while keeping the construction here.
-        return this.p2shAddressFromScript(_segwitScript(addr), _getStorage().mainnet);
-    }
-
-    /// @notice Builds the segwit redeem script (OP_0 OP_PUSHBYTES_32 sha256(flyoverRedeemScript))
-    /// whose P2SH wrap is the BTC deposit address for `addr`. Reads the active powpeg redeem
-    /// script live from the Bridge. Shared by the address getters and the deposit-gating match.
-    /// @param addr The RSK address
-    /// @return The segwit script for `addr` against the current powpeg
-    function _segwitScript(address addr) private view returns (bytes memory) {
-        bytes32 derivationValue = _derivationValue(addr);
-        bytes memory flyoverRedeemScript = bytes.concat(
-            OpCodes.OP_PUSHBYTES_32,
-            derivationValue,
-            OpCodes.OP_DROP,
-            _getStorage().bridge.getActivePowpegRedeemScript()
-        );
-        return bytes.concat(
-            OpCodes.OP_0,
-            OpCodes.OP_PUSHBYTES_32,
-            sha256(flyoverRedeemScript)
+        PegInAddressRegistryStorage storage $ = _getStorage();
+        address pegInContract = $.pegInContract;
+        if (pegInContract == address(0)) revert PegInContractNotSet();
+        return PegInDerivation.depositAddressPayload(
+            addr,
+            pegInContract,
+            $.bridge.getActivePowpegRedeemScript(),
+            $.mainnet
         );
     }
 
     /// @notice Builds the on-chain P2SH output script that a BTC deposit to `addr` must carry:
-    /// OP_HASH160 <ripemd160(sha256(segwitScript))> OP_EQUAL. This is the raw pkScript form a
-    /// parsed tx output exposes, so the deposit-gating compares it directly against the outputs.
+    /// OP_HASH160 <hash160(flyoverRedeemScript)> OP_EQUAL. This is the raw pkScript form a parsed
+    /// tx output exposes, so the deposit-gating compares it directly against the outputs. Uses the
+    /// shared {PegInDerivation} library so it matches the bridge-settled PLAIN P2SH exactly.
     /// @param addr The RSK address
     /// @return The 25-byte P2SH scriptPubkey for `addr`
     function _p2shScriptPubkey(address addr) private view returns (bytes memory) {
-        bytes20 scriptHash = ripemd160(abi.encodePacked(sha256(_segwitScript(addr))));
-        return bytes.concat(OpCodes.OP_HASH160, bytes1(uint8(_HASH160_SIZE)), scriptHash, OpCodes.OP_EQUAL);
-    }
-
-    /// @notice Computes the locked derivation value for an RSK address
-    /// @dev derivationValue = keccak256(abi.encodePacked(DERIVATION_DOMAIN, rskAddress))
-    /// @param addr The RSK address
-    /// @return The derivation value
-    function _derivationValue(address addr) private pure returns (bytes32) {
-        return keccak256(abi.encodePacked(DERIVATION_DOMAIN, addr));
+        PegInAddressRegistryStorage storage $ = _getStorage();
+        address pegInContract = $.pegInContract;
+        if (pegInContract == address(0)) revert PegInContractNotSet();
+        return PegInDerivation.p2shScriptPubkey(
+            addr,
+            pegInContract,
+            $.bridge.getActivePowpegRedeemScript()
+        );
     }
 
     function _getStorage() private pure returns (PegInAddressRegistryStorage storage $) {

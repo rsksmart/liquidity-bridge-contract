@@ -2,22 +2,24 @@
 pragma solidity 0.8.25;
 
 import {PegInRegistryTestBase} from "./PegInRegistryTestBase.sol";
+import {PegInAddressRegistry} from "../../src/PegInAddressRegistry.sol";
 import {IPegInAddressRegistry} from "../../src/interfaces/IPegInAddressRegistry.sol";
 
 /// @title Derivation tests (E2.2)
-/// @notice Determinism, distinctness, and a fixed off-chain fixture vector.
+/// @notice Determinism, distinctness, a reverts-until-wired guard, and a fixed off-chain fixture
+/// vector for the BRIDGE-COMPATIBLE plain-P2SH scheme (EB.1).
 contract DerivationTest is PegInRegistryTestBase {
-    // Off-chain vector for rskAddr = 0x0000000000000000000000000000000000000abc against the
-    // default RegistryBridgeMock redeem script, computed with the locked scheme:
-    //   derivationValue = keccak256(abi.encodePacked("FLYOVER_PEGIN_V1", rskAddr))
-    //   flyover = 0x20 <derivationValue> 0x75 <redeemScript>
-    //   segwit  = 0x00 0x20 sha256(flyover)
-    //   address = base58check P2SH(segwit) for the network
+    // Off-chain vector for rskAddr = 0x0000000000000000000000000000000000000abc against the default
+    // RegistryBridgeMock redeem script and PEGIN_CONTRACT, computed with the bridge-compatible scheme:
+    //   argsHash = keccak256("FLYOVER_PEGIN_V1" ++ rskAddr)
+    //   dv       = keccak256(argsHash ++ REFUND_PLACEHOLDER ++ bytes20(PEGIN_CONTRACT) ++ LP_PLACEHOLDER)
+    //   flyover  = 0x20 <dv> 0x75 <redeemScript>
+    //   address  = base58check( version ++ HASH160(flyover) )   (PLAIN P2SH)
     address internal constant FIXTURE_RSK = 0x0000000000000000000000000000000000000aBc;
     bytes internal constant FIXTURE_TESTNET_ADDRESS =
-        hex"c465e2519fcfd8e8f17bb35347261271ad75caa29c754165a5";
+        hex"c453239f29b16aa66c9a5e3ec7f2b1de034fe0dea79440b320";
     bytes internal constant FIXTURE_MAINNET_ADDRESS =
-        hex"0565e2519fcfd8e8f17bb35347261271ad75caa29caf31a39d";
+        hex"0553239f29b16aa66c9a5e3ec7f2b1de034fe0dea72259d920";
 
     function test_DeterministicPerAddress() public {
         _deploy(false);
@@ -31,6 +33,13 @@ contract DerivationTest is PegInRegistryTestBase {
         (bytes memory a, ) = registry.getPegInAddress(address(0x1111));
         (bytes memory b, ) = registry.getPegInAddress(address(0x2222));
         assertTrue(keccak256(a) != keccak256(b), "different rskAddr derive different addresses");
+    }
+
+    function test_RevertsUntilPegInContractWired() public {
+        // Deploy WITHOUT wiring the PegInContract: the derivation must revert clearly.
+        registry = _deployUnwired(false);
+        vm.expectRevert(PegInAddressRegistry.PegInContractNotSet.selector);
+        registry.getPegInAddress(FIXTURE_RSK);
     }
 
     function test_MatchesTestnetFixtureVector() public {

@@ -63,6 +63,9 @@ abstract contract E4TestBase is Test {
         vm.startPrank(owner);
         // Wire the claim-flow dependencies (registry + configurations + deadline + registrant fee).
         pegIn.setPegInClaimDependencies(address(registry), address(config), CLAIM_DEADLINE_BLOCKS, REGISTRANT_FEE);
+        // Wire the PegInContract (lbcAddress) into the registry's derivation, so the deposit address
+        // the registry derives is the SAME plain-P2SH the bridge re-derives at settlement (EB.1).
+        registry.setPegInContract(address(pegIn));
         // Grant the slasher role to PegInContract so it can call globalSlash.
         collateral.grantRole(slasherRole, address(pegIn));
         // Seed two LPs with collateral so global slashing has eligible (past-grace) collateral.

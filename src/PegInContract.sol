@@ -16,6 +16,7 @@ import {IPauseRegistry} from "./interfaces/IPauseRegistry.sol";
 import {IPegIn} from "./interfaces/IPegIn.sol";
 import {IPegInAddressRegistry} from "./interfaces/IPegInAddressRegistry.sol";
 import {Flyover} from "./libraries/Flyover.sol";
+import {PegInDerivation} from "./libraries/PegInDerivation.sol";
 import {Quotes} from "./libraries/Quotes.sol";
 import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 
@@ -68,8 +69,6 @@ contract PegInContract is
     /// admits the header (52) plus a small selector+single-arg callData (header + 4 + 32 = 88) while
     /// rejecting clearly oversized payloads, which are treated as a plain peg-in (constraints.md).
     uint256 constant private _OP_RETURN_MAX_LENGTH = 100;
-    /// @notice E2 derivation scheme tag, mirrored from PegInAddressRegistry.DERIVATION_DOMAIN.
-    bytes constant private _DERIVATION_DOMAIN = "FLYOVER_PEGIN_V1";
 
     int256 constant private _BRIDGE_UNPROCESSABLE_TX_VALIDATIONS_ERROR = -303;
     int256 constant private _BRIDGE_REFUNDED_USER_ERROR_CODE = -100;
@@ -476,7 +475,16 @@ contract PegInContract is
     }
 
     /// @notice Calls the Bridge to settle a claimed peg-in, releasing the deposited RBTC to this contract.
-    /// Split out of resolvePegIn to bound stack use. Uses the E2 derivation value for the RSK address.
+    /// Split out of resolvePegIn to bound stack use.
+    /// @dev Passes the EXACT inputs the shared {PegInDerivation} library mixes into the registry's
+    /// deposit address, so the native fast bridge re-derives the SAME PLAIN P2SH that received the
+    /// deposit and releases the funds to this contract (proven on regtest, EB.1):
+    ///   derivationArgumentsHash        = keccak256(DERIVATION_DOMAIN, rskAddr)
+    ///   userRefundBtcAddress           = REFUND_PLACEHOLDER_BTC (fixed protocol constant)
+    ///   liquidityBridgeContractAddress = address(this) (== the lbcAddress the registry mixes in)
+    ///   liquidityProviderBtcAddress    = LP_PLACEHOLDER_BTC (fixed protocol constant)
+    ///   shouldTransferToContract       = true (success funds route to THIS contract)
+    /// `address(this)` MUST equal the lbcAddress wired into the registry via setPegInContract.
     /// @param rskAddr The registered RSK address
     /// @param btcRawTransaction The raw BTC transaction (without witness data)
     /// @param partialMerkleTree The partial merkle tree proving inclusion
@@ -492,10 +500,10 @@ contract PegInContract is
             btcRawTransaction,
             height,
             partialMerkleTree,
-            _derivationValue(rskAddr),
-            new bytes(0),
+            PegInDerivation.derivationArgumentsHash(rskAddr),
+            PegInDerivation.refundPlaceholderBtc(),
             payable(this),
-            new bytes(0),
+            PegInDerivation.lpPlaceholderBtc(),
             true
         );
     }
@@ -1028,14 +1036,6 @@ contract PegInContract is
     /// @dev Utility function to return the minimum of two uint256 values
     function _min(uint a, uint b) private pure returns (uint) {
         return a < b ? a : b;
-    }
-
-    /// @notice Computes the Bridge fast-bridge derivation value for an RSK address (E2 scheme),
-    /// mirroring PegInAddressRegistry: keccak256(abi.encodePacked(DERIVATION_DOMAIN, rskAddr)).
-    /// @param rskAddr The RSK address
-    /// @return The derivation value used by the Bridge to reconstruct the flyover redeem script
-    function _derivationValue(address rskAddr) private pure returns (bytes32) {
-        return keccak256(abi.encodePacked(_DERIVATION_DOMAIN, rskAddr));
     }
 
     /// @notice Computes the E4 claim id for an (rskAddr, btcTxHash) pair.
