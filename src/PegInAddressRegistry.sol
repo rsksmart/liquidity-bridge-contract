@@ -82,7 +82,11 @@ contract PegInAddressRegistry is
         address bridge,
         bool mainnet
     ) external initializer {
-        if (bridge.code.length == 0) revert Flyover.NoContract(bridge);
+        // NOTE: the bridge is the Rootstock precompile (0x...1000006), which is a
+        // native contract with no EVM bytecode, so a code.length guard is wrong here
+        // (it always reads 0). The original PegInContract likewise does not guard the
+        // bridge. We only require a non-zero address.
+        if (bridge == address(0)) revert Flyover.NoContract(bridge);
         __AccessControlDefaultAdminRules_init(initialDelay, defaultAdmin);
         PegInAddressRegistryStorage storage $ = _getStorage();
         $.bridge = IBridge(payable(bridge));
