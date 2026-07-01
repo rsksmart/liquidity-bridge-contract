@@ -6,10 +6,10 @@
 **Source:** [PRD-dos-removal.md](./PRD-dos-removal.md)
 **Tracker:** JIRA FLY (epics not yet created)
 
-Twelve epics across three tracks. A shared foundation is built once, then the peg-in and peg-out tracks proceed independently, each on its own branches and worktrees. The epic folders live under `EPICS/FOUNDATION`, `EPICS/PEGIN`, and `EPICS/PEGOUT`. Each epic lists what it delivers, why, the acceptance criteria, dependencies, an estimate, and the PRD story it serves. Estimates use t-shirt sizes. Priority P0 marks the critical path that closes the peg-in DoS.
+Thirteen epics across three tracks. A shared foundation is built once, then the peg-in and peg-out tracks proceed independently, each on its own branches and worktrees. The epic folders live under `EPICS/FOUNDATION`, `EPICS/PEGIN`, and `EPICS/PEGOUT`. Each epic lists what it delivers, why, the acceptance criteria, dependencies, an estimate, and the PRD story it serves. Estimates use t-shirt sizes. Priority P0 marks the critical path that closes the peg-in DoS.
 
 - **Foundation:** E0, E1, E3, EB.
-- **Peg-in:** E2, E4, E5, E6, E10a.
+- **Peg-in:** E2, E4, E5, E6, E10a, E11.
 - **Peg-out:** E7, E8, E9, E10b.
 
 > **EB is a P0 foundation blocker discovered by the PoC** (see `POC-FINDINGS.md`, finding B): the registry's deterministic address derivation is incompatible with the native fast-bridge settlement derivation, so `resolvePegIn` cannot release funds. EB gates `resolvePegIn` completion, the whole peg-out track (E7–E9 settle through the same bridge), and prod. Resolve EB before continuing E7+.
@@ -224,6 +224,26 @@ Twelve epics across three tracks. A shared foundation is built once, then the pe
 **Work items.** EB.1 design spike (decide), then implementation stories TBD from the decision.
 
 **Repos.** lbc (likely); possibly powpeg/bridge if option 3 is chosen. **Serves.** S1, S2 (settlement). **Depends on.** E0. **Blocks.** `resolvePegIn` completion, E7, E8, E9, prod. **Estimate.** spike S, implementation TBD. **Labels.** epic, P0, lbc, design, blocker.
+
+---
+
+## E11. Peg-in refund and non-happy-path settlement (RBTC rail)
+
+**Delivers.** The peg-in behaviors beyond the proven happy path: settling to the user when no LP fronted, wiring the unclaimed global slash, SC-call-revert refunds, and a permissionless resolve/watchtower incentive so a peg-in is never stuck. Splits cleanly into the **RBTC rail** (address-safe, built now) and a **deferred BTC refund field decision** (address-rotating, done last).
+
+**Why.** The PoC proved only "LP fronts → bridge reimburses LP". The proposal's negative scenarios (no LP advances, SC-call reverts, nobody resolves) are specified but not built, and leaving them out means a user whose deposit no LP serves has no on-chain path to their funds. The RBTC rail does not touch the derivation, so it can ship without rotating the static BTC address; the BTC refund field decision does rotate it and is parked as the final, non-blocking story.
+
+**Acceptance criteria.**
+
+- No-claimer `resolvePegIn` forwards `amount − fee` to the user's `rskAddr` (E11.1).
+- An unclaimed serviceable peg-in past its deadline triggers `globalSlash`; non-penalizable cases skip it (E11.2, realizes E4.4).
+- A reverting SC-call peg-in still settles, refunds the user, and pays the LP its fee (E11.3).
+- A third party can resolve/register an abandoned peg-in and earn the reward (E11.4).
+- The BTC refund field scheme is decided by spike and implemented with no static address in contracts or configs (E11.5, deferred; rotates the deposit address).
+
+**Work items.** E11.1 no-claimer forward-to-user, E11.2 wire unclaimed→global-slash, E11.3 SC-call-revert refund, E11.4 permissionless resolve/watchtower, E11.5 BTC refund field decision (DEFERRED — address-rotating, do last).
+
+**Repos.** lbc, lps. **Serves.** S1, S2, S5. **Depends on.** E4 (happy path), E3 (globalSlash), E2 (registration). Aligns with E10b. E11.5 also depends on EB. **Blocks.** prod peg-in completeness. **Estimate.** L. **Labels.** epic, P0 (E11.1–E11.2) / P1–P2 (E11.3–E11.5), lbc, lps.
 
 ---
 

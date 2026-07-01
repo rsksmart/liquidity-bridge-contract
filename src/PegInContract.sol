@@ -142,6 +142,11 @@ contract PegInContract is
     /// @param rskAddr The registered RSK address whose peg-in went unserved
     /// @param amount The peg-in amount
     event UnclaimedPegInSlashed(address indexed rskAddr, uint256 indexed amount);
+    /// @notice Emitted when an unclaimed peg-in is settled and its funds forwarded to the user (E11.1).
+    /// @param pegInId The peg-in claim id
+    /// @param rskAddr The registered RSK address that received the forwarded funds
+    /// @param netToUser The amount forwarded to the user (amount - fee)
+    event PegInRefundedToUser(bytes32 indexed pegInId, address indexed rskAddr, uint256 netToUser);
 
     /// @notice Raised when a peg-in has already been claimed or resolved.
     error PegInAlreadyProcessed(bytes32 pegInId);
@@ -153,12 +158,8 @@ contract PegInContract is
     error InsufficientConfirmations(uint256 have, uint256 required);
     /// @notice Raised when the RBTC fronted by the LP does not match amount - fee.
     error IncorrectFronting(uint256 expected, uint256 provided);
-    /// @notice Raised when resolvePegIn is called for a peg-in that was never claimed.
-    error PegInNotClaimed(bytes32 pegInId);
     /// @notice Raised when the Bridge rejects the settlement (e.g. not enough confirmations).
     error BridgeSettlementFailed(int256 bridgeResult);
-    /// @notice Raised when a slash is attempted before the claim deadline has passed.
-    error ClaimDeadlineNotReached(uint256 deadlineBlock);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -463,10 +464,15 @@ contract PegInContract is
         address payable registrant
     ) external nonReentrant whenNotHardPaused returns (int256 bridgeResult) {
         bytes32 id = _pegInId(rskAddr, btcTxHash);
-        if (_claims[id].claimer == address(0)) revert PegInNotClaimed(id);
         if (_claims[id].resolved) revert PegInAlreadyProcessed(id);
 
-        // Settle with the Bridge: release the deposited RBTC to this contract.
+        // E11.1/E11.2 refund rail: no LP fronted this peg-in. Settle it anyway, forward the funds to the
+        // user, and (past the claim deadline) global-slash the network for leaving a valid peg-in unserved.
+        if (_claims[id].claimer == address(0)) {
+            return _resolveUnclaimed(id, rskAddr, btcRawTransaction, partialMerkleTree, height);
+        }
+
+        // E4.3 claimer path: settle with the Bridge and reimburse the fronting LP.
         bridgeResult = _settleWithBridge(rskAddr, btcRawTransaction, partialMerkleTree, height);
         if (bridgeResult < _MIN_VALID_BRIDGE_RESULT) revert BridgeSettlementFailed(bridgeResult);
 
@@ -534,48 +540,60 @@ contract PegInContract is
         emit PegInResolved(id, claim.claimer, fronted, feeToClaimer);
     }
 
-    /// @notice E4.4 — slashes the network when a valid, registered peg-in is left unclaimed past its
-    /// deadline (anchored to the registration block). No single LP is at fault, so the whole network is
-    /// slashed via CollateralManagement.globalSlash. Unregistered addresses and below-minimum amounts are
-    /// NOT penalizable.
-    /// @param rskAddr The registered RSK address whose peg-in went unserved
-    /// @param amount The peg-in amount (used to source the penalty and check the minimum)
-    /// @param btcTxHash The BTC transaction id of the unserved deposit
-    function slashUnclaimedPegIn(
+    /// @notice E11.1 + E11.2 refund rail — settles a peg-in that NO LP fronted, forwards `amount - fee` to
+    /// the user's rskAddr, and (if the peg-in is serviceable and past its claim deadline) global-slashes the
+    /// network for leaving a valid peg-in unserved. Supersedes the standalone E4.4 slash: the user is always
+    /// made whole from their own deposit and the slash happens on the same resolve. The deadline is anchored
+    /// to the registration block, not the deposit. Below-minimum amounts are refunded but not penalizable.
+    /// SC-call routing on this path is deferred (E11.3); the forward is a plain transfer to rskAddr.
+    /// @param id The peg-in claim id
+    /// @param rskAddr The registered RSK address the deposit was derived for (and the recipient)
+    /// @param btcRawTransaction The raw BTC transaction (without witness data)
+    /// @param partialMerkleTree The partial merkle tree proving inclusion
+    /// @param height The BTC block height of the transaction
+    /// @return bridgeResult The amount released by the Bridge (the peg-in amount)
+    function _resolveUnclaimed(
+        bytes32 id,
         address rskAddr,
-        uint256 amount,
-        bytes32 btcTxHash
-    ) external nonReentrant whenNotHardPaused {
+        bytes calldata btcRawTransaction,
+        bytes calldata partialMerkleTree,
+        uint256 height
+    ) private returns (int256 bridgeResult) {
         if (address(_registry) == address(0) || address(_configurations) == address(0)) {
             revert DependencyNotSet();
         }
-        // Non-penalizable: unregistered address.
         if (!_registry.isRegistered(rskAddr)) revert AddressNotRegistered(rskAddr);
 
-        bytes32 id = _pegInId(rskAddr, btcTxHash);
-        // Already claimed/served: nothing to slash.
-        if (_claims[id].claimer != address(0)) revert PegInAlreadyProcessed(id);
+        // Settle with the Bridge: release the deposited RBTC to this contract. The released amount is the
+        // peg-in amount (there is no claim record to read it from).
+        bridgeResult = _settleWithBridge(rskAddr, btcRawTransaction, partialMerkleTree, height);
+        if (bridgeResult < _MIN_VALID_BRIDGE_RESULT) revert BridgeSettlementFailed(bridgeResult);
 
-        // Non-penalizable: below the Flyover minimum amount.
-        uint256 minAmount = _configurations.getPegInConfiguration().minAmount;
-        if (amount < minAmount) revert AmountUnderMinimum(minAmount);
+        uint256 amount = uint256(bridgeResult);
+        uint256 netToUser = amount - _configurations.calculatePegInFee(amount);
 
-        // Deadline anchored to the registration block, not the deposit.
-        uint256 deadlineBlock = _registry.getRegistrationBlock(rskAddr) + _claimDeadlineBlocks;
-        if (block.number <= deadlineBlock) revert ClaimDeadlineNotReached(deadlineBlock);
-
-        // Mark processed so the slash cannot be repeated for this peg-in.
+        // Effects before interactions: mark processed so this peg-in cannot be resolved/slashed twice.
         _claims[id] = PegInClaim({
             claimer: address(this),
             amount: amount,
-            fee: 0,
+            fee: amount - netToUser,
             requestBlock: block.number,
             resolved: true
         });
 
-        uint256 penalty = _configurations.getPegInConfiguration().penaltyFee;
-        _collateralManagement.globalSlash(penalty);
-        emit UnclaimedPegInSlashed(rskAddr, amount);
+        // Global slash if the peg-in was serviceable (>= minimum) and left unserved past its deadline,
+        // anchored to the registration block. Below-minimum amounts are refunded but not penalizable.
+        uint256 minAmount = _configurations.getPegInConfiguration().minAmount;
+        uint256 deadlineBlock = _registry.getRegistrationBlock(rskAddr) + _claimDeadlineBlocks;
+        if (amount >= minAmount && block.number > deadlineBlock) {
+            _collateralManagement.globalSlash(_configurations.getPegInConfiguration().penaltyFee);
+            emit UnclaimedPegInSlashed(rskAddr, amount);
+        }
+
+        // Forward the net amount to the user (plain peg-in; SC-call routing is E11.3).
+        (bool ok,) = payable(rskAddr).call{value: netToUser}("");
+        if (!ok) revert Flyover.PaymentFailed(rskAddr, netToUser, "");
+        emit PegInRefundedToUser(id, rskAddr, netToUser);
     }
 
     /// @inheritdoc IPegIn

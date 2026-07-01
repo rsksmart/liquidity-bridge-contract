@@ -82,13 +82,28 @@ contract ResolvePegInTest is E4TestBase {
         assertEq(pegIn.getBalance(registrant), registrantBefore, "registrant not paid again");
     }
 
-    function test_ResolveUnclaimed_Reverts() public {
+    function test_ResolveUnclaimed_ForwardsToUserAndSlashes() public {
+        // E11.1/E11.2: resolving an unclaimed peg-in no longer reverts. It settles, forwards
+        // amount - fee to the user, and (past grace + claim deadline) global-slashes the network.
         bytes32 txHash = keccak256("never-claimed");
+        vm.roll(registry.getRegistrationBlock(user) + collateral.getGraceWindow() + CLAIM_DEADLINE_BLOCKS + 1);
+
+        uint256 net = AMOUNT - _fee(AMOUNT);
+        uint256 userBefore = user.balance;
+        uint256 collBefore = collateral.getPegInCollateral(lp) + collateral.getPegInCollateral(otherLp);
+
         vm.prank(lp);
-        vm.expectRevert(
-            abi.encodeWithSelector(PegInContract.PegInNotClaimed.selector, pegIn.pegInId(user, txHash))
+        int256 result = pegIn.resolvePegIn(user, txHash, hex"00", hex"00", 1, payable(registrant));
+
+        assertEq(uint256(result), AMOUNT, "bridge released the peg-in amount");
+        assertEq(user.balance - userBefore, net, "user forwarded amount - fee");
+        assertLt(
+            collateral.getPegInCollateral(lp) + collateral.getPegInCollateral(otherLp),
+            collBefore,
+            "network global-slashed for the unserved peg-in"
         );
-        pegIn.resolvePegIn(user, txHash, hex"00", hex"00", 1, payable(registrant));
+        PegInContract.PegInClaim memory claim = pegIn.getPegInClaim(user, txHash);
+        assertTrue(claim.resolved, "peg-in marked processed");
     }
 
     function test_DoubleResolve_Reverts() public {
