@@ -23,7 +23,19 @@ contract ComputeStorageSlot is Script {
                 )
             ) & ~uint256(0xff)
         );
+        bytes32 slotPegInAddressRegistry = bytes32(
+            uint256(
+                keccak256(
+                    abi.encode(
+                        uint256(
+                            keccak256("rsk.flyover.PegInAddressRegistry")
+                        ) - 1
+                    )
+                )
+            ) & ~uint256(0xff)
+        );
         console.logBytes32(slotPauseRegistry);
         console.logBytes32(slotEmergencyPause);
+        console.logBytes32(slotPegInAddressRegistry);
     }
 }
