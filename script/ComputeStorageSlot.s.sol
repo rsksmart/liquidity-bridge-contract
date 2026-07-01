@@ -27,9 +27,8 @@ contract ComputeStorageSlot is Script {
             uint256(
                 keccak256(
                     abi.encode(
-                        uint256(
-                            keccak256("rsk.flyover.PegInAddressRegistry")
-                        ) - 1
+                        uint256(keccak256("rsk.flyover.PegInAddressRegistry")) -
+                            1
                     )
                 )
             ) & ~uint256(0xff)
