@@ -1,21 +1,22 @@
 #!/bin/bash
 
-# Script to print the versions of all Flyover contracts
-# Usage: ./script/tasks/GetVersions.sh [rpc-url]
+# Print Flyover contract versions for a network in addresses.json
+# Usage: ./script/tasks/GetVersions.sh [rpc-url] [addresses.json-network-key]
+#   e.g. ./script/tasks/GetVersions.sh http://localhost:4444 rskRegtest
 
 RPC_URL="${1:-https://public-node.testnet.rsk.co}"
+NETWORK_KEY="${2:-rskTestnet}"
 
-# Get contract addresses from addresses.json
-CM_ADDRESS=$(jq -r '.rskTestnet.CollateralManagement.address' ./addresses.json 2>/dev/null || echo "")
-FD_ADDRESS=$(jq -r '.rskTestnet.FlyoverDiscovery.address' ./addresses.json 2>/dev/null || echo "")
-PEGIN_ADDRESS=$(jq -r '.rskTestnet.PegInContract.address' ./addresses.json 2>/dev/null || echo "")
-PEGOUT_ADDRESS=$(jq -r '.rskTestnet.PegOutContract.address' ./addresses.json 2>/dev/null || echo "")
+CM_ADDRESS=$(jq -r ".[\"${NETWORK_KEY}\"].CollateralManagementContract.address" ./addresses.json 2>/dev/null || echo "")
+FD_ADDRESS=$(jq -r ".[\"${NETWORK_KEY}\"].FlyoverDiscovery.address" ./addresses.json 2>/dev/null || echo "")
+PEGIN_ADDRESS=$(jq -r ".[\"${NETWORK_KEY}\"].PegInContract.address" ./addresses.json 2>/dev/null || echo "")
+PEGOUT_ADDRESS=$(jq -r ".[\"${NETWORK_KEY}\"].PegOutContract.address" ./addresses.json 2>/dev/null || echo "")
 
 echo "Getting Flyover contract versions..."
+echo "Network: $NETWORK_KEY"
 echo "RPC URL: $RPC_URL"
 echo ""
 
-# Function to get version from a contract
 get_version() {
     local name=$1
     local address=$2
@@ -34,7 +35,6 @@ get_version() {
     fi
 }
 
-# Get versions for all contracts
 get_version "CollateralManagement" "$CM_ADDRESS"
 get_version "FlyoverDiscovery" "$FD_ADDRESS"
 get_version "PegInContract" "$PEGIN_ADDRESS"

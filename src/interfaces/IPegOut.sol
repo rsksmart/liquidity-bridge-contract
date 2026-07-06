@@ -116,6 +116,10 @@ interface IPegOut is IPausable, IERC5267 {
     /// - The expiration date of the quote is more than the native peg out seconds
     error UnfairQuote();
 
+    /// @notice This error is emitted when the collateral is insufficient to cover the penalty fee
+    /// @param amount the amount of collateral that is insufficient
+    error InsufficientCollateral(uint amount);
+
 
     /// @notice This function is used to withdraw funds from the contract
     /// @dev This is usually used if some payment failed and the funds need to be returned to a different address.

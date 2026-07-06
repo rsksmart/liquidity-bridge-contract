@@ -2,6 +2,7 @@
 pragma solidity 0.8.25;
 
 import {PegInTestBase} from "./PegInTestBase.sol";
+import {P2PKH_ZERO_ADDRESS_TESTNET} from "../constants/btc.sol";
 import {IPegIn} from "../../src/interfaces/IPegIn.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
@@ -1180,13 +1181,15 @@ contract RegisterPegInTest is PegInTestBase {
     function test_RegisterPegIn_RefundPegInWithWrongAmountWithoutPenalizingLP()
         public
     {
-        // Uses real mainnet transaction data to ensure compatibility with actual edge cases
+        // Uses real mainnet transaction data; redeploy with mainnet BTC prefix validation
+        pegInContract = deployPegInContract(true);
 
         // Decode BTC addresses from base58check format
         // "3LxPz39femVBL278mTiBvgzBNMVFqXssoH" (P2SH mainnet) -> slice(1) removes version byte
         bytes20 fedBtcAddr = bytes20(
             hex"a157fd1a536371656f3c19c2005199308a49bc9c"
         );
+        vm.chainId(30);
         // "17kksixYkbHeLy9okV16kr4eAxVhFkRhP" (P2PKH mainnet) -> full decoded bytes
         bytes
             memory lpBtcAddr = hex"00840098213fec4001cdc4a77cc3340f5bb83d9ed5";
@@ -1459,7 +1462,7 @@ contract RegisterPegInTest is PegInTestBase {
     function createTestQuote(
         uint256 value
     ) internal view returns (Quotes.PegInQuote memory) {
-        bytes memory testBtcAddress = new bytes(21);
+        bytes memory testBtcAddress = P2PKH_ZERO_ADDRESS_TESTNET;
 
         return
             Quotes.PegInQuote({
