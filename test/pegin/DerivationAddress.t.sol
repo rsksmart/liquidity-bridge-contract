@@ -32,24 +32,28 @@ contract DerivationAddressTest is Test {
     // Shared BTC addresses for test quotes
     bytes20 constant FED_BTC_ADDRESS =
         bytes20(hex"a157fd1a536371656f3c19c2005199308a49bc9c");
-    bytes constant LP_BTC_ADDRESS =
+    bytes constant LP_BTC_ADDRESS_MAINNET =
         hex"00840098213fec4001cdc4a77cc3340f5bb83d9ed5";
-    bytes constant BTC_REFUND_ADDRESS =
+    bytes constant LP_BTC_ADDRESS_TESTNET =
+        hex"6f840098213fec4001cdc4a77cc3340f5bb83d9ed5";
+    bytes constant BTC_REFUND_ADDRESS_MAINNET =
         hex"000000000000000000000000000000000000000000";
+    bytes constant BTC_REFUND_ADDRESS_TESTNET =
+        hex"6f0000000000000000000000000000000000000000";
 
     // Deposit addresses (mainnet and testnet for each test case)
     bytes constant MAINNET_DEPOSIT_ADDRESS_1 =
-        hex"05a028a93b57d3ae056504de4ccedbe45349f728708f508621";
+        hex"0551e9a3af3e3ee3e82623092779c6bf2f6842bdfb265747e8";
     bytes constant TESTNET_DEPOSIT_ADDRESS_1 =
-        hex"c4a028a93b57d3ae056504de4ccedbe45349f72870077cc2a3";
+        hex"c4291a9564b48c8e6871ceaaae2673b7d47afbab75a97b1e54";
     bytes constant MAINNET_DEPOSIT_ADDRESS_2 =
-        hex"05f3d8cc0272674bf44b53d1a2c4012a35b8161dfec4f77bd2";
+        hex"0533a3241448538400b4126bda482a70ec99f9dba60130cdd1";
     bytes constant TESTNET_DEPOSIT_ADDRESS_2 =
-        hex"c4f3d8cc0272674bf44b53d1a2c4012a35b8161dfea43d7a4c";
+        hex"c4e224d91e0a8e31b9d814476ad4a23938ac16d23df79452b6";
     bytes constant MAINNET_DEPOSIT_ADDRESS_3 =
-        hex"0560478d263979f125a4b0fa58a0fc2238eca545ab2f3c1de5";
+        hex"05ed352bccc4344b145b6739593c65a1eaa673bcfc79808a91";
     bytes constant TESTNET_DEPOSIT_ADDRESS_3 =
-        hex"c460478d263979f125a4b0fa58a0fc2238eca545abe95f5e84";
+        hex"c450f741e356eb218b8b8fca751ad51c3bdd523f8bb058a8d5";
 
     address owner = address(1);
     PauseRegistry internal _pauseRegistry;
@@ -65,7 +69,7 @@ contract DerivationAddressTest is Test {
     function test_HashPegInQuote_RevertsIfQuoteBelongsToOtherContract() public {
         PegInContract pegIn = deployPegInContract(true);
 
-        Quotes.PegInQuote memory quote = createTestQuote1(address(pegIn));
+        Quotes.PegInQuote memory quote = createTestQuote1(address(pegIn), true);
         quote.lbcAddress = address(0x123); // Wrong contract address
 
         vm.expectRevert(
@@ -81,7 +85,7 @@ contract DerivationAddressTest is Test {
     function test_HashPegInQuote_IsDeterministic() public {
         PegInContract pegIn = deployPegInContract(true);
 
-        Quotes.PegInQuote memory quote = createTestQuote1(address(pegIn));
+        Quotes.PegInQuote memory quote = createTestQuote1(address(pegIn), true);
 
         bytes32 hash1 = pegIn.hashPegInQuote(quote);
         bytes32 hash2 = pegIn.hashPegInQuote(quote);
@@ -98,7 +102,8 @@ contract DerivationAddressTest is Test {
     function test_ValidatePegInDepositAddress_ValidatesMainnetAddresses()
         public
     {
-        // Deploy mainnet contract
+        // chainId 30 matches the fixtures used to derive MAINNET_DEPOSIT_ADDRESS_*
+        vm.chainId(30);
         PegInContract pegInMainnet = deployPegInContract(true);
 
         // Verify it deployed to the expected address
@@ -110,7 +115,8 @@ contract DerivationAddressTest is Test {
 
         // Test Case 1: nonce 3635227228603468300
         Quotes.PegInQuote memory quote1 = createTestQuote1(
-            address(pegInMainnet)
+            address(pegInMainnet),
+            true
         );
         bool result1 = pegInMainnet.validatePegInDepositAddress(
             quote1,
@@ -120,7 +126,8 @@ contract DerivationAddressTest is Test {
 
         // Test Case 2: nonce 6080686644105603000
         Quotes.PegInQuote memory quote2 = createTestQuote2(
-            address(pegInMainnet)
+            address(pegInMainnet),
+            true
         );
         bool result2 = pegInMainnet.validatePegInDepositAddress(
             quote2,
@@ -130,7 +137,8 @@ contract DerivationAddressTest is Test {
 
         // Test Case 3: nonce 7756734892733337000
         Quotes.PegInQuote memory quote3 = createTestQuote3(
-            address(pegInMainnet)
+            address(pegInMainnet),
+            true
         );
         bool result3 = pegInMainnet.validatePegInDepositAddress(
             quote3,
@@ -154,7 +162,8 @@ contract DerivationAddressTest is Test {
 
         // Test Case 1: nonce 3635227228603468300
         Quotes.PegInQuote memory quote1 = createTestQuote1(
-            address(pegInTestnet)
+            address(pegInTestnet),
+            false
         );
         bool result1 = pegInTestnet.validatePegInDepositAddress(
             quote1,
@@ -164,7 +173,8 @@ contract DerivationAddressTest is Test {
 
         // Test Case 2: nonce 6080686644105603000
         Quotes.PegInQuote memory quote2 = createTestQuote2(
-            address(pegInTestnet)
+            address(pegInTestnet),
+            false
         );
         bool result2 = pegInTestnet.validatePegInDepositAddress(
             quote2,
@@ -174,7 +184,8 @@ contract DerivationAddressTest is Test {
 
         // Test Case 3: nonce 7756734892733337000
         Quotes.PegInQuote memory quote3 = createTestQuote3(
-            address(pegInTestnet)
+            address(pegInTestnet),
+            false
         );
         bool result3 = pegInTestnet.validatePegInDepositAddress(
             quote3,
@@ -280,7 +291,8 @@ contract DerivationAddressTest is Test {
 
     /// @notice Creates test quote 1 (nonce: 3635227228603468300)
     function createTestQuote1(
-        address lbcAddress
+        address lbcAddress,
+        bool mainnet
     ) internal view returns (Quotes.PegInQuote memory) {
         return
             Quotes.PegInQuote({
@@ -303,15 +315,20 @@ contract DerivationAddressTest is Test {
                 callTime: 7200,
                 depositConfirmations: 3,
                 callOnRegister: false,
-                btcRefundAddress: BTC_REFUND_ADDRESS,
-                liquidityProviderBtcAddress: LP_BTC_ADDRESS,
+                btcRefundAddress: mainnet
+                    ? BTC_REFUND_ADDRESS_MAINNET
+                    : BTC_REFUND_ADDRESS_TESTNET,
+                liquidityProviderBtcAddress: mainnet
+                    ? LP_BTC_ADDRESS_MAINNET
+                    : LP_BTC_ADDRESS_TESTNET,
                 data: new bytes(0)
             });
     }
 
     /// @notice Creates test quote 2 (nonce: 6080686644105603000)
     function createTestQuote2(
-        address lbcAddress
+        address lbcAddress,
+        bool mainnet
     ) internal view returns (Quotes.PegInQuote memory) {
         return
             Quotes.PegInQuote({
@@ -334,15 +351,20 @@ contract DerivationAddressTest is Test {
                 callTime: 10800,
                 depositConfirmations: 2,
                 callOnRegister: false,
-                btcRefundAddress: BTC_REFUND_ADDRESS,
-                liquidityProviderBtcAddress: LP_BTC_ADDRESS,
+                btcRefundAddress: mainnet
+                    ? BTC_REFUND_ADDRESS_MAINNET
+                    : BTC_REFUND_ADDRESS_TESTNET,
+                liquidityProviderBtcAddress: mainnet
+                    ? LP_BTC_ADDRESS_MAINNET
+                    : LP_BTC_ADDRESS_TESTNET,
                 data: new bytes(0)
             });
     }
 
     /// @notice Creates test quote 3 (nonce: 7756734892733337000)
     function createTestQuote3(
-        address lbcAddress
+        address lbcAddress,
+        bool mainnet
     ) internal view returns (Quotes.PegInQuote memory) {
         return
             Quotes.PegInQuote({
@@ -365,8 +387,12 @@ contract DerivationAddressTest is Test {
                 callTime: 10800,
                 depositConfirmations: 2,
                 callOnRegister: false,
-                btcRefundAddress: BTC_REFUND_ADDRESS,
-                liquidityProviderBtcAddress: LP_BTC_ADDRESS,
+                btcRefundAddress: mainnet
+                    ? BTC_REFUND_ADDRESS_MAINNET
+                    : BTC_REFUND_ADDRESS_TESTNET,
+                liquidityProviderBtcAddress: mainnet
+                    ? LP_BTC_ADDRESS_MAINNET
+                    : LP_BTC_ADDRESS_TESTNET,
                 data: new bytes(0)
             });
     }

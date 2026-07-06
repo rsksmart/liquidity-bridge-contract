@@ -6,7 +6,9 @@ import {Quotes} from "../libraries/Quotes.sol";
 import {IPausable} from "./IPausable.sol";
 
 /// @title PegOut interface
-/// @notice This interface is used to expose the required functions to provide the Flyover peg out service
+/// @notice This interface is used to expose the required functions to provide the Flyover peg out service.
+/// Users are expected to and are responsible for reviewing all fields of any quote before accepting or acting on it,
+/// as those fields represent the terms of the service agreed with the liquidity provider (LP).
 interface IPegOut is IPausable, IERC5267 {
 
     /// @notice Emitted when a peg out is refunded to the liquidity
@@ -109,6 +111,15 @@ interface IPegOut is IPausable, IERC5267 {
     /// @param quoteHash the hash of the quote that is not expired
     error QuoteNotExpired(bytes32 quoteHash);
 
+    /// @notice This error is emitted when the terms of the quote are not fair for the contract. This includes:
+    /// - The expiration blocks of the quote is more than the native peg out blocks
+    /// - The expiration date of the quote is more than the native peg out seconds
+    error UnfairQuote();
+
+    /// @notice This error is emitted when the collateral is insufficient to cover the penalty fee
+    /// @param amount the amount of collateral that is insufficient
+    error InsufficientCollateral(uint amount);
+
 
     /// @notice This function is used to withdraw funds from the contract
     /// @dev This is usually used if some payment failed and the funds need to be returned to a different address.
@@ -118,13 +129,16 @@ interface IPegOut is IPausable, IERC5267 {
     function withdraw(address payable addr, uint256 amount) external;
 
     /// @notice This is the function used to pay for a peg out quote. This is the only correct function to execute
-    /// such payment, sending money directly to the contract does not work
+    /// such payment, sending money directly to the contract does not work.
+    /// The user is expected to and is responsible for reviewing all fields of the quote, as they comprehend the terms
+    /// of the service agreed with the LP before paying.
     /// @param quote The quote that is being paid
     /// @param signature The signature of the quote hash provided by the liquidity provider after the quote acceptance
     function depositPegOut(Quotes.PegOutQuote calldata quote, bytes calldata signature) external payable;
 
     /// @notice This function is used by the liquidity provider to recover the funds spent on the peg out service plus
-    /// their fee for the service. It proves the inclusion of the transaction paying to the user in the Bitcoin network
+    /// their fee for the service. It proves the inclusion of the transaction paying to the user in the Bitcoin network.
+    /// The LP is expected to have reviewed all quote fields when issuing the quote, as they represent the agreed terms.
     /// @param quoteHash hash of the quote being refunded
     /// @param btcTx the Bitcoin raw transaction without witness data. It must include
     /// the required outputs in this EXACT order
@@ -145,16 +159,21 @@ interface IPegOut is IPausable, IERC5267 {
 
     /// @notice This function must be used by the user to recover the funds if the liquidity provider
     /// fails to provide the service. The user needs to wait for the quote to expire before calling
-    /// this function
+    /// this function. The user is responsible for having reviewed all quote fields when accepting the quote,
+    /// as they represent the terms agreed with the LP (including refund address and expiration).
     /// @param quoteHash the hash of the quote being refunded
     function refundUserPegOut(bytes32 quoteHash) external;
 
     /// @notice This view is used to get the hash of a quote, this should be used as the single source of truth so
-    /// all the involved parties can compute the quote hash in the same way
+    /// all the involved parties can compute the quote hash in the same way.
+    /// Users should review all fields of the quote before relying on its hash, as those fields are the terms agreed
+    /// with the LP.
     /// @param quote the quote to hash
     function hashPegOutQuote(Quotes.PegOutQuote calldata quote) external view returns (bytes32);
 
-    /// @notice This view is used to get the hash of a peg out quote using EIP712 specification
+    /// @notice This view is used to get the hash of a peg out quote using EIP712 specification.
+    /// The user is expected to review all quote fields before signing or accepting, as they
+    /// represent the terms agreed with the LP.
     /// @param quote The quote of the peg out
     /// @return hashStruct The hash struct to be combined with the domain separator
     function hashPegOutQuoteEIP712(Quotes.PegOutQuote calldata quote) external view returns (bytes32);
@@ -167,6 +186,8 @@ interface IPegOut is IPausable, IERC5267 {
     /// @notice This function validates a Bitcoin transaction for a peg out refund without confirmations.
     /// It allows liquidity providers to verify a transaction will be accepted before broadcasting to Bitcoin.
     /// This performs the same validations as refundPegOut except for confirmations.
+    /// The LP is responsible for having reviewed all quote fields when issuing the quote, as they represent
+    /// the agreed terms.
     /// @param quoteHash hash of the quote being validated
     /// @param btcTx the bitcoin raw transaction without the witness (does not need to be broadcasted yet)
     /// @return quote the PegOutQuote associated with the validated transaction

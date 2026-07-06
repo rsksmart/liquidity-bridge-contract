@@ -184,7 +184,8 @@ abstract contract DifferentialBase is Test {
         DeployFlyover deployer = new DeployFlyover();
         DeployFlyover.FlyoverDeployment memory d = deployer.deployForTesting(
             address(deployer),
-            cfg
+            cfg,
+            helper.getOptions()
         );
         targets.pegIn = d.pegInProxy;
         targets.pegOut = d.pegOutProxy;

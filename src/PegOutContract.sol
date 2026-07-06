@@ -17,7 +17,9 @@ import {Quotes} from "./libraries/Quotes.sol";
 import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 
 /// @title PegOutContract
-/// @notice This contract is used to handle the peg out of the RSK network to the Bitcoin network
+/// @notice This contract is used to handle the peg out of the RSK network to the Bitcoin network.
+/// Users are expected to and are responsible for reviewing all fields of any quote before accepting or acting on it,
+/// as those fields represent the terms of the service agreed with the liquidity provider (LP).
 /// @author Rootstock Labs
 contract PegOutContract is
     AccessControlDefaultAdminRulesUpgradeable,
@@ -48,6 +50,9 @@ contract PegOutContract is
     uint256 constant private _QUOTE_HASH_OUTPUT = 1;
     uint256 constant private _SAT_TO_WEI_CONVERSION = 10**10;
     uint256 constant private _QUOTE_HASH_SIZE = 32;
+
+    uint256 constant private _NATIVE_PEGOUT_BLOCKS = 4000;
+    uint256 constant private _NATIVE_PEGOUT_SECONDS = 129_600; // 36 hours
 
     IBridge private _bridge;
     ICollateralManagement private _collateralManagement;
@@ -87,7 +92,7 @@ contract PegOutContract is
         Quotes.PegOutQuote calldata quote,
         bytes calldata signature
     ) external payable nonReentrant whenNotSoftPaused override {
-        if(!_collateralManagement.isRegistered(_PEG_TYPE, quote.lpRskAddress)) {
+        if(!_collateralManagement.isCollateralSufficient(_PEG_TYPE, quote.lpRskAddress)) {
             revert Flyover.ProviderNotRegistered(quote.lpRskAddress);
         }
         uint256 requiredAmount = quote.value + quote.callFee + quote.gasFee;
@@ -223,6 +228,10 @@ contract PegOutContract is
         emit PegOutRefunded(quoteHash);
 
         if (_shouldPenalize(quote, quoteHash, btcBlockHeaderHash)) {
+            uint256 collateral = _collateralManagement.getPegOutCollateral(quote.lpRskAddress);
+            if (collateral < quote.penaltyFee) {
+                revert IPegOut.InsufficientCollateral(collateral);
+            }
             _collateralManagement.slashPegOutCollateral(msg.sender, quote, quoteHash);
         }
 
@@ -351,6 +360,14 @@ contract PegOutContract is
         if (address(this) != quote.lbcAddress) {
             revert Flyover.IncorrectContract(address(this), quote.lbcAddress);
         }
+        if (
+            quote.expireBlock > block.number + _NATIVE_PEGOUT_BLOCKS ||
+            quote.expireDate > block.timestamp + _NATIVE_PEGOUT_SECONDS
+        ) revert UnfairQuote();
+
+        if (quote.rskRefundAddress == address(0)) {
+            revert Flyover.InvalidAddress(quote.rskRefundAddress);
+        }
     }
 
     /// @notice This function is used to check if a quote has been completed (refunded by any party)
@@ -363,7 +380,6 @@ contract PegOutContract is
     /// @notice This function is used to check if a liquidity provider should be penalized
     /// according to the following rules:
     /// - If the transfer was not made on time, the liquidity provider should be penalized
-    /// - If the liquidity provider is refunding after expiration, the liquidity provider should be penalized
     /// @param quote the peg out quote
     /// @param quoteHash the hash of the quote
     /// @param blockHash the hash of the block that contains the first confirmation of the peg out transaction
@@ -420,9 +436,6 @@ contract PegOutContract is
         bytes32 quoteHash,
         bytes calldata btcTx
     ) private view returns (Quotes.PegOutQuote memory quote) {
-        if(!_collateralManagement.isRegistered(_PEG_TYPE, msg.sender)) {
-            revert Flyover.ProviderNotRegistered(msg.sender);
-        }
         if (_isQuoteCompleted(quoteHash)) revert QuoteAlreadyCompleted(quoteHash);
 
         quote = _pegOutQuotes[quoteHash];

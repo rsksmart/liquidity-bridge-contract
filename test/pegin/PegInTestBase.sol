@@ -11,6 +11,7 @@ import {WalletMock} from "../../src/test-contracts/WalletMock.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
+import {P2PKH_ZERO_ADDRESS_TESTNET} from "../constants/btc.sol";
 
 /// @title Base contract for PegIn tests
 /// @notice Provides shared deployment and setup logic for PegIn tests
@@ -43,22 +44,18 @@ abstract contract PegInTestBase is Test {
 
     address constant ZERO_ADDRESS = address(0);
 
-    /// @notice Deploy PegInContract with all dependencies
+    /// @notice Deploy PegInContract with all dependencies (testnet BTC prefixes)
     function deployPegInContract() internal {
-        // Create owner
-        owner = makeAddr("owner");
-        vm.deal(owner, 100 ether);
+        pegInContract = deployPegInContract(false);
+    }
 
-        // Deploy CollateralManagement
-        deployCollateralManagement();
+    /// @notice Deploy PegInContract with all dependencies
+    /// @param mainnet When true, validates P2PKH/P2SH mainnet prefixes (0x00, 0x05)
+    function deployPegInContract(
+        bool mainnet
+    ) internal returns (PegInContract pegIn) {
+        _deployPegInDependencies();
 
-        // Deploy Discovery
-        deployDiscovery();
-
-        // Deploy BridgeMock
-        bridgeMock = new BridgeMock();
-
-        // Deploy PegInContract
         PegInContract implementation = new PegInContract();
 
         bytes memory initData = abi.encodeCall(
@@ -69,7 +66,7 @@ abstract contract PegInTestBase is Test {
                 TEST_DUST_THRESHOLD,
                 TEST_MIN_PEGIN,
                 address(collateralManagement),
-                false, // mainnet
+                mainnet,
                 pauseRegistry
             )
         );
@@ -78,13 +75,23 @@ abstract contract PegInTestBase is Test {
             address(implementation),
             initData
         );
-        pegInContract = PegInContract(payable(address(proxy)));
+        pegIn = PegInContract(payable(address(proxy)));
 
-        // Grant COLLATERAL_SLASHER role to PegInContract
         bytes32 slasherRole = collateralManagement.COLLATERAL_SLASHER();
-
         vm.prank(owner);
-        collateralManagement.grantRole(slasherRole, address(pegInContract));
+        collateralManagement.grantRole(slasherRole, address(pegIn));
+    }
+
+    function _deployPegInDependencies() internal {
+        if (address(collateralManagement) != address(0)) {
+            return;
+        }
+
+        owner = makeAddr("owner");
+        vm.deal(owner, 100 ether);
+        deployCollateralManagement();
+        deployDiscovery();
+        bridgeMock = new BridgeMock();
     }
 
     function deployCollateralManagement() internal {
@@ -200,7 +207,7 @@ abstract contract PegInTestBase is Test {
         address destinationContract,
         uint256 nonce
     ) internal view returns (Quotes.PegInQuote memory) {
-        bytes memory testBtcAddress = new bytes(21);
+        bytes memory testBtcAddress = P2PKH_ZERO_ADDRESS_TESTNET;
 
         return
             Quotes.PegInQuote({

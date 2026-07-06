@@ -22,12 +22,22 @@ interface IFlyoverDiscovery is IPausable {
 
     error NotAuthorized(address from);
     error NotEOA(address from);
-    error InvalidProviderData(string name, string apiBaseUrl);
     error InvalidProviderType(Flyover.ProviderType providerType);
     error AlreadyRegistered(address from);
     error RegistrationAlreadyPending(address from);
     error RegistrationNotPending(address from);
     error InsufficientCollateral(uint amount);
+    /// @notice Reverts when provider metadata lengths are empty or exceed configured bounds
+     /// @param nameLength The observed provider name length
+     /// @param apiBaseUrlLength The observed API base URL length
+     /// @param maxNameLength The maximum allowed provider name length
+     /// @param maxApiBaseUrlLength The maximum allowed API base URL length
+     error ProviderDataLengthOutOfBounds(
+         uint256 nameLength,
+         uint256 apiBaseUrlLength,
+         uint256 maxNameLength,
+         uint256 maxApiBaseUrlLength
+     );
 
     /// @notice Registers the caller as a Liquidity Provider
     /// @dev Reverts if caller is not an EOA, already resigned, provides invalid data,

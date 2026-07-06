@@ -4,10 +4,12 @@ pragma solidity 0.8.25;
 import "lib/forge-std/src/Test.sol";
 import "lib/forge-std/src/console.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
+import {ProxyReader} from "../../script/helpers/ProxyReader.sol";
 import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
-import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {TransparentUpgradeableProxy, ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
 /**
@@ -27,13 +29,11 @@ contract DeployFlyoverDiscoveryTest is Test {
         // Deploy PauseRegistry and CollateralManagement first (dependency)
         HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
         address deployer = address(this);
-        address cmAdmin = address(new ProxyAdmin(deployer));
-
         PauseRegistry prImpl = new PauseRegistry();
         pauseRegistryProxy = address(
             new TransparentUpgradeableProxy(
                 address(prImpl),
-                cmAdmin,
+                deployer,
                 abi.encodeCall(prImpl.initialize, (0, deployer))
             )
         );
@@ -42,7 +42,7 @@ contract DeployFlyoverDiscoveryTest is Test {
         collateralManagementProxy = address(
             new TransparentUpgradeableProxy(
                 cmImpl,
-                cmAdmin,
+                deployer,
                 abi.encodeCall(
                     CollateralManagementContract.initialize,
                     (
@@ -73,11 +73,7 @@ contract DeployFlyoverDiscoveryTest is Test {
         FlyoverDiscovery implementation = new FlyoverDiscovery();
         console.log("   Implementation deployed at:", address(implementation));
 
-        console.log("\n2. Deploying Proxy Admin...");
-        ProxyAdmin admin = new ProxyAdmin(deployer);
-        console.log("   Admin deployed at:", address(admin));
-
-        console.log("\n3. Preparing initializer calldata...");
+        console.log("\n2. Preparing initializer calldata...");
         bytes memory initData = abi.encodeCall(
             FlyoverDiscovery.initialize,
             (
@@ -89,18 +85,44 @@ contract DeployFlyoverDiscoveryTest is Test {
         );
         console.log("   Init data length:", initData.length);
 
-        console.log("\n4. Deploying Proxy...");
+        console.log("\n3. Deploying Proxy...");
         TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
             address(implementation),
-            address(admin),
+            deployer,
             initData
         );
         console.log("   Proxy deployed at:", address(proxy));
+        address discoveryProxyAdmin = ProxyReader.readAdmin(vm, address(proxy));
+        console.log("   ProxyAdmin:", discoveryProxyAdmin);
 
-        console.log("\n5. Verifying deployment...");
+        console.log("\n4. Verifying deployment...");
         FlyoverDiscovery fd = FlyoverDiscovery(address(proxy));
 
         assertEq(fd.lastProviderId(), 0, "Initial provider ID should be 0");
+
+        address pauseRegistryProxyAdmin = ProxyReader.readAdmin(
+            vm,
+            pauseRegistryProxy
+        );
+        address cmProxyAdmin = ProxyReader.readAdmin(
+            vm,
+            collateralManagementProxy
+        );
+        assertEq(
+            Ownable(pauseRegistryProxyAdmin).owner(),
+            deployer,
+            "PauseRegistry ProxyAdmin owner mismatch"
+        );
+        assertEq(
+            Ownable(cmProxyAdmin).owner(),
+            deployer,
+            "CollateralManagement ProxyAdmin owner mismatch"
+        );
+        assertEq(
+            Ownable(discoveryProxyAdmin).owner(),
+            deployer,
+            "FlyoverDiscovery ProxyAdmin owner mismatch"
+        );
         console.log("   Last Provider ID:", fd.lastProviderId());
 
         console.log(
@@ -116,11 +138,10 @@ contract DeployFlyoverDiscoveryTest is Test {
 
         // Inline deployment
         address impl = address(new FlyoverDiscovery());
-        address admin = address(new ProxyAdmin(deployer));
         address proxy = address(
             new TransparentUpgradeableProxy(
                 impl,
-                admin,
+                deployer,
                 abi.encodeCall(
                     FlyoverDiscovery.initialize,
                     (
@@ -133,14 +154,19 @@ contract DeployFlyoverDiscoveryTest is Test {
             )
         );
 
+        address proxyAdminAddr = ProxyReader.readAdmin(vm, proxy);
         console.log("Deployment Result:");
         console.log("  Implementation:", impl);
         console.log("  Proxy:", proxy);
-        console.log("  Admin:", admin);
+        console.log("  ProxyAdmin:", proxyAdminAddr);
 
         assertTrue(impl != address(0), "Implementation should not be zero");
         assertTrue(proxy != address(0), "Proxy should not be zero");
-        assertTrue(admin != address(0), "Admin should not be zero");
+        assertEq(
+            Ownable(proxyAdminAddr).owner(),
+            deployer,
+            "ProxyAdmin owner mismatch"
+        );
 
         // Verify contract is initialized
         FlyoverDiscovery fd = FlyoverDiscovery(proxy);
@@ -157,11 +183,10 @@ contract DeployFlyoverDiscoveryTest is Test {
 
         // Deploy FlyoverDiscovery
         address impl = address(new FlyoverDiscovery());
-        address admin = address(new ProxyAdmin(deployer));
         address fdProxy = address(
             new TransparentUpgradeableProxy(
                 impl,
-                admin,
+                deployer,
                 abi.encodeCall(
                     FlyoverDiscovery.initialize,
                     (
@@ -188,6 +213,12 @@ contract DeployFlyoverDiscoveryTest is Test {
             "FlyoverDiscovery should have COLLATERAL_ADDER"
         );
 
+        assertEq(
+            Ownable(ProxyReader.readAdmin(vm, fdProxy)).owner(),
+            deployer,
+            "FlyoverDiscovery ProxyAdmin owner mismatch"
+        );
+
         console.log("\n[PASS] Integration with CollateralManagement verified!");
     }
 
@@ -199,11 +230,10 @@ contract DeployFlyoverDiscoveryTest is Test {
 
         // Inline deployment
         address impl = address(new FlyoverDiscovery());
-        address admin = address(new ProxyAdmin(deployer));
         address proxy = address(
             new TransparentUpgradeableProxy(
                 impl,
-                admin,
+                deployer,
                 abi.encodeCall(
                     FlyoverDiscovery.initialize,
                     (
@@ -225,8 +255,58 @@ contract DeployFlyoverDiscoveryTest is Test {
             "Deployer should have DEFAULT_ADMIN_ROLE"
         );
 
+        assertEq(
+            Ownable(ProxyReader.readAdmin(vm, proxy)).owner(),
+            deployer,
+            "FlyoverDiscovery ProxyAdmin owner mismatch"
+        );
+
         console.log("  Deployer has DEFAULT_ADMIN_ROLE: true");
 
         console.log("\n[PASS] Roles are set correctly!");
+    }
+
+    function test_ContractIsUpgradeable() public {
+        console.log("\n=== CONTRACT IS UPGRADEABLE ===\n");
+
+        HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
+        address deployer = address(this);
+
+        address impl = address(new FlyoverDiscovery());
+        TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
+            impl,
+            deployer,
+            abi.encodeCall(
+                FlyoverDiscovery.initialize,
+                (
+                    deployer,
+                    cfg.adminDelay,
+                    collateralManagementProxy,
+                    PauseRegistry(pauseRegistryProxy)
+                )
+            )
+        );
+
+        ProxyAdmin proxyAdmin = ProxyAdmin(
+            ProxyReader.readAdmin(vm, address(proxy))
+        );
+        address newImplementation = address(new FlyoverDiscovery());
+        assertEq(
+            ProxyReader.readImplementation(vm, address(proxy)),
+            impl,
+            "Implementation mismatch"
+        );
+        proxyAdmin.upgradeAndCall(
+            ITransparentUpgradeableProxy(address(proxy)),
+            newImplementation,
+            ""
+        );
+        assertEq(
+            ProxyReader.readImplementation(vm, address(proxy)),
+            newImplementation,
+            "Implementation mismatch"
+        );
+
+        console.log("\n[PASS] Contract is upgradeable");
     }
 }
