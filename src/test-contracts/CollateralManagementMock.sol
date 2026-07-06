@@ -10,6 +10,17 @@ contract CollateralManagementMock is ICollateralManagement {
 
     uint256 private _balance;
 
+    /// @notice Records the cumulative total passed to globalSlash so tests can assert it was called.
+    uint256 public globalSlashTotal;
+    /// @notice Counts globalSlash invocations.
+    uint256 public globalSlashCalls;
+
+    function globalSlash(uint256 total) external {
+        globalSlashTotal += total;
+        globalSlashCalls += 1;
+        emit Penalized(address(0), msg.sender, bytes32(0), Flyover.ProviderType.Both, total, 0);
+    }
+
     function addPegInCollateralTo(address) external payable {
         _balance += msg.value;
     }

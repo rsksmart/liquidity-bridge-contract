@@ -124,6 +124,14 @@ interface ICollateralManagement is IPausable {
     /// This means the COLLATERAL_ADDER can't use this function unless they register themselves.
     function addPegOutCollateral() external payable;
 
+    /// @notice Distributes a total penalty proportionally across all registered LPs that are
+    /// past their grace window. Used by the peg-in claim flow (E4) when a valid, registered
+    /// peg-in goes unclaimed past its deadline: no single LP is at fault, so the whole network
+    /// is slashed. Reverts if there is no eligible collateral to slash.
+    /// @param total The total penalty to distribute
+    /// @dev This function requires the COLLATERAL_SLASHER role
+    function globalSlash(uint256 total) external;
+
     /// @notice Slashes peg out collateral from a liquidity provider. The slashed amount
     /// is the penalty fee of the quote. Depending on the reward percentage, the punisher
     /// will receive a reward. The reward is calculated using integer division (rounded

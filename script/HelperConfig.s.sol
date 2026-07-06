@@ -193,12 +193,16 @@ contract HelperConfig is Script {
     }
 
     function getLocalConfig() internal returns (NetworkConfig memory) {
-        // Deploy mock bridge locally
-        BridgeMock bridge = new BridgeMock();
+        // On regtest (chainId 33) ALWAYS use the real Rootstock bridge precompile — never a
+        // BridgeMock — so deployments against a live regtest node settle through the real bridge.
+        // A BridgeMock is only used for pure-EVM local testing (e.g. anvil), not regtest.
+        address bridgeAddr = block.chainid == 33
+            ? address(0x0000000000000000000000000000000001000006)
+            : address(new BridgeMock());
 
         return
             NetworkConfig({
-                bridge: address(bridge),
+                bridge: bridgeAddr,
                 minimumCollateral: vm.envOr(
                     "MIN_COLLATERAL_LOCAL",
                     uint256(0.5 ether)

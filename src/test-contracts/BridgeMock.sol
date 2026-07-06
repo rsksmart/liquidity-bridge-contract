@@ -31,7 +31,7 @@ contract BridgeMock is IBridge {
         address payable liquidityBridgeContractAddress,
         bytes memory ,
         bool
-    ) external override returns (int256) {
+    ) external virtual override returns (int256) {
         if (_registerError != 0) {
             return _registerError;
         }
