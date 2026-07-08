@@ -2,7 +2,6 @@
 pragma solidity 0.8.25;
 
 import {PegInRegistryTestBase} from "./pegin-registry/PegInRegistryTestBase.sol";
-import {PegInAddressRegistryHarness} from "./pegin-registry/PegInAddressRegistryHarness.sol";
 import {PegInAddressRegistry} from "../src/PegInAddressRegistry.sol";
 import {IPegInAddressRegistry} from "../src/interfaces/IPegInAddressRegistry.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";

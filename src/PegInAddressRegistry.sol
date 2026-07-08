@@ -171,7 +171,7 @@ contract PegInAddressRegistry is AccessControlDefaultAdminRulesUpgradeable, Reen
         returns (bytes memory)
     {
         bytes32 derivationValue = PegInDerivation.derivationValue(addr, pegInContract);
-        // TODO: instead pass the bridge address (library changes the construction)
+        // TODO(FLY-2436): pass the bridge address once the derivation library owns script construction
         bytes memory redeemScript = PegInDerivation.flyoverRedeemScript(derivationValue, powpegRedeemScript);
         bytes20 scriptHash = PegInDerivation.flyoverScriptHash(redeemScript);
         return PegInDerivation.depositAddressPayload(scriptHash, mainnet);
