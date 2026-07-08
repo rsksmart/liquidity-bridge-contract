@@ -122,6 +122,7 @@ contract PegInAddressRegistry is AccessControlDefaultAdminRulesUpgradeable, Reen
     }
 
     /// @notice Returns the bridge the registry derives against
+    // solhint-disable-next-line comprehensive-interface
     function getBridge() external view returns (IBridge) {
         return _getStorage().bridge;
     }
@@ -153,7 +154,9 @@ contract PegInAddressRegistry is AccessControlDefaultAdminRulesUpgradeable, Reen
         bytes32 derivationValue = PegInDerivation.derivationValue(addr, pegInContract);
         bytes memory redeemScript = PegInDerivation.flyoverRedeemScript(
             derivationValue,
-            $.bridge.getActivePowpegRedeemScript() // TODO: instead pass the bridge address(library changes the construction)
+            // TODO: instead pass the bridge address
+            // (library changes the construction)
+            $.bridge.getActivePowpegRedeemScript()
         );
         bytes20 scriptHash = PegInDerivation.flyoverScriptHash(redeemScript);
         return PegInDerivation.depositAddressPayload(scriptHash, $.mainnet);

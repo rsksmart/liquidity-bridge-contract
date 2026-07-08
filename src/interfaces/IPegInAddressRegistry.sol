@@ -92,7 +92,10 @@ interface IPegInAddressRegistry {
     /// @param rskAddrs The RSK destination addresses to derive for
     /// @return payloads The raw address payloads, one per input address, in input order
     /// @return encoding The encoding tag shared by every payload in the batch
-    function getPegInAddresses(address[] calldata rskAddrs) external view returns (bytes[] memory payloads, Encoding encoding);
+    function getPegInAddresses(address[] calldata rskAddrs)
+        external
+        view
+        returns (bytes[] memory payloads, Encoding encoding);
 
     /// @notice Tells whether an RSK destination address has a registration record
     /// @dev True while the packed record's registrationBlock != 0. Walkthrough anchors:
