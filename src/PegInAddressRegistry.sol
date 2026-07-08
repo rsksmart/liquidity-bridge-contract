@@ -85,7 +85,13 @@ contract PegInAddressRegistry is AccessControlDefaultAdminRulesUpgradeable, Reen
 
     /// @inheritdoc IPegInAddressRegistry
     function getPegInAddress(address addr) external view override returns (bytes memory, Encoding) {
-        return (_deriveAddress(addr), ADDRESS_ENCODING);
+        PegInAddressRegistryStorage storage $ = _getStorage();
+        address pegInContract = $.pegInContract;
+        if (pegInContract == address(0)) revert PegInContractNotSet();
+        // The active powpeg redeem script is invariant across a single call, so it is
+        // read once here and reused for the derivation.
+        bytes memory powpegRedeemScript = $.bridge.getActivePowpegRedeemScript();
+        return (_deriveAddress(addr, pegInContract, powpegRedeemScript, $.mainnet), ADDRESS_ENCODING);
     }
 
     /// @inheritdoc IPegInAddressRegistry
@@ -99,9 +105,16 @@ contract PegInAddressRegistry is AccessControlDefaultAdminRulesUpgradeable, Reen
         if (length > MAX_PEGIN_ADDRESS_BATCH) {
             revert BatchTooLarge(length, MAX_PEGIN_ADDRESS_BATCH);
         }
+        PegInAddressRegistryStorage storage $ = _getStorage();
+        address pegInContract = $.pegInContract;
+        if (pegInContract == address(0)) revert PegInContractNotSet();
+        // Read the invariant derivation inputs once, before the loop, so the batch performs a
+        // single external bridge call and derives every address against a consistent powpeg.
+        bytes memory powpegRedeemScript = $.bridge.getActivePowpegRedeemScript();
+        bool mainnet = $.mainnet;
         derivationAddresses = new bytes[](length);
         for (uint256 i = 0; i < length; ++i) {
-            derivationAddresses[i] = _deriveAddress(addrs[i]);
+            derivationAddresses[i] = _deriveAddress(addrs[i], pegInContract, powpegRedeemScript, mainnet);
         }
         encoding = ADDRESS_ENCODING;
     }
@@ -145,21 +158,23 @@ contract PegInAddressRegistry is AccessControlDefaultAdminRulesUpgradeable, Reen
         return _getStorage().pegInContract;
     }
 
-    /// @notice Derives the BTC deposit address for an RSK address against the current powpeg.
-    function _deriveAddress(address addr) private view returns (bytes memory) {
-        PegInAddressRegistryStorage storage $ = _getStorage();
-        address pegInContract = $.pegInContract;
-        if (pegInContract == address(0)) revert PegInContractNotSet();
-
+    /// @notice Derives the BTC deposit address for an RSK address against a supplied powpeg script.
+    /// @dev Callers must fetch the invariant derivation inputs (pegInContract, powpeg redeem script
+    /// and mainnet flag) once and pass them in, keeping the external bridge call out of any loop.
+    /// @param addr The RSK address the deposit address is derived for
+    /// @param pegInContract The PegInContract mixed into the derivation (must be non-zero)
+    /// @param powpegRedeemScript The active powpeg redeem script returned by the bridge
+    /// @param mainnet Whether the derived address targets mainnet or testnet
+    function _deriveAddress(address addr, address pegInContract, bytes memory powpegRedeemScript, bool mainnet)
+        private
+        pure
+        returns (bytes memory)
+    {
         bytes32 derivationValue = PegInDerivation.derivationValue(addr, pegInContract);
-        bytes memory redeemScript = PegInDerivation.flyoverRedeemScript(
-            derivationValue,
-            // TODO: instead pass the bridge address
-            // (library changes the construction)
-            $.bridge.getActivePowpegRedeemScript()
-        );
+        // TODO: instead pass the bridge address (library changes the construction)
+        bytes memory redeemScript = PegInDerivation.flyoverRedeemScript(derivationValue, powpegRedeemScript);
         bytes20 scriptHash = PegInDerivation.flyoverScriptHash(redeemScript);
-        return PegInDerivation.depositAddressPayload(scriptHash, $.mainnet);
+        return PegInDerivation.depositAddressPayload(scriptHash, mainnet);
     }
 
     function _getStorage() internal pure returns (PegInAddressRegistryStorage storage $) {
