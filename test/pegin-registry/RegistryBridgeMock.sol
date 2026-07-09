@@ -8,6 +8,8 @@ import {IBridge} from "../../src/interfaces/IBridge.sol";
 // solhint-disable comprehensive-interface
 contract RegistryBridgeMock is IBridge {
     bytes private _redeemScript;
+    int256 private _confirmations = 6;
+    uint256 public mutatingBridgeCallCount;
 
     constructor() {
         _redeemScript = abi.encodePacked(
@@ -20,12 +22,7 @@ contract RegistryBridgeMock is IBridge {
     // solhint-disable-next-line no-empty-blocks
     receive() external payable override {}
 
-    function getActivePowpegRedeemScript()
-        external
-        view
-        override
-        returns (bytes memory)
-    {
+    function getActivePowpegRedeemScript() external view override returns (bytes memory) {
         return _redeemScript;
     }
 
@@ -33,31 +30,24 @@ contract RegistryBridgeMock is IBridge {
         _redeemScript = redeemScript;
     }
 
-    // ---- Unused IBridge surface (stubs) ----
-    // solhint-disable no-empty-blocks
-    function registerBtcTransaction(
-        bytes calldata,
-        int256,
-        bytes calldata
-    ) external override {}
+    function setConfirmations(int256 confirmations) external {
+        _confirmations = confirmations;
+    }
 
-    function addSignature(
-        bytes calldata,
-        bytes[] calldata,
-        bytes calldata
-    ) external override {}
+    function registerBtcTransaction(bytes calldata, int256, bytes calldata) external override {
+        ++mutatingBridgeCallCount;
+    }
+
+    function addSignature(bytes calldata, bytes[] calldata, bytes calldata) external override {}
 
     function receiveHeaders(bytes[] calldata) external override {}
 
     function updateCollections() external override {}
 
-    function registerBtcCoinbaseTransaction(
-        bytes calldata,
-        bytes32,
-        bytes calldata,
-        bytes32,
-        bytes32
-    ) external override {}
+    function registerBtcCoinbaseTransaction(bytes calldata, bytes32, bytes calldata, bytes32, bytes32)
+        external
+        override
+    {}
 
     // solhint-enable no-empty-blocks
 
@@ -74,9 +64,7 @@ contract RegistryBridgeMock is IBridge {
         return 0;
     }
 
-    function receiveHeader(
-        bytes calldata
-    ) external pure override returns (int256) {
+    function receiveHeader(bytes calldata) external pure override returns (int256) {
         return 0;
     }
 
@@ -84,23 +72,20 @@ contract RegistryBridgeMock is IBridge {
         return 0;
     }
 
-    function addFederatorPublicKey(
-        bytes calldata
-    ) external pure override returns (int256) {
+    function addFederatorPublicKey(bytes calldata) external pure override returns (int256) {
         return 0;
     }
 
-    function addFederatorPublicKeyMultikey(
-        bytes calldata,
-        bytes calldata,
-        bytes calldata
-    ) external pure override returns (int256) {
+    function addFederatorPublicKeyMultikey(bytes calldata, bytes calldata, bytes calldata)
+        external
+        pure
+        override
+        returns (int256)
+    {
         return 0;
     }
 
-    function commitFederation(
-        bytes calldata
-    ) external pure override returns (int256) {
+    function commitFederation(bytes calldata) external pure override returns (int256) {
         return 0;
     }
 
@@ -108,41 +93,27 @@ contract RegistryBridgeMock is IBridge {
         return 0;
     }
 
-    function addLockWhitelistAddress(
-        string calldata,
-        int256
-    ) external pure override returns (int256) {
+    function addLockWhitelistAddress(string calldata, int256) external pure override returns (int256) {
         return 0;
     }
 
-    function addOneOffLockWhitelistAddress(
-        string calldata,
-        int256
-    ) external pure override returns (int256) {
+    function addOneOffLockWhitelistAddress(string calldata, int256) external pure override returns (int256) {
         return 0;
     }
 
-    function addUnlimitedLockWhitelistAddress(
-        string calldata
-    ) external pure override returns (int256) {
+    function addUnlimitedLockWhitelistAddress(string calldata) external pure override returns (int256) {
         return 0;
     }
 
-    function removeLockWhitelistAddress(
-        string calldata
-    ) external pure override returns (int256) {
+    function removeLockWhitelistAddress(string calldata) external pure override returns (int256) {
         return 0;
     }
 
-    function setLockWhitelistDisableBlockDelay(
-        int256
-    ) external pure override returns (int256) {
+    function setLockWhitelistDisableBlockDelay(int256) external pure override returns (int256) {
         return 0;
     }
 
-    function voteFeePerKbChange(
-        int256
-    ) external pure override returns (int256) {
+    function voteFeePerKbChange(int256) external pure override returns (int256) {
         return 0;
     }
 
@@ -150,66 +121,35 @@ contract RegistryBridgeMock is IBridge {
         return false;
     }
 
-    function getBtcBlockchainBestChainHeight()
-        external
-        pure
-        override
-        returns (int256)
-    {
+    function getBtcBlockchainBestChainHeight() external pure override returns (int256) {
         return 0;
     }
 
-    function getStateForBtcReleaseClient()
-        external
-        pure
-        override
-        returns (bytes memory)
-    {
+    function getStateForBtcReleaseClient() external pure override returns (bytes memory) {
         return "";
     }
 
-    function getStateForDebugging()
-        external
-        pure
-        override
-        returns (bytes memory)
-    {
+    function getStateForDebugging() external pure override returns (bytes memory) {
         return "";
     }
 
-    function getBtcBlockchainInitialBlockHeight()
-        external
-        pure
-        override
-        returns (int256)
-    {
+    function getBtcBlockchainInitialBlockHeight() external pure override returns (int256) {
         return 0;
     }
 
-    function getBtcBlockchainBlockHashAtDepth(
-        int256
-    ) external pure override returns (bytes memory) {
+    function getBtcBlockchainBlockHashAtDepth(int256) external pure override returns (bytes memory) {
         return "";
     }
 
-    function getBtcTxHashProcessedHeight(
-        string calldata
-    ) external pure override returns (int64) {
+    function getBtcTxHashProcessedHeight(string calldata) external pure override returns (int64) {
         return 0;
     }
 
-    function isBtcTxHashAlreadyProcessed(
-        string calldata
-    ) external pure override returns (bool) {
+    function isBtcTxHashAlreadyProcessed(string calldata) external pure override returns (bool) {
         return false;
     }
 
-    function getFederationAddress()
-        external
-        pure
-        override
-        returns (string memory)
-    {
+    function getFederationAddress() external pure override returns (string memory) {
         return "";
     }
 
@@ -221,96 +161,39 @@ contract RegistryBridgeMock is IBridge {
         return 0;
     }
 
-    function getFederatorPublicKey(
-        int256
-    ) external pure override returns (bytes memory) {
+    function getFederatorPublicKey(int256) external pure override returns (bytes memory) {
         return "";
     }
 
-    function getFederatorPublicKeyOfType(
-        int256,
-        string calldata
-    ) external pure override returns (bytes memory) {
+    function getFederatorPublicKeyOfType(int256, string calldata) external pure override returns (bytes memory) {
         return "";
     }
 
-    function getFederationCreationTime()
-        external
-        pure
-        override
-        returns (int256)
-    {
+    function getFederationCreationTime() external pure override returns (int256) {
         return 0;
     }
 
-    function getFederationCreationBlockNumber()
-        external
-        pure
-        override
-        returns (int256)
-    {
+    function getFederationCreationBlockNumber() external pure override returns (int256) {
         return 0;
     }
 
-    function getRetiringFederationAddress()
-        external
-        pure
-        override
-        returns (string memory)
-    {
+    function getRetiringFederationAddress() external pure override returns (string memory) {
         return "";
     }
 
-    function getRetiringFederationSize()
-        external
-        pure
-        override
-        returns (int256)
-    {
+    function getRetiringFederationSize() external pure override returns (int256) {
         return 0;
     }
 
-    function getRetiringFederationThreshold()
-        external
-        pure
-        override
-        returns (int256)
-    {
+    function getRetiringFederationThreshold() external pure override returns (int256) {
         return 0;
     }
 
-    function getRetiringFederatorPublicKey(
-        int256
-    ) external pure override returns (bytes memory) {
+    function getRetiringFederatorPublicKey(int256) external pure override returns (bytes memory) {
         return "";
     }
 
-    function getRetiringFederatorPublicKeyOfType(
-        int256,
-        string calldata
-    ) external pure override returns (bytes memory) {
-        return "";
-    }
-
-    function getRetiringFederationCreationTime()
-        external
-        pure
-        override
-        returns (int256)
-    {
-        return 0;
-    }
-
-    function getRetiringFederationCreationBlockNumber()
-        external
-        pure
-        override
-        returns (int256)
-    {
-        return 0;
-    }
-
-    function getPendingFederationHash()
+    function getRetiringFederatorPublicKeyOfType(int256, string calldata)
         external
         pure
         override
@@ -319,25 +202,27 @@ contract RegistryBridgeMock is IBridge {
         return "";
     }
 
-    function getPendingFederationSize()
-        external
-        pure
-        override
-        returns (int256)
-    {
+    function getRetiringFederationCreationTime() external pure override returns (int256) {
         return 0;
     }
 
-    function getPendingFederatorPublicKey(
-        int256
-    ) external pure override returns (bytes memory) {
+    function getRetiringFederationCreationBlockNumber() external pure override returns (int256) {
+        return 0;
+    }
+
+    function getPendingFederationHash() external pure override returns (bytes memory) {
         return "";
     }
 
-    function getPendingFederatorPublicKeyOfType(
-        int256,
-        string calldata
-    ) external pure override returns (bytes memory) {
+    function getPendingFederationSize() external pure override returns (int256) {
+        return 0;
+    }
+
+    function getPendingFederatorPublicKey(int256) external pure override returns (bytes memory) {
+        return "";
+    }
+
+    function getPendingFederatorPublicKeyOfType(int256, string calldata) external pure override returns (bytes memory) {
         return "";
     }
 
@@ -345,15 +230,11 @@ contract RegistryBridgeMock is IBridge {
         return 0;
     }
 
-    function getLockWhitelistAddress(
-        int256
-    ) external pure override returns (string memory) {
+    function getLockWhitelistAddress(int256) external pure override returns (string memory) {
         return "";
     }
 
-    function getLockWhitelistEntryByAddress(
-        string calldata
-    ) external pure override returns (int256) {
+    function getLockWhitelistEntryByAddress(string calldata) external pure override returns (int256) {
         return 0;
     }
 
@@ -365,58 +246,40 @@ contract RegistryBridgeMock is IBridge {
         return 2;
     }
 
-    function getBtcTransactionConfirmations(
-        bytes32,
-        bytes32,
-        uint256,
-        bytes32[] calldata
-    ) external pure override returns (int256) {
-        return 6;
+    function getBtcTransactionConfirmations(bytes32, bytes32, uint256, bytes32[] calldata)
+        external
+        view
+        override
+        returns (int256)
+    {
+        return _confirmations;
     }
 
     function getLockingCap() external pure override returns (int256) {
         return 0;
     }
 
-    function hasBtcBlockCoinbaseTransactionInformation(
-        bytes32
-    ) external pure override returns (bool) {
+    function hasBtcBlockCoinbaseTransactionInformation(bytes32) external pure override returns (bool) {
         return false;
     }
 
-    function getActiveFederationCreationBlockHeight()
-        external
-        pure
-        override
-        returns (uint256)
-    {
+    function getActiveFederationCreationBlockHeight() external pure override returns (uint256) {
         return 0;
     }
 
-    function getBtcBlockchainBestBlockHeader()
-        external
-        pure
-        override
-        returns (bytes memory)
-    {
+    function getBtcBlockchainBestBlockHeader() external pure override returns (bytes memory) {
         return "";
     }
 
-    function getBtcBlockchainBlockHeaderByHash(
-        bytes32
-    ) external pure override returns (bytes memory) {
+    function getBtcBlockchainBlockHeaderByHash(bytes32) external pure override returns (bytes memory) {
         return "";
     }
 
-    function getBtcBlockchainBlockHeaderByHeight(
-        uint256
-    ) external pure override returns (bytes memory) {
+    function getBtcBlockchainBlockHeaderByHeight(uint256) external pure override returns (bytes memory) {
         return "";
     }
 
-    function getBtcBlockchainParentBlockHeaderByHash(
-        bytes32
-    ) external pure override returns (bytes memory) {
+    function getBtcBlockchainParentBlockHeaderByHash(bytes32) external pure override returns (bytes memory) {
         return "";
     }
 }
