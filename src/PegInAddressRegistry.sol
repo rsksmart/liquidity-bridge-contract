@@ -234,7 +234,8 @@ contract PegInAddressRegistry is
     {
         BtcUtils.TxRawOutput[] memory outputs = BtcUtils.getOutputs(btcTxSerialized);
         bytes32 expectedHash = keccak256(expectedPkScript);
-        for (uint256 i = 0; i < outputs.length; ++i) {
+        uint256 outputCount = outputs.length;
+        for (uint256 i = 0; i < outputCount; ++i) {
             if (keccak256(outputs[i].pkScript) == expectedHash) {
                 return outputs[i].value;
             }
