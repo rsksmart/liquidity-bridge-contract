@@ -4,7 +4,10 @@ pragma solidity 0.8.25;
 import {PegInRegistryTestBase} from "./pegin-registry/PegInRegistryTestBase.sol";
 import {PegInAddressRegistry} from "../src/PegInAddressRegistry.sol";
 import {IPegInAddressRegistry} from "../src/interfaces/IPegInAddressRegistry.sol";
+import {PegInDerivation} from "../src/libraries/PegInDerivation.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
+import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCodes.sol";
 
 /// @title PegInAddressRegistry read-surface tests
 contract PegInAddressRegistryReadsTest is PegInRegistryTestBase {
@@ -87,8 +90,14 @@ contract PegInAddressRegistryReadsTest is PegInRegistryTestBase {
     function test_setPegInContract_admin_only() public {
         _deploy(false);
         address newPegIn = address(0xDEAD);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                stranger,
+                registry.DEFAULT_ADMIN_ROLE()
+            )
+        );
         vm.prank(stranger);
-        vm.expectRevert();
         registry.setPegInContract(newPegIn);
 
         vm.expectEmit(true, true, true, true);
@@ -171,5 +180,34 @@ contract PegInAddressRegistryReadsTest is PegInRegistryTestBase {
             FIXTURE_RSK
         );
         assertEq(uint256(enc), uint256(IPegInAddressRegistry.Encoding.BASE58));
+    }
+
+    // Tripwire — documents the known scheme divergence flagged in Copilot review
+    // r3542766572. The temporary mock PegInDerivation derives a PLAIN P2SH payload
+    // (HASH160 of the flyover redeem script), while PegInContract.validatePegInDepositAddress
+    // derives a nested P2SH-P2WSH payload (HASH160 of OP_0 <32-byte sha256(redeemScript)>),
+    // so the two produce DIFFERENT deposit addresses. This asserts that expected
+    // incompatibility. When FLY-2436 reconciles the schemes (or intentionally moves to
+    // plain P2SH), this test must be revisited as an explicit cross-contract decision.
+    function test_derivation_scheme_differs_from_pegin_contract() public {
+        _deploy(false);
+        bytes memory powpeg = bridge.getActivePowpegRedeemScript();
+        bytes32 dv = PegInDerivation.derivationValue(
+            FIXTURE_RSK,
+            PEGIN_CONTRACT
+        );
+        bytes memory redeem = PegInDerivation.flyoverRedeemScript(dv, powpeg);
+
+        bytes20 mockPlainP2sh = PegInDerivation.flyoverScriptHash(redeem);
+        bytes memory segwitScript = bytes.concat(
+            OpCodes.OP_0,
+            OpCodes.OP_PUSHBYTES_32,
+            sha256(redeem)
+        );
+        bytes20 canonicalNestedP2sh = ripemd160(
+            abi.encodePacked(sha256(segwitScript))
+        );
+
+        assertTrue(mockPlainP2sh != canonicalNestedP2sh);
     }
 }

@@ -45,6 +45,14 @@ library PegInDerivation {
     }
 
     /// @notice HASH160 of the flyover redeem script.
+    /// @dev SCHEME DIVERGENCE (temporary mock): this hashes the flyover redeem script directly,
+    /// producing a PLAIN P2SH deposit address. The canonical peg-in scheme in
+    /// {PegInContract-validatePegInDepositAddress} instead HASH160s a P2WSH witness program
+    /// (`OP_0 OP_PUSHBYTES_32 sha256(flyoverRedeemScript)`), i.e. a nested P2SH-P2WSH address.
+    /// The two therefore derive DIFFERENT Bitcoin addresses for identical inputs. The real
+    /// FLY-2436 derivation MUST reconcile this (match PegInContract) before production, or the
+    /// switch to plain P2SH must be an explicit, signed-off cross-contract redesign. See the
+    /// tripwire test `test_derivation_scheme_differs_from_pegin_contract`.
     function flyoverScriptHash(bytes memory redeemScript) internal pure returns (bytes20) {
         return ripemd160(abi.encodePacked(sha256(redeemScript)));
     }
