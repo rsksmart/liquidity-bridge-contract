@@ -68,13 +68,13 @@ contract RegistryBridgeMock is IBridge {
     // solhint-enable no-empty-blocks
 
     function registerFastBridgeBtcTransaction(
-        bytes memory,
+        bytes calldata,
         uint256,
-        bytes memory,
+        bytes calldata,
         bytes32,
-        bytes memory,
+        bytes calldata,
         address payable,
-        bytes memory,
+        bytes calldata,
         bool
     ) external pure override returns (int256) {
         return 0;
