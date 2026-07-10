@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import {PegInRegistryTestBase} from "./PegInRegistryTestBase.sol";
 import {PegInAddressRegistry} from "../../src/PegInAddressRegistry.sol";
 import {IPegInAddressRegistry} from "../../src/interfaces/IPegInAddressRegistry.sol";
+import {Flyover} from "../../src/libraries/Flyover.sol";
 import {PegInDerivation} from "../../src/libraries/PegInDerivation.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
@@ -143,6 +144,15 @@ contract DerivationTest is PegInRegistryTestBase {
             FIXTURE_RSK
         );
         assertEq(uint256(enc), uint256(IPegInAddressRegistry.Encoding.BASE58));
+    }
+
+    function test_receive_reverts_payment_not_allowed() public {
+        _deploy(false);
+        vm.deal(stranger, 1 ether);
+        vm.prank(stranger);
+        vm.expectRevert(Flyover.PaymentNotAllowed.selector);
+        (bool ok, ) = payable(address(registry)).call{value: 1 ether}("");
+        ok; // call is expected to revert via expectRevert
     }
 
     // Tripwire — documents the known scheme divergence flagged in Copilot review
