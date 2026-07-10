@@ -5,13 +5,17 @@ import {PegInRegistryTestBase} from "./PegInRegistryTestBase.sol";
 
 /// @title PegInAddressRegistry registration-root tests
 contract RootTest is PegInRegistryTestBase {
-    address internal constant FIXTURE_RSK = 0x0000000000000000000000000000000000000aBc;
+    address internal constant FIXTURE_RSK =
+        0x0000000000000000000000000000000000000aBc;
 
     // W9
     function test_root_fold_matches_getter() public {
         _deploy(false);
         _register(FIXTURE_RSK, 10_000, stranger);
-        assertEq(registry.getRegistrationRoot(), _foldRoot(bytes32(0), FIXTURE_RSK));
+        assertEq(
+            registry.getRegistrationRoot(),
+            _foldRoot(bytes32(0), FIXTURE_RSK)
+        );
     }
 
     // W16 — 52-byte preimage: prevRoot (32B) ++ rskAddr (20B)

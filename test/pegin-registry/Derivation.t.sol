@@ -11,37 +11,40 @@ import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCod
 
 /// @title PegInAddressRegistry derivation / fixture / init tests
 contract DerivationTest is PegInRegistryTestBase {
-    address internal constant FIXTURE_RSK = 0x0000000000000000000000000000000000000aBc;
-    bytes internal constant FIXTURE_TESTNET_ADDRESS = hex"c453239f29b16aa66c9a5e3ec7f2b1de034fe0dea79440b320";
-    bytes internal constant FIXTURE_MAINNET_ADDRESS = hex"0553239f29b16aa66c9a5e3ec7f2b1de034fe0dea72259d920";
+    address internal constant FIXTURE_RSK =
+        0x0000000000000000000000000000000000000aBc;
+    bytes internal constant FIXTURE_TESTNET_ADDRESS =
+        hex"c453239f29b16aa66c9a5e3ec7f2b1de034fe0dea79440b320";
+    bytes internal constant FIXTURE_MAINNET_ADDRESS =
+        hex"0553239f29b16aa66c9a5e3ec7f2b1de034fe0dea72259d920";
 
     // R1 — deterministic derivation
     function test_derive_deterministic_same_rskAddr() public {
         _deploy(false);
-        (bytes memory a1,) = registry.getPegInAddress(FIXTURE_RSK);
-        (bytes memory a2,) = registry.getPegInAddress(FIXTURE_RSK);
+        (bytes memory a1, ) = registry.getPegInAddress(FIXTURE_RSK);
+        (bytes memory a2, ) = registry.getPegInAddress(FIXTURE_RSK);
         assertEq(a1, a2);
     }
 
     // R2 — distinct addresses
     function test_derive_distinct_rskAddrs() public {
         _deploy(false);
-        (bytes memory a,) = registry.getPegInAddress(address(0x1111));
-        (bytes memory b,) = registry.getPegInAddress(address(0x2222));
+        (bytes memory a, ) = registry.getPegInAddress(address(0x1111));
+        (bytes memory b, ) = registry.getPegInAddress(address(0x2222));
         assertTrue(keccak256(a) != keccak256(b));
     }
 
     // R3 — network version bytes
     function test_testnet_prefix_0xC4() public {
         _deploy(false);
-        (bytes memory addr,) = registry.getPegInAddress(FIXTURE_RSK);
+        (bytes memory addr, ) = registry.getPegInAddress(FIXTURE_RSK);
         assertEq(addr, FIXTURE_TESTNET_ADDRESS);
         assertEq(_addressVersionByte(addr), bytes1(0xC4));
     }
 
     function test_mainnet_prefix_0x05() public {
         _deploy(true);
-        (bytes memory addr,) = registry.getPegInAddress(FIXTURE_RSK);
+        (bytes memory addr, ) = registry.getPegInAddress(FIXTURE_RSK);
         assertEq(addr, FIXTURE_MAINNET_ADDRESS);
         assertEq(_addressVersionByte(addr), bytes1(0x05));
     }
@@ -69,7 +72,8 @@ contract DerivationTest is PegInRegistryTestBase {
     function test_getRegistration_returns_struct() public {
         _deploy(false);
         _seedRegistration(FIXTURE_RSK, stranger, uint96(99));
-        IPegInAddressRegistry.Registration memory reg = registry.getRegistration(FIXTURE_RSK);
+        IPegInAddressRegistry.Registration memory reg = registry
+            .getRegistration(FIXTURE_RSK);
         assertEq(reg.registrant, stranger);
         assertEq(reg.registrationBlock, 99);
     }
@@ -80,7 +84,9 @@ contract DerivationTest is PegInRegistryTestBase {
         address newPegIn = address(0xDEAD);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, stranger, registry.DEFAULT_ADMIN_ROLE()
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                stranger,
+                registry.DEFAULT_ADMIN_ROLE()
             )
         );
         vm.prank(stranger);
@@ -100,9 +106,15 @@ contract DerivationTest is PegInRegistryTestBase {
 
     // R10 — ERC-7201 namespace
     function test_storage_layout_erc7201() public pure {
-        bytes32 expected =
-            keccak256(abi.encode(uint256(keccak256("rsk.flyover.PegInAddressRegistry")) - 1)) & ~bytes32(uint256(0xff));
-        assertEq(expected, 0x0704e3acad2c0308b9997bc861208a21efddaa710005747040bdddc7b9400f00);
+        bytes32 expected = keccak256(
+            abi.encode(
+                uint256(keccak256("rsk.flyover.PegInAddressRegistry")) - 1
+            )
+        ) & ~bytes32(uint256(0xff));
+        assertEq(
+            expected,
+            0x0704e3acad2c0308b9997bc861208a21efddaa710005747040bdddc7b9400f00
+        );
     }
 
     // R11 — ABI artifacts exist after build (selector smoke)
@@ -127,7 +139,9 @@ contract DerivationTest is PegInRegistryTestBase {
 
     function test_encoding_is_base58() public {
         _deploy(false);
-        (, IPegInAddressRegistry.Encoding enc) = registry.getPegInAddress(FIXTURE_RSK);
+        (, IPegInAddressRegistry.Encoding enc) = registry.getPegInAddress(
+            FIXTURE_RSK
+        );
         assertEq(uint256(enc), uint256(IPegInAddressRegistry.Encoding.BASE58));
     }
 
@@ -141,12 +155,21 @@ contract DerivationTest is PegInRegistryTestBase {
     function test_derivation_scheme_differs_from_pegin_contract() public {
         _deploy(false);
         bytes memory powpeg = bridge.getActivePowpegRedeemScript();
-        bytes32 dv = PegInDerivation.derivationValue(FIXTURE_RSK, PEGIN_CONTRACT);
+        bytes32 dv = PegInDerivation.derivationValue(
+            FIXTURE_RSK,
+            PEGIN_CONTRACT
+        );
         bytes memory redeem = PegInDerivation.flyoverRedeemScript(dv, powpeg);
 
         bytes20 mockPlainP2sh = PegInDerivation.flyoverScriptHash(redeem);
-        bytes memory segwitScript = bytes.concat(OpCodes.OP_0, OpCodes.OP_PUSHBYTES_32, sha256(redeem));
-        bytes20 canonicalNestedP2sh = ripemd160(abi.encodePacked(sha256(segwitScript)));
+        bytes memory segwitScript = bytes.concat(
+            OpCodes.OP_0,
+            OpCodes.OP_PUSHBYTES_32,
+            sha256(redeem)
+        );
+        bytes20 canonicalNestedP2sh = ripemd160(
+            abi.encodePacked(sha256(segwitScript))
+        );
 
         assertTrue(mockPlainP2sh != canonicalNestedP2sh);
     }
