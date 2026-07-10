@@ -96,7 +96,7 @@ contract PegInAddressRegistry is
         bytes32 btcBlockHash,
         uint256 merkleBranchPath,
         bytes32[] calldata merkleBranchHashes
-    ) external override nonReentrant whenNotPaused {
+    ) external override whenNotPaused nonReentrant {
         PegInAddressRegistryStorage storage $ = _getStorage();
 
         if ($.registrations[rskAddr].registrationBlock != 0) {

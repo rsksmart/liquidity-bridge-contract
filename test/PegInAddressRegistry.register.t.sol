@@ -2,7 +2,6 @@
 pragma solidity 0.8.25;
 
 import {PegInRegistryTestBase} from "./pegin-registry/PegInRegistryTestBase.sol";
-import {PegInAddressRegistry} from "../src/PegInAddressRegistry.sol";
 import {IPegInAddressRegistry} from "../src/interfaces/IPegInAddressRegistry.sol";
 import {PegInDerivation} from "../src/libraries/PegInDerivation.sol";
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
