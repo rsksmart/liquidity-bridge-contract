@@ -393,7 +393,9 @@ contract RegisterTest is PegInRegistryTestBase {
         assertFalse(
             registry.hasRole(registry.DEFAULT_ADMIN_ROLE(), watchtower)
         );
-        assertFalse(pauseRegistry.hasRole(pauseRegistry.PAUSER_ROLE(), watchtower));
+        assertFalse(
+            pauseRegistry.hasRole(pauseRegistry.PAUSER_ROLE(), watchtower)
+        );
         _register(FIXTURE_RSK, 10_000, watchtower);
         assertTrue(registry.isRegistered(FIXTURE_RSK));
         IPegInAddressRegistry.Registration memory reg = registry
