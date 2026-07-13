@@ -70,7 +70,9 @@ contract PegInAddressRegistryReadsTest is PegInRegistryTestBase {
     function test_registerAddress_stub_reverts() public {
         _deploy(false);
         bytes32[] memory hashes = new bytes32[](0);
-        vm.expectRevert(IPegInAddressRegistry.RegisterAddressNotImplemented.selector);
+        vm.expectRevert(
+            IPegInAddressRegistry.RegisterAddressNotImplemented.selector
+        );
         registry.registerAddress(FIXTURE_RSK, hex"", bytes32(0), 0, hashes);
     }
 
@@ -80,14 +82,18 @@ contract PegInAddressRegistryReadsTest is PegInRegistryTestBase {
             PegInAddressRegistry.initialize,
             (owner, ADMIN_DELAY, address(0), false)
         );
-        vm.expectRevert(abi.encodeWithSelector(Flyover.NoContract.selector, address(0)));
+        vm.expectRevert(
+            abi.encodeWithSelector(Flyover.NoContract.selector, address(0))
+        );
         new ERC1967Proxy(address(impl), initData);
     }
 
     function test_setPegInContract_reverts_when_zero() public {
         _deploy(false);
         vm.prank(owner);
-        vm.expectRevert(abi.encodeWithSelector(Flyover.NoContract.selector, address(0)));
+        vm.expectRevert(
+            abi.encodeWithSelector(Flyover.NoContract.selector, address(0))
+        );
         registry.setPegInContract(address(0));
     }
 
@@ -193,7 +199,8 @@ contract PegInAddressRegistryReadsTest is PegInRegistryTestBase {
     function test_batch_empty_returns_empty() public {
         _deploy(false);
         address[] memory addrs = new address[](0);
-        (bytes[] memory batch, IPegInAddressRegistry.Encoding enc) = registry.getPegInAddresses(addrs);
+        (bytes[] memory batch, IPegInAddressRegistry.Encoding enc) = registry
+            .getPegInAddresses(addrs);
         assertEq(batch.length, 0);
         assertEq(uint256(enc), uint256(IPegInAddressRegistry.Encoding.BASE58));
     }
