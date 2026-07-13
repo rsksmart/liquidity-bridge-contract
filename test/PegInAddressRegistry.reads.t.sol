@@ -198,7 +198,8 @@ contract PegInAddressRegistryReadsTest is PegInRegistryTestBase {
     function test_batch_empty_returns_empty() public {
         _deploy(false);
         address[] memory addrs = new address[](0);
-        (bytes[] memory batch, IPegInAddressRegistry.Encoding enc) = registry.getPegInAddresses(addrs);
+        (bytes[] memory batch, IPegInAddressRegistry.Encoding enc) = registry
+            .getPegInAddresses(addrs);
         assertEq(batch.length, 0);
         assertEq(uint256(enc), uint256(IPegInAddressRegistry.Encoding.BASE58));
     }
