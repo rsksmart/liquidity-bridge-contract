@@ -155,13 +155,11 @@ contract DerivationTest is PegInRegistryTestBase {
         ok; // call is expected to revert via expectRevert
     }
 
-    // Tripwire — documents the known scheme divergence flagged in Copilot review
-    // r3542766572. The temporary mock PegInDerivation derives a PLAIN P2SH payload
-    // (HASH160 of the flyover redeem script), while PegInContract.validatePegInDepositAddress
-    // derives a nested P2SH-P2WSH payload (HASH160 of OP_0 <32-byte sha256(redeemScript)>),
-    // so the two produce DIFFERENT deposit addresses. This asserts that expected
-    // incompatibility. When FLY-2436 reconciles the schemes (or intentionally moves to
-    // plain P2SH), this test must be revisited as an explicit cross-contract decision.
+    // Tripwire — PegInDerivation is the authoritative PLAIN P2SH scheme
+    // (HASH160 of the flyover redeem script; bridge-verified). PegInContract.validatePegInDepositAddress
+    // still derives a nested P2SH-P2WSH payload (HASH160 of OP_0 <32-byte sha256(redeemScript)>),
+    // so the two produce DIFFERENT deposit addresses. Keep this canary until settlement
+    // consumes PegInDerivation; drop or invert it once PegInContract is aligned.
     function test_derivation_scheme_differs_from_pegin_contract() public {
         _deploy(false);
         bytes memory powpeg = bridge.getActivePowpegRedeemScript();
@@ -171,16 +169,16 @@ contract DerivationTest is PegInRegistryTestBase {
         );
         bytes memory redeem = PegInDerivation.flyoverRedeemScript(dv, powpeg);
 
-        bytes20 mockPlainP2sh = PegInDerivation.flyoverScriptHash(redeem);
+        bytes20 registryPlainP2sh = PegInDerivation.flyoverScriptHash(redeem);
         bytes memory segwitScript = bytes.concat(
             OpCodes.OP_0,
             OpCodes.OP_PUSHBYTES_32,
             sha256(redeem)
         );
-        bytes20 canonicalNestedP2sh = ripemd160(
+        bytes20 nestedP2shP2wsh = ripemd160(
             abi.encodePacked(sha256(segwitScript))
         );
 
-        assertTrue(mockPlainP2sh != canonicalNestedP2sh);
+        assertTrue(registryPlainP2sh != nestedP2shP2wsh);
     }
 }
