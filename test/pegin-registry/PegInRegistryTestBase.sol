@@ -31,8 +31,13 @@ abstract contract PegInRegistryTestBase is Test {
 
     function _deployPauseRegistry() internal {
         PauseRegistry impl = new PauseRegistry();
-        bytes memory initData = abi.encodeCall(PauseRegistry.initialize, (ADMIN_DELAY, owner));
-        pauseRegistry = PauseRegistry(address(new ERC1967Proxy(address(impl), initData)));
+        bytes memory initData = abi.encodeCall(
+            PauseRegistry.initialize,
+            (ADMIN_DELAY, owner)
+        );
+        pauseRegistry = PauseRegistry(
+            address(new ERC1967Proxy(address(impl), initData))
+        );
     }
 
     function _deploy(bool mainnet) internal {
@@ -41,7 +46,13 @@ abstract contract PegInRegistryTestBase is Test {
         PegInAddressRegistryHarness impl = new PegInAddressRegistryHarness();
         bytes memory initData = abi.encodeCall(
             PegInAddressRegistry.initialize,
-            (owner, ADMIN_DELAY, address(bridge), mainnet, IPauseRegistry(address(pauseRegistry)))
+            (
+                owner,
+                ADMIN_DELAY,
+                address(bridge),
+                mainnet,
+                IPauseRegistry(address(pauseRegistry))
+            )
         );
         ERC1967Proxy proxy = new ERC1967Proxy(address(impl), initData);
         registry = PegInAddressRegistryHarness(payable(address(proxy)));
@@ -57,7 +68,13 @@ abstract contract PegInRegistryTestBase is Test {
         PegInAddressRegistryHarness impl = new PegInAddressRegistryHarness();
         bytes memory initData = abi.encodeCall(
             PegInAddressRegistry.initialize,
-            (owner, ADMIN_DELAY, address(bridge), mainnet, IPauseRegistry(address(pauseRegistry)))
+            (
+                owner,
+                ADMIN_DELAY,
+                address(bridge),
+                mainnet,
+                IPauseRegistry(address(pauseRegistry))
+            )
         );
         ERC1967Proxy proxy = new ERC1967Proxy(address(impl), initData);
         r = PegInAddressRegistryHarness(payable(address(proxy)));

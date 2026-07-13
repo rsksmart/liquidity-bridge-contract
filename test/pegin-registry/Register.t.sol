@@ -286,7 +286,10 @@ contract RegisterTest is PegInRegistryTestBase {
     function test_revert_when_paused() public {
         _deploy(false);
         vm.prank(owner);
-        pauseRegistry.setPauseLevel(IPauseRegistry.PauseLevel.Soft, "block register");
+        pauseRegistry.setPauseLevel(
+            IPauseRegistry.PauseLevel.Soft,
+            "block register"
+        );
         bytes memory txBytes = _buildDepositTx(
             _depositPkScript(FIXTURE_RSK),
             10_000
