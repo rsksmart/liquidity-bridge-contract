@@ -3,9 +3,10 @@ pragma solidity 0.8.25;
 
 import {PegInRegistryTestBase} from "./pegin-registry/PegInRegistryTestBase.sol";
 import {IPegInAddressRegistry} from "../src/interfaces/IPegInAddressRegistry.sol";
+import {IPauseRegistry} from "../src/interfaces/IPauseRegistry.sol";
+import {Flyover} from "../src/libraries/Flyover.sol";
 import {PegInDerivation} from "../src/libraries/PegInDerivation.sol";
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
-import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 
 /// @title PegInAddressRegistry write-path tests
 contract PegInAddressRegistryRegisterTest is PegInRegistryTestBase {
@@ -333,7 +334,9 @@ contract PegInAddressRegistryRegisterTest is PegInRegistryTestBase {
     function test_abi_selector_diff_has_provenance() public {
         _deploy(false);
         assertEq(registry.MIN_DEPOSIT_SATS(), 546);
-        assertTrue(registry.hasRole(registry.PAUSER_ROLE(), owner));
+        assertEq(registry.MIN_CONFIRMATIONS(), 1);
+        assertEq(address(registry.pauseRegistry()), address(pauseRegistry));
+        assertTrue(pauseRegistry.hasRole(pauseRegistry.PAUSER_ROLE(), owner));
     }
 
     // W16 — 52-byte preimage: prevRoot (32B) ++ rskAddr (20B)
@@ -352,12 +355,12 @@ contract PegInAddressRegistryRegisterTest is PegInRegistryTestBase {
     function test_revert_when_paused() public {
         _deploy(false);
         vm.prank(owner);
-        registry.pause();
+        pauseRegistry.setPauseLevel(IPauseRegistry.PauseLevel.Soft, "block register");
         bytes memory txBytes = _buildDepositTx(
             _depositPkScript(FIXTURE_RSK),
             10_000
         );
-        vm.expectRevert(PausableUpgradeable.EnforcedPause.selector);
+        vm.expectRevert(Flyover.EnforcedPause.selector);
         registry.registerAddress(
             FIXTURE_RSK,
             txBytes,
