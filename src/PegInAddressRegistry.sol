@@ -18,15 +18,6 @@ import {PegInDerivation} from "./libraries/PegInDerivation.sol";
 /// and the live powpeg redeem script returned by {IBridge}.
 /// @author Rootstock Labs(TravellerOnTheRun)
 contract PegInAddressRegistry is AccessControlDefaultAdminRulesUpgradeable, ReentrancyGuard, IPegInAddressRegistry {
-    /// @notice The version of the contract
-    string public constant VERSION = "1.0.0";
-
-    /// @notice Maximum batch size for `getPegInAddresses`.
-    uint256 public constant MAX_PEGIN_ADDRESS_BATCH = 100;
-
-    /// @notice The encoding of addresses returned by the derivation getters.
-    Encoding public constant ADDRESS_ENCODING = Encoding.BASE58;
-
     /// @custom:storage-location erc7201:rsk.flyover.PegInAddressRegistry
     struct PegInAddressRegistryStorage {
         IBridge bridge;
@@ -36,19 +27,19 @@ contract PegInAddressRegistry is AccessControlDefaultAdminRulesUpgradeable, Reen
         address pegInContract;
     }
 
+    /// @notice The version of the contract
+    string public constant VERSION = "1.0.0";
+
+    /// @notice Maximum batch size for `getPegInAddresses`.
+    uint256 public constant MAX_PEGIN_ADDRESS_BATCH = 100;
+
+    /// @notice The encoding of addresses returned by the derivation getters.
+    Encoding public constant ADDRESS_ENCODING = Encoding.BASE58;
+
     // ERC-7201: keccak256(abi.encode(uint256(keccak256("rsk.flyover.PegInAddressRegistry")) - 1)) &
     // ~bytes32(uint256(0xff))
     bytes32 private constant _PEGIN_ADDRESS_REGISTRY_STORAGE =
         0x0704e3acad2c0308b9997bc861208a21efddaa710005747040bdddc7b9400f00;
-
-    /// @notice Raised when an address derivation is attempted before the PegInContract is wired.
-    error PegInContractNotSet();
-
-    /// @notice Raised when a batch request exceeds {MAX_PEGIN_ADDRESS_BATCH}.
-    error BatchTooLarge(uint256 requested, uint256 max);
-
-    /// @notice Raised when `registerAddress` is called while registration writes are unavailable.
-    error RegisterAddressNotImplemented();
 
     /// @notice Emitted when the PegInContract mixed into the derivation is set.
     event PegInContractSet(address indexed oldPegInContract, address indexed newPegInContract);
@@ -76,6 +67,18 @@ contract PegInAddressRegistry is AccessControlDefaultAdminRulesUpgradeable, Reen
         PegInAddressRegistryStorage storage $ = _getStorage();
         $.bridge = IBridge(payable(bridge));
         $.mainnet = mainnet;
+    }
+
+    /// @notice Sets the PegInContract mixed into the deposit-address derivation.
+    /// @param pegInContract The PegInContract address
+    // solhint-disable-next-line comprehensive-interface
+    function setPegInContract(address pegInContract) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
+        if (pegInContract == address(0)) {
+            revert Flyover.NoContract(pegInContract);
+        }
+        PegInAddressRegistryStorage storage $ = _getStorage();
+        emit PegInContractSet($.pegInContract, pegInContract);
+        $.pegInContract = pegInContract;
     }
 
     /// @inheritdoc IPegInAddressRegistry
@@ -138,18 +141,6 @@ contract PegInAddressRegistry is AccessControlDefaultAdminRulesUpgradeable, Reen
     // solhint-disable-next-line comprehensive-interface
     function getBridge() external view returns (IBridge) {
         return _getStorage().bridge;
-    }
-
-    /// @notice Sets the PegInContract mixed into the deposit-address derivation.
-    /// @param pegInContract The PegInContract address
-    // solhint-disable-next-line comprehensive-interface
-    function setPegInContract(address pegInContract) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
-        if (pegInContract == address(0)) {
-            revert Flyover.NoContract(pegInContract);
-        }
-        PegInAddressRegistryStorage storage $ = _getStorage();
-        emit PegInContractSet($.pegInContract, pegInContract);
-        $.pegInContract = pegInContract;
     }
 
     /// @notice Returns the PegInContract mixed into the derivation (zero if unset).
