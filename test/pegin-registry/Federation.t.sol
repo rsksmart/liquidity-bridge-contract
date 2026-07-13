@@ -2,7 +2,7 @@
 pragma solidity 0.8.25;
 
 import {PegInRegistryTestBase} from "./PegInRegistryTestBase.sol";
-import {PegInAddressRegistry} from "../../src/PegInAddressRegistry.sol";
+import {IPegInAddressRegistry} from "../../src/interfaces/IPegInAddressRegistry.sol";
 
 /// @title PegInAddressRegistry federation / batch tests
 contract FederationTest is PegInRegistryTestBase {
@@ -18,7 +18,7 @@ contract FederationTest is PegInRegistryTestBase {
         }
         vm.expectRevert(
             abi.encodeWithSelector(
-                PegInAddressRegistry.BatchTooLarge.selector,
+                IPegInAddressRegistry.BatchTooLarge.selector,
                 101,
                 100
             )

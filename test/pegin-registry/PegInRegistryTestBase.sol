@@ -7,6 +7,8 @@ import {PegInAddressRegistry} from "../../src/PegInAddressRegistry.sol";
 import {PegInAddressRegistryHarness} from "./PegInAddressRegistryHarness.sol";
 import {RegistryBridgeMock} from "./RegistryBridgeMock.sol";
 import {PegInDerivation} from "../../src/libraries/PegInDerivation.sol";
+import {PauseRegistry} from "../../src/PauseRegistry.sol";
+import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 
 /// @title PegInRegistryTestBase
@@ -25,13 +27,21 @@ abstract contract PegInRegistryTestBase is Test {
 
     PegInAddressRegistryHarness internal registry;
     RegistryBridgeMock internal bridge;
+    PauseRegistry internal pauseRegistry;
+
+    function _deployPauseRegistry() internal {
+        PauseRegistry impl = new PauseRegistry();
+        bytes memory initData = abi.encodeCall(PauseRegistry.initialize, (ADMIN_DELAY, owner));
+        pauseRegistry = PauseRegistry(address(new ERC1967Proxy(address(impl), initData)));
+    }
 
     function _deploy(bool mainnet) internal {
         bridge = new RegistryBridgeMock();
+        _deployPauseRegistry();
         PegInAddressRegistryHarness impl = new PegInAddressRegistryHarness();
         bytes memory initData = abi.encodeCall(
             PegInAddressRegistry.initialize,
-            (owner, ADMIN_DELAY, address(bridge), mainnet)
+            (owner, ADMIN_DELAY, address(bridge), mainnet, IPauseRegistry(address(pauseRegistry)))
         );
         ERC1967Proxy proxy = new ERC1967Proxy(address(impl), initData);
         registry = PegInAddressRegistryHarness(payable(address(proxy)));
@@ -43,10 +53,11 @@ abstract contract PegInRegistryTestBase is Test {
         bool mainnet
     ) internal returns (PegInAddressRegistryHarness r) {
         if (address(bridge) == address(0)) bridge = new RegistryBridgeMock();
+        if (address(pauseRegistry) == address(0)) _deployPauseRegistry();
         PegInAddressRegistryHarness impl = new PegInAddressRegistryHarness();
         bytes memory initData = abi.encodeCall(
             PegInAddressRegistry.initialize,
-            (owner, ADMIN_DELAY, address(bridge), mainnet)
+            (owner, ADMIN_DELAY, address(bridge), mainnet, IPauseRegistry(address(pauseRegistry)))
         );
         ERC1967Proxy proxy = new ERC1967Proxy(address(impl), initData);
         r = PegInAddressRegistryHarness(payable(address(proxy)));

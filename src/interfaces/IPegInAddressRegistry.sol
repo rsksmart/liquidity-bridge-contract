@@ -76,6 +76,14 @@ interface IPegInAddressRegistry {
     /// @param minimum The minimum registrable deposit, in satoshis
     error DepositBelowMinimum(uint256 value, uint256 minimum);
 
+    /// @notice Raised when an address derivation is attempted before the PegInContract is wired
+    error PegInContractNotSet();
+
+    /// @notice Raised when a batch request exceeds the registry batch cap
+    /// @param requested The number of addresses requested
+    /// @param max The maximum allowed batch size
+    error BatchTooLarge(uint256 requested, uint256 max);
+
     /// @notice Derives the deterministic BTC deposit address for an RSK destination address
     /// @dev The address is a prediction of what the bridge recomputes at settlement, byte for
     /// byte: it depends only on the RSK address, fixed protocol constants, and the active

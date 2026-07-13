@@ -3,11 +3,14 @@ pragma solidity 0.8.25;
 
 import {PegInRegistryTestBase} from "./PegInRegistryTestBase.sol";
 import {PegInAddressRegistry} from "../../src/PegInAddressRegistry.sol";
+import {PegInAddressRegistryHarness} from "./PegInAddressRegistryHarness.sol";
 import {IPegInAddressRegistry} from "../../src/interfaces/IPegInAddressRegistry.sol";
+import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 import {PegInDerivation} from "../../src/libraries/PegInDerivation.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCodes.sol";
 
 /// @title PegInAddressRegistry derivation / fixture / init tests
@@ -53,8 +56,44 @@ contract DerivationTest is PegInRegistryTestBase {
     // R4 — unset pegInContract
     function test_revert_when_pegInContract_unset() public {
         registry = _deployUnwired(false);
-        vm.expectRevert(PegInAddressRegistry.PegInContractNotSet.selector);
+        vm.expectRevert(IPegInAddressRegistry.PegInContractNotSet.selector);
         registry.getPegInAddress(FIXTURE_RSK);
+    }
+
+    function test_batch_reverts_when_pegInContract_unset() public {
+        registry = _deployUnwired(false);
+        address[] memory addrs = new address[](1);
+        addrs[0] = FIXTURE_RSK;
+        vm.expectRevert(IPegInAddressRegistry.PegInContractNotSet.selector);
+        registry.getPegInAddresses(addrs);
+    }
+
+    function test_initialize_reverts_when_bridge_zero() public {
+        _deployPauseRegistry();
+        PegInAddressRegistryHarness impl = new PegInAddressRegistryHarness();
+        bytes memory initData = abi.encodeCall(
+            PegInAddressRegistry.initialize,
+            (
+                owner,
+                ADMIN_DELAY,
+                address(0),
+                false,
+                IPauseRegistry(address(pauseRegistry))
+            )
+        );
+        vm.expectRevert(
+            abi.encodeWithSelector(Flyover.NoContract.selector, address(0))
+        );
+        new ERC1967Proxy(address(impl), initData);
+    }
+
+    function test_setPegInContract_reverts_when_zero() public {
+        _deploy(false);
+        vm.prank(owner);
+        vm.expectRevert(
+            abi.encodeWithSelector(Flyover.NoContract.selector, address(0))
+        );
+        registry.setPegInContract(address(0));
     }
 
     // R5 — isRegistered
@@ -97,6 +136,7 @@ contract DerivationTest is PegInRegistryTestBase {
         emit PegInAddressRegistry.PegInContractSet(PEGIN_CONTRACT, newPegIn);
         vm.prank(owner);
         registry.setPegInContract(newPegIn);
+        assertEq(registry.getPegInContract(), newPegIn);
     }
 
     // R9 — getPegInContract
@@ -118,6 +158,55 @@ contract DerivationTest is PegInRegistryTestBase {
         );
     }
 
+    // R2 bounds — batch cap
+    function test_batch_reverts_over_max() public {
+        _deploy(false);
+        address[] memory addrs = new address[](101);
+        for (uint256 i = 0; i < 101; ++i) {
+            addrs[i] = address(uint160(i + 1));
+        }
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegInAddressRegistry.BatchTooLarge.selector,
+                101,
+                100
+            )
+        );
+        registry.getPegInAddresses(addrs);
+    }
+
+    function test_batch_accepts_max_size() public {
+        _deploy(false);
+        address[] memory addrs = new address[](100);
+        for (uint256 i = 0; i < 100; ++i) {
+            addrs[i] = address(uint160(i + 1));
+        }
+        (bytes[] memory batch, ) = registry.getPegInAddresses(addrs);
+        assertEq(batch.length, 100);
+        (bytes memory single, ) = registry.getPegInAddress(addrs[0]);
+        assertEq(batch[0], single);
+    }
+
+    function test_batch_empty_returns_empty() public {
+        _deploy(false);
+        address[] memory addrs = new address[](0);
+        (bytes[] memory batch, IPegInAddressRegistry.Encoding enc) = registry.getPegInAddresses(addrs);
+        assertEq(batch.length, 0);
+        assertEq(uint256(enc), uint256(IPegInAddressRegistry.Encoding.BASE58));
+    }
+
+    function test_batch_returns_matching_singles() public {
+        _deploy(false);
+        address[] memory addrs = new address[](2);
+        addrs[0] = FIXTURE_RSK;
+        addrs[1] = address(0x2222);
+        (bytes[] memory batch, ) = registry.getPegInAddresses(addrs);
+        (bytes memory single0, ) = registry.getPegInAddress(FIXTURE_RSK);
+        (bytes memory single1, ) = registry.getPegInAddress(address(0x2222));
+        assertEq(batch[0], single0);
+        assertEq(batch[1], single1);
+    }
+
     // R11 — ABI artifacts exist after build (selector smoke)
     function test_abi_provenance_recorded() public {
         _deploy(false);
@@ -135,7 +224,13 @@ contract DerivationTest is PegInRegistryTestBase {
     function test_second_initialize_reverts() public {
         _deploy(false);
         vm.expectRevert(Initializable.InvalidInitialization.selector);
-        registry.initialize(owner, ADMIN_DELAY, address(bridge), false);
+        registry.initialize(
+            owner,
+            ADMIN_DELAY,
+            address(bridge),
+            false,
+            IPauseRegistry(address(pauseRegistry))
+        );
     }
 
     function test_encoding_is_base58() public {

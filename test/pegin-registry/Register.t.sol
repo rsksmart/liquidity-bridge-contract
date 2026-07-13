@@ -2,10 +2,10 @@
 pragma solidity 0.8.25;
 
 import {PegInRegistryTestBase} from "./PegInRegistryTestBase.sol";
-import {PegInAddressRegistry} from "../../src/PegInAddressRegistry.sol";
 import {IPegInAddressRegistry} from "../../src/interfaces/IPegInAddressRegistry.sol";
+import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
+import {Flyover} from "../../src/libraries/Flyover.sol";
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
-import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 
 /// @title PegInAddressRegistry write-path tests
 contract RegisterTest is PegInRegistryTestBase {
@@ -277,19 +277,21 @@ contract RegisterTest is PegInRegistryTestBase {
     function test_abi_selector_diff_has_provenance() public {
         _deploy(false);
         assertEq(registry.MIN_DEPOSIT_SATS(), 546);
-        assertTrue(registry.hasRole(registry.PAUSER_ROLE(), owner));
+        assertEq(registry.MIN_CONFIRMATIONS(), 1);
+        assertEq(address(registry.pauseRegistry()), address(pauseRegistry));
+        assertTrue(pauseRegistry.hasRole(pauseRegistry.PAUSER_ROLE(), owner));
     }
 
     // inv 10 — pause blocks write, reads stay open
     function test_revert_when_paused() public {
         _deploy(false);
         vm.prank(owner);
-        registry.pause();
+        pauseRegistry.setPauseLevel(IPauseRegistry.PauseLevel.Soft, "block register");
         bytes memory txBytes = _buildDepositTx(
             _depositPkScript(FIXTURE_RSK),
             10_000
         );
-        vm.expectRevert(PausableUpgradeable.EnforcedPause.selector);
+        vm.expectRevert(Flyover.EnforcedPause.selector);
         registry.registerAddress(
             FIXTURE_RSK,
             txBytes,
@@ -370,7 +372,7 @@ contract RegisterTest is PegInRegistryTestBase {
             hex"a914111111111111111111111111111111111111111187",
             10_000
         );
-        vm.expectRevert(PegInAddressRegistry.PegInContractNotSet.selector);
+        vm.expectRevert(IPegInAddressRegistry.PegInContractNotSet.selector);
         registry.registerAddress(
             FIXTURE_RSK,
             txBytes,
@@ -388,7 +390,7 @@ contract RegisterTest is PegInRegistryTestBase {
         assertFalse(
             registry.hasRole(registry.DEFAULT_ADMIN_ROLE(), watchtower)
         );
-        assertFalse(registry.hasRole(registry.PAUSER_ROLE(), watchtower));
+        assertFalse(pauseRegistry.hasRole(pauseRegistry.PAUSER_ROLE(), watchtower));
         _register(FIXTURE_RSK, 10_000, watchtower);
         assertTrue(registry.isRegistered(FIXTURE_RSK));
         IPegInAddressRegistry.Registration memory reg = registry
