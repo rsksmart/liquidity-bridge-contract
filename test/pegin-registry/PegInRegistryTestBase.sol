@@ -6,16 +6,21 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {PegInAddressRegistry} from "../../src/PegInAddressRegistry.sol";
 import {PegInAddressRegistryHarness} from "./PegInAddressRegistryHarness.sol";
 import {RegistryBridgeMock} from "./RegistryBridgeMock.sol";
+import {PegInDerivation} from "../../src/libraries/PegInDerivation.sol";
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
+import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 
 /// @title PegInRegistryTestBase
-/// @notice Shared proxy deploy setup for PegInAddressRegistry read/write tests.
+/// @notice Shared proxy deploy + register helpers for PegInAddressRegistry tests.
 abstract contract PegInRegistryTestBase is Test {
     uint48 internal constant ADMIN_DELAY = 0;
 
     address internal constant PEGIN_CONTRACT =
         address(0x00000000000000000000000000000000C0FFEE01);
+
+    bytes32 internal constant BLOCK_HASH = bytes32(uint256(0xBEEF));
+    uint256 internal constant MERKLE_PATH = 0;
 
     address internal owner = address(0xA11CE);
     address internal stranger = address(0xB0B);
@@ -92,5 +97,83 @@ abstract contract PegInRegistryTestBase is Test {
     ) internal pure returns (bytes1) {
         require(payload.length > 0, "empty payload");
         return payload[0];
+    }
+
+    function _depositPkScript(
+        address rskAddr
+    ) internal view returns (bytes memory) {
+        bytes memory powpeg = bridge.getActivePowpegRedeemScript();
+        bytes32 dv = PegInDerivation.derivationValue(rskAddr, PEGIN_CONTRACT);
+        bytes memory redeem = PegInDerivation.flyoverRedeemScript(dv, powpeg);
+        bytes20 scriptHash = PegInDerivation.flyoverScriptHash(redeem);
+        return PegInDerivation.p2shScriptPubkey(scriptHash);
+    }
+
+    function _buildDepositTx(
+        bytes memory pkScript,
+        uint64 value
+    ) internal pure returns (bytes memory) {
+        bytes memory valueLe = new bytes(8);
+        uint64 v = value;
+        for (uint256 i = 0; i < 8; ++i) {
+            valueLe[i] = bytes1(uint8(v & 0xFF));
+            v >>= 8;
+        }
+        return
+            abi.encodePacked(
+                hex"01000000",
+                hex"01",
+                bytes32(uint256(1)),
+                hex"00000000",
+                hex"00",
+                hex"ffffffff",
+                hex"01",
+                valueLe,
+                bytes1(uint8(pkScript.length)),
+                pkScript,
+                hex"00000000"
+            );
+    }
+
+    function _emptyHashes() internal pure returns (bytes32[] memory) {
+        return new bytes32[](0);
+    }
+
+    function _programProof(
+        bytes memory txBytes,
+        bytes32 blockHash,
+        uint256 path,
+        bytes32[] memory hashes
+    ) internal {
+        bridge.setExpectedProof(
+            BtcUtils.hashBtcTx(txBytes),
+            blockHash,
+            path,
+            hashes
+        );
+    }
+
+    function _register(address rskAddr, uint64 value, address caller) internal {
+        bytes memory txBytes = _buildDepositTx(
+            _depositPkScript(rskAddr),
+            value
+        );
+        bytes32[] memory hashes = _emptyHashes();
+        _programProof(txBytes, BLOCK_HASH, MERKLE_PATH, hashes);
+        vm.prank(caller);
+        registry.registerAddress(
+            rskAddr,
+            txBytes,
+            BLOCK_HASH,
+            MERKLE_PATH,
+            hashes
+        );
+    }
+
+    function _foldRoot(
+        bytes32 prevRoot,
+        address rskAddr
+    ) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(prevRoot, rskAddr));
     }
 }

@@ -1,80 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {PegInRegistryTestBase} from "./pegin-registry/PegInRegistryTestBase.sol";
-import {IPegInAddressRegistry} from "../src/interfaces/IPegInAddressRegistry.sol";
-import {IPauseRegistry} from "../src/interfaces/IPauseRegistry.sol";
-import {Flyover} from "../src/libraries/Flyover.sol";
-import {PegInDerivation} from "../src/libraries/PegInDerivation.sol";
+import {PegInRegistryTestBase} from "./PegInRegistryTestBase.sol";
+import {IPegInAddressRegistry} from "../../src/interfaces/IPegInAddressRegistry.sol";
+import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
+import {Flyover} from "../../src/libraries/Flyover.sol";
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 
 /// @title PegInAddressRegistry write-path tests
-contract PegInAddressRegistryRegisterTest is PegInRegistryTestBase {
+contract RegisterTest is PegInRegistryTestBase {
     address internal constant FIXTURE_RSK =
         0x0000000000000000000000000000000000000aBc;
     address internal constant OTHER_RSK =
         0x0000000000000000000000000000000000000deF;
-
-    bytes32 internal constant BLOCK_HASH = bytes32(uint256(0xBEEF));
-    uint256 internal constant MERKLE_PATH = 0;
-
-    function _depositPkScript(
-        address rskAddr
-    ) internal view returns (bytes memory) {
-        bytes memory powpeg = bridge.getActivePowpegRedeemScript();
-        bytes32 dv = PegInDerivation.derivationValue(rskAddr, PEGIN_CONTRACT);
-        bytes memory redeem = PegInDerivation.flyoverRedeemScript(dv, powpeg);
-        bytes20 scriptHash = PegInDerivation.flyoverScriptHash(redeem);
-        return PegInDerivation.p2shScriptPubkey(scriptHash);
-    }
-
-    function _buildDepositTx(
-        bytes memory pkScript,
-        uint64 value
-    ) internal pure returns (bytes memory) {
-        bytes memory valueLe = new bytes(8);
-        uint64 v = value;
-        for (uint256 i = 0; i < 8; ++i) {
-            valueLe[i] = bytes1(uint8(v & 0xFF));
-            v >>= 8;
-        }
-        return
-            abi.encodePacked(
-                hex"01000000",
-                hex"01",
-                bytes32(uint256(1)),
-                hex"00000000",
-                hex"00",
-                hex"ffffffff",
-                hex"01",
-                valueLe,
-                bytes1(uint8(pkScript.length)),
-                pkScript,
-                hex"00000000"
-            );
-    }
-
-    function _register(address rskAddr, uint64 value, address caller) internal {
-        bytes memory txBytes = _buildDepositTx(
-            _depositPkScript(rskAddr),
-            value
-        );
-        vm.prank(caller);
-        registry.registerAddress(
-            rskAddr,
-            txBytes,
-            BLOCK_HASH,
-            MERKLE_PATH,
-            new bytes32[](0)
-        );
-    }
-
-    function _foldRoot(
-        bytes32 prevRoot,
-        address rskAddr
-    ) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(prevRoot, rskAddr));
-    }
 
     // W1
     function test_revert_when_already_registered() public {
@@ -92,7 +30,7 @@ contract PegInAddressRegistryRegisterTest is PegInRegistryTestBase {
             garbageTx,
             BLOCK_HASH,
             MERKLE_PATH,
-            new bytes32[](0)
+            _emptyHashes()
         );
     }
 
@@ -113,7 +51,7 @@ contract PegInAddressRegistryRegisterTest is PegInRegistryTestBase {
             txBytes,
             BLOCK_HASH,
             MERKLE_PATH,
-            new bytes32[](0)
+            _emptyHashes()
         );
     }
 
@@ -135,7 +73,7 @@ contract PegInAddressRegistryRegisterTest is PegInRegistryTestBase {
             txBytes,
             BLOCK_HASH,
             MERKLE_PATH,
-            new bytes32[](0)
+            _emptyHashes()
         );
     }
 
@@ -147,6 +85,8 @@ contract PegInAddressRegistryRegisterTest is PegInRegistryTestBase {
             _depositPkScript(FIXTURE_RSK),
             10_000
         );
+        bytes32[] memory hashes = _emptyHashes();
+        _programProof(txBytes, BLOCK_HASH, MERKLE_PATH, hashes);
         bytes32 txHash = BtcUtils.hashBtcTx(txBytes);
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -159,7 +99,7 @@ contract PegInAddressRegistryRegisterTest is PegInRegistryTestBase {
             txBytes,
             BLOCK_HASH,
             MERKLE_PATH,
-            new bytes32[](0)
+            hashes
         );
     }
 
@@ -190,7 +130,7 @@ contract PegInAddressRegistryRegisterTest is PegInRegistryTestBase {
             txBytes,
             BLOCK_HASH,
             MERKLE_PATH,
-            new bytes32[](0)
+            _emptyHashes()
         );
     }
 
@@ -220,7 +160,7 @@ contract PegInAddressRegistryRegisterTest is PegInRegistryTestBase {
             txBytes,
             BLOCK_HASH,
             MERKLE_PATH,
-            new bytes32[](0)
+            _emptyHashes()
         );
     }
 
@@ -239,22 +179,25 @@ contract PegInAddressRegistryRegisterTest is PegInRegistryTestBase {
     function test_event_carries_post_fold_root() public {
         _deploy(false);
         bytes32 expectedRoot = _foldRoot(bytes32(0), FIXTURE_RSK);
+        bytes memory txBytes = _buildDepositTx(
+            _depositPkScript(FIXTURE_RSK),
+            10_000
+        );
+        bytes32[] memory hashes = _emptyHashes();
+        _programProof(txBytes, BLOCK_HASH, MERKLE_PATH, hashes);
         vm.expectEmit(true, true, true, true);
         emit IPegInAddressRegistry.AddressRegistered(
             FIXTURE_RSK,
             stranger,
             expectedRoot
         );
-        _register(FIXTURE_RSK, 10_000, stranger);
-    }
-
-    // W9
-    function test_root_fold_matches_getter() public {
-        _deploy(false);
-        _register(FIXTURE_RSK, 10_000, stranger);
-        assertEq(
-            registry.getRegistrationRoot(),
-            _foldRoot(bytes32(0), FIXTURE_RSK)
+        vm.prank(stranger);
+        registry.registerAddress(
+            FIXTURE_RSK,
+            txBytes,
+            BLOCK_HASH,
+            MERKLE_PATH,
+            hashes
         );
     }
 
@@ -279,7 +222,7 @@ contract PegInAddressRegistryRegisterTest is PegInRegistryTestBase {
             txBytes,
             BLOCK_HASH,
             MERKLE_PATH,
-            new bytes32[](0)
+            _emptyHashes()
         );
         assertFalse(registry.isRegistered(FIXTURE_RSK));
         assertEq(registry.getRegistrationRoot(), rootBefore);
@@ -312,7 +255,7 @@ contract PegInAddressRegistryRegisterTest is PegInRegistryTestBase {
             txBytes,
             BLOCK_HASH,
             MERKLE_PATH,
-            new bytes32[](0)
+            _emptyHashes()
         );
         assertEq(registry.getRegistrationRoot(), rootAfterFirst);
     }
@@ -339,18 +282,6 @@ contract PegInAddressRegistryRegisterTest is PegInRegistryTestBase {
         assertTrue(pauseRegistry.hasRole(pauseRegistry.PAUSER_ROLE(), owner));
     }
 
-    // W16 — 52-byte preimage: prevRoot (32B) ++ rskAddr (20B)
-    function test_fold_vector_matches_independent_recompute() public {
-        _deploy(false);
-        address[3] memory addrs = [address(0xA1), address(0xA2), address(0xA3)];
-        bytes32 root = bytes32(0);
-        for (uint256 i = 0; i < addrs.length; ++i) {
-            _register(addrs[i], 10_000, stranger);
-            root = _foldRoot(root, addrs[i]);
-            assertEq(registry.getRegistrationRoot(), root);
-        }
-    }
-
     // inv 10 — pause blocks write, reads stay open
     function test_revert_when_paused() public {
         _deploy(false);
@@ -369,12 +300,193 @@ contract PegInAddressRegistryRegisterTest is PegInRegistryTestBase {
             txBytes,
             BLOCK_HASH,
             MERKLE_PATH,
-            new bytes32[](0)
+            _emptyHashes()
         );
         assertFalse(registry.isRegistered(FIXTURE_RSK));
         (, IPegInAddressRegistry.Encoding enc) = registry.getPegInAddress(
             FIXTURE_RSK
         );
         assertEq(uint256(enc), uint256(IPegInAddressRegistry.Encoding.BASE58));
+    }
+
+    // S1 — dedicated happy path: false → register → true + record + event
+    function test_happy_path_isRegistered_record_and_event() public {
+        _deploy(false);
+        assertFalse(registry.isRegistered(FIXTURE_RSK));
+        bytes32 expectedRoot = _foldRoot(bytes32(0), FIXTURE_RSK);
+        bytes memory txBytes = _buildDepositTx(
+            _depositPkScript(FIXTURE_RSK),
+            10_000
+        );
+        bytes32[] memory hashes = _emptyHashes();
+        _programProof(txBytes, BLOCK_HASH, MERKLE_PATH, hashes);
+        vm.expectEmit(true, true, true, true);
+        emit IPegInAddressRegistry.AddressRegistered(
+            FIXTURE_RSK,
+            stranger,
+            expectedRoot
+        );
+        vm.prank(stranger);
+        registry.registerAddress(
+            FIXTURE_RSK,
+            txBytes,
+            BLOCK_HASH,
+            MERKLE_PATH,
+            hashes
+        );
+        assertTrue(registry.isRegistered(FIXTURE_RSK));
+        IPegInAddressRegistry.Registration memory reg = registry
+            .getRegistration(FIXTURE_RSK);
+        assertEq(reg.registrant, stranger);
+        assertEq(reg.registrationBlock, uint96(block.number));
+        assertEq(registry.getRegistrationRoot(), expectedRoot);
+    }
+
+    // S2 — negative confirmations
+    function test_revert_when_negative_confirmations() public {
+        _deploy(false);
+        bridge.setConfirmations(-1);
+        bytes memory txBytes = _buildDepositTx(
+            _depositPkScript(FIXTURE_RSK),
+            10_000
+        );
+        bytes32[] memory hashes = _emptyHashes();
+        _programProof(txBytes, BLOCK_HASH, MERKLE_PATH, hashes);
+        bytes32 txHash = BtcUtils.hashBtcTx(txBytes);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegInAddressRegistry.DepositNotConfirmed.selector,
+                txHash
+            )
+        );
+        registry.registerAddress(
+            FIXTURE_RSK,
+            txBytes,
+            BLOCK_HASH,
+            MERKLE_PATH,
+            hashes
+        );
+    }
+
+    // S3 — write path with unset pegInContract
+    function test_revert_register_when_pegInContract_unset() public {
+        registry = _deployUnwired(false);
+        bytes memory txBytes = _buildDepositTx(
+            hex"a914111111111111111111111111111111111111111187",
+            10_000
+        );
+        vm.expectRevert(IPegInAddressRegistry.PegInContractNotSet.selector);
+        registry.registerAddress(
+            FIXTURE_RSK,
+            txBytes,
+            BLOCK_HASH,
+            MERKLE_PATH,
+            _emptyHashes()
+        );
+    }
+
+    // S4 — explicit non-owner/non-admin caller
+    function test_permissionless_caller_registers() public {
+        _deploy(false);
+        address watchtower = address(0xBEEF);
+        assertTrue(watchtower != owner);
+        assertFalse(
+            registry.hasRole(registry.DEFAULT_ADMIN_ROLE(), watchtower)
+        );
+        assertFalse(
+            pauseRegistry.hasRole(pauseRegistry.PAUSER_ROLE(), watchtower)
+        );
+        _register(FIXTURE_RSK, 10_000, watchtower);
+        assertTrue(registry.isRegistered(FIXTURE_RSK));
+        IPegInAddressRegistry.Registration memory reg = registry
+            .getRegistration(FIXTURE_RSK);
+        assertEq(reg.registrant, watchtower);
+    }
+
+    // S7 — programmed-proof identity mismatch with confs >= 1
+    function test_revert_when_proof_identity_mismatches() public {
+        _deploy(false);
+        bridge.setConfirmations(6);
+        bytes memory txBytes = _buildDepositTx(
+            _depositPkScript(FIXTURE_RSK),
+            10_000
+        );
+        bytes32[] memory hashes = _emptyHashes();
+        bytes32 realTxHash = BtcUtils.hashBtcTx(txBytes);
+        // Program a different txHash than the one the registry will pass.
+        bridge.setExpectedProof(
+            bytes32(uint256(0xDEAD)),
+            BLOCK_HASH,
+            MERKLE_PATH,
+            hashes
+        );
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegInAddressRegistry.DepositNotConfirmed.selector,
+                realTxHash
+            )
+        );
+        registry.registerAddress(
+            FIXTURE_RSK,
+            txBytes,
+            BLOCK_HASH,
+            MERKLE_PATH,
+            hashes
+        );
+    }
+
+    // S8 — zero tx/block hash rejected by mock (no stored confs)
+    function test_mock_rejects_zero_tx_or_block_hash() public {
+        _deploy(false);
+        bridge.setConfirmations(6);
+        bytes memory txBytes = _buildDepositTx(
+            _depositPkScript(FIXTURE_RSK),
+            10_000
+        );
+        bytes32[] memory hashes = _emptyHashes();
+        bytes32 txHash = BtcUtils.hashBtcTx(txBytes);
+        _programProof(txBytes, BLOCK_HASH, MERKLE_PATH, hashes);
+
+        assertEq(
+            bridge.getBtcTransactionConfirmations(
+                bytes32(0),
+                BLOCK_HASH,
+                MERKLE_PATH,
+                hashes
+            ),
+            -1
+        );
+        assertEq(
+            bridge.getBtcTransactionConfirmations(
+                txHash,
+                bytes32(0),
+                MERKLE_PATH,
+                hashes
+            ),
+            -1
+        );
+        assertEq(
+            bridge.getBtcTransactionConfirmations(
+                txHash,
+                BLOCK_HASH,
+                MERKLE_PATH,
+                hashes
+            ),
+            6
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegInAddressRegistry.DepositNotConfirmed.selector,
+                txHash
+            )
+        );
+        registry.registerAddress(
+            FIXTURE_RSK,
+            txBytes,
+            bytes32(0),
+            MERKLE_PATH,
+            hashes
+        );
     }
 }

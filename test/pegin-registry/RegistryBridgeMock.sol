@@ -11,6 +11,12 @@ contract RegistryBridgeMock is IBridge {
     int256 private _confirmations = 6;
     uint256 public mutatingBridgeCallCount;
 
+    bool private _hasExpectedProof;
+    bytes32 private _expectedTxHash;
+    bytes32 private _expectedBlockHash;
+    uint256 private _expectedPath;
+    bytes32[] private _expectedHashes;
+
     constructor() {
         _redeemScript = abi.encodePacked(
             hex"522102cd53fc53a07f211641a677d250f6de99caf620e8e77071e811a28b3bcddf0be1210362634ab5",
@@ -37,6 +43,28 @@ contract RegistryBridgeMock is IBridge {
 
     function setConfirmations(int256 confirmations) external {
         _confirmations = confirmations;
+    }
+
+    /// @notice Programs the exact RSKIP122 identity that must match for confirmations to apply.
+    function setExpectedProof(
+        bytes32 txHash,
+        bytes32 blockHash,
+        uint256 path,
+        bytes32[] calldata hashes
+    ) external {
+        _expectedTxHash = txHash;
+        _expectedBlockHash = blockHash;
+        _expectedPath = path;
+        delete _expectedHashes;
+        for (uint256 i = 0; i < hashes.length; ++i) {
+            _expectedHashes.push(hashes[i]);
+        }
+        _hasExpectedProof = true;
+    }
+
+    function clearExpectedProof() external {
+        _hasExpectedProof = false;
+        delete _expectedHashes;
     }
 
     function registerBtcTransaction(
@@ -372,11 +400,32 @@ contract RegistryBridgeMock is IBridge {
     }
 
     function getBtcTransactionConfirmations(
-        bytes32,
-        bytes32,
-        uint256,
-        bytes32[] calldata
+        bytes32 txHash,
+        bytes32 blockHash,
+        uint256 merkleBranchPath,
+        bytes32[] calldata merkleBranchHashes
     ) external view override returns (int256) {
+        if (txHash == bytes32(0) || blockHash == bytes32(0)) {
+            return -1;
+        }
+        if (!_hasExpectedProof) {
+            return -1;
+        }
+        if (
+            txHash != _expectedTxHash ||
+            blockHash != _expectedBlockHash ||
+            merkleBranchPath != _expectedPath
+        ) {
+            return -1;
+        }
+        if (merkleBranchHashes.length != _expectedHashes.length) {
+            return -1;
+        }
+        for (uint256 i = 0; i < merkleBranchHashes.length; ++i) {
+            if (merkleBranchHashes[i] != _expectedHashes[i]) {
+                return -1;
+            }
+        }
         return _confirmations;
     }
 
