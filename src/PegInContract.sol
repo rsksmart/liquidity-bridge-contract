@@ -11,8 +11,11 @@ import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCod
 import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {IBridge} from "./interfaces/IBridge.sol";
 import {ICollateralManagement, CollateralManagementSet} from "./interfaces/ICollateralManagement.sol";
+import {IFlyoverConfigurations} from "./interfaces/IFlyoverConfigurations.sol";
 import {IPauseRegistry} from "./interfaces/IPauseRegistry.sol";
 import {IPegIn} from "./interfaces/IPegIn.sol";
+import {IPegInAddressRegistry} from "./interfaces/IPegInAddressRegistry.sol";
+import {IPegInCommitFirst} from "./interfaces/IPegInCommitFirst.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 import {Quotes} from "./libraries/Quotes.sol";
 import {SignatureValidator} from "./libraries/SignatureValidator.sol";
@@ -26,7 +29,8 @@ contract PegInContract is
     EmergencyPause,
     ReentrancyGuard,
     EIP712Upgradeable,
-    IPegIn
+    IPegIn,
+    IPegInCommitFirst
 {
     /// @notice This struct is used to store the information of a call on behalf of the user
     /// @param timestamp The timestamp of the call
@@ -34,6 +38,18 @@ contract PegInContract is
     struct Registry {
         uint256 timestamp;
         bool success;
+    }
+
+    /// @notice Claim record written by requestPegIn for later settlement
+    /// @param claimer The account that fronted RBTC; address(0) means unset
+    /// @param frontedAmount The net amount delivered to the user (msg.value at claim)
+    /// @param feeAtClaim The fee snapshot at claim time
+    /// @param requestBlock The RSK block number of the claim
+    struct PegInClaim {
+        address claimer;
+        uint256 frontedAmount;
+        uint256 feeAtClaim;
+        uint256 requestBlock;
     }
 
     /// @notice The version of the contract
@@ -63,6 +79,13 @@ contract PegInContract is
     /// is more than this value, the difference goes back to the user's wallet
     uint256 public dustThreshold;
 
+    /// @notice Commit-first address registry (appended after dustThreshold for proxy safety)
+    IPegInAddressRegistry private _pegInAddressRegistry;
+    /// @notice Shared peg-in fee and confirmation configuration
+    IFlyoverConfigurations private _configurations;
+    /// @notice Commit-first claims keyed by keccak256(rskAddr ++ btcTxHash)
+    mapping(bytes32 => PegInClaim) private _pegInClaims;
+
     /// @notice Emitted when the dust threshold is set
     /// @param oldThreshold The old dust threshold
     /// @param newThreshold The new dust threshold
@@ -72,6 +95,25 @@ contract PegInContract is
     /// @param oldMinPegIn The old minimum peg in amount
     /// @param newMinPegIn The new minimum peg in amount
     event MinPegInSet(uint256 indexed oldMinPegIn, uint256 indexed newMinPegIn);
+
+    /// @notice Emitted when commit-first dependency contracts are set
+    /// @param oldRegistry The previous PegInAddressRegistry address
+    /// @param newRegistry The new PegInAddressRegistry address
+    /// @param oldConfigurations The previous FlyoverConfigurations address
+    /// @param newConfigurations The new FlyoverConfigurations address
+    event PegInDependenciesSet(
+        address indexed oldRegistry,
+        address indexed newRegistry,
+        address oldConfigurations,
+        address newConfigurations
+    );
+
+    /// @notice Reverts when the PegInAddressRegistry dependency has not been set
+    error PegInAddressRegistryNotSet();
+    /// @notice Reverts when the FlyoverConfigurations dependency has not been set
+    error FlyoverConfigurationsNotSet();
+    /// @notice Reverts resolvePegIn until settlement is implemented
+    error ResolvePegInNotImplemented();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -141,6 +183,25 @@ contract PegInContract is
     function setMinPegIn(uint256 minPegIn) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         emit MinPegInSet(_minPegIn, minPegIn);
         _minPegIn = minPegIn;
+    }
+
+    /// @notice Wires the commit-first PegInAddressRegistry and FlyoverConfigurations dependencies
+    /// @param registry The PegInAddressRegistry contract address
+    /// @param configurations The FlyoverConfigurations contract address
+    /// @dev Only callable by DEFAULT_ADMIN_ROLE. Both addresses must have code.
+    // solhint-disable-next-line comprehensive-interface
+    function setPegInDependencies(address registry, address configurations)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+        nonReentrant
+    {
+        if (registry.code.length == 0) revert Flyover.NoContract(registry);
+        if (configurations.code.length == 0) revert Flyover.NoContract(configurations);
+        address oldRegistry = address(_pegInAddressRegistry);
+        address oldConfigurations = address(_configurations);
+        _pegInAddressRegistry = IPegInAddressRegistry(registry);
+        _configurations = IFlyoverConfigurations(configurations);
+        emit PegInDependenciesSet(oldRegistry, registry, oldConfigurations, configurations);
     }
 
     /// @inheritdoc IPegIn
@@ -262,6 +323,63 @@ contract PegInContract is
         return registerResult;
     }
 
+    /// @inheritdoc IPegInCommitFirst
+    function requestPegIn(
+        address rskAddr,
+        uint256 amount,
+        bytes32 btcTxHash,
+        bytes calldata,
+        bytes32 btcBlockHash,
+        uint256 merkleBranchPath,
+        bytes32[] calldata merkleBranchHashes
+    ) external payable nonReentrant whenNotHardPaused override returns (bytes32 pegInId) {
+        pegInId = keccak256(abi.encodePacked(rskAddr, btcTxHash));
+        if (_pegInClaims[pegInId].claimer != address(0)) {
+            revert PegInAlreadyProcessed(pegInId);
+        }
+
+        _requirePegInDepsSet();
+        if (!_pegInAddressRegistry.isRegistered(rskAddr)) {
+            revert AddressNotRegistered(rskAddr);
+        }
+        _requirePegInConfirmations(amount, btcTxHash, btcBlockHash, merkleBranchPath, merkleBranchHashes);
+
+        uint256 fee = _configurations.calculatePegInFee(amount);
+        uint256 expected = _requireCorrectFronting(amount, fee);
+
+        _pegInClaims[pegInId] = PegInClaim({
+            claimer: msg.sender,
+            frontedAmount: msg.value,
+            feeAtClaim: fee,
+            requestBlock: block.number
+        });
+        _payPegInUser(rskAddr, expected);
+        emit PegInRequested(pegInId, msg.sender, rskAddr, amount, expected, true);
+    }
+
+    /// @inheritdoc IPegInCommitFirst
+    function resolvePegIn(
+        address,
+        bytes32,
+        bytes calldata,
+        bytes calldata,
+        uint256
+    ) external pure override returns (int256) {
+        revert ResolvePegInNotImplemented();
+    }
+
+    /// @notice Returns the wired PegInAddressRegistry address
+    // solhint-disable-next-line comprehensive-interface
+    function getPegInAddressRegistry() external view returns (address) {
+        return address(_pegInAddressRegistry);
+    }
+
+    /// @notice Returns the wired FlyoverConfigurations address
+    // solhint-disable-next-line comprehensive-interface
+    function getFlyoverConfigurations() external view returns (address) {
+        return address(_configurations);
+    }
+
     /// @inheritdoc IPegIn
     function validatePegInDepositAddress(
         Quotes.PegInQuote calldata quote,
@@ -321,6 +439,51 @@ contract PegInContract is
         if (amount > 0) {
             _balances[dest] += amount;
             emit BalanceIncrease(dest, amount);
+        }
+    }
+
+    /// @notice Reverts unless commit-first registry and configurations are wired
+    function _requirePegInDepsSet() private view {
+        if (address(_pegInAddressRegistry) == address(0)) revert PegInAddressRegistryNotSet();
+        if (address(_configurations) == address(0)) revert FlyoverConfigurationsNotSet();
+    }
+
+    /// @notice Reverts unless Bridge confirmations meet the configured tier for amount
+    function _requirePegInConfirmations(
+        uint256 amount,
+        bytes32 btcTxHash,
+        bytes32 btcBlockHash,
+        uint256 merkleBranchPath,
+        bytes32[] calldata merkleBranchHashes
+    ) private view {
+        int256 reportedConfirmations = _bridge.getBtcTransactionConfirmations(
+            btcTxHash, btcBlockHash, merkleBranchPath, merkleBranchHashes
+        );
+        uint256 requiredConfirmations = _configurations.getRequiredPegInBtcConfirmations(amount);
+        if (reportedConfirmations < 0 || uint256(reportedConfirmations) < requiredConfirmations) {
+            revert InsufficientConfirmations(
+                reportedConfirmations < 0 ? 0 : uint256(reportedConfirmations),
+                requiredConfirmations
+            );
+        }
+    }
+
+    /// @notice Validates msg.value equals amount minus fee; returns the expected net
+    function _requireCorrectFronting(uint256 amount, uint256 fee) private view returns (uint256 expected) {
+        if (amount < fee) {
+            revert IncorrectFronting(0, msg.value);
+        }
+        expected = amount - fee;
+        if (msg.value != expected) {
+            revert IncorrectFronting(expected, msg.value);
+        }
+    }
+
+    /// @notice Delivers net RBTC to the peg-in destination address
+    function _payPegInUser(address rskAddr, uint256 expected) private {
+        (bool success, bytes memory reason) = rskAddr.call{value: expected}("");
+        if (!success) {
+            revert Flyover.PaymentFailed(rskAddr, expected, reason);
         }
     }
 
