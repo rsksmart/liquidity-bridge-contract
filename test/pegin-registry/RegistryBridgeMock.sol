@@ -8,6 +8,14 @@ import {IBridge} from "../../src/interfaces/IBridge.sol";
 // solhint-disable comprehensive-interface
 contract RegistryBridgeMock is IBridge {
     bytes private _redeemScript;
+    int256 private _confirmations = 6;
+    uint256 public mutatingBridgeCallCount;
+
+    bool private _hasExpectedProof;
+    bytes32 private _expectedTxHash;
+    bytes32 private _expectedBlockHash;
+    uint256 private _expectedPath;
+    bytes32[] private _expectedHashes;
 
     constructor() {
         _redeemScript = abi.encodePacked(
@@ -33,13 +41,39 @@ contract RegistryBridgeMock is IBridge {
         _redeemScript = redeemScript;
     }
 
-    // ---- Unused IBridge surface (stubs) ----
-    // solhint-disable no-empty-blocks
+    function setConfirmations(int256 confirmations) external {
+        _confirmations = confirmations;
+    }
+
+    /// @notice Programs the exact RSKIP122 identity that must match for confirmations to apply.
+    function setExpectedProof(
+        bytes32 txHash,
+        bytes32 blockHash,
+        uint256 path,
+        bytes32[] calldata hashes
+    ) external {
+        _expectedTxHash = txHash;
+        _expectedBlockHash = blockHash;
+        _expectedPath = path;
+        delete _expectedHashes;
+        for (uint256 i = 0; i < hashes.length; ++i) {
+            _expectedHashes.push(hashes[i]);
+        }
+        _hasExpectedProof = true;
+    }
+
+    function clearExpectedProof() external {
+        _hasExpectedProof = false;
+        delete _expectedHashes;
+    }
+
     function registerBtcTransaction(
         bytes calldata,
         int256,
         bytes calldata
-    ) external override {}
+    ) external override {
+        ++mutatingBridgeCallCount;
+    }
 
     function addSignature(
         bytes calldata,
@@ -366,12 +400,33 @@ contract RegistryBridgeMock is IBridge {
     }
 
     function getBtcTransactionConfirmations(
-        bytes32,
-        bytes32,
-        uint256,
-        bytes32[] calldata
-    ) external pure override returns (int256) {
-        return 6;
+        bytes32 txHash,
+        bytes32 blockHash,
+        uint256 merkleBranchPath,
+        bytes32[] calldata merkleBranchHashes
+    ) external view override returns (int256) {
+        if (txHash == bytes32(0) || blockHash == bytes32(0)) {
+            return -1;
+        }
+        if (!_hasExpectedProof) {
+            return -1;
+        }
+        if (
+            txHash != _expectedTxHash ||
+            blockHash != _expectedBlockHash ||
+            merkleBranchPath != _expectedPath
+        ) {
+            return -1;
+        }
+        if (merkleBranchHashes.length != _expectedHashes.length) {
+            return -1;
+        }
+        for (uint256 i = 0; i < merkleBranchHashes.length; ++i) {
+            if (merkleBranchHashes[i] != _expectedHashes[i]) {
+                return -1;
+            }
+        }
+        return _confirmations;
     }
 
     function getLockingCap() external pure override returns (int256) {

@@ -5,7 +5,10 @@ import {
     AccessControlDefaultAdminRulesUpgradeable
 } from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
+import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {IBridge} from "./interfaces/IBridge.sol";
+import {IPauseRegistry} from "./interfaces/IPauseRegistry.sol";
 import {IPegInAddressRegistry} from "./interfaces/IPegInAddressRegistry.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 import {PegInDerivation} from "./libraries/PegInDerivation.sol";
@@ -13,11 +16,15 @@ import {PegInDerivation} from "./libraries/PegInDerivation.sol";
 /// @title PegInAddressRegistry
 /// @notice Upgradeable registry that derives a static BTC deposit address from an RSK address
 /// against the current powpeg and exposes registration lookups.
-/// @dev Exposes derivation and registration views. `registerAddress` reverts with
-/// {RegisterAddressNotImplemented}. Deposit-address bytes are composed from {PegInDerivation}
-/// and the live powpeg redeem script returned by {IBridge}.
+/// @dev Exposes derivation and registration views. Deposit-address bytes are composed from
+/// {PegInDerivation} and the live powpeg redeem script returned by {IBridge}.
 /// @author Rootstock Labs(TravellerOnTheRun)
-contract PegInAddressRegistry is AccessControlDefaultAdminRulesUpgradeable, ReentrancyGuard, IPegInAddressRegistry {
+contract PegInAddressRegistry is
+    AccessControlDefaultAdminRulesUpgradeable,
+    EmergencyPause,
+    ReentrancyGuard,
+    IPegInAddressRegistry
+{
     /// @custom:storage-location erc7201:rsk.flyover.PegInAddressRegistry
     struct PegInAddressRegistryStorage {
         IBridge bridge;
@@ -29,6 +36,14 @@ contract PegInAddressRegistry is AccessControlDefaultAdminRulesUpgradeable, Reen
 
     /// @notice The version of the contract
     string public constant VERSION = "1.0.0";
+
+    /// @notice Minimum deposit output value (satoshis) required to register an address.
+    uint256 public constant MIN_DEPOSIT_SATS = 546;
+
+    /// @notice Minimum BTC confirmations required for a deposit proof to gate registration.
+    /// @dev Walkthrough step 8 / D8 and the S3.2 ticket require confirmations ≥ 1. Named so
+    /// the floor can be raised without hunting magic numbers.
+    int256 public constant MIN_CONFIRMATIONS = 1;
 
     /// @notice Maximum batch size for `getPegInAddresses`.
     uint256 public constant MAX_PEGIN_ADDRESS_BATCH = 100;
@@ -60,10 +75,19 @@ contract PegInAddressRegistry is AccessControlDefaultAdminRulesUpgradeable, Reen
     /// @param initialDelay The initial delay for changes in the default admin role
     /// @param bridge The address of the Rootstock bridge
     /// @param mainnet Whether the derived addresses target mainnet or testnet
+    /// @param pauseRegistry_ The central PauseRegistry for pause state
     // solhint-disable-next-line comprehensive-interface
-    function initialize(address defaultAdmin, uint48 initialDelay, address bridge, bool mainnet) external initializer {
+    function initialize(
+        address defaultAdmin,
+        uint48 initialDelay,
+        address bridge,
+        bool mainnet,
+        IPauseRegistry pauseRegistry_
+    ) external initializer {
         if (bridge == address(0)) revert Flyover.NoContract(bridge);
+        if (address(pauseRegistry_).code.length == 0) revert Flyover.NoContract(address(pauseRegistry_));
         __AccessControlDefaultAdminRules_init(initialDelay, defaultAdmin);
+        __EmergencyPause_init(pauseRegistry_);
         PegInAddressRegistryStorage storage $ = _getStorage();
         $.bridge = IBridge(payable(bridge));
         $.mainnet = mainnet;
@@ -82,8 +106,40 @@ contract PegInAddressRegistry is AccessControlDefaultAdminRulesUpgradeable, Reen
     }
 
     /// @inheritdoc IPegInAddressRegistry
-    function registerAddress(address, bytes calldata, bytes32, uint256, bytes32[] calldata) external pure override {
-        revert RegisterAddressNotImplemented();
+    function registerAddress(
+        address rskAddr,
+        bytes calldata btcTxSerialized,
+        bytes32 btcBlockHash,
+        uint256 merkleBranchPath,
+        bytes32[] calldata merkleBranchHashes
+    ) external override whenNotSoftPaused nonReentrant {
+        PegInAddressRegistryStorage storage $ = _getStorage();
+
+        if ($.registrations[rskAddr].registrationBlock != 0) {
+            revert AddressAlreadyRegistered(rskAddr);
+        }
+
+        address pegInContract = $.pegInContract;
+        if (pegInContract == address(0)) revert PegInContractNotSet();
+
+        bytes memory expectedPkScript = _expectedDepositPkScript(rskAddr, pegInContract, $.bridge);
+        uint64 depositValue = _matchedDepositValue(btcTxSerialized, expectedPkScript, rskAddr);
+
+        if (depositValue < MIN_DEPOSIT_SATS) {
+            revert DepositBelowMinimum(depositValue, MIN_DEPOSIT_SATS);
+        }
+
+        bytes32 btcTxHash = BtcUtils.hashBtcTx(btcTxSerialized);
+        int256 confirmations =
+            $.bridge.getBtcTransactionConfirmations(btcTxHash, btcBlockHash, merkleBranchPath, merkleBranchHashes);
+        if (confirmations < MIN_CONFIRMATIONS) {
+            revert DepositNotConfirmed(btcTxHash);
+        }
+
+        $.registrations[rskAddr] = Registration({registrant: msg.sender, registrationBlock: uint96(block.number)});
+        bytes32 newRoot = keccak256(abi.encodePacked($.registrationRoot, rskAddr));
+        $.registrationRoot = newRoot;
+        emit AddressRegistered(rskAddr, msg.sender, newRoot);
     }
 
     /// @inheritdoc IPegInAddressRegistry
@@ -147,6 +203,36 @@ contract PegInAddressRegistry is AccessControlDefaultAdminRulesUpgradeable, Reen
     // solhint-disable-next-line comprehensive-interface
     function getPegInContract() external view returns (address) {
         return _getStorage().pegInContract;
+    }
+
+    /// @notice Derives the on-chain P2SH scriptPubkey for a deposit output match.
+    function _expectedDepositPkScript(address rskAddr, address pegInContract, IBridge bridge_)
+        private
+        view
+        returns (bytes memory)
+    {
+        bytes memory powpegRedeemScript = bridge_.getActivePowpegRedeemScript();
+        bytes32 derivationValue = PegInDerivation.derivationValue(rskAddr, pegInContract);
+        bytes memory redeemScript = PegInDerivation.flyoverRedeemScript(derivationValue, powpegRedeemScript);
+        bytes20 scriptHash = PegInDerivation.flyoverScriptHash(redeemScript);
+        return PegInDerivation.p2shScriptPubkey(scriptHash);
+    }
+
+    /// @notice Returns the satoshi value of the output paying the derived deposit script.
+    function _matchedDepositValue(bytes calldata btcTxSerialized, bytes memory expectedPkScript, address rskAddr)
+        private
+        pure
+        returns (uint64 depositValue)
+    {
+        BtcUtils.TxRawOutput[] memory outputs = BtcUtils.getOutputs(btcTxSerialized);
+        bytes32 expectedHash = keccak256(expectedPkScript);
+        uint256 outputCount = outputs.length;
+        for (uint256 i = 0; i < outputCount; ++i) {
+            if (keccak256(outputs[i].pkScript) == expectedHash) {
+                return outputs[i].value;
+            }
+        }
+        revert DepositOutputNotFound(rskAddr);
     }
 
     /// @notice Derives the BTC deposit address for an RSK address against a supplied powpeg script.

@@ -1,19 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {PegInRegistryTestBase} from "./pegin-registry/PegInRegistryTestBase.sol";
-import {PegInAddressRegistry} from "../src/PegInAddressRegistry.sol";
-import {PegInAddressRegistryHarness} from "./pegin-registry/PegInAddressRegistryHarness.sol";
-import {IPegInAddressRegistry} from "../src/interfaces/IPegInAddressRegistry.sol";
-import {Flyover} from "../src/libraries/Flyover.sol";
-import {PegInDerivation} from "../src/libraries/PegInDerivation.sol";
+import {PegInRegistryTestBase} from "./PegInRegistryTestBase.sol";
+import {PegInAddressRegistry} from "../../src/PegInAddressRegistry.sol";
+import {PegInAddressRegistryHarness} from "./PegInAddressRegistryHarness.sol";
+import {IPegInAddressRegistry} from "../../src/interfaces/IPegInAddressRegistry.sol";
+import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
+import {Flyover} from "../../src/libraries/Flyover.sol";
+import {PegInDerivation} from "../../src/libraries/PegInDerivation.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCodes.sol";
 
-/// @title PegInAddressRegistry read-surface tests
-contract PegInAddressRegistryReadsTest is PegInRegistryTestBase {
+/// @title PegInAddressRegistry derivation / fixture / init tests
+contract DerivationTest is PegInRegistryTestBase {
     address internal constant FIXTURE_RSK =
         0x0000000000000000000000000000000000000aBc;
     bytes internal constant FIXTURE_TESTNET_ADDRESS =
@@ -67,20 +68,18 @@ contract PegInAddressRegistryReadsTest is PegInRegistryTestBase {
         registry.getPegInAddresses(addrs);
     }
 
-    function test_registerAddress_stub_reverts() public {
-        _deploy(false);
-        bytes32[] memory hashes = new bytes32[](0);
-        vm.expectRevert(
-            IPegInAddressRegistry.RegisterAddressNotImplemented.selector
-        );
-        registry.registerAddress(FIXTURE_RSK, hex"", bytes32(0), 0, hashes);
-    }
-
     function test_initialize_reverts_when_bridge_zero() public {
+        _deployPauseRegistry();
         PegInAddressRegistryHarness impl = new PegInAddressRegistryHarness();
         bytes memory initData = abi.encodeCall(
             PegInAddressRegistry.initialize,
-            (owner, ADMIN_DELAY, address(0), false)
+            (
+                owner,
+                ADMIN_DELAY,
+                address(0),
+                false,
+                IPauseRegistry(address(pauseRegistry))
+            )
         );
         vm.expectRevert(
             abi.encodeWithSelector(Flyover.NoContract.selector, address(0))
@@ -117,14 +116,6 @@ contract PegInAddressRegistryReadsTest is PegInRegistryTestBase {
             .getRegistration(FIXTURE_RSK);
         assertEq(reg.registrant, stranger);
         assertEq(reg.registrationBlock, 99);
-    }
-
-    // R7 — registration root fold
-    function test_getRegistrationRoot_fold() public {
-        _deploy(false);
-        bytes32 root = keccak256(abi.encodePacked(bytes32(0), FIXTURE_RSK));
-        _seedRegistrationRoot(root);
-        assertEq(registry.getRegistrationRoot(), root);
     }
 
     // R8 — admin-only setPegInContract
@@ -234,7 +225,13 @@ contract PegInAddressRegistryReadsTest is PegInRegistryTestBase {
     function test_second_initialize_reverts() public {
         _deploy(false);
         vm.expectRevert(Initializable.InvalidInitialization.selector);
-        registry.initialize(owner, ADMIN_DELAY, address(bridge), false);
+        registry.initialize(
+            owner,
+            ADMIN_DELAY,
+            address(bridge),
+            false,
+            IPauseRegistry(address(pauseRegistry))
+        );
     }
 
     function test_encoding_is_base58() public {

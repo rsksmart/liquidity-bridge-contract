@@ -84,11 +84,6 @@ interface IPegInAddressRegistry {
     /// @param max The maximum allowed batch size
     error BatchTooLarge(uint256 requested, uint256 max);
 
-    /// @notice Raised when `registerAddress` is called while registration writes are unavailable
-    /// @dev Temporary stub surface for the read-only slice; S3.2 replaces the stub with the
-    /// SPV-gated write path and removes this error.
-    error RegisterAddressNotImplemented();
-
     /// @notice Derives the deterministic BTC deposit address for an RSK destination address
     /// @dev The address is a prediction of what the bridge recomputes at settlement, byte for
     /// byte: it depends only on the RSK address, fixed protocol constants, and the active
