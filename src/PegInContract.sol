@@ -329,7 +329,7 @@ contract PegInContract is
         address rskAddr,
         uint256 amount,
         bytes32 btcTxHash,
-        bytes calldata,
+        bytes calldata opReturn,
         bytes32 btcBlockHash,
         uint256 merkleBranchPath,
         bytes32[] calldata merkleBranchHashes
@@ -360,11 +360,11 @@ contract PegInContract is
 
     /// @inheritdoc IPegInCommitFirst
     function resolvePegIn(
-        address,
-        bytes32,
-        bytes calldata,
-        bytes calldata,
-        uint256
+        address rskAddr,
+        bytes32 btcTxHash,
+        bytes calldata btcRawTransaction,
+        bytes calldata partialMerkleTree,
+        uint256 height
     ) external pure override returns (int256) {
         revert ResolvePegInNotImplemented();
     }
@@ -481,6 +481,7 @@ contract PegInContract is
     }
 
     /// @notice Delivers net RBTC to the peg-in destination address
+    // slither-disable-next-line arbitrary-send-eth,low-level-calls
     function _payPegInUser(address rskAddr, uint256 expected) private {
         (bool success, bytes memory reason) = rskAddr.call{value: expected}("");
         if (!success) {
