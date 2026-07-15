@@ -24,6 +24,7 @@ import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 /// @notice This contract is used to handle the peg in of the Bitcoin network to the Rootstock network
 /// @dev All non pure/view functions in this contract should be marked as nonReentrant
 /// @author Rootstock Labs
+// solhint-disable-next-line max-states-count
 contract PegInContract is
     AccessControlDefaultAdminRulesUpgradeable,
     EmergencyPause,
