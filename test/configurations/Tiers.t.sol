@@ -43,7 +43,10 @@ contract TiersTest is ConfigurationsTestBase {
     function test_singleTierConfig_answersEverything() public {
         IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
         c.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](1);
-        c.confirmationTiers[0] = IFlyoverConfigurations.ConfirmationTier({maxAmount: 2 ether, confirmations: 9});
+        c.confirmationTiers[0] = IFlyoverConfigurations.ConfirmationTier({
+            maxAmount: 2 ether,
+            confirmations: 9
+        });
 
         vm.prank(owner);
         config.queueChange(c);

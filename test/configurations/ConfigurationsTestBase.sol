@@ -54,14 +54,25 @@ abstract contract ConfigurationsTestBase is Test {
         FlyoverConfigurations impl = new FlyoverConfigurations();
         bytes memory initData = abi.encodeCall(
             FlyoverConfigurations.initialize,
-            (owner, ADMIN_DELAY, TIMELOCK_DELAY, _seedConfig(), _boundsMin(), _boundsMax())
+            (
+                owner,
+                ADMIN_DELAY,
+                TIMELOCK_DELAY,
+                _seedConfig(),
+                _boundsMin(),
+                _boundsMax()
+            )
         );
         ERC1967Proxy proxy = new ERC1967Proxy(address(impl), initData);
         config = FlyoverConfigurations(payable(address(proxy)));
     }
 
     /// @notice The seed peg-in configuration written at initialize time.
-    function _seedConfig() internal pure returns (IFlyoverConfigurations.PegConfiguration memory c) {
+    function _seedConfig()
+        internal
+        pure
+        returns (IFlyoverConfigurations.PegConfiguration memory c)
+    {
         c.fixedFee = SEED_FIXED_FEE;
         c.percentageFee = SEED_PCT;
         c.minAmount = SEED_MIN_AMOUNT;
@@ -70,14 +81,31 @@ abstract contract ConfigurationsTestBase is Test {
     }
 
     /// @notice Seed tiers: (1e18,1) (10e18,3) (100e18,6), strictly ascending.
-    function _seedTiers() internal pure returns (IFlyoverConfigurations.ConfirmationTier[] memory tiers) {
+    function _seedTiers()
+        internal
+        pure
+        returns (IFlyoverConfigurations.ConfirmationTier[] memory tiers)
+    {
         tiers = new IFlyoverConfigurations.ConfirmationTier[](3);
-        tiers[0] = IFlyoverConfigurations.ConfirmationTier({maxAmount: 1 ether, confirmations: 1});
-        tiers[1] = IFlyoverConfigurations.ConfirmationTier({maxAmount: 10 ether, confirmations: 3});
-        tiers[2] = IFlyoverConfigurations.ConfirmationTier({maxAmount: 100 ether, confirmations: 6});
+        tiers[0] = IFlyoverConfigurations.ConfirmationTier({
+            maxAmount: 1 ether,
+            confirmations: 1
+        });
+        tiers[1] = IFlyoverConfigurations.ConfirmationTier({
+            maxAmount: 10 ether,
+            confirmations: 3
+        });
+        tiers[2] = IFlyoverConfigurations.ConfirmationTier({
+            maxAmount: 100 ether,
+            confirmations: 6
+        });
     }
 
-    function _boundsMin() internal pure returns (IFlyoverConfigurations.PegConfiguration memory c) {
+    function _boundsMin()
+        internal
+        pure
+        returns (IFlyoverConfigurations.PegConfiguration memory c)
+    {
         c.fixedFee = BOUND_MIN_FIXED_FEE;
         c.percentageFee = BOUND_MIN_PCT;
         c.minAmount = BOUND_MIN_MIN_AMOUNT;
@@ -86,7 +114,11 @@ abstract contract ConfigurationsTestBase is Test {
         c.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
     }
 
-    function _boundsMax() internal pure returns (IFlyoverConfigurations.PegConfiguration memory c) {
+    function _boundsMax()
+        internal
+        pure
+        returns (IFlyoverConfigurations.PegConfiguration memory c)
+    {
         c.fixedFee = BOUND_MAX_FIXED_FEE;
         c.percentageFee = BOUND_MAX_PCT;
         c.minAmount = BOUND_MAX_MIN_AMOUNT;
@@ -96,18 +128,31 @@ abstract contract ConfigurationsTestBase is Test {
 
     /// @notice A valid config distinct from the seed, for queue/apply tests so the applied change
     /// is observable. All scalars sit within the deployment bounds.
-    function _altConfig() internal pure returns (IFlyoverConfigurations.PegConfiguration memory c) {
+    function _altConfig()
+        internal
+        pure
+        returns (IFlyoverConfigurations.PegConfiguration memory c)
+    {
         c.fixedFee = 2000 * SAT;
         c.percentageFee = 20; // 0.20%
         c.minAmount = 0.002 ether;
         c.maxAmount = 200 ether;
         c.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](2);
-        c.confirmationTiers[0] = IFlyoverConfigurations.ConfirmationTier({maxAmount: 2 ether, confirmations: 2});
-        c.confirmationTiers[1] = IFlyoverConfigurations.ConfirmationTier({maxAmount: 20 ether, confirmations: 5});
+        c.confirmationTiers[0] = IFlyoverConfigurations.ConfirmationTier({
+            maxAmount: 2 ether,
+            confirmations: 2
+        });
+        c.confirmationTiers[1] = IFlyoverConfigurations.ConfirmationTier({
+            maxAmount: 20 ether,
+            confirmations: 5
+        });
     }
 
     /// @notice Convenience: queue `_altConfig()` as the admin and return it.
-    function _queueAlt() internal returns (IFlyoverConfigurations.PegConfiguration memory c) {
+    function _queueAlt()
+        internal
+        returns (IFlyoverConfigurations.PegConfiguration memory c)
+    {
         c = _altConfig();
         vm.prank(owner);
         config.queueChange(c);

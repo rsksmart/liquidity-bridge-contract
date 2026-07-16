@@ -13,7 +13,11 @@ contract FeeTest is ConfigurationsTestBase {
     }
 
     /// @dev Independent mirror of the contract formula + rounding, to assert against.
-    function _expectedFee(uint256 fixedFee, uint256 pct, uint256 amount) private pure returns (uint256) {
+    function _expectedFee(
+        uint256 fixedFee,
+        uint256 pct,
+        uint256 amount
+    ) private pure returns (uint256) {
         uint256 fee = fixedFee + (amount * pct) / PCT_DENOMINATOR;
         if (fee > SAT && (fee % SAT) != 0) {
             fee -= (fee % SAT);
@@ -45,7 +49,9 @@ contract FeeTest is ConfigurationsTestBase {
     /// 5 ether * 10 / 10000 = 5e15; plus 1e13 floor = 5_010_000_000_000_000 wei.
     function test_midAmount_handComputed() public view {
         uint256 amount = 5 ether;
-        uint256 expected = SEED_FIXED_FEE + (amount * SEED_PCT) / PCT_DENOMINATOR;
+        uint256 expected = SEED_FIXED_FEE +
+            (amount * SEED_PCT) /
+            PCT_DENOMINATOR;
         assertEq(expected, 5_010_000_000_000_000);
         assertEq(config.calculatePegInFee(amount), expected);
     }
@@ -56,7 +62,10 @@ contract FeeTest is ConfigurationsTestBase {
         // percentage term = amount * 10 / 10000 = amount / 1000; choose a non-SAT-aligned result.
         uint256 amount = 123_456_789_012_345;
         uint256 rawFee = SEED_FIXED_FEE + (amount * SEED_PCT) / PCT_DENOMINATOR;
-        assertTrue(rawFee % SAT != 0, "test setup: pick an amount with a sub-satoshi remainder");
+        assertTrue(
+            rawFee % SAT != 0,
+            "test setup: pick an amount with a sub-satoshi remainder"
+        );
 
         uint256 got = config.calculatePegInFee(amount);
         assertEq(got, rawFee - (rawFee % SAT));

@@ -13,7 +13,8 @@ contract GettersTest is ConfigurationsTestBase {
     }
 
     function test_getPegInConfiguration_roundTripsSeed() public view {
-        IFlyoverConfigurations.PegConfiguration memory c = config.getPegInConfiguration();
+        IFlyoverConfigurations.PegConfiguration memory c = config
+            .getPegInConfiguration();
         assertEq(c.fixedFee, SEED_FIXED_FEE);
         assertEq(c.percentageFee, SEED_PCT);
         assertEq(c.minAmount, SEED_MIN_AMOUNT);
@@ -26,13 +27,17 @@ contract GettersTest is ConfigurationsTestBase {
     }
 
     function test_limits_readableFromConfiguration() public view {
-        IFlyoverConfigurations.PegConfiguration memory c = config.getPegInConfiguration();
+        IFlyoverConfigurations.PegConfiguration memory c = config
+            .getPegInConfiguration();
         assertEq(c.minAmount, SEED_MIN_AMOUNT);
         assertEq(c.maxAmount, SEED_MAX_AMOUNT);
         assertLe(c.minAmount, c.maxAmount);
     }
 
-    function test_getPegInConfigurationBounds_returnsDeploymentBounds() public view {
+    function test_getPegInConfigurationBounds_returnsDeploymentBounds()
+        public
+        view
+    {
         (
             IFlyoverConfigurations.PegConfiguration memory min,
             IFlyoverConfigurations.PegConfiguration memory max
@@ -54,7 +59,10 @@ contract GettersTest is ConfigurationsTestBase {
     }
 
     function test_getPendingChange_zeroedWhenNothingQueued() public view {
-        (IFlyoverConfigurations.PegConfiguration memory pending, uint256 eta) = config.getPendingChange();
+        (
+            IFlyoverConfigurations.PegConfiguration memory pending,
+            uint256 eta
+        ) = config.getPendingChange();
         assertEq(eta, 0);
         assertEq(pending.fixedFee, 0);
         assertEq(pending.percentageFee, 0);
@@ -67,13 +75,19 @@ contract GettersTest is ConfigurationsTestBase {
         uint256 expectedEta = block.timestamp + TIMELOCK_DELAY;
         IFlyoverConfigurations.PegConfiguration memory queued = _queueAlt();
 
-        (IFlyoverConfigurations.PegConfiguration memory pending, uint256 eta) = config.getPendingChange();
+        (
+            IFlyoverConfigurations.PegConfiguration memory pending,
+            uint256 eta
+        ) = config.getPendingChange();
         assertEq(eta, expectedEta);
         assertEq(pending.fixedFee, queued.fixedFee);
         assertEq(pending.percentageFee, queued.percentageFee);
         assertEq(pending.minAmount, queued.minAmount);
         assertEq(pending.maxAmount, queued.maxAmount);
-        assertEq(pending.confirmationTiers.length, queued.confirmationTiers.length);
+        assertEq(
+            pending.confirmationTiers.length,
+            queued.confirmationTiers.length
+        );
     }
 
     function test_getPendingChange_clearedAfterApply() public {
@@ -82,7 +96,10 @@ contract GettersTest is ConfigurationsTestBase {
         vm.prank(owner);
         config.applyChange();
 
-        (IFlyoverConfigurations.PegConfiguration memory pending, uint256 eta) = config.getPendingChange();
+        (
+            IFlyoverConfigurations.PegConfiguration memory pending,
+            uint256 eta
+        ) = config.getPendingChange();
         assertEq(eta, 0);
         assertEq(pending.fixedFee, 0);
         assertEq(pending.confirmationTiers.length, 0);

@@ -15,7 +15,8 @@ import {IFlyoverConfigurations} from "../../src/interfaces/IFlyoverConfiguration
 contract TimelockTest is ConfigurationsTestBase {
     /// @dev pending.fixedFee lives at the mutable namespace base + 5 (activePegIn occupies the
     /// first 5 slots: fixedFee, percentageFee, minAmount, maxAmount, confirmationTiers-length).
-    bytes32 private constant _PENDING_FIXED_FEE_SLOT = bytes32(uint256(STORAGE_SLOT) + 5);
+    bytes32 private constant _PENDING_FIXED_FEE_SLOT =
+        bytes32(uint256(STORAGE_SLOT) + 5);
 
     function setUp() public {
         _deploy();
@@ -33,7 +34,8 @@ contract TimelockTest is ConfigurationsTestBase {
         vm.prank(owner);
         config.applyChange();
 
-        IFlyoverConfigurations.PegConfiguration memory active = config.getPegInConfiguration();
+        IFlyoverConfigurations.PegConfiguration memory active = config
+            .getPegInConfiguration();
         assertEq(active.fixedFee, c.fixedFee);
         assertEq(active.percentageFee, c.percentageFee);
         assertEq(active.minAmount, c.minAmount);
@@ -50,7 +52,10 @@ contract TimelockTest is ConfigurationsTestBase {
         vm.warp(eta); // block.timestamp == eta is allowed (>=)
         vm.prank(owner);
         config.applyChange();
-        assertEq(config.getPegInConfiguration().fixedFee, _altConfig().fixedFee);
+        assertEq(
+            config.getPegInConfiguration().fixedFee,
+            _altConfig().fixedFee
+        );
     }
 
     // ------------------------------------------------------ case 2: apply before delay reverts
@@ -62,7 +67,11 @@ contract TimelockTest is ConfigurationsTestBase {
         vm.warp(eta - 1);
         vm.prank(owner);
         vm.expectRevert(
-            abi.encodeWithSelector(FlyoverConfigurations.TimelockNotElapsed.selector, eta, eta - 1)
+            abi.encodeWithSelector(
+                FlyoverConfigurations.TimelockNotElapsed.selector,
+                eta,
+                eta - 1
+            )
         );
         config.applyChange();
 
@@ -102,9 +111,14 @@ contract TimelockTest is ConfigurationsTestBase {
         (, uint256 eta) = config.getPendingChange();
 
         // Corrupt pending.fixedFee to just above the max bound, bypassing queueChange.
-        vm.store(address(config), _PENDING_FIXED_FEE_SLOT, bytes32(BOUND_MAX_FIXED_FEE + 1));
+        vm.store(
+            address(config),
+            _PENDING_FIXED_FEE_SLOT,
+            bytes32(BOUND_MAX_FIXED_FEE + 1)
+        );
         // Sanity: the poke landed on the pending value.
-        (IFlyoverConfigurations.PegConfiguration memory pending,) = config.getPendingChange();
+        (IFlyoverConfigurations.PegConfiguration memory pending, ) = config
+            .getPendingChange();
         assertEq(pending.fixedFee, BOUND_MAX_FIXED_FEE + 1);
 
         vm.warp(eta);
@@ -143,8 +157,15 @@ contract TimelockTest is ConfigurationsTestBase {
         vm.prank(owner);
         config.queueChange(second);
 
-        (IFlyoverConfigurations.PegConfiguration memory pending, uint256 eta) = config.getPendingChange();
-        assertEq(pending.fixedFee, 3000 * SAT, "pending must be the second change");
+        (
+            IFlyoverConfigurations.PegConfiguration memory pending,
+            uint256 eta
+        ) = config.getPendingChange();
+        assertEq(
+            pending.fixedFee,
+            3000 * SAT,
+            "pending must be the second change"
+        );
         assertEq(eta, expectedEta, "eta must be refreshed by the second queue");
 
         // Applying activates the second change, never the replaced first.

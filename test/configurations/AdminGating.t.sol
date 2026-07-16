@@ -14,10 +14,15 @@ contract AdminGatingTest is ConfigurationsTestBase {
         _deploy();
     }
 
-    function _unauthorized(address account) private view returns (bytes memory) {
-        return abi.encodeWithSelector(
-            IAccessControl.AccessControlUnauthorizedAccount.selector, account, config.DEFAULT_ADMIN_ROLE()
-        );
+    function _unauthorized(
+        address account
+    ) private view returns (bytes memory) {
+        return
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                account,
+                config.DEFAULT_ADMIN_ROLE()
+            );
     }
 
     // ------------------------------------------------------------------ role gating
@@ -46,7 +51,10 @@ contract AdminGatingTest is ConfigurationsTestBase {
         vm.warp(block.timestamp + TIMELOCK_DELAY);
         vm.prank(owner);
         config.applyChange();
-        assertEq(config.getPegInConfiguration().fixedFee, _altConfig().fixedFee);
+        assertEq(
+            config.getPegInConfiguration().fixedFee,
+            _altConfig().fixedFee
+        );
     }
 
     // ------------------------------------------------------------------ tier validation
@@ -62,8 +70,14 @@ contract AdminGatingTest is ConfigurationsTestBase {
     function test_queueChange_nonAscendingTiersReverts() public {
         IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
         c.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](2);
-        c.confirmationTiers[0] = IFlyoverConfigurations.ConfirmationTier({maxAmount: 10 ether, confirmations: 3});
-        c.confirmationTiers[1] = IFlyoverConfigurations.ConfirmationTier({maxAmount: 1 ether, confirmations: 1});
+        c.confirmationTiers[0] = IFlyoverConfigurations.ConfirmationTier({
+            maxAmount: 10 ether,
+            confirmations: 3
+        });
+        c.confirmationTiers[1] = IFlyoverConfigurations.ConfirmationTier({
+            maxAmount: 1 ether,
+            confirmations: 1
+        });
         vm.prank(owner);
         vm.expectRevert(FlyoverConfigurations.TiersNotAscending.selector);
         config.queueChange(c);
@@ -73,8 +87,14 @@ contract AdminGatingTest is ConfigurationsTestBase {
         // Strictly ascending: equal adjacent maxAmounts are rejected too.
         IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
         c.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](2);
-        c.confirmationTiers[0] = IFlyoverConfigurations.ConfirmationTier({maxAmount: 1 ether, confirmations: 1});
-        c.confirmationTiers[1] = IFlyoverConfigurations.ConfirmationTier({maxAmount: 1 ether, confirmations: 2});
+        c.confirmationTiers[0] = IFlyoverConfigurations.ConfirmationTier({
+            maxAmount: 1 ether,
+            confirmations: 1
+        });
+        c.confirmationTiers[1] = IFlyoverConfigurations.ConfirmationTier({
+            maxAmount: 1 ether,
+            confirmations: 2
+        });
         vm.prank(owner);
         vm.expectRevert(FlyoverConfigurations.TiersNotAscending.selector);
         config.queueChange(c);
@@ -171,7 +191,12 @@ contract AdminGatingTest is ConfigurationsTestBase {
         IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
         c.percentageFee = badPct;
         vm.prank(owner);
-        vm.expectRevert(abi.encodeWithSelector(FlyoverConfigurations.InvalidPercentageFee.selector, badPct));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                FlyoverConfigurations.InvalidPercentageFee.selector,
+                badPct
+            )
+        );
         config.queueChange(c);
     }
 
@@ -182,7 +207,11 @@ contract AdminGatingTest is ConfigurationsTestBase {
         c.maxAmount = 0.5 ether; // within [0, 10000 ether] but < minAmount
         vm.prank(owner);
         vm.expectRevert(
-            abi.encodeWithSelector(FlyoverConfigurations.InvalidAmountLimits.selector, 1 ether, 0.5 ether)
+            abi.encodeWithSelector(
+                FlyoverConfigurations.InvalidAmountLimits.selector,
+                1 ether,
+                0.5 ether
+            )
         );
         config.queueChange(c);
     }

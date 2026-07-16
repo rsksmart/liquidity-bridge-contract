@@ -17,7 +17,14 @@ contract ScaffoldingTest is ConfigurationsTestBase {
 
     function test_initializeOnce_reverts() public {
         vm.expectRevert(); // Initializable: InvalidInitialization
-        config.initialize(owner, ADMIN_DELAY, TIMELOCK_DELAY, _seedConfig(), _boundsMin(), _boundsMax());
+        config.initialize(
+            owner,
+            ADMIN_DELAY,
+            TIMELOCK_DELAY,
+            _seedConfig(),
+            _boundsMin(),
+            _boundsMax()
+        );
     }
 
     function test_adminRoleAssigned() public view {
@@ -37,7 +44,14 @@ contract ScaffoldingTest is ConfigurationsTestBase {
 
         bytes memory initData = abi.encodeCall(
             FlyoverConfigurations.initialize,
-            (owner, ADMIN_DELAY, TIMELOCK_DELAY, badSeed, _boundsMin(), _boundsMax())
+            (
+                owner,
+                ADMIN_DELAY,
+                TIMELOCK_DELAY,
+                badSeed,
+                _boundsMin(),
+                _boundsMax()
+            )
         );
 
         vm.expectRevert(
