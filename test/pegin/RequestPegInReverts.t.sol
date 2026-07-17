@@ -10,7 +10,7 @@ import {IPegInCommitFirst} from "../../src/interfaces/IPegInCommitFirst.sol";
 /// the already-processed check (check 1) runs before every later check.
 contract RequestPegInRevertsTest is RequestPegInTestBase {
     // Storage slots of the commit-first dependency pointers (verified via forge inspect).
-    uint256 private constant REGISTRY_SLOT = 9;
+    uint256 private constant REGISTRY_SLOT = 8;
 
     // ---- Check 1: already processed ----
 

@@ -17,7 +17,7 @@ abstract contract RequestPegInTestBase is PegInTestBase {
     /// `forge inspect PegInContract storageLayout`. A claim lives at
     /// keccak256(abi.encode(pegInId, PEGIN_CLAIMS_BASE_SLOT)); the struct has no packing, so each
     /// uint256 field starts a fresh slot after the 20-byte address.
-    uint256 internal constant PEGIN_CLAIMS_BASE_SLOT = 11;
+    uint256 internal constant PEGIN_CLAIMS_BASE_SLOT = 10;
 
     uint256 internal constant BASIS_POINTS = 10000;
 
