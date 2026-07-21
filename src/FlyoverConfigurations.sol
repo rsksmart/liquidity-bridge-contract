@@ -117,10 +117,10 @@ contract FlyoverConfigurations is
     ) external initializer {
         __AccessControlDefaultAdminRules_init(initialDelay, defaultAdmin);
 
-        FlyoverConfigurationsBounds storage b = _getBounds();
-        b.timelockDelay = timelockDelay;
-        b.min = pegInMin;
-        b.max = pegInMax;
+        FlyoverConfigurationsBounds storage bounds = _getBounds();
+        bounds.timelockDelay = timelockDelay;
+        bounds.min = pegInMin;
+        bounds.max = pegInMax;
 
         // The seed config must itself respect the bounds it will be measured against.
         _validateConfig(pegInConfig);
@@ -186,8 +186,8 @@ contract FlyoverConfigurations is
         view
         returns (PegConfiguration memory min, PegConfiguration memory max)
     {
-        FlyoverConfigurationsBounds storage b = _getBounds();
-        return (b.min, b.max);
+        FlyoverConfigurationsBounds storage bounds = _getBounds();
+        return (bounds.min, bounds.max);
     }
 
     /// @notice Returns the queued configuration change and its activation time.
@@ -238,14 +238,19 @@ contract FlyoverConfigurations is
     /// confirmation tiers non-empty and strictly ascending by maxAmount. The tier array itself is
     /// only ordering/non-emptiness checked; it is not min/max-bounded.
     function _validateConfig(PegConfiguration memory config) private view {
-        FlyoverConfigurationsBounds storage b = _getBounds();
-        PegConfiguration storage minC = b.min;
-        PegConfiguration storage maxC = b.max;
+        FlyoverConfigurationsBounds storage bounds = _getBounds();
+        PegConfiguration storage minConfigBoundary = bounds.min;
+        PegConfiguration storage maxConfigBoundary = bounds.max;
 
-        _checkBound(Field.FixedFee, config.fixedFee, minC.fixedFee, maxC.fixedFee);
-        _checkBound(Field.PercentageFee, config.percentageFee, minC.percentageFee, maxC.percentageFee);
-        _checkBound(Field.MinAmount, config.minAmount, minC.minAmount, maxC.minAmount);
-        _checkBound(Field.MaxAmount, config.maxAmount, minC.maxAmount, maxC.maxAmount);
+        _checkBound(Field.FixedFee, config.fixedFee, minConfigBoundary.fixedFee, maxConfigBoundary.fixedFee);
+        _checkBound(
+            Field.PercentageFee,
+            config.percentageFee,
+            minConfigBoundary.percentageFee,
+            maxConfigBoundary.percentageFee
+        );
+        _checkBound(Field.MinAmount, config.minAmount, minConfigBoundary.minAmount, maxConfigBoundary.minAmount);
+        _checkBound(Field.MaxAmount, config.maxAmount, minConfigBoundary.maxAmount, maxConfigBoundary.maxAmount);
 
         if (config.percentageFee > FEE_PERCENTAGE_DENOMINATOR) {
             revert InvalidPercentageFee(config.percentageFee);
