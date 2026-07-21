@@ -13,10 +13,10 @@ import {Flyover} from "./libraries/Flyover.sol";
 /// serve decision, and the settlement path for its amount validation. Admin changes are
 /// time-locked in two steps (queue then apply) and re-validated at both steps against immutable
 /// bounds fixed at deployment, so an admin mistake cannot set absurd values even with the role.
-/// @dev Implements the S0-frozen {IFlyoverConfigurations} (peg-in only). The interface is ABI and
-/// must not change here (a change is a cross-lane event). Upgradeable, ERC-7201 namespaced
-/// storage, deployed behind a TransparentUpgradeableProxy per repo pattern. Walkthrough
-/// (WALKTHROUGH-pegin) anchors: step 2, decision block 2·D, decision D2.
+/// @dev Implements the frozen {IFlyoverConfigurations} (peg-in only); its function signatures and
+/// structs are the shared ABI every consumer depends on, so they must not be changed here.
+/// Upgradeable, ERC-7201 namespaced storage, deployed behind a TransparentUpgradeableProxy per
+/// repo pattern.
 /// @author Rootstock Labs
 contract FlyoverConfigurations is
     AccessControlDefaultAdminRulesUpgradeable,
