@@ -41,9 +41,21 @@ contract TimelockTest is ConfigurationsTestBase {
         assertEq(active.minAmount, c.minAmount);
         assertEq(active.maxAmount, c.maxAmount);
         assertEq(active.confirmationTiers.length, c.confirmationTiers.length);
+        // Every nested tier field must survive queue+apply (incl. the second tier).
+        for (uint256 i = 0; i < c.confirmationTiers.length; ++i) {
+            assertEq(
+                active.confirmationTiers[i].maxAmount,
+                c.confirmationTiers[i].maxAmount
+            );
+            assertEq(
+                active.confirmationTiers[i].confirmations,
+                c.confirmationTiers[i].confirmations
+            );
+        }
         // fee/confirmation reads now reflect the applied config.
         assertEq(config.calculatePegInFee(0), c.fixedFee);
         assertEq(config.getRequiredPegInBtcConfirmations(1 ether), 2);
+        assertEq(config.getRequiredPegInBtcConfirmations(10 ether), 5);
     }
 
     function test_applyAtExactEta_succeeds() public {

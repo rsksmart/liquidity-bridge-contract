@@ -16,7 +16,7 @@ contract ScaffoldingTest is ConfigurationsTestBase {
     }
 
     function test_initializeOnce_reverts() public {
-        vm.expectRevert(); // Initializable: InvalidInitialization
+        vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
         config.initialize(
             owner,
             ADMIN_DELAY,

@@ -31,6 +31,12 @@ contract FeeTest is ConfigurationsTestBase {
         assertEq(SAT, config.SAT_TO_WEI_CONVERSION());
     }
 
+    /// @notice The public fee-percentage denominator getter pins 10_000 (== 100%).
+    function test_feePercentageDenominator_matchesConstant() public view {
+        assertEq(config.FEE_PERCENTAGE_DENOMINATOR(), PCT_DENOMINATOR);
+        assertEq(config.FEE_PERCENTAGE_DENOMINATOR(), 10_000);
+    }
+
     /// @notice At zero amount the fee is exactly the fixed floor (2·D).
     function test_zeroAmount_returnsFixedFloor() public view {
         assertEq(config.calculatePegInFee(0), SEED_FIXED_FEE);

@@ -22,6 +22,8 @@ contract GettersTest is ConfigurationsTestBase {
         assertEq(c.confirmationTiers.length, 3);
         assertEq(c.confirmationTiers[0].maxAmount, 1 ether);
         assertEq(c.confirmationTiers[0].confirmations, 1);
+        assertEq(c.confirmationTiers[1].maxAmount, 10 ether);
+        assertEq(c.confirmationTiers[1].confirmations, 3);
         assertEq(c.confirmationTiers[2].maxAmount, 100 ether);
         assertEq(c.confirmationTiers[2].confirmations, 6);
     }
@@ -88,6 +90,17 @@ contract GettersTest is ConfigurationsTestBase {
             pending.confirmationTiers.length,
             queued.confirmationTiers.length
         );
+        // Every nested tier field must survive the queue (incl. the second tier).
+        for (uint256 i = 0; i < queued.confirmationTiers.length; ++i) {
+            assertEq(
+                pending.confirmationTiers[i].maxAmount,
+                queued.confirmationTiers[i].maxAmount
+            );
+            assertEq(
+                pending.confirmationTiers[i].confirmations,
+                queued.confirmationTiers[i].confirmations
+            );
+        }
     }
 
     function test_getPendingChange_clearedAfterApply() public {
