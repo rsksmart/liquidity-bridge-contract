@@ -408,7 +408,7 @@ contract HelperConfig is Script {
 
     function getOptions() public pure returns (Options memory) {
         Options memory opts;
-        opts.unsafeAllow = "external-library-linking";
+        opts.unsafeAllow = "external-library-linking,constructor";
         return opts;
     }
 }

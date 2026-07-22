@@ -12,8 +12,10 @@ import {ProxyReader} from "../helpers/ProxyReader.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
+import {PegInAddressRegistry} from "../../src/PegInAddressRegistry.sol";
 import {PegInContract} from "../../src/PegInContract.sol";
 import {PegOutContract} from "../../src/PegOutContract.sol";
+import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
 
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
@@ -36,6 +38,9 @@ contract DeployFlyover is Script {
         address pegOutImpl;
         address pegOutProxy;
         address pegOutProxyAdmin;
+        address pegInAddressRegistryImpl;
+        address pegInAddressRegistryProxy;
+        address pegInAddressRegistryProxyAdmin;
     }
 
     function run() external returns (FlyoverDeployment memory) {
@@ -210,6 +215,34 @@ contract DeployFlyover is Script {
         d.pegOutProxy = pegOutProxy;
         d.pegOutImpl = ProxyReader.readImplementation(vm, pegOutProxy);
         d.pegOutProxyAdmin = ProxyReader.readAdmin(vm, pegOutProxy);
+
+        // 5) PegInAddressRegistry
+        address pegInAddressRegistryProxy = Upgrades.deployTransparentProxy(
+            "PegInAddressRegistry.sol",
+            defaultAdmin,
+            abi.encodeCall(
+                PegInAddressRegistry.initialize,
+                (
+                    defaultAdmin,
+                    cfg.adminDelay,
+                    cfg.bridge,
+                    cfg.mainnet,
+                    IPauseRegistry(pauseRegistryProxy)
+                )
+            ),
+            opts
+        );
+        d.pegInAddressRegistryProxy = pegInAddressRegistryProxy;
+        d.pegInAddressRegistryImpl = ProxyReader.readImplementation(
+            vm,
+            pegInAddressRegistryProxy
+        );
+        d.pegInAddressRegistryProxyAdmin = ProxyReader.readAdmin(
+            vm,
+            pegInAddressRegistryProxy
+        );
+        PegInAddressRegistry(payable(pegInAddressRegistryProxy))
+            .setPegInContract(d.pegInProxy);
     }
 
     function _setupRoles(FlyoverDeployment memory d) private {
@@ -246,5 +279,11 @@ contract DeployFlyover is Script {
         console.log("PegOutContract impl:", d.pegOutImpl);
         console.log("PegOutContract proxy:", d.pegOutProxy);
         console.log("PegOutContract ProxyAdmin:", d.pegOutProxyAdmin);
+        console.log("PegInAddressRegistry impl:", d.pegInAddressRegistryImpl);
+        console.log("PegInAddressRegistry proxy:", d.pegInAddressRegistryProxy);
+        console.log(
+            "PegInAddressRegistry ProxyAdmin:",
+            d.pegInAddressRegistryProxyAdmin
+        );
     }
 }
