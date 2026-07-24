@@ -30,3 +30,6 @@ broadcast/**
 # solidity-coverage files
 /coverage
 /coverage.json
+
+# Generated gas comparison output
+gas_comparison.csv
