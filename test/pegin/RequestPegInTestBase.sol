@@ -13,8 +13,10 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 /// its harness) and a settable FlyoverConfigurationsMock, and reads the private claim record
 /// through storage slots (no production getter exists on the implementation under test).
 abstract contract RequestPegInTestBase is PegInTestBase {
-    /// @dev Storage slot of PegInContract._pegInClaims, verified with
-    /// `forge inspect PegInContract storageLayout`. A claim lives at
+    /// @dev Storage slot of PegInContract._pegInClaims under the lockfile-pinned OpenZeppelin
+    /// 5.5.0 remapping in foundry.toml (contracts package under node_modules). OZ 5.5+ stores
+    /// ReentrancyGuard in an ERC-7201 namespace, so claims sit at slot 10 (not 11). Verify with
+    /// `forge inspect PegInContract storageLayout` after `npm ci`. A claim lives at
     /// keccak256(abi.encode(pegInId, PEGIN_CLAIMS_BASE_SLOT)); the struct has no packing, so each
     /// uint256 field starts a fresh slot after the 20-byte address.
     uint256 internal constant PEGIN_CLAIMS_BASE_SLOT = 10;
