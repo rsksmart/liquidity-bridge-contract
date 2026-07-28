@@ -21,16 +21,21 @@ fs_permissions = [
 # Allow Foundry to resolve Solidity deps from node_modules
 libs = ["node_modules", "lib"]
 
-# Explicit remappings for npm-style imports
+# Pin OZ to the npm lockfile only. Competing remappings (broad @openzeppelin/= plus
+# lib/openzeppelin-contracts-upgradeable at a different version) can resolve
+# ReentrancyGuard from either node_modules or lib and shift PegInContract storage
+# slots (registry/claims 8/10 with OZ 5.5+ namespaced guard vs 9/11 with older
+# linear _status). Disable auto-detect so forge never invents a second OZ path.
+auto_detect_remappings = false
 remappings = [
-  "@openzeppelin/=node_modules/@openzeppelin/",
+  "@openzeppelin/contracts/=node_modules/@openzeppelin/contracts/",
+  "@openzeppelin/contracts-upgradeable/=node_modules/@openzeppelin/contracts-upgradeable/",
   "@rsksmart/=node_modules/@rsksmart/",
   "@rsksmart/btc-transaction-solidity-helper/=node_modules/@rsksmart/btc-transaction-solidity-helper/",
   "forge-std/=lib/forge-std/src/",
   "halmos-cheatcodes/=lib/halmos-cheatcodes/src/",
+  "openzeppelin-foundry-upgrades/=lib/openzeppelin-foundry-upgrades/src/",
   "src/=src/",
-  "@openzeppelin/contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/",
-  "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/"
 ]
 
 # Halmos profile: OZ 5.5+ pulls Bytes.sol (mcopy) via EIP712 → Strings; requires Cancun.
