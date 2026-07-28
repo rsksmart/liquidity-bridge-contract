@@ -9,7 +9,7 @@ import {IPegInCommitFirst} from "../../src/interfaces/IPegInCommitFirst.sol";
 /// @notice One test per check with the specific custom error and its arguments, plus proofs that
 /// the already-processed check (check 1) runs before every later check.
 contract RequestPegInRevertsTest is RequestPegInTestBase {
-    // Storage slots of the commit-first dependency pointers (verified via forge inspect).
+    // _pegInAddressRegistry under lockfile-pinned OZ 5.5.0 (forge inspect after npm ci).
     uint256 private constant REGISTRY_SLOT = 8;
 
     // ---- Check 1: already processed ----
