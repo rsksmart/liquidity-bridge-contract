@@ -11,9 +11,9 @@ For each derive or register path, the registry reads once per call:
 
 `PegInDerivation.inferFederationFormat` decodes the federation address (base58check), extracts its 20-byte script hash, and compares it against both wrapping candidates of the powpeg redeem script (replicating rskj `PegUtils.getFlyoverFederationOutputScript` @ `4c8eed1a`):
 
-| Candidate | Script hash |
-|-----------|-------------|
-| Legacy plain P2SH | `HASH160(powpegRedeemScript)` |
+| Candidate         | Script hash                                                    |
+| ----------------- | -------------------------------------------------------------- |
+| Legacy plain P2SH | `HASH160(powpegRedeemScript)`                                  |
 | Segwit P2SH-P2WSH | `HASH160(OP_0 ‖ OP_PUSHBYTES_32 ‖ sha256(powpegRedeemScript))` |
 
 The matching candidate selects the wrapping used for flyover deposit derivation (steps 4–5). Both `_deriveAddress` and `_expectedDepositPkScript` consume the same inferred format at a single choke point.
