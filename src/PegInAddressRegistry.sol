@@ -122,8 +122,9 @@ contract PegInAddressRegistry is
         address pegInContract = $.pegInContract;
         if (pegInContract == address(0)) revert PegInContractNotSet();
 
-        bytes memory expectedPkScript = _expectedDepositPkScript(rskAddr, pegInContract, $.bridge);
-        uint64 depositValue = _matchedDepositValue(btcTxSerialized, expectedPkScript, rskAddr);
+        uint64 depositValue = _depositValueForRegistration(
+            rskAddr, pegInContract, $.bridge, $.mainnet, btcTxSerialized
+        );
 
         if (depositValue < MIN_DEPOSIT_SATS) {
             revert DepositBelowMinimum(depositValue, MIN_DEPOSIT_SATS);
@@ -147,10 +148,15 @@ contract PegInAddressRegistry is
         PegInAddressRegistryStorage storage $ = _getStorage();
         address pegInContract = $.pegInContract;
         if (pegInContract == address(0)) revert PegInContractNotSet();
-        // The active powpeg redeem script is invariant across a single call, so it is
-        // read once here and reused for the derivation.
+        // The active powpeg redeem script and federation address are invariant across a single call,
+        // so both are read once here and reused for the derivation.
         bytes memory powpegRedeemScript = $.bridge.getActivePowpegRedeemScript();
-        return (_deriveAddress(addr, pegInContract, powpegRedeemScript, $.mainnet), ADDRESS_ENCODING);
+        string memory federationAddress = $.bridge.getFederationAddress();
+        PegInDerivation.FederationFormat format =
+            PegInDerivation.inferFederationFormat(powpegRedeemScript, federationAddress, $.mainnet);
+        return (
+            _deriveAddress(addr, pegInContract, powpegRedeemScript, format, $.mainnet), ADDRESS_ENCODING
+        );
     }
 
     /// @inheritdoc IPegInAddressRegistry
@@ -167,13 +173,17 @@ contract PegInAddressRegistry is
         PegInAddressRegistryStorage storage $ = _getStorage();
         address pegInContract = $.pegInContract;
         if (pegInContract == address(0)) revert PegInContractNotSet();
-        // Read the invariant derivation inputs once, before the loop, so the batch performs a
-        // single external bridge call and derives every address against a consistent powpeg.
-        bytes memory powpegRedeemScript = $.bridge.getActivePowpegRedeemScript();
         bool mainnet = $.mainnet;
+        // Read the invariant derivation inputs once, before the loop, so the batch performs a
+        // single external bridge call per input and derives every address against a consistent
+        // powpeg and federation format.
+        bytes memory powpegRedeemScript = $.bridge.getActivePowpegRedeemScript();
+        string memory federationAddress = $.bridge.getFederationAddress();
+        PegInDerivation.FederationFormat format =
+            PegInDerivation.inferFederationFormat(powpegRedeemScript, federationAddress, mainnet);
         derivationAddresses = new bytes[](length);
         for (uint256 i = 0; i < length; ++i) {
-            derivationAddresses[i] = _deriveAddress(addrs[i], pegInContract, powpegRedeemScript, mainnet);
+            derivationAddresses[i] = _deriveAddress(addrs[i], pegInContract, powpegRedeemScript, format, mainnet);
         }
         encoding = ADDRESS_ENCODING;
     }
@@ -205,16 +215,33 @@ contract PegInAddressRegistry is
         return _getStorage().pegInContract;
     }
 
-    /// @notice Derives the on-chain P2SH scriptPubkey for a deposit output match.
-    function _expectedDepositPkScript(address rskAddr, address pegInContract, IBridge bridge_)
-        private
-        view
-        returns (bytes memory)
-    {
+    /// @notice Reads bridge derivation inputs once and returns the matched deposit output value.
+    function _depositValueForRegistration(
+        address rskAddr,
+        address pegInContract,
+        IBridge bridge_,
+        bool mainnet,
+        bytes calldata btcTxSerialized
+    ) private view returns (uint64 depositValue) {
         bytes memory powpegRedeemScript = bridge_.getActivePowpegRedeemScript();
+        PegInDerivation.FederationFormat format = PegInDerivation.inferFederationFormat(
+            powpegRedeemScript, bridge_.getFederationAddress(), mainnet
+        );
+        bytes memory expectedPkScript =
+            _expectedDepositPkScript(rskAddr, pegInContract, powpegRedeemScript, format);
+        return _matchedDepositValue(btcTxSerialized, expectedPkScript, rskAddr);
+    }
+
+    /// @notice Derives the on-chain P2SH scriptPubkey for a deposit output match.
+    function _expectedDepositPkScript(
+        address rskAddr,
+        address pegInContract,
+        bytes memory powpegRedeemScript,
+        PegInDerivation.FederationFormat format
+    ) private pure returns (bytes memory) {
         bytes32 derivationValue = PegInDerivation.derivationValue(rskAddr, pegInContract);
         bytes memory redeemScript = PegInDerivation.flyoverRedeemScript(derivationValue, powpegRedeemScript);
-        bytes20 scriptHash = PegInDerivation.flyoverScriptHash(redeemScript);
+        bytes20 scriptHash = PegInDerivation.scriptHashForFormat(redeemScript, format);
         return PegInDerivation.p2shScriptPubkey(scriptHash);
     }
 
@@ -242,15 +269,17 @@ contract PegInAddressRegistry is
     /// @param pegInContract The PegInContract mixed into the derivation (must be non-zero)
     /// @param powpegRedeemScript The active powpeg redeem script returned by the bridge
     /// @param mainnet Whether the derived address targets mainnet or testnet
-    function _deriveAddress(address addr, address pegInContract, bytes memory powpegRedeemScript, bool mainnet)
-        private
-        pure
-        returns (bytes memory)
-    {
+    function _deriveAddress(
+        address addr,
+        address pegInContract,
+        bytes memory powpegRedeemScript,
+        PegInDerivation.FederationFormat format,
+        bool mainnet
+    ) private pure returns (bytes memory) {
         bytes32 derivationValue = PegInDerivation.derivationValue(addr, pegInContract);
         // TODO(FLY-2436): pass the bridge address once the derivation library owns script construction
         bytes memory redeemScript = PegInDerivation.flyoverRedeemScript(derivationValue, powpegRedeemScript);
-        bytes20 scriptHash = PegInDerivation.flyoverScriptHash(redeemScript);
+        bytes20 scriptHash = PegInDerivation.scriptHashForFormat(redeemScript, format);
         return PegInDerivation.depositAddressPayload(scriptHash, mainnet);
     }
 

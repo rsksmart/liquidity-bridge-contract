@@ -25,6 +25,8 @@ abstract contract PegInRegistryTestBase is Test {
     address internal owner = address(0xA11CE);
     address internal stranger = address(0xB0B);
 
+    bool internal _mainnet;
+
     PegInAddressRegistryHarness internal registry;
     RegistryBridgeMock internal bridge;
     PauseRegistry internal pauseRegistry;
@@ -41,6 +43,7 @@ abstract contract PegInRegistryTestBase is Test {
     }
 
     function _deploy(bool mainnet) internal {
+        _mainnet = mainnet;
         bridge = new RegistryBridgeMock();
         _deployPauseRegistry();
         PegInAddressRegistryHarness impl = new PegInAddressRegistryHarness();
@@ -103,9 +106,18 @@ abstract contract PegInRegistryTestBase is Test {
         address rskAddr
     ) internal view returns (bytes memory) {
         bytes memory powpeg = bridge.getActivePowpegRedeemScript();
+        PegInDerivation.FederationFormat format = PegInDerivation
+            .inferFederationFormat(
+                powpeg,
+                bridge.getFederationAddress(),
+                _mainnet
+            );
         bytes32 dv = PegInDerivation.derivationValue(rskAddr, PEGIN_CONTRACT);
         bytes memory redeem = PegInDerivation.flyoverRedeemScript(dv, powpeg);
-        bytes20 scriptHash = PegInDerivation.flyoverScriptHash(redeem);
+        bytes20 scriptHash = PegInDerivation.scriptHashForFormat(
+            redeem,
+            format
+        );
         return PegInDerivation.p2shScriptPubkey(scriptHash);
     }
 

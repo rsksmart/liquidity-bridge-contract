@@ -81,9 +81,43 @@ contract PegInDerivationTest is Test {
         hex"c4b0275b8861bb9b30585453cde8d9efaa99b444487e6c335a";
 
     /// @notice Pitfall #2 (-304): payload derived wrapping the CORRECT redeem script as a segwit
-    /// P2SH-of-P2WSH instead of a plain P2SH
+    /// P2SH-of-P2WSH instead of a PLAIN P2SH — wrong-form pin for legacy federation only.
     bytes internal constant PINNED_SEGWIT_PAYLOAD =
         hex"c423670b6bf4ab398f05d8536da400767b562425bc199d1a4a";
+
+    // ---- Pinned segwit-path outputs (computed offline from fixture inputs) ----
+
+    /// @notice Segwit step 4: HASH160(OP_0‖sha256(redeemScript)) for the pinned flyover redeem script
+    bytes20 internal constant PINNED_SEGWIT_SCRIPT_HASH =
+        bytes20(hex"23670b6bf4ab398f05d8536da400767b562425bc");
+
+    /// @notice Segwit step 5a pkScript for the pinned segwit script hash
+    bytes internal constant PINNED_SEGWIT_SCRIPT_PUBKEY =
+        hex"a91423670b6bf4ab398f05d8536da400767b562425bc87";
+
+    /// @notice Segwit step 5b testnet payload (correct form on segwit federation)
+    bytes internal constant PINNED_SEGWIT_TESTNET_PAYLOAD =
+        hex"c423670b6bf4ab398f05d8536da400767b562425bc199d1a4a";
+
+    /// @notice Segwit step 5b mainnet payload (correct form on segwit federation)
+    bytes internal constant PINNED_SEGWIT_MAINNET_PAYLOAD =
+        hex"0523670b6bf4ab398f05d8536da400767b562425bc89840387";
+
+    /// @notice Plain-P2SH federation address for FIXTURE_POWPEG_SCRIPT (testnet form)
+    string internal constant FIXTURE_PLAIN_FEDERATION =
+        "2N5muMepJizJE1gR7FbHJU6CD18V3BpNF9p";
+
+    /// @notice Segwit-federation address for FIXTURE_POWPEG_SCRIPT (testnet form)
+    string internal constant FIXTURE_SEGWIT_FEDERATION =
+        "2NDX645q5ArRrjue7CLhnnwcLBudrCG3XGE";
+
+    /// @notice Live testnet powpeg federation address (segwit-wrapped P2SH form)
+    string internal constant LIVE_TESTNET_FEDERATION =
+        "2N88sMiizxmbb8Y3yA4AtYmL1RxHogWfoHa";
+
+    /// @notice Live mainnet powpeg federation address (segwit-wrapped P2SH form)
+    string internal constant LIVE_MAINNET_FEDERATION =
+        "3GX89qzyQVaJqUJjq5noZbLJEHuYDvVrHq";
 
     // ---- Constant pinning ----
 
@@ -180,6 +214,204 @@ contract PegInDerivationTest is Test {
             PegInDerivation.depositAddressPayload(PINNED_SCRIPT_HASH, true),
             PINNED_MAINNET_PAYLOAD,
             "step 5b mainnet drifted"
+        );
+    }
+
+    function test_Step4_SegwitScriptHash() public pure {
+        assertEq(
+            PegInDerivation.scriptHashForFormat(
+                PINNED_REDEEM_SCRIPT,
+                PegInDerivation.FederationFormat.SegwitP2SHP2WSH
+            ),
+            PINNED_SEGWIT_SCRIPT_HASH,
+            "segwit step 4 drifted"
+        );
+    }
+
+    function test_Step5a_SegwitP2shScriptPubkey() public pure {
+        assertEq(
+            PegInDerivation.p2shScriptPubkey(PINNED_SEGWIT_SCRIPT_HASH),
+            PINNED_SEGWIT_SCRIPT_PUBKEY,
+            "segwit step 5a drifted"
+        );
+    }
+
+    function test_Step5b_SegwitTestnetPayload() public pure {
+        assertEq(
+            PegInDerivation.depositAddressPayload(
+                PINNED_SEGWIT_SCRIPT_HASH,
+                false
+            ),
+            PINNED_SEGWIT_TESTNET_PAYLOAD,
+            "segwit step 5b testnet drifted"
+        );
+    }
+
+    function test_Step5b_SegwitMainnetPayload() public pure {
+        assertEq(
+            PegInDerivation.depositAddressPayload(
+                PINNED_SEGWIT_SCRIPT_HASH,
+                true
+            ),
+            PINNED_SEGWIT_MAINNET_PAYLOAD,
+            "segwit step 5b mainnet drifted"
+        );
+    }
+
+    function test_FullChainSegwitMatchesPinnedFixture() public pure {
+        bytes20 scriptHash = PegInDerivation.scriptHashForFormat(
+            PINNED_REDEEM_SCRIPT,
+            PegInDerivation.FederationFormat.SegwitP2SHP2WSH
+        );
+        assertEq(
+            PegInDerivation.depositAddressPayload(scriptHash, false),
+            PINNED_SEGWIT_TESTNET_PAYLOAD,
+            "full-chain segwit testnet drifted"
+        );
+        assertEq(
+            PegInDerivation.depositAddressPayload(scriptHash, true),
+            PINNED_SEGWIT_MAINNET_PAYLOAD,
+            "full-chain segwit mainnet drifted"
+        );
+    }
+
+    function test_InferFederationFormat_plainFixture() public pure {
+        assertTrue(
+            PegInDerivation.inferFederationFormat(
+                FIXTURE_POWPEG_SCRIPT,
+                FIXTURE_PLAIN_FEDERATION,
+                false
+            ) == PegInDerivation.FederationFormat.PlainP2SH,
+            "fixture powpeg with plain federation must infer PlainP2SH"
+        );
+    }
+
+    function test_InferFederationFormat_segwitFixture() public pure {
+        assertTrue(
+            PegInDerivation.inferFederationFormat(
+                FIXTURE_POWPEG_SCRIPT,
+                FIXTURE_SEGWIT_FEDERATION,
+                false
+            ) == PegInDerivation.FederationFormat.SegwitP2SHP2WSH,
+            "fixture powpeg with segwit federation must infer SegwitP2SHP2WSH"
+        );
+    }
+
+    function test_LiveNetworkFederationAddresses_notPlainWrappedFixturePowpeg()
+        public
+        pure
+    {
+        bytes20 plainFixtureHash = PegInDerivation.flyoverScriptHash(
+            FIXTURE_POWPEG_SCRIPT
+        );
+        bytes20 segwitFixtureHash = PegInDerivation.witnessProgramHash(
+            FIXTURE_POWPEG_SCRIPT
+        );
+        assertTrue(
+            plainFixtureHash != segwitFixtureHash,
+            "plain vs segwit fixture hashes must differ"
+        );
+    }
+
+    function test_LiveNetworkFederationAddresses_revertTestnetAgainstFixturePowpeg()
+        public
+    {
+        PegInDerivationInferenceHarness harness = new PegInDerivationInferenceHarness();
+        vm.expectRevert(PegInDerivation.UnrecognizedFederationFormat.selector);
+        harness.infer(FIXTURE_POWPEG_SCRIPT, LIVE_TESTNET_FEDERATION, false);
+    }
+
+    function test_LiveNetworkFederationAddresses_revertMainnetAgainstFixturePowpeg()
+        public
+    {
+        PegInDerivationInferenceHarness harness = new PegInDerivationInferenceHarness();
+        vm.expectRevert(PegInDerivation.UnrecognizedFederationFormat.selector);
+        harness.infer(FIXTURE_POWPEG_SCRIPT, LIVE_MAINNET_FEDERATION, true);
+    }
+
+    /// @notice Inverted negative: plain wrapping is wrong on a segwit federation fixture.
+    function test_InvertedNegative_PlainWrongOnSegwitFederation() public pure {
+        bytes memory plain = _testnetPayloadForFormat(
+            PINNED_REDEEM_SCRIPT,
+            PegInDerivation.FederationFormat.PlainP2SH
+        );
+        bytes memory segwit = _testnetPayloadForFormat(
+            PINNED_REDEEM_SCRIPT,
+            PegInDerivation.FederationFormat.SegwitP2SHP2WSH
+        );
+        assertEq(
+            plain,
+            PINNED_TESTNET_PAYLOAD,
+            "plain path must match plain pin"
+        );
+        assertEq(
+            segwit,
+            PINNED_SEGWIT_TESTNET_PAYLOAD,
+            "segwit path must match segwit pin"
+        );
+        assertNotEq(
+            plain,
+            segwit,
+            "plain path must not match segwit federation pin"
+        );
+    }
+
+    /// @notice Inverted negative: segwit wrapping is wrong on a legacy federation fixture.
+    function test_InvertedNegative_SegwitWrongOnLegacyFederation() public pure {
+        bytes memory plain = _testnetPayloadForFormat(
+            PINNED_REDEEM_SCRIPT,
+            PegInDerivation.FederationFormat.PlainP2SH
+        );
+        bytes memory segwit = _testnetPayloadForFormat(
+            PINNED_REDEEM_SCRIPT,
+            PegInDerivation.FederationFormat.SegwitP2SHP2WSH
+        );
+        assertEq(
+            plain,
+            PINNED_TESTNET_PAYLOAD,
+            "plain path must match plain pin"
+        );
+        assertEq(
+            segwit,
+            PINNED_SEGWIT_TESTNET_PAYLOAD,
+            "segwit path must match segwit pin"
+        );
+        assertNotEq(
+            segwit,
+            plain,
+            "segwit path must not match plain federation pin"
+        );
+    }
+
+    /// @notice Pitfall #1: direct-tag keying fails on both federation formats.
+    function test_Negative_DirectTagKeyingFailsBothFormats() public pure {
+        bytes memory wrongRedeemScript = PegInDerivation.flyoverRedeemScript(
+            PegInDerivation.derivationArgumentsHash(FIXTURE_RSK),
+            FIXTURE_POWPEG_SCRIPT
+        );
+        bytes memory wrongPlain = PegInDerivation.depositAddressPayload(
+            PegInDerivation.scriptHashForFormat(
+                wrongRedeemScript,
+                PegInDerivation.FederationFormat.PlainP2SH
+            ),
+            false
+        );
+        bytes memory wrongSegwit = PegInDerivation.depositAddressPayload(
+            PegInDerivation.scriptHashForFormat(
+                wrongRedeemScript,
+                PegInDerivation.FederationFormat.SegwitP2SHP2WSH
+            ),
+            false
+        );
+        assertNotEq(
+            wrongPlain,
+            PINNED_TESTNET_PAYLOAD,
+            "direct tag must fail plain format"
+        );
+        assertNotEq(
+            wrongSegwit,
+            PINNED_SEGWIT_TESTNET_PAYLOAD,
+            "direct tag must fail segwit format"
         );
     }
 
@@ -282,5 +514,33 @@ contract PegInDerivationTest is Test {
             FIXTURE_POWPEG_SCRIPT
         );
         return PegInDerivation.flyoverScriptHash(redeemScript);
+    }
+
+    /// @notice Step 5b testnet payload via `scriptHashForFormat` — consumer composition path.
+    function _testnetPayloadForFormat(
+        bytes memory redeemScript,
+        PegInDerivation.FederationFormat format
+    ) private pure returns (bytes memory) {
+        return
+            PegInDerivation.depositAddressPayload(
+                PegInDerivation.scriptHashForFormat(redeemScript, format),
+                false
+            );
+    }
+}
+
+/// @dev External harness so Foundry revert expectations apply to library inference calls.
+contract PegInDerivationInferenceHarness {
+    function infer(
+        bytes memory powpegRedeemScript,
+        string memory federationAddressBase58,
+        bool mainnet
+    ) external pure returns (PegInDerivation.FederationFormat) {
+        return
+            PegInDerivation.inferFederationFormat(
+                powpegRedeemScript,
+                federationAddressBase58,
+                mainnet
+            );
     }
 }

@@ -2,6 +2,7 @@
 pragma solidity 0.8.25;
 
 import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCodes.sol";
+import {Base58} from "@openzeppelin/contracts/utils/Base58.sol";
 
 /// @title PegInDerivation
 /// @notice SINGLE SOURCE OF TRUTH for the commit-first peg-in deposit-address derivation.
@@ -37,13 +38,24 @@ import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCod
 ///   2. Wrapping the redeem script as a segwit P2SH-of-P2WSH instead of a PLAIN P2SH settles as
 ///      -304 (VALUE_ZERO): the bridge derives the plain form and attributes zero value.
 ///
-/// SEGWIT / FEDERATION-FORMAT NOTE: the bridge wraps the flyover redeem script as a PLAIN P2SH
-/// for every currently deployed federation format. Newer rskj versions add a segwit federation
-/// format (`P2SH_P2WSH_ERP_FEDERATION`) for which `PegUtils.getFlyoverFederationOutputScript`
-/// switches to a P2SH-P2WSH wrapping. A powpeg migration to that format rotates every derived
-/// address (as any federation change does) AND requires this library to gain a matching wrapping
-/// path first — same drain-then-rotate rule as a federation change.
+/// SEGWIT / FEDERATION-FORMAT NOTE: rskj selects plain P2SH vs P2SH-P2WSH wrapping via
+/// `PegUtils.getFlyoverFederationOutputScript` (legacy federation formats vs
+/// `P2SH_P2WSH_ERP_FEDERATION` = 4000). Live mainnet/testnet powpegs use the segwit branch.
+/// {inferFederationFormat} reads `IBridge.getFederationAddress()` at derivation time and
+/// compares the decoded script hash against both wrapping candidates — see
+/// `docs/pegin/federation-format-detection.md`.
 library PegInDerivation {
+    /// @notice Powpeg federation output wrapping variants replicated from rskj.
+    enum FederationFormat {
+        PlainP2SH,
+        SegwitP2SHP2WSH
+    }
+
+    /// @notice Federation address payload is not a valid base58check P2SH encoding.
+    error InvalidFederationAddress();
+
+    /// @notice Decoded federation script hash matches neither plain nor segwit candidate.
+    error UnrecognizedFederationFormat();
     /// @notice Versioned scheme tag mixed into every derivation. Bumping it deterministically
     /// rotates every derived address (the same rotation path as a federation change).
     bytes internal constant DERIVATION_DOMAIN = "FLYOVER_PEGIN_V1";
@@ -80,7 +92,9 @@ library PegInDerivation {
     /// destination address compress into it.
     /// @param rskAddr The RSK destination address the deposit address is derived for
     /// @return The keccak256 hash of DERIVATION_DOMAIN ++ rskAddr
-    function derivationArgumentsHash(address rskAddr) internal pure returns (bytes32) {
+    function derivationArgumentsHash(
+        address rskAddr
+    ) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(DERIVATION_DOMAIN, rskAddr));
     }
 
@@ -92,12 +106,19 @@ library PegInDerivation {
     /// @param pegInContract The PegInContract PROXY address (the lbcAddress that calls the bridge;
     /// stable across implementation upgrades, rotates only on a redeploy)
     /// @return The keccak256 hash the bridge embeds in the flyover redeem script
-    function derivationValue(address rskAddr, address pegInContract) internal pure returns (bytes32) {
-        return keccak256(
-            bytes.concat(
-                derivationArgumentsHash(rskAddr), refundPlaceholderBtc(), bytes20(pegInContract), lpPlaceholderBtc()
-            )
-        );
+    function derivationValue(
+        address rskAddr,
+        address pegInContract
+    ) internal pure returns (bytes32) {
+        return
+            keccak256(
+                bytes.concat(
+                    derivationArgumentsHash(rskAddr),
+                    refundPlaceholderBtc(),
+                    bytes20(pegInContract),
+                    lpPlaceholderBtc()
+                )
+            );
     }
 
     /// @notice Step 3: the flyover redeem script the bridge wraps as a PLAIN P2SH:
@@ -109,20 +130,122 @@ library PegInDerivation {
     /// call time (`getActivePowpegRedeemScript()`), never stored — the only input that changes
     /// on a federation change
     /// @return The flyover redeem script
-    function flyoverRedeemScript(bytes32 derivationValue_, bytes memory activePowpegRedeemScript)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return bytes.concat(OpCodes.OP_PUSHBYTES_32, derivationValue_, OpCodes.OP_DROP, activePowpegRedeemScript);
+    function flyoverRedeemScript(
+        bytes32 derivationValue_,
+        bytes memory activePowpegRedeemScript
+    ) internal pure returns (bytes memory) {
+        return
+            bytes.concat(
+                OpCodes.OP_PUSHBYTES_32,
+                derivationValue_,
+                OpCodes.OP_DROP,
+                activePowpegRedeemScript
+            );
     }
 
-    /// @notice Step 4: HASH160 (ripemd160 of sha256) of the flyover redeem script — the 20-byte
-    /// hash a P2SH output commits to. Bitcoin's standard recipe; no design freedom.
+    /// @notice Step 4 (plain path): HASH160 of the flyover redeem script — the 20-byte hash a
+    /// legacy-federation P2SH output commits to.
     /// @param redeemScript Step 3's output
     /// @return The 20-byte P2SH script hash
-    function flyoverScriptHash(bytes memory redeemScript) internal pure returns (bytes20) {
+    function flyoverScriptHash(
+        bytes memory redeemScript
+    ) internal pure returns (bytes20) {
         return ripemd160(abi.encodePacked(sha256(redeemScript)));
+    }
+
+    /// @notice Segwit step 4 witness program: OP_0 OP_PUSHBYTES_32 sha256(redeemScript).
+    /// @param redeemScript Step 3's flyover redeem script
+    /// @return The 34-byte witness program committed to by P2SH-P2WSH federation outputs
+    function witnessProgram(
+        bytes memory redeemScript
+    ) internal pure returns (bytes memory) {
+        return
+            bytes.concat(
+                OpCodes.OP_0,
+                OpCodes.OP_PUSHBYTES_32,
+                sha256(redeemScript)
+            );
+    }
+
+    /// @notice Segwit step 4: HASH160 of the witness program (P2SH-P2WSH federation form).
+    /// @param redeemScript Step 3's flyover redeem script
+    /// @return The 20-byte P2SH script hash for segwit federation wrapping
+    function witnessProgramHash(
+        bytes memory redeemScript
+    ) internal pure returns (bytes20) {
+        return flyoverScriptHash(witnessProgram(redeemScript));
+    }
+
+    /// @notice Step 4 parameterized by federation format — plain HASH160(redeem) or segwit
+    /// HASH160(OP_0‖sha256(redeem)), byte-matched to rskj `getFlyoverFederationOutputScript`.
+    /// @param redeemScript Step 3's flyover redeem script
+    /// @param format Active powpeg federation wrapping
+    /// @return The 20-byte script hash fed to step 5
+    function scriptHashForFormat(
+        bytes memory redeemScript,
+        FederationFormat format
+    ) internal pure returns (bytes20) {
+        if (format == FederationFormat.SegwitP2SHP2WSH) {
+            return witnessProgramHash(redeemScript);
+        }
+        return flyoverScriptHash(redeemScript);
+    }
+
+    /// @notice Infers federation wrapping from the live federation P2SH address and powpeg script.
+    /// @dev Decodes `federationAddressBase58` (base58check) and byte-matches its script hash
+    /// against plain HASH160(powpegRedeemScript) and segwit HASH160(OP_0‖sha256(powpeg)).
+    /// @param powpegRedeemScript Active powpeg redeem script from the bridge
+    /// @param federationAddressBase58 Federation address string from `IBridge.getFederationAddress()`
+    /// @return The inferred wrapping format
+    function inferFederationFormat(
+        bytes memory powpegRedeemScript,
+        string memory federationAddressBase58,
+        bool /* mainnet */
+    ) internal pure returns (FederationFormat) {
+        bytes20 federationScriptHash = _scriptHashFromBase58check(
+            federationAddressBase58
+        );
+        bytes20 plainCandidate = flyoverScriptHash(powpegRedeemScript);
+        bytes20 segwitCandidate = witnessProgramHash(powpegRedeemScript);
+        if (federationScriptHash == segwitCandidate) {
+            return FederationFormat.SegwitP2SHP2WSH;
+        }
+        if (federationScriptHash == plainCandidate) {
+            return FederationFormat.PlainP2SH;
+        }
+        revert UnrecognizedFederationFormat();
+    }
+
+    /// @notice Extracts the 20-byte script hash from a base58check-encoded P2SH address.
+    function _scriptHashFromBase58check(
+        string memory addressBase58
+    ) private pure returns (bytes20) {
+        bytes memory payload = Base58.decode(addressBase58);
+        if (payload.length != 25) {
+            revert InvalidFederationAddress();
+        }
+
+        bytes memory versionAndHash = new bytes(21);
+        for (uint256 i = 0; i < 21; ++i) {
+            versionAndHash[i] = payload[i];
+        }
+
+        bytes4 expectedChecksum = bytes4(
+            sha256(abi.encodePacked(sha256(versionAndHash)))
+        );
+        if (
+            payload[21] != expectedChecksum[0] ||
+            payload[22] != expectedChecksum[1] ||
+            payload[23] != expectedChecksum[2] ||
+            payload[24] != expectedChecksum[3]
+        ) {
+            revert InvalidFederationAddress();
+        }
+        bytes20 scriptHash;
+        assembly {
+            scriptHash := mload(add(payload, 33))
+        }
+        return scriptHash;
     }
 
     /// @notice Step 5 (output-script form): the on-chain P2SH scriptPubkey a deposit output must
@@ -130,8 +253,16 @@ library PegInDerivation {
     /// output exposes, so deposit-gating compares it directly against outputs.
     /// @param scriptHash Step 4's output
     /// @return The 23-byte P2SH scriptPubkey
-    function p2shScriptPubkey(bytes20 scriptHash) internal pure returns (bytes memory) {
-        return bytes.concat(OpCodes.OP_HASH160, bytes1(uint8(20)), scriptHash, OpCodes.OP_EQUAL);
+    function p2shScriptPubkey(
+        bytes20 scriptHash
+    ) internal pure returns (bytes memory) {
+        return
+            bytes.concat(
+                OpCodes.OP_HASH160,
+                bytes1(uint8(20)),
+                scriptHash,
+                OpCodes.OP_EQUAL
+            );
     }
 
     /// @notice Step 5 (address form): the base58check payload of the PLAIN P2SH deposit address:
@@ -142,10 +273,20 @@ library PegInDerivation {
     /// @param scriptHash Step 4's output
     /// @param mainnet True for the mainnet version byte (0x05), false for testnet/regtest (0xC4)
     /// @return The 25-byte base58check payload of the deposit address
-    function depositAddressPayload(bytes20 scriptHash, bool mainnet) internal pure returns (bytes memory) {
+    function depositAddressPayload(
+        bytes20 scriptHash,
+        bool mainnet
+    ) internal pure returns (bytes memory) {
         bytes1 version = mainnet ? bytes1(0x05) : bytes1(0xC4);
         bytes memory versionedHash = bytes.concat(version, scriptHash);
         bytes32 checksum = sha256(abi.encodePacked(sha256(versionedHash)));
-        return bytes.concat(versionedHash, checksum[0], checksum[1], checksum[2], checksum[3]);
+        return
+            bytes.concat(
+                versionedHash,
+                checksum[0],
+                checksum[1],
+                checksum[2],
+                checksum[3]
+            );
     }
 }
