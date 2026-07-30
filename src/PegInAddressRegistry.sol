@@ -121,7 +121,7 @@ contract PegInAddressRegistry is
         address pegInContract = $.pegInContract;
         if (pegInContract == address(0)) revert PegInContractNotSet();
 
-        bytes memory expectedPkScript = _expectedDepositPkScript(rskAddr, pegInContract, $.bridge);
+        bytes memory expectedPkScript = _expectedDepositPkScript(rskAddr, pegInContract, $.bridge, $.mainnet);
         uint64 depositValue = _matchedDepositValue(btcTxSerialized, expectedPkScript, rskAddr);
 
         if (depositValue < MIN_DEPOSIT_SATS) {
@@ -205,13 +205,15 @@ contract PegInAddressRegistry is
     }
 
     /// @notice Derives the on-chain P2SH scriptPubkey for a deposit output match.
-    function _expectedDepositPkScript(address rskAddr, address pegInContract, IBridge bridge_)
+    /// @param mainnet Whether the derivation targets mainnet or testnet — the BTC placeholders
+    /// mixed into the value are per-network, so this must match the flag used at issuance
+    function _expectedDepositPkScript(address rskAddr, address pegInContract, IBridge bridge_, bool mainnet)
         private
         view
         returns (bytes memory)
     {
         bytes memory powpegRedeemScript = bridge_.getActivePowpegRedeemScript();
-        bytes32 derivationValue = PegInDerivation.derivationValue(rskAddr, pegInContract);
+        bytes32 derivationValue = PegInDerivation.derivationValue(rskAddr, pegInContract, mainnet);
         bytes memory redeemScript = PegInDerivation.flyoverRedeemScript(derivationValue, powpegRedeemScript);
         bytes20 scriptHash = PegInDerivation.flyoverScriptHash(redeemScript);
         return PegInDerivation.p2shScriptPubkey(scriptHash);
@@ -246,7 +248,7 @@ contract PegInAddressRegistry is
         pure
         returns (bytes memory)
     {
-        bytes32 derivationValue = PegInDerivation.derivationValue(addr, pegInContract);
+        bytes32 derivationValue = PegInDerivation.derivationValue(addr, pegInContract, mainnet);
         // TODO(FLY-2436): pass the bridge address once the derivation library owns script construction
         bytes memory redeemScript = PegInDerivation.flyoverRedeemScript(derivationValue, powpegRedeemScript);
         bytes20 scriptHash = PegInDerivation.flyoverScriptHash(redeemScript);

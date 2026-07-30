@@ -29,6 +29,11 @@ abstract contract PegInRegistryTestBase is Test {
     RegistryBridgeMock internal bridge;
     PauseRegistry internal pauseRegistry;
 
+    /// @notice The network flag {registry} was deployed with. The BTC placeholders mixed into the
+    /// derivation are per-network, so {_depositPkScript} must derive with the SAME flag or the
+    /// registry will not match the deposit output.
+    bool internal deployedMainnet;
+
     function _deployPauseRegistry() internal {
         PauseRegistry impl = new PauseRegistry();
         bytes memory initData = abi.encodeCall(
@@ -41,6 +46,7 @@ abstract contract PegInRegistryTestBase is Test {
     }
 
     function _deploy(bool mainnet) internal {
+        deployedMainnet = mainnet;
         bridge = new RegistryBridgeMock();
         _deployPauseRegistry();
         PegInAddressRegistryHarness impl = new PegInAddressRegistryHarness();
@@ -103,7 +109,11 @@ abstract contract PegInRegistryTestBase is Test {
         address rskAddr
     ) internal view returns (bytes memory) {
         bytes memory powpeg = bridge.getActivePowpegRedeemScript();
-        bytes32 dv = PegInDerivation.derivationValue(rskAddr, PEGIN_CONTRACT);
+        bytes32 dv = PegInDerivation.derivationValue(
+            rskAddr,
+            PEGIN_CONTRACT,
+            deployedMainnet
+        );
         bytes memory redeem = PegInDerivation.flyoverRedeemScript(dv, powpeg);
         bytes20 scriptHash = PegInDerivation.flyoverScriptHash(redeem);
         return PegInDerivation.p2shScriptPubkey(scriptHash);
