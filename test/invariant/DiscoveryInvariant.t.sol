@@ -120,6 +120,11 @@ contract DiscoveryInvariantTest is DiscoveryTestBase {
         uint256 approved = handler.ghost_approvedCount();
         uint256 withdrawn = handler.ghost_withdrawnCount();
 
+        assertGe(
+            approved,
+            withdrawn,
+            "INVARIANT VIOLATED: Withdrawn count exceeds approved count"
+        );
         assertLe(
             discovery.getProviders().length,
             approved - withdrawn,
