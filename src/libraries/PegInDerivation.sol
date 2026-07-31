@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
+import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCodes.sol";
 
 /// @title PegInDerivation
@@ -29,6 +30,12 @@ import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCod
 ///
 /// Each step is a separate function taking the previous step's output, so every consumer enters
 /// the pipeline at the step it needs and none re-implements any script math.
+///
+/// The pipeline does not stop at the address. Every consumer that reads a VALUE out of a deposit
+/// transaction — the registry gating registration, `PegInContract.requestPegIn` computing the
+/// peg-in amount — must match outputs against the SAME script this library derives, so
+/// {expectedDepositPkScript} and {matchedDepositValue} live here too. A caller-supplied amount is
+/// never an input to either path: the amount is a value the contract computes.
 ///
 /// Two known pitfalls, both proven on-chain and both encoded as negative tests:
 ///   1. Keying the redeem-script tag with `derivationArgumentsHash` directly (skipping step 2's
@@ -147,5 +154,55 @@ library PegInDerivation {
         bytes memory versionedHash = bytes.concat(version, scriptHash);
         bytes32 checksum = sha256(abi.encodePacked(sha256(versionedHash)));
         return bytes.concat(versionedHash, checksum[0], checksum[1], checksum[2], checksum[3]);
+    }
+
+    /// @notice Steps 2-5 composed: the on-chain P2SH scriptPubkey a deposit output must carry to
+    /// count as a deposit for `rskAddr`. The single entry point for deposit matching — the
+    /// registry and the peg-in claim path both call this rather than re-composing the steps, so
+    /// the script that gates registration and the script that fixes the peg-in amount cannot
+    /// drift apart.
+    /// @param rskAddr The RSK destination address the deposit address is derived for
+    /// @param pegInContract The PegInContract PROXY address mixed into step 2
+    /// @param activePowpegRedeemScript The live powpeg redeem script, read from the bridge at
+    /// call time — never stored
+    /// @return The 23-byte P2SH scriptPubkey of the deposit address
+    function expectedDepositPkScript(
+        address rskAddr,
+        address pegInContract,
+        bytes memory activePowpegRedeemScript
+    ) internal pure returns (bytes memory) {
+        bytes32 derivationValue_ = derivationValue(rskAddr, pegInContract);
+        bytes memory redeemScript = flyoverRedeemScript(derivationValue_, activePowpegRedeemScript);
+        return p2shScriptPubkey(flyoverScriptHash(redeemScript));
+    }
+
+    /// @notice The satoshi value of the FIRST output of `btcTxSerialized` paying `expectedPkScript`.
+    /// @dev First match, not the sum of every matching output. A deposit split across several
+    /// outputs to the same derived address therefore counts only its first output, which
+    /// UNDERSTATES the deposit. That direction is the safe one — the claimer fronts less than the
+    /// bridge will release and settlement covers the claim — and it is the rule the registry has
+    /// always applied, so the value that gates registration and the value that fixes the peg-in
+    /// amount stay identical. Summing would have to change both call sites at once.
+    ///
+    /// Returns a found flag rather than reverting: the two call sites revert with their own named
+    /// errors, and a library revert would flatten them into one.
+    /// @param btcTxSerialized The witness-stripped raw deposit transaction
+    /// @param expectedPkScript The scriptPubkey from {expectedDepositPkScript}
+    /// @return value The matched output's value in satoshis, 0 when no output matched
+    /// @return found Whether any output paid `expectedPkScript`
+    function matchedDepositValue(bytes calldata btcTxSerialized, bytes memory expectedPkScript)
+        internal
+        pure
+        returns (uint64 value, bool found)
+    {
+        BtcUtils.TxRawOutput[] memory outputs = BtcUtils.getOutputs(btcTxSerialized);
+        bytes32 expectedHash = keccak256(expectedPkScript);
+        uint256 outputCount = outputs.length;
+        for (uint256 i = 0; i < outputCount; ++i) {
+            if (keccak256(outputs[i].pkScript) == expectedHash) {
+                return (outputs[i].value, true);
+            }
+        }
+        return (0, false);
     }
 }
