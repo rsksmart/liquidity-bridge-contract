@@ -14,8 +14,6 @@ import {PegInDerivation} from "../../src/libraries/PegInDerivation.sol";
 ///
 /// Merged stack: #514 segwit P2SH-P2WSH wrapping + #515 per-network zero-address placeholders.
 contract PegInDerivationTest is Test {
-    // ---- Fixture inputs ----
-
     address internal constant FIXTURE_RSK = 0x0000000000000000000000000000000000000aBc;
     address internal constant FIXTURE_PEGIN_CONTRACT = 0x00000000000000000000000000000000C0FFEE01;
     bytes internal constant FIXTURE_POWPEG_SCRIPT =
@@ -23,13 +21,11 @@ contract PegInDerivationTest is Test {
         hex"7dae9cb373a5d536e66a8c4f67468bbcfb063809bab643072d78a1242103c5946b3fbae03a654237da86"
         hex"3c9ed534e0878657175b132b8ca630f245df04db53ae";
 
-    // ---- Pinned protocol constants ----
-
     bytes internal constant PINNED_DOMAIN = hex"464c594f5645525f504547494e5f5631";
-    bytes internal constant PINNED_PLACEHOLDER_TESTNET = hex"6f0000000000000000000000000000000000000000";
-    bytes internal constant PINNED_PLACEHOLDER_MAINNET = hex"000000000000000000000000000000000000000000";
-
-    // ---- Pinned step outputs, TESTNET/REGTEST ----
+    bytes internal constant PINNED_BITCOIN_ZERO_ADDRESS_TESTNET =
+        hex"6f0000000000000000000000000000000000000000";
+    bytes internal constant PINNED_BITCOIN_ZERO_ADDRESS_MAINNET =
+        hex"000000000000000000000000000000000000000000";
 
     bytes32 internal constant PINNED_ARGS_HASH = 0x0ac85b6d14264cdf09e4b64c6250b2fb650d8d87f04164e8f0c69b1f29e1a89a;
     bytes32 internal constant PINNED_DERIVATION_VALUE_TESTNET =
@@ -48,8 +44,6 @@ contract PegInDerivationTest is Test {
     bytes internal constant PINNED_TESTNET_PAYLOAD =
         hex"c490a45e9bf80f1a2d9aac68ef224d929bb9b507d8545026ec";
 
-    // ---- Pinned step outputs, MAINNET ----
-
     bytes32 internal constant PINNED_DERIVATION_VALUE_MAINNET =
         0x5f711554b557c7fa5da3126a212b7ef7ed5db9425be5eb872230eb1b356d235b;
     bytes internal constant PINNED_REDEEM_SCRIPT_MAINNET =
@@ -66,8 +60,6 @@ contract PegInDerivationTest is Test {
     bytes internal constant PINNED_MAINNET_PAYLOAD =
         hex"05ed4761212ddb2ff1ac15a2d401a32baeaa4bbabfdb51b9c1";
 
-    // ---- Pinned negative-form payloads ----
-
     bytes internal constant PINNED_DIRECT_TAG_PAYLOAD =
         hex"c465e2519fcfd8e8f17bb35347261271ad75caa29c754165a5";
     bytes internal constant PINNED_PLAIN_WRAP_PAYLOAD =
@@ -79,14 +71,14 @@ contract PegInDerivationTest is Test {
 
     function test_RefundPlaceholderIsPinned() public pure {
         _assertZeroPlaceholder(
-            PegInDerivation.refundPlaceholderBtc(false),
-            PINNED_PLACEHOLDER_TESTNET,
+            PegInDerivation.getRefundPlaceholderBtcAddress(false),
+            PINNED_BITCOIN_ZERO_ADDRESS_TESTNET,
             bytes1(0x6f),
             "refund testnet"
         );
         _assertZeroPlaceholder(
-            PegInDerivation.refundPlaceholderBtc(true),
-            PINNED_PLACEHOLDER_MAINNET,
+            PegInDerivation.getRefundPlaceholderBtcAddress(true),
+            PINNED_BITCOIN_ZERO_ADDRESS_MAINNET,
             bytes1(0x00),
             "refund mainnet"
         );
@@ -94,34 +86,37 @@ contract PegInDerivationTest is Test {
 
     function test_LpPlaceholderIsPinned() public pure {
         _assertZeroPlaceholder(
-            PegInDerivation.lpPlaceholderBtc(false),
-            PINNED_PLACEHOLDER_TESTNET,
+            PegInDerivation.getLpPlaceholderBtcAddress(false),
+            PINNED_BITCOIN_ZERO_ADDRESS_TESTNET,
             bytes1(0x6f),
             "lp testnet"
         );
         _assertZeroPlaceholder(
-            PegInDerivation.lpPlaceholderBtc(true),
-            PINNED_PLACEHOLDER_MAINNET,
+            PegInDerivation.getLpPlaceholderBtcAddress(true),
+            PINNED_BITCOIN_ZERO_ADDRESS_MAINNET,
             bytes1(0x00),
             "lp mainnet"
         );
     }
 
     function test_PlaceholdersDifferOnlyInVersionByte() public pure {
-        bytes memory testnet = PegInDerivation.refundPlaceholderBtc(false);
-        bytes memory mainnet = PegInDerivation.refundPlaceholderBtc(true);
-        assertTrue(testnet[0] != mainnet[0], "version byte must differ between networks");
+        bytes memory testnetPlaceholder = PegInDerivation.getRefundPlaceholderBtcAddress(false);
+        bytes memory mainnetPlaceholder = PegInDerivation.getRefundPlaceholderBtcAddress(true);
+        assertTrue(
+            testnetPlaceholder[0] != mainnetPlaceholder[0],
+            "version byte must differ between networks"
+        );
         for (uint256 i = 1; i < 21; ++i) {
-            assertEq(testnet[i], mainnet[i], "only the version byte may differ");
+            assertEq(testnetPlaceholder[i], mainnetPlaceholder[i], "only the version byte may differ");
         }
         assertEq(
-            keccak256(PegInDerivation.lpPlaceholderBtc(false)),
-            keccak256(testnet),
+            keccak256(PegInDerivation.getLpPlaceholderBtcAddress(false)),
+            keccak256(testnetPlaceholder),
             "lp/refund testnet placeholders must match"
         );
         assertEq(
-            keccak256(PegInDerivation.lpPlaceholderBtc(true)),
-            keccak256(mainnet),
+            keccak256(PegInDerivation.getLpPlaceholderBtcAddress(true)),
+            keccak256(mainnetPlaceholder),
             "lp/refund mainnet placeholders must match"
         );
     }
@@ -158,7 +153,7 @@ contract PegInDerivationTest is Test {
         assertTrue(
             PegInDerivation.derivationValue(FIXTURE_RSK, FIXTURE_PEGIN_CONTRACT, false) !=
                 PegInDerivation.derivationValue(FIXTURE_RSK, FIXTURE_PEGIN_CONTRACT, true),
-            "mainnet flag must change the derivation value"
+            "isMainnet flag must change the derivation value"
         );
     }
 
@@ -314,8 +309,12 @@ contract PegInDerivationTest is Test {
         assertEq(placeholder, pinned, string.concat(label, ": placeholder changed"));
     }
 
-    function _deriveScriptHash(bool mainnet) private pure returns (bytes20) {
-        bytes32 derivationValue = PegInDerivation.derivationValue(FIXTURE_RSK, FIXTURE_PEGIN_CONTRACT, mainnet);
+    function _deriveScriptHash(bool isMainnet) private pure returns (bytes20) {
+        bytes32 derivationValue = PegInDerivation.derivationValue(
+            FIXTURE_RSK,
+            FIXTURE_PEGIN_CONTRACT,
+            isMainnet
+        );
         bytes memory redeemScript = PegInDerivation.flyoverRedeemScript(derivationValue, FIXTURE_POWPEG_SCRIPT);
         return PegInDerivation.flyoverScriptHash(redeemScript);
     }
