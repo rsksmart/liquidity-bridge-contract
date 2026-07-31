@@ -44,11 +44,11 @@ contract PegInDerivationTest is Test {
         hex"464c594f5645525f504547494e5f5631";
 
     /// @notice The 21-byte testnet/regtest zero placeholder: version 0x6f ++ 20 zero bytes
-    bytes internal constant PINNED_PLACEHOLDER_TESTNET =
+    bytes internal constant PINNED_BITCOIN_ZERO_ADDRESS_TESTNET =
         hex"6f0000000000000000000000000000000000000000";
 
     /// @notice The 21-byte mainnet zero placeholder: version 0x00 ++ 20 zero bytes
-    bytes internal constant PINNED_PLACEHOLDER_MAINNET =
+    bytes internal constant PINNED_BITCOIN_ZERO_ADDRESS_MAINNET =
         hex"000000000000000000000000000000000000000000";
 
     // ---- Pinned step outputs, TESTNET/REGTEST (computed once offline, frozen) ----
@@ -133,14 +133,14 @@ contract PegInDerivationTest is Test {
 
     function test_RefundPlaceholderIsPinned() public pure {
         _assertZeroPlaceholder(
-            PegInDerivation.refundPlaceholderBtc(false),
-            PINNED_PLACEHOLDER_TESTNET,
+            PegInDerivation.getRefundPlaceholderBtcAddress(false),
+            PINNED_BITCOIN_ZERO_ADDRESS_TESTNET,
             bytes1(0x6f),
             "refund testnet"
         );
         _assertZeroPlaceholder(
-            PegInDerivation.refundPlaceholderBtc(true),
-            PINNED_PLACEHOLDER_MAINNET,
+            PegInDerivation.getRefundPlaceholderBtcAddress(true),
+            PINNED_BITCOIN_ZERO_ADDRESS_MAINNET,
             bytes1(0x00),
             "refund mainnet"
         );
@@ -148,14 +148,14 @@ contract PegInDerivationTest is Test {
 
     function test_LpPlaceholderIsPinned() public pure {
         _assertZeroPlaceholder(
-            PegInDerivation.lpPlaceholderBtc(false),
-            PINNED_PLACEHOLDER_TESTNET,
+            PegInDerivation.getLpPlaceholderBtcAddress(false),
+            PINNED_BITCOIN_ZERO_ADDRESS_TESTNET,
             bytes1(0x6f),
             "lp testnet"
         );
         _assertZeroPlaceholder(
-            PegInDerivation.lpPlaceholderBtc(true),
-            PINNED_PLACEHOLDER_MAINNET,
+            PegInDerivation.getLpPlaceholderBtcAddress(true),
+            PINNED_BITCOIN_ZERO_ADDRESS_MAINNET,
             bytes1(0x00),
             "lp mainnet"
         );
@@ -164,27 +164,27 @@ contract PegInDerivationTest is Test {
     /// @notice The two networks' placeholders must differ EXACTLY in the version byte — the whole
     /// reason the placeholders became network-dependent.
     function test_PlaceholdersDifferOnlyInVersionByte() public pure {
-        bytes memory testnet = PegInDerivation.refundPlaceholderBtc(false);
-        bytes memory mainnet = PegInDerivation.refundPlaceholderBtc(true);
+        bytes memory testnetPlaceholder = PegInDerivation.getRefundPlaceholderBtcAddress(false);
+        bytes memory mainnetPlaceholder = PegInDerivation.getRefundPlaceholderBtcAddress(true);
         assertTrue(
-            testnet[0] != mainnet[0],
+            testnetPlaceholder[0] != mainnetPlaceholder[0],
             "version byte must differ between networks"
         );
         for (uint256 i = 1; i < 21; ++i) {
             assertEq(
-                testnet[i],
-                mainnet[i],
+                testnetPlaceholder[i],
+                mainnetPlaceholder[i],
                 "only the version byte may differ"
             );
         }
         assertEq(
-            keccak256(PegInDerivation.lpPlaceholderBtc(false)),
-            keccak256(testnet),
+            keccak256(PegInDerivation.getLpPlaceholderBtcAddress(false)),
+            keccak256(testnetPlaceholder),
             "lp/refund testnet placeholders must match"
         );
         assertEq(
-            keccak256(PegInDerivation.lpPlaceholderBtc(true)),
-            keccak256(mainnet),
+            keccak256(PegInDerivation.getLpPlaceholderBtcAddress(true)),
+            keccak256(mainnetPlaceholder),
             "lp/refund mainnet placeholders must match"
         );
     }
@@ -459,11 +459,11 @@ contract PegInDerivationTest is Test {
     }
 
     /// @notice Composes steps 2-4 exactly the way consumers do (see PegInAddressRegistry)
-    function _deriveScriptHash(bool mainnet) private pure returns (bytes20) {
+    function _deriveScriptHash(bool isMainnet) private pure returns (bytes20) {
         bytes32 derivationValue = PegInDerivation.derivationValue(
             FIXTURE_RSK,
             FIXTURE_PEGIN_CONTRACT,
-            mainnet
+            isMainnet
         );
         bytes memory redeemScript = PegInDerivation.flyoverRedeemScript(
             derivationValue,

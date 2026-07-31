@@ -15,18 +15,18 @@ import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCod
 /// validated end-to-end on a live regtest against the UNMODIFIED powpeg bridge (rskj 9.0.2,
 /// 2026-06-30, settle tx 0x174ab0df7cc86648a40d9b36da95fd4dacf2f18c135606141d532b7d1363c7de). That
 /// run used a real regtest p2pkh as the two BTC placeholders; they are now the per-network ZERO
-/// address (see {refundPlaceholderBtc}). The zero-address form is well-formed and non-empty, but no
-/// end-to-end run has yet settled with it — the settlement path does not exist on this branch
-/// (`PegInContract.resolvePegIn` reverts `ResolvePegInNotImplemented`). Proving the bridge accepts a
-/// zero-hash address is owed by the settlement work, and is a merge gate for production, not a
-/// property this library may assume:
+/// address (see {getRefundPlaceholderBtcAddress}). The zero-address form is well-formed and
+/// non-empty, but no end-to-end run has yet settled with it — the settlement path does not exist on
+/// this branch (`PegInContract.resolvePegIn` reverts `ResolvePegInNotImplemented`). Proving the
+/// bridge accepts a zero-hash address is owed by the settlement work, and is a merge gate for
+/// production, not a property this library may assume:
 ///
 ///   derivationArgumentsHash = keccak256(DERIVATION_DOMAIN ++ rskAddr)                    (step 1)
 ///   derivationValue         = keccak256(
 ///       derivationArgumentsHash
-///       ++ refundPlaceholderBtc(mainnet) // userRefundBtcAddress (21-byte per-network constant)
-///       ++ bytes20(pegInContract)        // lbcAddress = the contract that CALLS the bridge
-///       ++ lpPlaceholderBtc(mainnet)     // liquidityProviderBtcAddress (same per-network constant)
+///       ++ getRefundPlaceholderBtcAddress(isMainnet) // userRefundBtcAddress (21-byte constant)
+///       ++ bytes20(pegInContract)                    // lbcAddress = the contract CALLING the bridge
+///       ++ getLpPlaceholderBtcAddress(isMainnet)     // liquidityProviderBtcAddress (same constant)
 ///   )                                                                                    (step 2)
 ///   flyoverRedeemScript = OP_PUSHBYTES_32 ++ derivationValue ++ OP_DROP
 ///                         ++ activePowpegRedeemScript                                    (step 3)
@@ -56,44 +56,53 @@ library PegInDerivation {
 
     /// @notice The P2PKH zero address payload for mainnet: version byte `0x00` followed by a
     /// 20-byte zero HASH160. Well-formed and non-empty, but provably unspendable.
-    bytes internal constant ZERO_PLACEHOLDER_MAINNET = hex"000000000000000000000000000000000000000000";
+    bytes internal constant BITCOIN_ZERO_ADDRESS_MAINNET = hex"000000000000000000000000000000000000000000";
 
     /// @notice The P2PKH zero address payload for testnet/regtest: version byte `0x6f` followed by
-    /// a 20-byte zero HASH160. Differs from {ZERO_PLACEHOLDER_MAINNET} ONLY in the version byte,
-    /// which is enough to make every address derived from it a different address.
-    bytes internal constant ZERO_PLACEHOLDER_TESTNET = hex"6f0000000000000000000000000000000000000000";
+    /// a 20-byte zero HASH160. Differs from {BITCOIN_ZERO_ADDRESS_MAINNET} ONLY in the version
+    /// byte, which is enough to make every address derived from it a different address.
+    bytes internal constant BITCOIN_ZERO_ADDRESS_TESTNET = hex"6f0000000000000000000000000000000000000000";
 
-    /// @notice FIXED protocol-wide placeholder for the bridge's `userRefundBtcAddress` argument,
-    /// mixed into the deposit address AND passed to the bridge at settlement. It MUST be identical
-    /// at address issuance and settlement, it is NEVER empty (the bridge rejects an empty address
-    /// with -900) and NEVER the serving LP's address (the deposit address stays LP-agnostic).
-    ///
-    /// The value is the per-network P2PKH ZERO ADDRESS — `version ++ 20 zero bytes`. It is
-    /// network-dependent because the version byte is, so the two networks derive disjoint address
-    /// sets. Once the first address is issued on a network this value is frozen: changing it
-    /// rotates every derived address and requires the full drain-then-rotate procedure.
-    ///
-    /// TODO(treasury): the bridge's FAILURE-REFUND path (taken only when a fast-bridge peg-in is
-    /// rejected after the BTC is locked) pays THIS address — not the depositing user, not the LP.
-    /// A zero-hash address has no spending key, so any BTC sent down that path is BURNED. That is
-    /// accepted for the PoC. BEFORE PRODUCTION both placeholders must be repointed at a monitored,
-    /// recoverable, protocol-owned treasury address (one per network, e.g. a Flyover-treasury
-    /// multisig), and that swap rotates every derived address. This is the surviving mainnet
-    /// blocker of the treasury discussion.
-    /// @param mainnet True for the mainnet zero address, false for testnet/regtest
+    // ---------------------------------------------------------------------------------------------
+    // WHERE THE FAILURE-REFUND MONEY GOES (applies to BOTH accessors below)
+    //
+    // The two BTC placeholders are FIXED protocol-wide values, mixed into the deposit address AND
+    // passed to the bridge at settlement. Each MUST be identical at address issuance and settlement,
+    // is NEVER empty (the bridge rejects an empty address with -900) and is NEVER the serving LP's
+    // address (the deposit address stays LP-agnostic).
+    //
+    // Both are the per-network P2PKH ZERO ADDRESS — `version ++ 20 zero bytes`. The value is
+    // network-dependent because the version byte is, so the two networks derive disjoint address
+    // sets. Once the first address is issued on a network the value is frozen: changing it rotates
+    // every derived address and requires the full drain-then-rotate procedure.
+    //
+    // The bridge's FAILURE-REFUND path — taken only when a fast-bridge peg-in is rejected after the
+    // BTC is locked — pays the refund placeholder, not the depositing user and not the LP. A
+    // zero-hash address has no spending key, so any BTC that goes down that path is BURNED.
+    //
+    // A future version may point these placeholders at a monitored, recoverable, protocol-owned
+    // treasury address instead (one per network, e.g. a Flyover-treasury multisig), which would give
+    // the failure-refund path a recoverable destination. The two accessors are kept separate so such
+    // a change can point the refund and LP roles at distinct addresses. Repointing either value
+    // rotates every derived address, so it carries the same drain-then-rotate cost as a federation
+    // change.
+    // ---------------------------------------------------------------------------------------------
+
+    /// @notice The protocol-wide placeholder for the bridge's `userRefundBtcAddress` argument.
+    /// See the failure-refund comment above for what this address receives and why it is frozen.
+    /// @param isMainnet True for the mainnet zero address, false for testnet/regtest
     /// @return The 21-byte (version ++ HASH160) refund placeholder for the target network
-    function refundPlaceholderBtc(bool mainnet) internal pure returns (bytes memory) {
-        return mainnet ? ZERO_PLACEHOLDER_MAINNET : ZERO_PLACEHOLDER_TESTNET;
+    function getRefundPlaceholderBtcAddress(bool isMainnet) internal pure returns (bytes memory) {
+        return isMainnet ? BITCOIN_ZERO_ADDRESS_MAINNET : BITCOIN_ZERO_ADDRESS_TESTNET;
     }
 
-    /// @notice FIXED protocol-wide placeholder for the bridge's `liquidityProviderBtcAddress`
-    /// argument. Same constraints, same per-network zero address and the same
-    /// `TODO(treasury)` as {refundPlaceholderBtc}; it is NOT the serving LP's address. Kept as a
-    /// separate accessor so production can point the two roles at distinct addresses.
-    /// @param mainnet True for the mainnet zero address, false for testnet/regtest
+    /// @notice The protocol-wide placeholder for the bridge's `liquidityProviderBtcAddress`
+    /// argument. Same value and same constraints as {getRefundPlaceholderBtcAddress} — see the
+    /// failure-refund comment above; it is NOT the serving LP's address.
+    /// @param isMainnet True for the mainnet zero address, false for testnet/regtest
     /// @return The 21-byte (version ++ HASH160) liquidity-provider placeholder for the network
-    function lpPlaceholderBtc(bool mainnet) internal pure returns (bytes memory) {
-        return mainnet ? ZERO_PLACEHOLDER_MAINNET : ZERO_PLACEHOLDER_TESTNET;
+    function getLpPlaceholderBtcAddress(bool isMainnet) internal pure returns (bytes memory) {
+        return isMainnet ? BITCOIN_ZERO_ADDRESS_MAINNET : BITCOIN_ZERO_ADDRESS_TESTNET;
     }
 
     /// @notice Step 1: the 32-byte `derivationArgumentsHash` passed to the bridge as the FIRST
@@ -113,17 +122,17 @@ library PegInDerivation {
     /// @param rskAddr The RSK destination address
     /// @param pegInContract The PegInContract PROXY address (the lbcAddress that calls the bridge;
     /// stable across implementation upgrades, rotates only on a redeploy)
-    /// @param mainnet True to mix the mainnet placeholders, false for testnet/regtest. The
-    /// placeholders are network-dependent (see {refundPlaceholderBtc}), so this flag changes the
-    /// derived value — and therefore the deposit address — on every network.
+    /// @param isMainnet True to mix the mainnet placeholders, false for testnet/regtest. The
+    /// placeholders are network-dependent (see {getRefundPlaceholderBtcAddress}), so this flag
+    /// changes the derived value — and therefore the deposit address — on every network.
     /// @return The keccak256 hash the bridge embeds in the flyover redeem script
-    function derivationValue(address rskAddr, address pegInContract, bool mainnet) internal pure returns (bytes32) {
+    function derivationValue(address rskAddr, address pegInContract, bool isMainnet) internal pure returns (bytes32) {
         return keccak256(
             bytes.concat(
                 derivationArgumentsHash(rskAddr),
-                refundPlaceholderBtc(mainnet),
+                getRefundPlaceholderBtcAddress(isMainnet),
                 bytes20(pegInContract),
-                lpPlaceholderBtc(mainnet)
+                getLpPlaceholderBtcAddress(isMainnet)
             )
         );
     }
@@ -168,10 +177,10 @@ library PegInDerivation {
     /// string shown to the user. MUST stay a plain P2SH: the segwit-wrapped form is pitfall #2
     /// (-304).
     /// @param scriptHash Step 4's output
-    /// @param mainnet True for the mainnet version byte (0x05), false for testnet/regtest (0xC4)
+    /// @param isMainnet True for the mainnet version byte (0x05), false for testnet/regtest (0xC4)
     /// @return The 25-byte base58check payload of the deposit address
-    function depositAddressPayload(bytes20 scriptHash, bool mainnet) internal pure returns (bytes memory) {
-        bytes1 version = mainnet ? bytes1(0x05) : bytes1(0xC4);
+    function depositAddressPayload(bytes20 scriptHash, bool isMainnet) internal pure returns (bytes memory) {
+        bytes1 version = isMainnet ? bytes1(0x05) : bytes1(0xC4);
         bytes memory versionedHash = bytes.concat(version, scriptHash);
         bytes32 checksum = sha256(abi.encodePacked(sha256(versionedHash)));
         return bytes.concat(versionedHash, checksum[0], checksum[1], checksum[2], checksum[3]);

@@ -29,10 +29,10 @@ abstract contract PegInRegistryTestBase is Test {
     RegistryBridgeMock internal bridge;
     PauseRegistry internal pauseRegistry;
 
-    /// @notice The network flag {registry} was deployed with. The BTC placeholders mixed into the
-    /// derivation are per-network, so {_depositPkScript} must derive with the SAME flag or the
-    /// registry will not match the deposit output.
-    bool internal deployedMainnet;
+    /// @notice The network flag {registry} was deployed with — true when deployed as mainnet. The
+    /// BTC placeholders mixed into the derivation are per-network, so {_depositPkScript} must
+    /// derive with the SAME flag or the registry will not match the deposit output.
+    bool internal isMainnetDeployment;
 
     function _deployPauseRegistry() internal {
         PauseRegistry impl = new PauseRegistry();
@@ -45,8 +45,8 @@ abstract contract PegInRegistryTestBase is Test {
         );
     }
 
-    function _deploy(bool mainnet) internal {
-        deployedMainnet = mainnet;
+    function _deploy(bool isMainnet) internal {
+        isMainnetDeployment = isMainnet;
         bridge = new RegistryBridgeMock();
         _deployPauseRegistry();
         PegInAddressRegistryHarness impl = new PegInAddressRegistryHarness();
@@ -56,7 +56,7 @@ abstract contract PegInRegistryTestBase is Test {
                 owner,
                 ADMIN_DELAY,
                 address(bridge),
-                mainnet,
+                isMainnet,
                 IPauseRegistry(address(pauseRegistry))
             )
         );
@@ -67,7 +67,7 @@ abstract contract PegInRegistryTestBase is Test {
     }
 
     function _deployUnwired(
-        bool mainnet
+        bool isMainnet
     ) internal returns (PegInAddressRegistryHarness r) {
         if (address(bridge) == address(0)) bridge = new RegistryBridgeMock();
         if (address(pauseRegistry) == address(0)) _deployPauseRegistry();
@@ -78,7 +78,7 @@ abstract contract PegInRegistryTestBase is Test {
                 owner,
                 ADMIN_DELAY,
                 address(bridge),
-                mainnet,
+                isMainnet,
                 IPauseRegistry(address(pauseRegistry))
             )
         );
@@ -112,7 +112,7 @@ abstract contract PegInRegistryTestBase is Test {
         bytes32 dv = PegInDerivation.derivationValue(
             rskAddr,
             PEGIN_CONTRACT,
-            deployedMainnet
+            isMainnetDeployment
         );
         bytes memory redeem = PegInDerivation.flyoverRedeemScript(dv, powpeg);
         bytes20 scriptHash = PegInDerivation.flyoverScriptHash(redeem);

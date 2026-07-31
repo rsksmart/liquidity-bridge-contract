@@ -28,7 +28,7 @@ contract PegInAddressRegistry is
     /// @custom:storage-location erc7201:rsk.flyover.PegInAddressRegistry
     struct PegInAddressRegistryStorage {
         IBridge bridge;
-        bool mainnet;
+        bool isMainnet;
         bytes32 registrationRoot;
         mapping(address => Registration) registrations;
         address pegInContract;
@@ -74,14 +74,14 @@ contract PegInAddressRegistry is
     /// @param defaultAdmin The default admin of the contract
     /// @param initialDelay The initial delay for changes in the default admin role
     /// @param bridge The address of the Rootstock bridge
-    /// @param mainnet Whether the derived addresses target mainnet or testnet
+    /// @param isMainnet Whether the derived addresses target mainnet or testnet
     /// @param pauseRegistry_ The central PauseRegistry for pause state
     // solhint-disable-next-line comprehensive-interface
     function initialize(
         address defaultAdmin,
         uint48 initialDelay,
         address bridge,
-        bool mainnet,
+        bool isMainnet,
         IPauseRegistry pauseRegistry_
     ) external initializer {
         if (bridge == address(0)) revert Flyover.NoContract(bridge);
@@ -90,7 +90,7 @@ contract PegInAddressRegistry is
         __EmergencyPause_init(pauseRegistry_);
         PegInAddressRegistryStorage storage $ = _getStorage();
         $.bridge = IBridge(payable(bridge));
-        $.mainnet = mainnet;
+        $.isMainnet = isMainnet;
     }
 
     /// @notice Sets the PegInContract mixed into the deposit-address derivation.
@@ -122,7 +122,7 @@ contract PegInAddressRegistry is
         address pegInContract = $.pegInContract;
         if (pegInContract == address(0)) revert PegInContractNotSet();
 
-        bytes memory expectedPkScript = _expectedDepositPkScript(rskAddr, pegInContract, $.bridge, $.mainnet);
+        bytes memory expectedPkScript = _expectedDepositPkScript(rskAddr, pegInContract, $.bridge, $.isMainnet);
         uint64 depositValue = _matchedDepositValue(btcTxSerialized, expectedPkScript, rskAddr);
 
         if (depositValue < MIN_DEPOSIT_SATS) {
@@ -150,7 +150,7 @@ contract PegInAddressRegistry is
         // The active powpeg redeem script is invariant across a single call, so it is
         // read once here and reused for the derivation.
         bytes memory powpegRedeemScript = $.bridge.getActivePowpegRedeemScript();
-        return (_deriveAddress(addr, pegInContract, powpegRedeemScript, $.mainnet), ADDRESS_ENCODING);
+        return (_deriveAddress(addr, pegInContract, powpegRedeemScript, $.isMainnet), ADDRESS_ENCODING);
     }
 
     /// @inheritdoc IPegInAddressRegistry
@@ -170,10 +170,10 @@ contract PegInAddressRegistry is
         // Read the invariant derivation inputs once, before the loop, so the batch performs a
         // single external bridge call and derives every address against a consistent powpeg.
         bytes memory powpegRedeemScript = $.bridge.getActivePowpegRedeemScript();
-        bool mainnet = $.mainnet;
+        bool isMainnet = $.isMainnet;
         derivationAddresses = new bytes[](length);
         for (uint256 i = 0; i < length; ++i) {
-            derivationAddresses[i] = _deriveAddress(addrs[i], pegInContract, powpegRedeemScript, mainnet);
+            derivationAddresses[i] = _deriveAddress(addrs[i], pegInContract, powpegRedeemScript, isMainnet);
         }
         encoding = ADDRESS_ENCODING;
     }
@@ -206,15 +206,15 @@ contract PegInAddressRegistry is
     }
 
     /// @notice Derives the on-chain P2SH scriptPubkey for a deposit output match.
-    /// @param mainnet Whether the derivation targets mainnet or testnet — the BTC placeholders
+    /// @param isMainnet Whether the derivation targets mainnet or testnet — the BTC placeholders
     /// mixed into the value are per-network, so this must match the flag used at issuance
-    function _expectedDepositPkScript(address rskAddr, address pegInContract, IBridge bridge_, bool mainnet)
+    function _expectedDepositPkScript(address rskAddr, address pegInContract, IBridge bridge_, bool isMainnet)
         private
         view
         returns (bytes memory)
     {
         bytes memory powpegRedeemScript = bridge_.getActivePowpegRedeemScript();
-        bytes32 derivationValue = PegInDerivation.derivationValue(rskAddr, pegInContract, mainnet);
+        bytes32 derivationValue = PegInDerivation.derivationValue(rskAddr, pegInContract, isMainnet);
         bytes memory redeemScript = PegInDerivation.flyoverRedeemScript(derivationValue, powpegRedeemScript);
         bytes20 scriptHash = PegInDerivation.flyoverScriptHash(redeemScript);
         return PegInDerivation.p2shScriptPubkey(scriptHash);
@@ -243,17 +243,17 @@ contract PegInAddressRegistry is
     /// @param addr The RSK address the deposit address is derived for
     /// @param pegInContract The PegInContract mixed into the derivation (must be non-zero)
     /// @param powpegRedeemScript The active powpeg redeem script returned by the bridge
-    /// @param mainnet Whether the derived address targets mainnet or testnet
-    function _deriveAddress(address addr, address pegInContract, bytes memory powpegRedeemScript, bool mainnet)
+    /// @param isMainnet Whether the derived address targets mainnet or testnet
+    function _deriveAddress(address addr, address pegInContract, bytes memory powpegRedeemScript, bool isMainnet)
         private
         pure
         returns (bytes memory)
     {
-        bytes32 derivationValue = PegInDerivation.derivationValue(addr, pegInContract, mainnet);
+        bytes32 derivationValue = PegInDerivation.derivationValue(addr, pegInContract, isMainnet);
         // TODO(FLY-2436): pass the bridge address once the derivation library owns script construction
         bytes memory redeemScript = PegInDerivation.flyoverRedeemScript(derivationValue, powpegRedeemScript);
         bytes20 scriptHash = PegInDerivation.flyoverScriptHash(redeemScript);
-        return PegInDerivation.depositAddressPayload(scriptHash, mainnet);
+        return PegInDerivation.depositAddressPayload(scriptHash, isMainnet);
     }
 
     function _getStorage() internal pure returns (PegInAddressRegistryStorage storage $) {
