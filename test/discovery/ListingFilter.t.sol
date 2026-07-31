@@ -138,4 +138,72 @@ contract ListingFilterTest is DiscoveryTestBase {
         assertEq(providers[1].id, 2, "Provider 2 ID");
         assertEq(providers[2].id, 3, "Provider 3 ID");
     }
+
+    function test_ActiveIndex_ExcludesPendingRegistrations() public {
+        address lp = makeAddr("pendingLp");
+        vm.deal(lp, 100 ether);
+
+        vm.prank(lp, lp);
+        discovery.register{value: MIN_COLLATERAL}(
+            "Pending",
+            "url",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+
+        assertEq(discovery.getProvidersId(), 1);
+        assertEq(discovery.getProviders().length, 0);
+    }
+
+    function test_ActiveIndex_RemovesProviderAfterCollateralWithdrawal()
+        public
+    {
+        setupProviders();
+
+        assertEq(discovery.getProviders().length, 3);
+
+        vm.prank(pegInLp);
+        collateralManagement.resign();
+
+        assertEq(discovery.getProviders().length, 2);
+
+        vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS);
+
+        vm.prank(pegInLp);
+        collateralManagement.withdrawCollateral();
+
+        assertEq(discovery.getProviders().length, 2);
+
+        Flyover.LiquidityProvider[] memory providers = discovery.getProviders();
+        assertEq(providers.length, 2);
+        assertTrue(
+            providers[0].id == 2 || providers[1].id == 2,
+            "pegOut provider should remain listed"
+        );
+        assertTrue(
+            providers[0].id == 3 || providers[1].id == 3,
+            "full provider should remain listed"
+        );
+    }
+
+    function test_GetProviders_DoesNotScanHistoricalProviderIds() public {
+        for (uint256 i = 0; i < 5; ++i) {
+            address lp = makeAddr(string.concat("sybil", vm.toString(i)));
+            vm.deal(lp, 100 ether);
+
+            vm.prank(lp, lp);
+            discovery.register{value: MIN_COLLATERAL}(
+                "Pending",
+                "url",
+                true,
+                Flyover.ProviderType.PegIn
+            );
+
+            vm.prank(lp);
+            discovery.withdrawRegisterRequest();
+        }
+
+        assertEq(discovery.getProvidersId(), 5);
+        assertEq(discovery.getProviders().length, 0);
+    }
 }

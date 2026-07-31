@@ -71,6 +71,15 @@ contract DeployCollateralManagement is Script {
             collateralManagementProxy
         );
         result.admin = ProxyReader.readAdmin(vm, collateralManagementProxy);
+
+        address flyoverDiscoveryProxy = vm.envOr(
+            "FLYOVER_DISCOVERY_PROXY",
+            address(0)
+        );
+        if (flyoverDiscoveryProxy != address(0)) {
+            CollateralManagementContract(payable(collateralManagementProxy))
+                .initializeV2_1_0(flyoverDiscoveryProxy);
+        }
     }
 
     function _log(DeploymentResult memory r) private pure {

@@ -63,6 +63,12 @@ contract DeployFlyoverDiscoveryTest is Test {
         );
     }
 
+    function _initializeV2_1_0(address discoveryProxy) internal {
+        CollateralManagementContract(payable(collateralManagementProxy))
+            .initializeV2_1_0(discoveryProxy);
+        FlyoverDiscovery(discoveryProxy).initializeV2_1_0();
+    }
+
     function test_DeploymentFlow() public {
         console.log("\n=== TEST FLYOVER DISCOVERY DEPLOYMENT ===\n");
 
@@ -94,6 +100,8 @@ contract DeployFlyoverDiscoveryTest is Test {
         console.log("   Proxy deployed at:", address(proxy));
         address discoveryProxyAdmin = ProxyReader.readAdmin(vm, address(proxy));
         console.log("   ProxyAdmin:", discoveryProxyAdmin);
+
+        _initializeV2_1_0(address(proxy));
 
         console.log("\n4. Verifying deployment...");
         FlyoverDiscovery fd = FlyoverDiscovery(address(proxy));
@@ -154,6 +162,8 @@ contract DeployFlyoverDiscoveryTest is Test {
             )
         );
 
+        _initializeV2_1_0(proxy);
+
         address proxyAdminAddr = ProxyReader.readAdmin(vm, proxy);
         console.log("Deployment Result:");
         console.log("  Implementation:", impl);
@@ -198,6 +208,8 @@ contract DeployFlyoverDiscoveryTest is Test {
                 )
             )
         );
+
+        _initializeV2_1_0(fdProxy);
 
         CollateralManagementContract cm = CollateralManagementContract(
             payable(collateralManagementProxy)
@@ -245,6 +257,8 @@ contract DeployFlyoverDiscoveryTest is Test {
                 )
             )
         );
+
+        _initializeV2_1_0(proxy);
 
         FlyoverDiscovery fd = FlyoverDiscovery(proxy);
 

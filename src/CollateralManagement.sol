@@ -4,10 +4,11 @@ pragma solidity 0.8.25;
 import {
     AccessControlDefaultAdminRulesUpgradeable
 } from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {ICollateralManagement} from "./interfaces/ICollateralManagement.sol";
+import {IFlyoverDiscovery} from "./interfaces/IFlyoverDiscovery.sol";
 import {IPauseRegistry} from "./interfaces/IPauseRegistry.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 import {Quotes} from "./libraries/Quotes.sol";
@@ -42,6 +43,16 @@ contract CollateralManagementContract is
     mapping(address => uint256) private _resignationBlockNum;
     mapping(address => uint256) private _rewards;
 
+    // v2.1.0
+    IFlyoverDiscovery private _flyoverDiscovery;
+
+    /// @notice Emitted when the FlyoverDiscovery address is set
+    /// @param oldFlyoverDiscovery The previous FlyoverDiscovery address
+    /// @param newFlyoverDiscovery The new FlyoverDiscovery address
+    event FlyoverDiscoverySet(address indexed oldFlyoverDiscovery, address indexed newFlyoverDiscovery);
+    /// @notice Emitted when an error occurs while removing a provider from the FlyoverDiscovery contract
+    /// @param reason The error message
+    event FlyoverDiscoveryError(bytes reason);
     /// @notice Emitted when the minimum collateral is set
     /// @param oldMinCollateral The old minimum collateral
     /// @param newMinCollateral The new minimum collateral
@@ -131,6 +142,17 @@ contract CollateralManagementContract is
         _rewardPercentage = rewardPercentage;
     }
 
+    /// @notice Initializes the contract for v2.1.0
+    /// @param flyoverDiscovery The address of the FlyoverDiscovery contract
+    // solhint-disable-next-line comprehensive-interface,func-name-mixedcase
+    function initializeV2_1_0(
+        address flyoverDiscovery
+    ) external reinitializer(2) onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (address(flyoverDiscovery).code.length == 0) revert Flyover.NoContract(flyoverDiscovery);
+        emit FlyoverDiscoverySet(address(_flyoverDiscovery), flyoverDiscovery);
+        _flyoverDiscovery = IFlyoverDiscovery(flyoverDiscovery);
+    }
+
     /// @notice Sets the minimum collateral required for a liquidity provider **per operation**
     /// @param minCollateral The new minimum collateral
     // solhint-disable-next-line comprehensive-interface
@@ -157,6 +179,13 @@ contract CollateralManagementContract is
         }
         emit RewardPercentageSet(_rewardPercentage, rewardPercentage);
         _rewardPercentage = rewardPercentage;
+    }
+
+    /// @inheritdoc ICollateralManagement
+    function setFlyoverDiscovery(address flyoverDiscovery) external onlyRole(DEFAULT_ADMIN_ROLE) override {
+        if (address(flyoverDiscovery).code.length == 0) revert Flyover.NoContract(flyoverDiscovery);
+        emit FlyoverDiscoverySet(address(_flyoverDiscovery), flyoverDiscovery);
+        _flyoverDiscovery = IFlyoverDiscovery(flyoverDiscovery);
     }
 
     /// @inheritdoc ICollateralManagement
@@ -327,6 +356,7 @@ contract CollateralManagementContract is
         uint256 amount = _pegOutCollateral[providerAddress] + _pegInCollateral[providerAddress];
         if (amount < 1) {
             _resignationBlockNum[providerAddress] = 0;
+            _notifyCollateralWithdrawal(providerAddress);
             return;
         }
         _pegOutCollateral[providerAddress] = 0;
@@ -336,6 +366,7 @@ contract CollateralManagementContract is
         emit WithdrawCollateral(providerAddress, to, amount);
         (bool success,) = to.call{value: amount}("");
         if (!success) revert WithdrawalFailed(to, amount);
+        _notifyCollateralWithdrawal(providerAddress);
     }
 
     /// @notice Adds peg in collateral to an account
@@ -356,6 +387,20 @@ contract CollateralManagementContract is
     function _addPegOutCollateralTo(address addr, uint256 amount) private {
         _pegOutCollateral[addr] += amount;
         emit ICollateralManagement.PegOutCollateralAdded(addr, amount);
+    }
+
+    /// @notice Notifies FlyoverDiscovery contract that a provider has withdrawn collateral
+    /// so that it can update the listing accordingly
+    /// @param providerAddress The address of the provider
+    function _notifyCollateralWithdrawal(address providerAddress) private {
+        if (address(_flyoverDiscovery) != address(0)) {
+            // try / catch  is to avoid blocking the collateral withdrawal if the discovery is misconfigured
+            // solhint-disable-next-line no-empty-blocks
+            try _flyoverDiscovery.removeProvider(providerAddress) {} 
+            catch (bytes memory reason) {
+                emit FlyoverDiscoveryError(reason);
+            }
+        }
     }
 
     /// @notice Checks if an account is registered

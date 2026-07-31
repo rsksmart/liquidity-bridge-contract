@@ -18,10 +18,13 @@ contract DiscoveryInvariantTest is DiscoveryTestBase {
 
         targetContract(address(handler));
 
-        bytes4[] memory selectors = new bytes4[](3);
+        bytes4[] memory selectors = new bytes4[](6);
         selectors[0] = handler.registerProvider.selector;
-        selectors[1] = handler.toggleStatus.selector;
-        selectors[2] = handler.updateProviderInfo.selector;
+        selectors[1] = handler.pendingRegisterWithdraw.selector;
+        selectors[2] = handler.toggleStatus.selector;
+        selectors[3] = handler.resignProvider.selector;
+        selectors[4] = handler.withdrawProvider.selector;
+        selectors[5] = handler.updateProviderInfo.selector;
         targetSelector(
             FuzzSelector({addr: address(handler), selectors: selectors})
         );
@@ -38,20 +41,19 @@ contract DiscoveryInvariantTest is DiscoveryTestBase {
         );
     }
 
-    /// @notice Provider ID counter should match total registrations and never decrease
+    /// @notice Provider ID counter should match the last id issued by handlers
     function invariant_ProviderIdMonotonic() public view {
-        uint256 registered = handler.ghost_totalRegistered();
-        if (registered == 0) return;
+        if (handler.ghost_lastProviderId() == 0) return;
 
         assertEq(
             discovery.getProvidersId(),
-            registered,
+            handler.ghost_lastProviderId(),
             "INVARIANT VIOLATED: Provider ID counter mismatch"
         );
     }
 
-    /// @notice Every provider returned by getProviders() must be registered and have status enabled
-    function invariant_GetProvidersConsistency() public view {
+    /// @notice Every provider returned by getProviders() must be operational
+    function invariant_ListedProvidersAreOperational() public view {
         Flyover.LiquidityProvider[] memory listed = discovery.getProviders();
 
         for (uint256 i = 0; i < listed.length; i++) {
@@ -61,12 +63,86 @@ contract DiscoveryInvariantTest is DiscoveryTestBase {
             );
 
             assertTrue(
-                collateralManagement.isRegistered(
+                collateralManagement.isCollateralSufficient(
                     listed[i].providerType,
                     listed[i].providerAddress
                 ),
-                "INVARIANT VIOLATED: Listed provider not registered in CollateralManagement"
+                "INVARIANT VIOLATED: Listed provider collateral insufficient"
             );
+        }
+    }
+
+    /// @notice Approved operational providers must appear in getProviders()
+    function invariant_ApprovedOperationalProvidersAreListed() public view {
+        uint256 count = handler.getRegisteredCount();
+        for (uint256 i = 0; i < count; i++) {
+            (
+                address addr,
+                ,
+                Flyover.ProviderType providerType,
+                bool statusSet,
+                bool withdrawn
+            ) = handler.getProviderInfo(i);
+
+            if (
+                !withdrawn &&
+                statusSet &&
+                collateralManagement.isCollateralSufficient(providerType, addr)
+            ) {
+                assertTrue(
+                    _isListed(addr),
+                    "INVARIANT VIOLATED: Operational provider missing from listing"
+                );
+            }
+        }
+    }
+
+    /// @notice getProviders() returns unique provider ids and addresses
+    function invariant_NoDuplicateListing() public view {
+        Flyover.LiquidityProvider[] memory listed = discovery.getProviders();
+
+        for (uint256 i = 0; i < listed.length; i++) {
+            for (uint256 j = i + 1; j < listed.length; j++) {
+                assertTrue(
+                    listed[i].id != listed[j].id,
+                    "INVARIANT VIOLATED: Duplicate provider id in listing"
+                );
+                assertTrue(
+                    listed[i].providerAddress != listed[j].providerAddress,
+                    "INVARIANT VIOLATED: Duplicate provider address in listing"
+                );
+            }
+        }
+    }
+
+    /// @notice Listing size is bounded by approved minus withdrawn providers
+    function invariant_ListingIndependentOfLastProviderId() public view {
+        uint256 approved = handler.ghost_approvedCount();
+        uint256 withdrawn = handler.ghost_withdrawnCount();
+
+        assertGe(
+            approved,
+            withdrawn,
+            "INVARIANT VIOLATED: Withdrawn count exceeds approved count"
+        );
+        assertLe(
+            discovery.getProviders().length,
+            approved - withdrawn,
+            "INVARIANT VIOLATED: Listing larger than active approved providers"
+        );
+    }
+
+    /// @notice Withdrawn providers must not appear in getProviders()
+    function invariant_WithdrawnProvidersNotListed() public view {
+        uint256 count = handler.getRegisteredCount();
+        for (uint256 i = 0; i < count; i++) {
+            (address addr, , , , bool withdrawn) = handler.getProviderInfo(i);
+            if (withdrawn) {
+                assertFalse(
+                    _isListed(addr),
+                    "INVARIANT VIOLATED: Withdrawn provider still listed"
+                );
+            }
         }
     }
 
@@ -78,21 +154,24 @@ contract DiscoveryInvariantTest is DiscoveryTestBase {
                 address addr,
                 ,
                 Flyover.ProviderType providerType,
-                bool statusSet
+                bool statusSet,
+                bool withdrawn
             ) = handler.getProviderInfo(i);
 
-            bool operational = discovery.isOperational(providerType, addr);
-            bool sufficient = collateralManagement.isCollateralSufficient(
-                providerType,
-                addr
-            );
-            bool expected = statusSet && sufficient;
+            if (!withdrawn) {
+                bool operational = discovery.isOperational(providerType, addr);
+                bool sufficient = collateralManagement.isCollateralSufficient(
+                    providerType,
+                    addr
+                );
+                bool expected = statusSet && sufficient;
 
-            assertEq(
-                operational,
-                expected,
-                "INVARIANT VIOLATED: isOperational mismatch"
-            );
+                assertEq(
+                    operational,
+                    expected,
+                    "INVARIANT VIOLATED: isOperational mismatch"
+                );
+            }
         }
     }
 
@@ -102,23 +181,27 @@ contract DiscoveryInvariantTest is DiscoveryTestBase {
         uint256 minCol = collateralManagement.getMinCollateral();
 
         for (uint256 i = 0; i < count; i++) {
-            (address addr, , Flyover.ProviderType providerType, ) = handler
-                .getProviderInfo(i);
+            (
+                address addr,
+                ,
+                Flyover.ProviderType providerType,
+                ,
+                bool withdrawn
+            ) = handler.getProviderInfo(i);
 
-            if (
-                providerType == Flyover.ProviderType.PegIn ||
-                providerType == Flyover.ProviderType.Both
-            ) {
+            bool supportsPegin = providerType == Flyover.ProviderType.PegIn ||
+                providerType == Flyover.ProviderType.Both;
+            bool supportsPegout = providerType == Flyover.ProviderType.PegOut ||
+                providerType == Flyover.ProviderType.Both;
+
+            if (!withdrawn && supportsPegin) {
                 assertGe(
                     collateralManagement.getPegInCollateral(addr),
                     minCol,
                     "INVARIANT VIOLATED: PegIn collateral below minimum"
                 );
             }
-            if (
-                providerType == Flyover.ProviderType.PegOut ||
-                providerType == Flyover.ProviderType.Both
-            ) {
+            if (!withdrawn && supportsPegout) {
                 assertGe(
                     collateralManagement.getPegOutCollateral(addr),
                     minCol,
@@ -131,6 +214,9 @@ contract DiscoveryInvariantTest is DiscoveryTestBase {
     function invariant_callSummary() public view {
         console.log("\n--- Discovery Invariant Summary ---");
         console.log("Registered providers:", handler.ghost_totalRegistered());
+        console.log("Approved providers:", handler.ghost_approvedCount());
+        console.log("Withdrawn providers:", handler.ghost_withdrawnCount());
+        console.log("Pending withdrawn:", handler.ghost_pendingWithdrawn());
         console.log("Last provider ID:", handler.ghost_lastProviderId());
         console.log("Listed providers:", discovery.getProviders().length);
         console.log("Discovery balance:", address(discovery).balance);
@@ -139,5 +225,13 @@ contract DiscoveryInvariantTest is DiscoveryTestBase {
             address(collateralManagement).balance
         );
         console.log("----------------------------------\n");
+    }
+
+    function _isListed(address provider) private view returns (bool) {
+        Flyover.LiquidityProvider[] memory listed = discovery.getProviders();
+        for (uint256 i = 0; i < listed.length; i++) {
+            if (listed[i].providerAddress == provider) return true;
+        }
+        return false;
     }
 }

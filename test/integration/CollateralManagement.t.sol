@@ -82,6 +82,8 @@ contract CollateralManagementIntegrationTest is Test {
             collateralManagement.COLLATERAL_ADDER(),
             address(discovery)
         );
+        collateralManagement.initializeV2_1_0(address(discovery));
+        discovery.initializeV2_1_0();
         collateralManagement.grantRole(
             collateralManagement.COLLATERAL_SLASHER(),
             owner

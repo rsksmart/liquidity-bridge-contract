@@ -115,6 +115,8 @@ contract FlyoverDiscoveryIntegrationTest is Test {
             collateralManagement.COLLATERAL_ADDER(),
             address(discovery)
         );
+        collateralManagement.initializeV2_1_0(address(discovery));
+        discovery.initializeV2_1_0();
     }
 
     function setupProviders() internal {

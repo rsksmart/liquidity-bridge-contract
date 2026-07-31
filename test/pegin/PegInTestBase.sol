@@ -154,8 +154,11 @@ abstract contract PegInTestBase is Test {
 
         bytes32 adderRole = collateralManagement.COLLATERAL_ADDER();
 
-        vm.prank(owner);
+        vm.startPrank(owner);
         collateralManagement.grantRole(adderRole, address(discovery));
+        collateralManagement.initializeV2_1_0(address(discovery));
+        discovery.initializeV2_1_0();
+        vm.stopPrank();
     }
 
     /// @notice Setup providers with collateral

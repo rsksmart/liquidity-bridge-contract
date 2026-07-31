@@ -42,9 +42,11 @@ contract FlyoverDiscovery is
     ICollateralManagement private _collateralManagement;
     uint public lastProviderId;
 
-    // v2.6.0
+    // v2.1.0
     mapping(address => PendingRegistration) private _pendingRegistrations;
     mapping(address => RegistrationState) private _registrationStates;
+    uint[] private _activeProviderIds;
+    mapping(uint => uint) private _activeProviderIndexPlusOne;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -72,6 +74,23 @@ contract FlyoverDiscovery is
         __AccessControlDefaultAdminRules_init(initialDelay, defaultAdmin);
         __EmergencyPause_init(pauseRegistry);
         _collateralManagement = ICollateralManagement(collateralManagement);
+    }
+
+    /// @notice Initializes the contract for v2.1.0
+    // solhint-disable-next-line comprehensive-interface,func-name-mixedcase
+    function initializeV2_1_0() external reinitializer(2) onlyRole(DEFAULT_ADMIN_ROLE) {
+        Flyover.LiquidityProvider storage lp;
+        bool providerExists;
+        for (uint i = 1; i < lastProviderId + 1; ++i) {
+            lp = _liquidityProviders[i];
+            providerExists = lp.providerAddress != address(0);
+            if (providerExists) {
+                _registrationStates[lp.providerAddress] = RegistrationState.Approved;
+            }
+            if (providerExists && _collateralManagement.isRegistered(lp.providerType, lp.providerAddress)) {
+                _addActiveProvider(i);
+            }
+        }
     }
 
     /// @inheritdoc IFlyoverDiscovery
@@ -132,6 +151,7 @@ contract FlyoverDiscovery is
         delete _pendingRegistrations[providerAddress];
 
         emit RegistrationApproved(providerId, providerAddress, pending.collateralAmount);
+        _addActiveProvider(providerId);
         _addCollateral(pending.providerType, providerAddress, pending.collateralAmount);
     }
 
@@ -171,18 +191,29 @@ contract FlyoverDiscovery is
     }
 
     /// @inheritdoc IFlyoverDiscovery
+    function removeProvider(address providerAddress) external {
+        if (msg.sender != address(_collateralManagement)) revert NotAuthorized(msg.sender);
+
+        uint providerId = _providerIdByAddress[providerAddress];
+        if (providerId == 0) return;
+
+        _removeActiveProvider(providerId);
+    }
+
+    /// @inheritdoc IFlyoverDiscovery
     function getProviders() external view returns (Flyover.LiquidityProvider[] memory) {
         uint count = 0;
         Flyover.LiquidityProvider storage lp;
-        for (uint i = 1; i < lastProviderId + 1; ++i) {
-            if (_shouldBeListed(_liquidityProviders[i])) {
+        uint activeProvidersLength = _activeProviderIds.length;
+        for (uint i = 0; i < activeProvidersLength; ++i) {
+            if (_shouldBeListed(_liquidityProviders[_activeProviderIds[i]])) {
                 ++count;
             }
         }
         Flyover.LiquidityProvider[] memory providersToReturn = new Flyover.LiquidityProvider[](count);
         count = 0;
-        for (uint i = 1; i < lastProviderId + 1; ++i) {
-            lp = _liquidityProviders[i];
+        for (uint i = 0; i < activeProvidersLength; ++i) {
+            lp = _liquidityProviders[_activeProviderIds[i]];
             if (_shouldBeListed(lp)) {
                 providersToReturn[count] = lp;
                 ++count;
@@ -256,6 +287,32 @@ contract FlyoverDiscovery is
     function _refundCollateral(address payable providerAddress, uint256 amount) private {
         (bool success,) = providerAddress.call{value: amount}("");
         if (!success) revert Flyover.PaymentFailed(providerAddress, amount, hex"");
+    }
+
+    /// @notice Removes a provider id from the active discovery enumeration set
+    /// @param providerId The provider id to remove
+    function _removeActiveProvider(uint providerId) private {
+        uint activeProviderIndexPlusOne = _activeProviderIndexPlusOne[providerId];
+        if (activeProviderIndexPlusOne == 0) return;
+
+        uint activeProviderIndex = activeProviderIndexPlusOne - 1;
+        uint lastIndex = _activeProviderIds.length - 1;
+        if (activeProviderIndex != lastIndex) {
+            uint lastProviderIdInList = _activeProviderIds[lastIndex];
+            _activeProviderIds[activeProviderIndex] = lastProviderIdInList;
+            _activeProviderIndexPlusOne[lastProviderIdInList] = activeProviderIndexPlusOne;
+        }
+        _activeProviderIds.pop();
+        _activeProviderIndexPlusOne[providerId] = 0;
+    }
+
+     /// @notice Adds a provider id to the active discovery enumeration set
+    /// @param providerId The provider id to add
+    function _addActiveProvider(uint providerId) private {
+        if (_activeProviderIndexPlusOne[providerId] != 0) return;
+
+        _activeProviderIds.push(providerId);
+        _activeProviderIndexPlusOne[providerId] = _activeProviderIds.length;
     }
 
     function _checkAdminPendingRegistration(address providerAddress) private view {

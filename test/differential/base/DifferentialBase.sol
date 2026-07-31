@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 import {Test} from "forge-std/Test.sol";
 import {HelperConfig} from "../../../script/HelperConfig.s.sol";
+import {Options} from "openzeppelin-foundry-upgrades/Options.sol";
 import {DeployFlyover} from "../../../script/deployment/DeployFlyover.s.sol";
 import {IDifferentialAdapter} from "../adapters/IDifferentialAdapter.sol";
 import {CandidateAdapter} from "../adapters/CandidateAdapter.sol";
@@ -18,6 +19,7 @@ abstract contract DifferentialBase is Test {
 
     struct NetworkHarness {
         uint256 forkId;
+        bool isMainnet;
         address referenceTarget;
         address candidatePegInTarget;
         address candidatePegOutTarget;
@@ -53,6 +55,7 @@ abstract contract DifferentialBase is Test {
         harness.forkId = _createForkSafe(rpcUrl, pinBlock);
 
         vm.selectFork(harness.forkId);
+        harness.isMainnet = isMainnet;
 
         HelperConfig helper = new HelperConfig();
         HelperConfig.FlyoverConfig memory flyoverCfg = helper
@@ -119,6 +122,14 @@ abstract contract DifferentialBase is Test {
     function _resolveReference(
         string memory networkKey
     ) internal view returns (address) {
+        try vm.envAddress("DIFF_LBC_REFERENCE_ADDRESS") returns (
+            address envAddr
+        ) {
+            if (envAddr != address(0)) {
+                return envAddr;
+            }
+        } catch {}
+
         string memory addressesJson = vm.readFile("addresses.json");
         string memory key = string.concat(
             ".",
@@ -182,10 +193,12 @@ abstract contract DifferentialBase is Test {
         cfg.btcBlockTime = btcBlockTime;
 
         DeployFlyover deployer = new DeployFlyover();
+        Options memory opts = helper.getOptions();
+        opts.unsafeSkipAllChecks = true;
         DeployFlyover.FlyoverDeployment memory d = deployer.deployForTesting(
             address(deployer),
             cfg,
-            helper.getOptions()
+            opts
         );
         targets.pegIn = d.pegInProxy;
         targets.pegOut = d.pegOutProxy;

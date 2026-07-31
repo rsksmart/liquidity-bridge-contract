@@ -473,7 +473,10 @@ contract DifferentialParityDiffTest is DifferentialBase {
         });
     }
 
-    function _btcAddress21() internal pure returns (bytes memory) {
+    function _btcAddress21() internal view returns (bytes memory) {
+        if (_getHarness().isMainnet) {
+            return hex"0000112233445566778899aabbccddeeff00112233";
+        }
         return hex"6f00112233445566778899aabbccddeeff00112233";
     }
 }
