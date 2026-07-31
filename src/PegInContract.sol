@@ -17,6 +17,7 @@ import {IPegIn} from "./interfaces/IPegIn.sol";
 import {IPegInAddressRegistry} from "./interfaces/IPegInAddressRegistry.sol";
 import {IPegInCommitFirst} from "./interfaces/IPegInCommitFirst.sol";
 import {Flyover} from "./libraries/Flyover.sol";
+import {PegInDerivation} from "./libraries/PegInDerivation.sol";
 import {Quotes} from "./libraries/Quotes.sol";
 import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 
@@ -327,13 +328,13 @@ contract PegInContract is
     /// @inheritdoc IPegInCommitFirst
     function requestPegIn(
         address rskAddr,
-        uint256 amount,
-        bytes32 btcTxHash,
+        bytes calldata btcTxSerialized,
         bytes calldata opReturn,
         bytes32 btcBlockHash,
         uint256 merkleBranchPath,
         bytes32[] calldata merkleBranchHashes
     ) external payable nonReentrant whenNotHardPaused override returns (bytes32 pegInId) {
+        bytes32 btcTxHash = BtcUtils.hashBtcTx(btcTxSerialized);
         pegInId = keccak256(abi.encodePacked(rskAddr, btcTxHash));
         if (_pegInClaims[pegInId].claimer != address(0)) {
             revert PegInAlreadyProcessed(pegInId);
@@ -343,6 +344,7 @@ contract PegInContract is
         if (!_pegInAddressRegistry.isRegistered(rskAddr)) {
             revert AddressNotRegistered(rskAddr);
         }
+        uint256 amount = _derivePegInAmount(rskAddr, btcTxSerialized, btcTxHash);
         _requirePegInConfirmations(amount, btcTxHash, btcBlockHash, merkleBranchPath, merkleBranchHashes);
 
         uint256 fee = _configurations.calculatePegInFee(amount);
@@ -447,6 +449,36 @@ contract PegInContract is
     function _requirePegInDepsSet() private view {
         if (address(_pegInAddressRegistry) == address(0)) revert PegInAddressRegistryNotSet();
         if (address(_configurations) == address(0)) revert FlyoverConfigurationsNotSet();
+    }
+
+    /// @notice Reads the peg-in amount out of the deposit transaction
+    /// @dev The contract derives the deposit scriptPubkey for rskAddr and takes the value of the
+    /// output paying it, through the same {PegInDerivation} helpers the registry uses at
+    /// registration. Both the derivation inputs (this proxy's address, the live powpeg script,
+    /// the network flag) and the matched output come from state or from the SPV-proven bytes, so
+    /// there is no argument a caller can move to change the answer.
+    ///
+    /// The powpeg script is read fresh from the bridge on every call, so a federation change
+    /// rotates the expected script here exactly as it rotates the issued address. In-flight
+    /// deposits to a pre-rotation address stop matching, which is the drain-then-rotate cost
+    /// PegInDerivation documents, not a new failure mode.
+    /// @param rskAddr The RSK destination address of the peg-in
+    /// @param btcTxSerialized The witness-stripped raw deposit transaction
+    /// @param btcTxHash The txid hashed from btcTxSerialized, for the revert reason
+    /// @return The gross peg-in amount in wei
+    function _derivePegInAmount(address rskAddr, bytes calldata btcTxSerialized, bytes32 btcTxHash)
+        private
+        view
+        returns (uint256)
+    {
+        bytes memory expectedPkScript = PegInDerivation.expectedDepositPkScript(
+            rskAddr, address(this), _bridge.getActivePowpegRedeemScript(), _mainnet
+        );
+        (uint64 depositSats, bool found) = PegInDerivation.matchedDepositValue(btcTxSerialized, expectedPkScript);
+        if (!found) {
+            revert DepositOutputNotFound(rskAddr, btcTxHash);
+        }
+        return uint256(depositSats) * Quotes.SAT_TO_WEI_CONVERSION;
     }
 
     /// @notice Reverts unless Bridge confirmations meet the configured tier for amount

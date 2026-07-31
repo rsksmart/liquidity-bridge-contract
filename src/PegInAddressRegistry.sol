@@ -206,6 +206,10 @@ contract PegInAddressRegistry is
     }
 
     /// @notice Derives the on-chain P2SH scriptPubkey for a deposit output match.
+    /// @dev Reads the live powpeg script and hands the composition to
+    /// {PegInDerivation-expectedDepositPkScript}. The registry holds no derivation of its own:
+    /// `PegInContract.requestPegIn` matches deposits against that same helper, so the script that
+    /// gates registration is the script that fixes the peg-in amount.
     /// @param isMainnet Whether the derivation targets mainnet or testnet — the BTC placeholders
     /// mixed into the value are per-network, so this must match the flag used at issuance
     function _expectedDepositPkScript(address rskAddr, address pegInContract, IBridge bridge_, bool isMainnet)
@@ -213,28 +217,24 @@ contract PegInAddressRegistry is
         view
         returns (bytes memory)
     {
-        bytes memory powpegRedeemScript = bridge_.getActivePowpegRedeemScript();
-        bytes32 derivationValue = PegInDerivation.derivationValue(rskAddr, pegInContract, isMainnet);
-        bytes memory redeemScript = PegInDerivation.flyoverRedeemScript(derivationValue, powpegRedeemScript);
-        bytes20 scriptHash = PegInDerivation.flyoverScriptHash(redeemScript);
-        return PegInDerivation.p2shScriptPubkey(scriptHash);
+        return PegInDerivation.expectedDepositPkScript(
+            rskAddr, pegInContract, bridge_.getActivePowpegRedeemScript(), isMainnet
+        );
     }
 
     /// @notice Returns the satoshi value of the output paying the derived deposit script.
+    /// @dev Thin wrapper over {PegInDerivation-matchedDepositValue} that turns the library's
+    /// found flag into the registry's own named error.
     function _matchedDepositValue(bytes calldata btcTxSerialized, bytes memory expectedPkScript, address rskAddr)
         private
         pure
         returns (uint64 depositValue)
     {
-        BtcUtils.TxRawOutput[] memory outputs = BtcUtils.getOutputs(btcTxSerialized);
-        bytes32 expectedHash = keccak256(expectedPkScript);
-        uint256 outputCount = outputs.length;
-        for (uint256 i = 0; i < outputCount; ++i) {
-            if (keccak256(outputs[i].pkScript) == expectedHash) {
-                return outputs[i].value;
-            }
+        bool found;
+        (depositValue, found) = PegInDerivation.matchedDepositValue(btcTxSerialized, expectedPkScript);
+        if (!found) {
+            revert DepositOutputNotFound(rskAddr);
         }
-        revert DepositOutputNotFound(rskAddr);
     }
 
     /// @notice Derives the BTC deposit address for an RSK address against a supplied powpeg script.

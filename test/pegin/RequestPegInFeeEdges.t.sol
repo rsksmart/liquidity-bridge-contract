@@ -12,10 +12,11 @@ contract RequestPegInFeeEdgesTest is RequestPegInTestBase {
         uint256 amount = TEST_MIN_PEGIN;
         uint256 fee = _expectedFee(amount);
         uint256 net = amount - fee;
-        bytes32 pegInId = _pegInId(rskUser, DEFAULT_BTC_TX_HASH);
+        bytes memory btcTx = _depositTx(rskUser, amount);
+        bytes32 pegInId = _pegInIdForTx(rskUser, btcTx);
 
         uint256 userBefore = rskUser.balance;
-        _requestPegIn(claimer, rskUser, amount, DEFAULT_BTC_TX_HASH, net);
+        _requestPegInTx(claimer, rskUser, btcTx, net);
 
         assertEq(
             rskUser.balance,
@@ -31,11 +32,12 @@ contract RequestPegInFeeEdgesTest is RequestPegInTestBase {
         uint256 amount = DEFAULT_MAX_AMOUNT;
         uint256 fee = _expectedFee(amount);
         uint256 net = amount - fee;
-        bytes32 pegInId = _pegInId(rskUser, DEFAULT_BTC_TX_HASH);
+        bytes memory btcTx = _depositTx(rskUser, amount);
+        bytes32 pegInId = _pegInIdForTx(rskUser, btcTx);
 
         vm.deal(claimer, amount);
         uint256 userBefore = rskUser.balance;
-        _requestPegIn(claimer, rskUser, amount, DEFAULT_BTC_TX_HASH, net);
+        _requestPegInTx(claimer, rskUser, btcTx, net);
 
         assertEq(
             rskUser.balance,
@@ -52,6 +54,7 @@ contract RequestPegInFeeEdgesTest is RequestPegInTestBase {
         // Fee strictly greater than the amount: amount < fee path -> IncorrectFronting(0, msg.value).
         configurations.setFee(amount + 1, 0);
         uint256 sentValue = 1;
+        bytes memory btcTx = _depositTx(rskUser, amount);
 
         vm.prank(claimer);
         vm.expectRevert(
@@ -63,8 +66,7 @@ contract RequestPegInFeeEdgesTest is RequestPegInTestBase {
         );
         pegInContract.requestPegIn{value: sentValue}(
             rskUser,
-            amount,
-            DEFAULT_BTC_TX_HASH,
+            btcTx,
             "",
             bytes32(0),
             0,
