@@ -213,7 +213,7 @@ abstract contract RequestPegInTestBase is PegInTestBase {
         address rskAddr
     ) internal view returns (bytes memory) {
         return
-            PegInDerivation.expectedDepositPkScript(
+            PegInDerivation.depositPkScript(
                 rskAddr,
                 address(pegInContract),
                 bridgeMock.getActivePowpegRedeemScript()

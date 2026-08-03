@@ -122,8 +122,8 @@ contract PegInAddressRegistry is
         address pegInContract = $.pegInContract;
         if (pegInContract == address(0)) revert PegInContractNotSet();
 
-        bytes memory expectedPkScript = _expectedDepositPkScript(rskAddr, pegInContract, $.bridge);
-        uint64 depositValue = _matchedDepositValue(btcTxSerialized, expectedPkScript, rskAddr);
+        bytes memory expectedPkScript = _depositPkScript(rskAddr, pegInContract, $.bridge);
+        uint64 depositValue = _requireDepositValue(btcTxSerialized, expectedPkScript, rskAddr);
 
         if (depositValue < MIN_DEPOSIT_SATS) {
             revert DepositBelowMinimum(depositValue, MIN_DEPOSIT_SATS);
@@ -207,29 +207,32 @@ contract PegInAddressRegistry is
 
     /// @notice Derives the on-chain P2SH scriptPubkey for a deposit output match.
     /// @dev Reads the live powpeg script and hands the composition to
-    /// {PegInDerivation-expectedDepositPkScript}. The registry holds no derivation of its own:
+    /// {PegInDerivation-depositPkScript}. The registry holds no derivation of its own:
     /// `PegInContract.requestPegIn` matches deposits against that same helper, so the script that
     /// gates registration is the script that fixes the peg-in amount.
-    function _expectedDepositPkScript(address rskAddr, address pegInContract, IBridge bridge_)
+    function _depositPkScript(address rskAddr, address pegInContract, IBridge bridge_)
         private
         view
         returns (bytes memory)
     {
-        return PegInDerivation.expectedDepositPkScript(
+        return PegInDerivation.depositPkScript(
             rskAddr, pegInContract, bridge_.getActivePowpegRedeemScript()
         );
     }
 
-    /// @notice Returns the satoshi value of the output paying the derived deposit script.
-    /// @dev Thin wrapper over {PegInDerivation-matchedDepositValue} that turns the library's
-    /// found flag into the registry's own named error.
-    function _matchedDepositValue(bytes calldata btcTxSerialized, bytes memory expectedPkScript, address rskAddr)
+    /// @notice Returns the satoshi value of the first output paying the derived deposit script,
+    /// reverting when the transaction has none.
+    /// @dev Thin wrapper over {PegInDerivation-findFirstBtcOutputPaying} that turns the library's
+    /// found flag into the registry's own named error. Here the value is only compared against
+    /// MIN_DEPOSIT_SATS, so the library's first-match rule undercounts in the conservative
+    /// direction; `PegInContract` uses the same helper for the peg-in amount, where it does not.
+    function _requireDepositValue(bytes calldata btcTxSerialized, bytes memory pkScript, address rskAddr)
         private
         pure
         returns (uint64 depositValue)
     {
         bool found;
-        (depositValue, found) = PegInDerivation.matchedDepositValue(btcTxSerialized, expectedPkScript);
+        (depositValue, found) = PegInDerivation.findFirstBtcOutputPaying(btcTxSerialized, pkScript);
         if (!found) {
             revert DepositOutputNotFound(rskAddr);
         }

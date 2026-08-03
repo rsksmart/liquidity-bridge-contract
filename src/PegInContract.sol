@@ -453,8 +453,10 @@ contract PegInContract is
 
     /// @notice Reads the peg-in amount out of the deposit transaction
     /// @dev The contract derives the deposit scriptPubkey for rskAddr and takes the value of the
-    /// output paying it, through the same {PegInDerivation} helpers the registry uses at
-    /// registration. Both the derivation inputs (this proxy's address and the live powpeg script)
+    /// FIRST output paying it, through the same {PegInDerivation} helpers the registry uses at
+    /// registration. See {PegInDerivation-findFirstBtcOutputPaying} for why first-match and not the
+    /// sum, and why that is the open question here rather than in the registry.
+    /// Both the derivation inputs (this proxy's address and the live powpeg script)
     /// and the matched output come from state or from the SPV-proven bytes, so there is no
     /// argument a caller can move to change the answer.
     ///
@@ -471,10 +473,11 @@ contract PegInContract is
         view
         returns (uint256)
     {
-        bytes memory expectedPkScript = PegInDerivation.expectedDepositPkScript(
+        bytes memory expectedPkScript = PegInDerivation.depositPkScript(
             rskAddr, address(this), _bridge.getActivePowpegRedeemScript()
         );
-        (uint64 depositSats, bool found) = PegInDerivation.matchedDepositValue(btcTxSerialized, expectedPkScript);
+        (uint64 depositSats, bool found) =
+            PegInDerivation.findFirstBtcOutputPaying(btcTxSerialized, expectedPkScript);
         if (!found) {
             revert DepositOutputNotFound(rskAddr, btcTxHash);
         }

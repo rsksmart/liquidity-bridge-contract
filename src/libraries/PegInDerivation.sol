@@ -34,7 +34,7 @@ import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCod
 /// The pipeline does not stop at the address. Every consumer that reads a VALUE out of a deposit
 /// transaction — the registry gating registration, `PegInContract.requestPegIn` computing the
 /// peg-in amount — must match outputs against the SAME script this library derives, so
-/// {expectedDepositPkScript} and {matchedDepositValue} live here too. A caller-supplied amount is
+/// {depositPkScript} and {findFirstBtcOutputPaying} live here too. A caller-supplied amount is
 /// never an input to either path: the amount is a value the contract computes.
 ///
 /// Two known pitfalls, both proven on-chain and both encoded as negative tests:
@@ -166,7 +166,7 @@ library PegInDerivation {
     /// @param activePowpegRedeemScript The live powpeg redeem script, read from the bridge at
     /// call time — never stored
     /// @return The 23-byte P2SH scriptPubkey of the deposit address
-    function expectedDepositPkScript(
+    function depositPkScript(
         address rskAddr,
         address pegInContract,
         bytes memory activePowpegRedeemScript
@@ -176,30 +176,34 @@ library PegInDerivation {
         return p2shScriptPubkey(flyoverScriptHash(redeemScript));
     }
 
-    /// @notice The satoshi value of the FIRST output of `btcTxSerialized` paying `expectedPkScript`.
-    /// @dev First match, not the sum of every matching output. A deposit split across several
-    /// outputs to the same derived address therefore counts only its first output, which
-    /// UNDERSTATES the deposit. That direction is the safe one — the claimer fronts less than the
-    /// bridge will release and settlement covers the claim — and it is the rule the registry has
-    /// always applied, so the value that gates registration and the value that fixes the peg-in
-    /// amount stay identical. Summing would have to change both call sites at once.
+    /// @notice Searches the outputs of `btcTxSerialized` for the FIRST one locked by `pkScript`
+    /// and returns its satoshi value.
+    /// @dev A search, not an accessor: the `found` flag is the failure mode, and both call sites
+    /// turn it into their own named error (a library revert would flatten the two into one).
     ///
-    /// Returns a found flag rather than reverting: the two call sites revert with their own named
-    /// errors, and a library revert would flatten them into one.
+    /// FIRST match, not the sum of every matching output. A deposit split across several outputs
+    /// to the same derived address therefore counts only its first output, which UNDERSTATES the
+    /// deposit — the name says `First` so no caller mistakes this for the amount paid. The rule is
+    /// inherited from the registry, where the value is only a minimum-deposit gate and
+    /// undercounting is conservative. `PegInContract.requestPegIn` uses it as the peg-in AMOUNT,
+    /// where undercounting silently drops the user's remaining outputs, so summing is the likely
+    /// correct rule there; it is not applied yet because the two call sites must move together and
+    /// because the reconciling side (`resolvePegIn`, and whether the RSK bridge sums outputs to the
+    /// derivation address) is not implemented. Revisit with settlement.
     /// @param btcTxSerialized The witness-stripped raw deposit transaction
-    /// @param expectedPkScript The scriptPubkey from {expectedDepositPkScript}
+    /// @param pkScript The scriptPubkey to search for, from {depositPkScript}
     /// @return value The matched output's value in satoshis, 0 when no output matched
-    /// @return found Whether any output paid `expectedPkScript`
-    function matchedDepositValue(bytes calldata btcTxSerialized, bytes memory expectedPkScript)
+    /// @return found Whether any output was locked by `pkScript`
+    function findFirstBtcOutputPaying(bytes calldata btcTxSerialized, bytes memory pkScript)
         internal
         pure
         returns (uint64 value, bool found)
     {
         BtcUtils.TxRawOutput[] memory outputs = BtcUtils.getOutputs(btcTxSerialized);
-        bytes32 expectedHash = keccak256(expectedPkScript);
+        bytes32 pkScriptHash = keccak256(pkScript);
         uint256 outputCount = outputs.length;
         for (uint256 i = 0; i < outputCount; ++i) {
-            if (keccak256(outputs[i].pkScript) == expectedHash) {
+            if (keccak256(outputs[i].pkScript) == pkScriptHash) {
                 return (outputs[i].value, true);
             }
         }
