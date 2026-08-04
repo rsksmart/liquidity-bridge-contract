@@ -62,7 +62,7 @@ interface IFlyoverConfigurations {
 
     /// @notice Queues a configuration change, the first step of the time-locked admin change
     /// @dev Admin-only. The change activates only through applyChange after the configured
-    /// delay; the values are validated against the immutable deployment bounds at queue time.
+    /// delay; the values are validated against the active bounds at queue time.
     /// Returns nothing. Walkthrough anchors: step 2, decision block 2·D.
     /// @param newConfiguration The configuration to activate after the delay
     function queueChange(PegConfiguration calldata newConfiguration) external;
@@ -70,7 +70,9 @@ interface IFlyoverConfigurations {
     /// @notice Activates the queued configuration change, the second step of the time-locked
     /// admin change
     /// @dev Admin-only. Reverts before the configured delay has elapsed; the values are
-    /// re-validated against the immutable deployment bounds at apply time. Returns nothing.
+    /// re-validated against the active bounds at apply time, which may themselves have moved
+    /// during the delay through the implementation's own time-locked bounds change.
+    /// Returns nothing.
     /// Walkthrough anchors: step 2, decision block 2·D.
     function applyChange() external;
 }
