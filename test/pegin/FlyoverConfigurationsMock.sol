@@ -96,17 +96,16 @@ contract FlyoverConfigurationsMock is IFlyoverConfigurations {
     }
 
     /// @inheritdoc IFlyoverConfigurations
-    function calculatePegOutFee(uint256) external view override returns (uint256) {
+    function calculatePegOutFee(
+        uint256
+    ) external view override returns (uint256) {
         revert PegOutNotImplemented();
     }
 
     /// @inheritdoc IFlyoverConfigurations
-    function getRequiredPegOutBtcConfirmations(uint256)
-        external
-        view
-        override
-        returns (uint256)
-    {
+    function getRequiredPegOutBtcConfirmations(
+        uint256
+    ) external view override returns (uint256) {
         revert PegOutNotImplemented();
     }
 
