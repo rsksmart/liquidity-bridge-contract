@@ -13,10 +13,10 @@ import {Flyover} from "./libraries/Flyover.sol";
 /// serve decision, and the settlement path for its amount validation. Admin changes are
 /// time-locked in two steps (queue then apply) and re-validated at both steps against immutable
 /// bounds fixed at deployment, so an admin mistake cannot set absurd values even with the role.
-/// @dev Implements the frozen {IFlyoverConfigurations} (peg-in only); its function signatures and
-/// structs are the shared ABI every consumer depends on, so they must not be changed here.
-/// Upgradeable, ERC-7201 namespaced storage, deployed behind a TransparentUpgradeableProxy per
-/// repo pattern.
+/// @dev Implements the frozen {IFlyoverConfigurations}. Peg-in is fully wired; peg-out interface
+/// methods stub with {PegOutNotImplemented} until the dedicated config storage lands (keeps this
+/// contract compiling against the frozen ABI). Upgradeable, ERC-7201 namespaced storage, deployed
+/// behind a TransparentUpgradeableProxy per repo pattern.
 /// @author Rootstock Labs
 contract FlyoverConfigurations is
     AccessControlDefaultAdminRulesUpgradeable,
@@ -85,6 +85,9 @@ contract FlyoverConfigurations is
     error TimelockNotElapsed(uint256 eta, uint256 nowTime);
     /// @notice Raised when applying while no change is queued.
     error NoQueuedChange();
+    /// @notice Peg-out config storage is not wired yet; interface methods stub until then.
+    /// @dev TODO: wire peg-out config storage and implement peg-out configuration methods
+    error PegOutNotImplemented();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -203,6 +206,41 @@ contract FlyoverConfigurations is
     // solhint-disable-next-line comprehensive-interface
     function getTimelockDelay() external view returns (uint256) {
         return _getBounds().timelockDelay;
+    }
+
+    /// @inheritdoc IFlyoverConfigurations
+    function getPegOutConfiguration()
+        external
+        view
+        override
+        returns (PegOutConfiguration memory)
+    {
+        revert PegOutNotImplemented();
+    }
+
+    /// @inheritdoc IFlyoverConfigurations
+    function calculatePegOutFee(uint256) external view override returns (uint256) {
+        revert PegOutNotImplemented();
+    }
+
+    /// @inheritdoc IFlyoverConfigurations
+    function getRequiredPegOutBtcConfirmations(uint256)
+        external
+        view
+        override
+        returns (uint256)
+    {
+        revert PegOutNotImplemented();
+    }
+
+    /// @inheritdoc IFlyoverConfigurations
+    function queuePegOutChange(PegOutConfiguration calldata) external override {
+        revert PegOutNotImplemented();
+    }
+
+    /// @inheritdoc IFlyoverConfigurations
+    function applyPegOutChange() external override {
+        revert PegOutNotImplemented();
     }
 
     /// @dev fee = fixedFee + amount * percentageFee / 10_000, then rounded DOWN to a satoshi
