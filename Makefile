@@ -988,8 +988,19 @@ mutate-install:
 	@echo "Installing mewt..."
 	curl --proto '=https' --tlsv1.2 -LsSf https://github.com/trailofbits/mewt/releases/latest/download/mewt-installer.sh | sh
 	@echo ""
-	@echo "Installed: $$(command -v mewt || echo '~/.local/bin/mewt (ensure ~/.local/bin is on PATH)')"
-	@mewt --version
+	@mewt_bin="$$(command -v mewt || echo "$$HOME/.local/bin/mewt")"; \
+	if [ ! -x "$$mewt_bin" ]; then \
+		echo "Error: mewt was not found after installation."; \
+		exit 1; \
+	fi; \
+	echo "Installed: $$mewt_bin"; \
+	"$$mewt_bin" --version; \
+	if ! command -v mewt >/dev/null; then \
+		echo ""; \
+		echo "Note: $$(dirname "$$mewt_bin") is not on your PATH."; \
+		echo "Add it so the other mutate-* targets work:"; \
+		echo "  export PATH=\"$$(dirname "$$mewt_bin"):\$$PATH\""; \
+	fi
 
 # Show the mutation scope and check it against the contracts on disk
 .PHONY: mutate-scope

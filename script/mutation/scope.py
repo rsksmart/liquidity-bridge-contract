@@ -108,7 +108,8 @@ def is_allowed(path: str, compiled: list[tuple[str, re.Pattern[str]]]) -> bool:
 def active_contracts() -> list[str]:
     """Every contract under src/ that is eligible for mutation testing."""
     paths = [path.as_posix() for path in sorted(Path("src").rglob("*.sol"))]
-    return [path for path in paths if not path.startswith(EXCLUDED_PREFIXES)]
+    ignore = tuple(_load_config().get("targets", {}).get("ignore", [])) or EXCLUDED_PREFIXES
+    return [path for path in paths if not any(substr in path for substr in ignore)]
 
 
 def cmd_filter() -> int:
