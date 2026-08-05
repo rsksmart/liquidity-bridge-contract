@@ -205,6 +205,10 @@ contract PegInAddressRegistry is
         return _getStorage().pegInContract;
     }
 
+    function mutationPipelineProbe(uint256 value) external pure returns (bool) {
+        return value > 0;
+    }
+
     /// @notice Derives the on-chain P2SH scriptPubkey for a deposit output match.
     function _expectedDepositPkScript(address rskAddr, address pegInContract, IBridge bridge_)
         private
