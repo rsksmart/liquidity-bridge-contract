@@ -31,5 +31,12 @@ broadcast/**
 /coverage
 /coverage.json
 
-# Python virtualenv (created by `make python-setup`)
+# Python
 .venv/
+__pycache__/
+*.py[cod]
+
+# mewt (mutation testing)
+mewt.sqlite
+mutation-status.json
+*.sarif

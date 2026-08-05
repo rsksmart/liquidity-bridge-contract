@@ -1,0 +1,79 @@
+db = "mewt.sqlite"
+
+[log]
+level = "info"
+
+[targets]
+# Must stay in sync with the [[per_target]] globs below
+include = [
+  "src/PegInContract.sol",
+  "src/PegOutContract.sol",
+  "src/CollateralManagement.sol",
+  "src/FlyoverDiscovery.sol",
+  "src/FlyoverConfigurations.sol",
+  "src/PegInAddressRegistry.sol",
+  "src/PauseRegistry.sol",
+  "src/EmergencyPause/EmergencyPause.sol",
+  "src/libraries/PegInDerivation.sol",
+  "src/libraries/SignatureValidator.sol",
+  "src/libraries/Quotes.sol",
+  "src/libraries/FlyoverConfigurationsRegtest.sol",
+  "src/libraries/Flyover.sol",
+]
+ignore = ["src/interfaces/", "src/legacy/", "src/test-contracts/", "src/test/", "node_modules"]
+
+# no [test].cmd to avoid silently running the whole unit suite
+[test]
+timeout = 120
+
+[[per_target]]
+glob = "src/PegInContract.sol"
+test.cmd = "forge test --match-path \"test/pegin/*.t.sol\""
+
+[[per_target]]
+glob = "src/PegOutContract.sol"
+test.cmd = "forge test --match-path \"test/pegout/*.t.sol\""
+
+[[per_target]]
+glob = "src/CollateralManagement.sol"
+test.cmd = "forge test --match-path \"test/collateral/*.t.sol\""
+
+[[per_target]]
+glob = "src/FlyoverDiscovery.sol"
+test.cmd = "forge test --match-path \"test/discovery/*.t.sol\""
+
+[[per_target]]
+glob = "src/FlyoverConfigurations.sol"
+test.cmd = "forge test --match-path \"test/configurations/*.t.sol\""
+
+[[per_target]]
+glob = "src/PegInAddressRegistry.sol"
+test.cmd = "forge test --match-path \"test/pegin-registry/*.t.sol\""
+
+[[per_target]]
+glob = "src/PauseRegistry.sol"
+test.cmd = "forge test --match-path \"test/Pause.t.sol\""
+
+[[per_target]]
+glob = "src/EmergencyPause/EmergencyPause.sol"
+test.cmd = "forge test --match-path \"test/Pause.t.sol\""
+
+[[per_target]]
+glob = "src/libraries/PegInDerivation.sol"
+test.cmd = "forge test --match-path \"test/libraries/PegInDerivation.t.sol\""
+
+[[per_target]]
+glob = "src/libraries/SignatureValidator.sol"
+test.cmd = "forge test --match-path \"test/libraries/SignatureValidator*.t.sol\""
+
+[[per_target]]
+glob = "src/libraries/Quotes.sol"
+test.cmd = "forge test --match-path \"test/{pegin,pegout}/*.t.sol\""
+
+[[per_target]]
+glob = "src/libraries/FlyoverConfigurationsRegtest.sol"
+test.cmd = "forge test --match-path \"test/configurations/*.t.sol\""
+
+[[per_target]]
+glob = "src/libraries/Flyover.sol"
+test.cmd = "forge test --match-path \"test/{pegin,pegout,collateral,discovery}/*.t.sol\""

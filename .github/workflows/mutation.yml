@@ -1,0 +1,230 @@
+name: Mutation testing
+
+# Advisory only: this workflow reports surviving mutants but never fails a PR.
+# `mewt run` exits 0 even when mutants survive, so any gating would have to be
+# built on top of `mewt status --format json` deliberately.
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      targets:
+        description: "Space-separated contracts to mutate (defaults to the changed ones)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mutation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          # Full history so the base ref is available to `git diff`.
+          fetch-depth: 0
+
+      # Drift guard. Advisory like the rest of the job: remove continue-on-error
+      # to make an unmapped contract block the PR.
+      - name: Check mutation scope
+        id: scope
+        continue-on-error: true
+        run: ./script/mutation/check-scope.sh
+
+      - name: Report scope drift
+        if: steps.scope.outcome == 'failure'
+        run: |
+          {
+            echo "### Mutation scope drift"
+            echo
+            echo "\`mewt.toml\` no longer matches the contracts under \`src/\`."
+            echo "Contracts without a \`[[per_target]]\` mapping are skipped by mutation testing."
+            echo
+            echo "Run \`make mutate-scope\` locally for details."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Resolve targets
+        id: targets
+        env:
+          # Passed through the environment rather than interpolated into the
+          # script, so neither input can inject shell.
+          INPUT_TARGETS: ${{ github.event.inputs.targets }}
+          # Empty on workflow_dispatch, where there is no PR to diff against.
+          HEAD_BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [ -n "$INPUT_TARGETS" ]; then
+            # shellcheck disable=SC2086
+            targets="$(printf '%s\n' $INPUT_TARGETS | python3 script/mutation/scope.py filter)"
+          else
+            targets="$(./script/mutation/changed-contracts.sh "origin/${HEAD_BASE_REF:-master}")"
+          fi
+
+          {
+            echo "targets<<EOF"
+            echo "$targets"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          if [ -z "$targets" ]; then
+            echo "has_targets=false" >> "$GITHUB_OUTPUT"
+            echo "No contracts in mutation scope changed; skipping." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "has_targets=true" >> "$GITHUB_OUTPUT"
+
+          # A single contract can produce a few hundred mutants, and every one
+          # of them recompiles. More than one contract does not fit in the job
+          # timeout, so drop to high severity (ER is the only high-severity
+          # Solidity mutation) and say so rather than running out the clock.
+          count="$(printf '%s\n' "$targets" | wc -l | tr -d ' ')"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+
+          if [ "$count" -gt 1 ]; then
+            echo "mutations=ER" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Mutation testing scope reduced"
+              echo
+              echo "This PR changes **$count** contracts in mutation scope."
+              echo "A full campaign on more than one contract does not fit in the job timeout,"
+              echo "so this run is limited to **high severity (ER) mutations only**."
+              echo
+              echo "For a full campaign on a single contract, run it locally:"
+              echo '```'
+              printf '%s\n' "$targets" | sed 's|^|make mutate-file FILE=|'
+              echo '```'
+              echo
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "mutations=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Use Node.js 20.15.1
+        if: steps.targets.outputs.has_targets == 'true'
+        uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v4.0.4
+        with:
+          node-version: "20.15.1"
+
+      - name: NPM Login
+        if: steps.targets.outputs.has_targets == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm config set //npm.pkg.github.com/:_authToken $GITHUB_TOKEN
+
+      # Required: foundry.toml remaps OpenZeppelin and @rsksmart into node_modules.
+      - name: Install dependencies
+        if: steps.targets.outputs.has_targets == 'true'
+        run: npm ci
+
+      - name: Install Foundry
+        if: steps.targets.outputs.has_targets == 'true'
+        uses: "foundry-rs/foundry-toolchain@50d5a8956f2e319df19e6b57539d7e2acb9f8c1e" # v1.5.0
+        with:
+          version: stable
+
+      - name: Resolve mewt version
+        if: steps.targets.outputs.has_targets == 'true'
+        id: mewt-version
+        run: |
+          tag="$(curl -sL https://api.github.com/repos/trailofbits/mewt/releases/latest | jq -r '.tag_name')"
+          # A rate-limited lookup must not cache an install under a bogus key.
+          if [ -z "$tag" ] || [ "$tag" = "null" ]; then
+            tag="unresolved-${{ github.run_id }}"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Cache mewt
+        if: steps.targets.outputs.has_targets == 'true'
+        id: mewt-cache
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        with:
+          path: ~/.local/bin/mewt
+          key: mewt-${{ runner.os }}-${{ steps.mewt-version.outputs.tag }}
+
+      - name: Install mewt
+        if: steps.targets.outputs.has_targets == 'true' && steps.mewt-cache.outputs.cache-hit != 'true'
+        run: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/trailofbits/mewt/releases/latest/download/mewt-installer.sh | sh
+
+      - name: Add mewt to PATH
+        if: steps.targets.outputs.has_targets == 'true'
+        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      # Targets are always passed explicitly, which replaces [targets].include
+      # for this invocation. They are already intersected with the allowlist.
+      - name: Run mutation campaign
+        if: steps.targets.outputs.has_targets == 'true'
+        continue-on-error: true
+        env:
+          TARGETS: ${{ steps.targets.outputs.targets }}
+          MUTATIONS: ${{ steps.targets.outputs.mutations }}
+        run: |
+          if [ -n "$MUTATIONS" ]; then
+            set -- --mutations "$MUTATIONS"
+          else
+            set --
+          fi
+          # Word splitting is intended: TARGETS is a newline-separated path list.
+          # shellcheck disable=SC2086
+          mewt run "$@" $TARGETS
+
+      - name: Summarize results
+        if: steps.targets.outputs.has_targets == 'true'
+        env:
+          TARGETS: ${{ steps.targets.outputs.targets }}
+          MUTATIONS: ${{ steps.targets.outputs.mutations }}
+        run: |
+          mewt status --format json > mutation-status.json
+
+          {
+            echo "### Mutation testing"
+            echo
+            echo "**Contracts mutated:**"
+            printf '%s\n' "$TARGETS" | sed 's|^|- `|; s|$|`|'
+            echo
+            if [ -n "$MUTATIONS" ]; then
+              echo "**Mutations executed:** \`$MUTATIONS\` only (high severity). Medium/low rates below are \`n/a\` because those mutants were not run."
+            else
+              echo "**Mutations executed:** all severities (default mewt set for Solidity)."
+            fi
+            echo
+            echo "| Contract | Mutants | Tested | Caught | Uncaught | Timeout | High | Medium | Low |"
+            echo "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"
+            jq -r '
+              def pct: if . == null then "n/a" else "\(. * 10 | round / 10)%" end;
+              .targets[]
+              | "| \(.path) | \(.total_mutants) | \(.tested) | \(.caught) | \(.uncaught) | \(.timeout) "
+                + "| \(.high_catch_rate | pct) | \(.medium_catch_rate | pct) | \(.low_catch_rate | pct) |"
+            ' mutation-status.json
+            echo
+            jq -r '
+              def pct: if . == null then "n/a" else "\(. * 10 | round / 10)%" end;
+              .campaign
+              | "Tested \(.tested) of \(.total_mutants) mutants: \(.caught) caught, "
+                + "\(.uncaught) uncaught, \(.timeout) timed out "
+                + "(catch rate high \(.high_catch_rate | pct), medium \(.medium_catch_rate | pct), "
+                + "low \(.low_catch_rate | pct))."
+            ' mutation-status.json
+            echo
+            echo "Advisory only: surviving mutants do not fail this job."
+            echo "Survivors are annotated on the PR via SARIF (Code Scanning)."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Generate SARIF
+        if: steps.targets.outputs.has_targets == 'true'
+        run: mewt results --format sarif > mutation.sarif
+
+      - name: Upload SARIF file
+        if: steps.targets.outputs.has_targets == 'true'
+        uses: github/codeql-action/upload-sarif@48ab28a6f5dbc2a99bf1e0131198dd8f1df78169 # v3.28.0
+        with:
+          sarif_file: mutation.sarif
+          category: mutation-testing
