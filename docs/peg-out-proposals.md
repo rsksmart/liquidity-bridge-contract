@@ -128,7 +128,93 @@ The first commit-first sketch matched the diagram shape above (user escrows → 
 - Moves custody at claim through `registerClaimedPegOut` and disables legacy `depositPegOut` when escrow is set, avoiding twin quote state.
 - Keeps `globalSlash` off the critical path of `refundOnNoClaim` (`GlobalSlashSkipped`).
 
-The LP claim-and-fail discipline is **out of scope for this PoC** and is not part of the flow above.
+The LP claim-and-fail discipline is **not implemented in this PoC**; see the proposed design below.
+
+---
+
+## Claim-and-fail discipline (proposed)
+
+### Motivation
+
+After an LP claims, they hold the user’s funds on `PegOutContract` until SPV settlement or user refund. A bad LP can sit until `expireDate` / `expireBlock`, force `refundUserPegOut`, and repeat. A flat `penaltyFee` slash may be cheap enough to grief serially. Raising the flat fee alone treats one outage like repeated abuse.
+
+### Design
+
+No separate discipline contract and no special role. **Escrow** keeps per-LP fail state and gates **new** `claimPegOut` calls only. Finishing an already-claimed peg-out (SPV `refundPegOut`, user `refundUserPegOut`) is never blocked by the freeze. Admin revoke / unrevoke only toggles the freeze clock — it never resets the fail counter.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant PegOut as PegOutContract
+    participant Escrow as PegOutEscrow
+    participant LPS as Liquidity Provider
+
+    Note over LPS,Escrow: Bad path — claimed, no BTC by expiry
+    User->>PegOut: refundUserPegOut(requestHash)
+    PegOut->>Escrow: onSettlement(requestHash, REFUNDED)
+    PegOut->>Escrow: onClaimFail(lp)
+    Note right of Escrow: claimFailCount[lp]++<br/>restrictedUntil = now + (BASE ** n) * UNIT
+    PegOut-->>User: Refund + slash
+
+    Note over LPS,Escrow: Later — LP tries to claim again while frozen
+    LPS->>Escrow: claimPegOut(otherRequest, signature)
+    Escrow-->>LPS: revert LpRestricted(lp, restrictedUntil)
+```
+
+### How we see it implemented
+
+**Storage on `PegOutEscrow` (ERC-7201):**
+
+| Field                 | Meaning                                                      |
+| --------------------- | ------------------------------------------------------------ |
+| `claimFailCount[lp]`  | Strike count `n` (starts at 0)                               |
+| `restrictedUntil[lp]` | Unix time; `0` ⇒ not frozen; `type(uint256).max` ⇒ admin ban |
+| `RESTRICTION_UNIT`    | `1 days`                                                     |
+| `RESTRICTION_BASE`    | `2` → freeze = `(2 ** n) * 1 day`                            |
+
+**`claimPegOut` gate (only new claims):**
+
+```solidity
+if (block.timestamp < restrictedUntil[msg.sender]) {
+    revert LpRestricted(msg.sender, restrictedUntil[msg.sender]);
+}
+```
+
+**Automatic bump — only post-claim no-fulfill.** When `PegOutContract.refundUserPegOut` completes for an escrow-claimed request, after (or alongside) `onSettlement(..., REFUNDED)`, call escrow:
+
+```solidity
+function onClaimFail(address lp) external onlyPegOutContract {
+  uint256 n = ++claimFailCount[lp];
+  restrictedUntil[lp] =
+    block.timestamp +
+    ((RESTRICTION_BASE ** n) * RESTRICTION_UNIT);
+}
+
+```
+
+So `n = 1` → 2 days, `n = 2` → 4 days, `n = 3` → 8 days, …
+
+**Admin (does not touch `claimFailCount`):**
+
+```solidity
+function revoke(address lp) external onlyRole(DEFAULT_ADMIN_ROLE) {
+  restrictedUntil[lp] = type(uint256).max; // indefinite ban
+}
+
+function unrevoke(address lp) external onlyRole(DEFAULT_ADMIN_ROLE) {
+  restrictedUntil[lp] = 0; // clear freeze only; strikes remain
+}
+
+```
+
+| Event                                                    | Bump `claimFailCount`? |
+| -------------------------------------------------------- | ---------------------- |
+| `refundUserPegOut` after escrow claim (no SPV by expiry) | yes                    |
+| `refundPegOut` (LP or anyone settles with proof)         | no                     |
+| `cancelPegOut` / `refundOnNoClaim`                       | no                     |
+| Successful fulfill                                       | no                     |
+
+**Not in this proposal:** strike decay over time, or `unrevoke` clearing strikes. Freeze ladder + admin ban are enough for the next increment after the PoC.
 
 ---
 
