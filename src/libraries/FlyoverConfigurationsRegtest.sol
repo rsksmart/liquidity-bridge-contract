@@ -53,6 +53,64 @@ library FlyoverConfigurationsRegtest {
         bound.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
     }
 
+    function pegOutConfig()
+        internal
+        pure
+        returns (IFlyoverConfigurations.PegOutConfiguration memory config)
+    {
+        config.fixedFee = 0.0001 ether; // security floor (claim + proof gas)
+        config.percentageFee = 10;
+        config.minAmount = 0.005 ether;
+        config.maxAmount = 10 ether;
+        config.confirmationTiers = _tiers();
+        config.penaltyFee = 0.01 ether;
+        config.claimWindow = 30 minutes;
+        config.claimWindowBlocks = 600;
+        config.callTime = 2 hours;
+        config.expireTime = 4 hours;
+        // Keep claimWindowBlocks + expireBlocks ≤ PegOutContract's +4000 expireBlock cap.
+        config.expireBlocks = 3_300;
+        config.maxMinerFee = 0.0005 ether; // short-delivery floor cap
+    }
+
+    function pegOutMin()
+        internal
+        pure
+        returns (IFlyoverConfigurations.PegOutConfiguration memory bound)
+    {
+        bound.fixedFee = 0.0001 ether;
+        bound.percentageFee = 0;
+        bound.minAmount = 0.001 ether;
+        bound.maxAmount = 0.01 ether;
+        bound.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
+        bound.penaltyFee = 0.001 ether;
+        bound.claimWindow = 5 minutes;
+        bound.claimWindowBlocks = 1;
+        bound.callTime = 30 minutes;
+        bound.expireTime = 1 hours;
+        bound.expireBlocks = 1;
+        bound.maxMinerFee = 0;
+    }
+
+    function pegOutMax()
+        internal
+        pure
+        returns (IFlyoverConfigurations.PegOutConfiguration memory bound)
+    {
+        bound.fixedFee = 0.01 ether;
+        bound.percentageFee = 1_000;
+        bound.minAmount = 1 ether;
+        bound.maxAmount = 1_000 ether;
+        bound.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
+        bound.penaltyFee = 1 ether;
+        bound.claimWindow = 1 days;
+        bound.claimWindowBlocks = 50_000;
+        bound.callTime = 2 days;
+        bound.expireTime = 7 days;
+        bound.expireBlocks = 200_000;
+        bound.maxMinerFee = 0.1 ether;
+    }
+
     /// @dev Provisional confirmation tiers, strictly ascending by maxAmount. Larger deposits
     /// demand more BTC confirmations before an LP may claim; the last tier's confirmations answer
     /// any amount above the top bound.
