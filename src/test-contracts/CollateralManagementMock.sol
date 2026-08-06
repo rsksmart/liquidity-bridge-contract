@@ -34,6 +34,8 @@ contract CollateralManagementMock is ICollateralManagement {
         emit Penalized(address(0), address(0), bytes32(0), Flyover.ProviderType.PegOut, 0, 0);
     }
 
+    function globalSlash(uint256) external {}
+
     function withdrawRewards() external {
         emit RewardsWithdrawn(msg.sender, msg.sender, 0);
     }
