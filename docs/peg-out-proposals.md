@@ -79,12 +79,12 @@ sequenceDiagram
 
 `PegOutEscrow` is the commit-first layer on top of existing peg-out settlement.
 
-| Responsibility | Contract |
-| --- | --- |
-| User commitment, fee split, quote snapshot, claim race | `PegOutEscrow` |
-| Lifecycle enum (`NONE` → `REQUESTED` → `CLAIMED` → `FULFILLED` / `REFUNDED`; or `REQUESTED` → `CANCELLED` / `REFUNDED` on no-claim) | `PegOutEscrow` |
-| SPV proof, bridge checks, LP payout, individual slash | `PegOutContract` |
-| Shared fees / windows / confirmations | `FlyoverConfigurations` |
+| Responsibility                                                                                                                      | Contract                |
+| ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| User commitment, fee split, quote snapshot, claim race                                                                              | `PegOutEscrow`          |
+| Lifecycle enum (`NONE` → `REQUESTED` → `CLAIMED` → `FULFILLED` / `REFUNDED`; or `REQUESTED` → `CANCELLED` / `REFUNDED` on no-claim) | `PegOutEscrow`          |
+| SPV proof, bridge checks, LP payout, individual slash                                                                               | `PegOutContract`        |
+| Shared fees / windows / confirmations                                                                                               | `FlyoverConfigurations` |
 
 At **claim**, escrow forwards `value + callFee + gasFee` into `registerClaimedPegOut` and stops holding the RBTC. At **settlement**, PegOutContract pays the LP (or refunds the user) and calls `onSettlement` so escrow can leave `CLAIMED`. Escrow does not re-release funds on settle.
 

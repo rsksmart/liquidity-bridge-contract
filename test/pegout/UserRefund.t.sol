@@ -294,7 +294,10 @@ contract UserRefundTest is PegOutTestBase {
         // Verify cannot refund again — completed registry wins over deleted quote body
         vm.prank(user);
         vm.expectRevert(
-            abi.encodeWithSelector(IPegOut.QuoteAlreadyCompleted.selector, quoteHash)
+            abi.encodeWithSelector(
+                IPegOut.QuoteAlreadyCompleted.selector,
+                quoteHash
+            )
         );
         pegOutContract.refundUserPegOut(quoteHash);
     }
