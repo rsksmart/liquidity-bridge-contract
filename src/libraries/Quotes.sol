@@ -104,7 +104,7 @@ library Quotes {
     /// @param quote The peg out quote to hash
     /// @return hashStruct The hash struct to be combined with the domain separator
     function hashPegOutQuoteEIP712(
-        PegOutQuote calldata quote
+        PegOutQuote memory quote
     ) external pure returns (bytes32) {
         return keccak256(abi.encode(
             PEG_OUT_QUOTE_TYPE_HASH,
@@ -121,7 +121,7 @@ library Quotes {
     }
 
     function encodePegOutQuote(
-        PegOutQuote calldata quote
+        PegOutQuote memory quote
     ) external pure returns (bytes memory) {
         // Encode in two parts because abi.encode cannot take more than 12 parameters due to stack depth limits.
         return abi.encode(_encodePegOutPart1(quote), _encodePegOutPart2(quote));

@@ -212,6 +212,11 @@ contract CollateralManagementContract is
     }
 
     /// @inheritdoc ICollateralManagement
+    /// @dev Stub: proportional global slash logic not implemented on this branch yet.
+    function globalSlash(uint256) external onlyRole(COLLATERAL_SLASHER) override {
+    }
+
+    /// @inheritdoc ICollateralManagement
     function withdrawCollateral() external nonReentrant whenNotHardPaused override {
         _withdrawCollateralTo(payable(msg.sender));
     }
