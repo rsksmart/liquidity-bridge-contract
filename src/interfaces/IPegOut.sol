@@ -128,13 +128,19 @@ interface IPegOut is IPausable, IERC5267 {
     /// @param amount The amount of the withdrawal
     function withdraw(address payable addr, uint256 amount) external;
 
-    /// @notice This is the function used to pay for a peg out quote. This is the only correct function to execute
-    /// such payment, sending money directly to the contract does not work.
-    /// The user is expected to and is responsible for reviewing all fields of the quote, as they comprehend the terms
-    /// of the service agreed with the LP before paying.
+    /// @notice Legacy quote path: user pays a pre-signed peg-out quote
+    /// @dev Commit-first flow uses {registerClaimedPegOut} instead; this remains for existing LPS/SDK.
+    /// TODO: drop this when Commit-first flow is complete.
     /// @param quote The quote that is being paid
     /// @param signature The signature of the quote hash provided by the liquidity provider after the quote acceptance
     function depositPegOut(Quotes.PegOutQuote calldata quote, bytes calldata signature) external payable;
+
+    /// @notice Commit-first path: PegOutEscrow registers a claimed peg-out under the request hash
+    /// @dev Only callable by the wired PegOutEscrow. Quote terms stay on escrow; this contract records
+    /// claim timing / completion and holds the forwarded RBTC.
+    /// @param requestHash Escrow-minted request id
+    /// @param signature LP EIP-712 signature over the escrowed quote (with lpRskAddress set)
+    function registerClaimedPegOut(bytes32 requestHash, bytes calldata signature) external payable;
 
     /// @notice This function is used by the liquidity provider to recover the funds spent on the peg out service plus
     /// their fee for the service. It proves the inclusion of the transaction paying to the user in the Bitcoin network.
