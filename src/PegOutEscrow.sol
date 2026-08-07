@@ -32,12 +32,19 @@ contract PegOutEscrow is
 {
     /// @custom:storage-location erc7201:rsk.flyover.PegOutEscrow
     struct PegOutEscrowStorage {
+        /// Settlement contract (claim forwards funds here; also supplies dustThreshold).
         IPegOut pegOutContract;
+        /// Collateral registry used by claim / no-claim slash (wired now; unused until those paths).
         ICollateralManagement collateralManagement;
+        /// Active peg-out fee, bounds, deadlines, and confirmation tiers.
         IFlyoverConfigurations configurations;
+        /// Quote-shaped terms snapshotted at request (deleted on cancel / terminal states).
         mapping(bytes32 => Quotes.PegOutQuote) quotes;
+        /// Lifecycle per requestHash (`NONE` if never requested).
         mapping(bytes32 => EscrowedPegOutState) state;
-        mapping(uint256 => bytes32) idByNonce;
+        /// requestHash for each 1-based nonce; LPS rebuild after missed events.
+        mapping(uint256 => bytes32) requestHashByNonce;
+        /// How many requests have been minted; next request uses `++requestCount`.
         uint256 requestCount;
     }
 
@@ -132,7 +139,7 @@ contract PegOutEscrow is
         if (address($.configurations) == address(0)) revert FlyoverConfigurationsNotSet();
 
         IFlyoverConfigurations.PegOutConfiguration memory cfg = $.configurations.getPegOutConfiguration();
-        (uint256 amount, uint256 callFee, uint256 change) = _splitValue($, msg.value, cfg);
+        (uint256 amount, uint256 callFee, uint256 changeRefund) = _splitValue($, msg.value, cfg);
         if (amount < cfg.minAmount || amount > cfg.maxAmount) {
             revert NotServiceable(amount, cfg.minAmount, cfg.maxAmount);
         }
@@ -141,7 +148,7 @@ contract PegOutEscrow is
         requestHash = _computeRequestHash(nonce, refundAddress, destinationAddress, amount, callFee);
 
         $.state[requestHash] = EscrowedPegOutState.REQUESTED;
-        $.idByNonce[nonce] = requestHash;
+        $.requestHashByNonce[nonce] = requestHash;
 
         uint256 confirmations = $.configurations.getRequiredPegOutBtcConfirmations(amount);
         $.quotes[requestHash] =
@@ -149,9 +156,9 @@ contract PegOutEscrow is
 
         emit PegOutRequested(requestHash, refundAddress, amount, destinationAddress);
 
-        if (change > 0) {
-            emit EscrowPegOutChangePaid(requestHash, refundAddress, change);
-            _payout(refundAddress, change);
+        if (changeRefund > 0) {
+            emit EscrowPegOutChangePaid(requestHash, refundAddress, changeRefund);
+            _payout(refundAddress, changeRefund);
         }
     }
 
@@ -209,7 +216,7 @@ contract PegOutEscrow is
 
     /// @inheritdoc IPegOutEscrow
     function requestIdAt(uint256 nonce) external view override returns (bytes32) {
-        return _getStorage().idByNonce[nonce];
+        return _getStorage().requestHashByNonce[nonce];
     }
 
     // solhint-disable-next-line comprehensive-interface
@@ -297,12 +304,15 @@ contract PegOutEscrow is
         });
     }
 
-    /// @dev Frozen inverse fee split + dust-change against PegOutContract.dustThreshold.
+    /// @dev Derives principal `amount` and `callFee` from `msg.value` (frozen inverse of
+    /// `callFee = fixedFee + percentageFee·amount / 10_000`), floors `amount` to a satoshi,
+    /// then applies dust-change: residual ≥ PegOutContract.dustThreshold is returned as
+    /// `changeRefund`; smaller residual is folded into `callFee` so escrow stays fully attributed.
     function _splitValue(
         PegOutEscrowStorage storage $,
         uint256 value,
         IFlyoverConfigurations.PegOutConfiguration memory cfg
-    ) private view returns (uint256 amount, uint256 callFee, uint256 change) {
+    ) private view returns (uint256 amount, uint256 callFee, uint256 changeRefund) {
         // solhint-disable-next-line gas-strict-inequalities
         if (value <= cfg.fixedFee) {
             revert Flyover.InsufficientAmount(value, cfg.fixedFee + 1);
@@ -311,16 +321,16 @@ contract PegOutEscrow is
             / (FEE_PERCENTAGE_DENOMINATOR + cfg.percentageFee);
         amount -= amount % Quotes.SAT_TO_WEI_CONVERSION;
         callFee = $.configurations.calculatePegOutFee(amount);
-        uint256 required = amount + callFee;
-        if (value < required) {
-            revert Flyover.InsufficientAmount(value, required);
+        uint256 amountPlusCallFee = amount + callFee;
+        if (value < amountPlusCallFee) {
+            revert Flyover.InsufficientAmount(value, amountPlusCallFee);
         }
-        change = value - required;
+        changeRefund = value - amountPlusCallFee;
         uint256 dust = _dustThreshold(address($.pegOutContract));
         // solhint-disable-next-line gas-strict-inequalities
-        if (dust > change) {
-            callFee += change;
-            change = 0;
+        if (dust > changeRefund) {
+            callFee += changeRefund;
+            changeRefund = 0;
         }
     }
 
