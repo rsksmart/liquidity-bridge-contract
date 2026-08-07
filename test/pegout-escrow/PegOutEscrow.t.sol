@@ -29,7 +29,7 @@ contract CodeStub {
 
 }
 
-/// @title PegOutEscrow request + cancel AC coverage (S12-A)
+/// @title PegOutEscrow request + cancel
 contract PegOutEscrowTest is Test {
     /// @dev Mirrors impl-only {PegOutEscrow.EscrowPegOutChangePaid} for expectEmit.
     event EscrowPegOutChangePaid(
