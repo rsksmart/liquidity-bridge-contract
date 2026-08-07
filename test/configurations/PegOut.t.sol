@@ -24,7 +24,10 @@ contract PegOutConfigurationsTest is ConfigurationsTestBase {
         return fee;
     }
 
-    function test_calculatePegOutFee_fixedFloorAndSatoshiRounding() public view {
+    function test_calculatePegOutFee_fixedFloorAndSatoshiRounding()
+        public
+        view
+    {
         assertEq(config.calculatePegOutFee(0), SEED_FIXED_FEE);
 
         uint256 amount = 123_456_789_012_345;
@@ -47,7 +50,8 @@ contract PegOutConfigurationsTest is ConfigurationsTestBase {
     }
 
     function test_queueThenApplyPegOut_updatesActiveAndEmits() public {
-        IFlyoverConfigurations.PegOutConfiguration memory c = _altPegOutConfig();
+        IFlyoverConfigurations.PegOutConfiguration
+            memory c = _altPegOutConfig();
         uint256 expectedEta = block.timestamp + TIMELOCK_DELAY;
 
         vm.expectEmit(true, true, true, true, address(config));
@@ -63,7 +67,8 @@ contract PegOutConfigurationsTest is ConfigurationsTestBase {
         vm.prank(owner);
         config.applyPegOutChange();
 
-        IFlyoverConfigurations.PegOutConfiguration memory active = config.getPegOutConfiguration();
+        IFlyoverConfigurations.PegOutConfiguration memory active = config
+            .getPegOutConfiguration();
         assertEq(active.fixedFee, c.fixedFee);
         assertEq(active.claimWindow, c.claimWindow);
         assertEq(active.callTime, c.callTime);
@@ -81,7 +86,9 @@ contract PegOutConfigurationsTest is ConfigurationsTestBase {
         vm.prank(owner);
         vm.expectRevert(
             abi.encodeWithSelector(
-                FlyoverConfigurations.TimelockNotElapsed.selector, eta, eta - 1
+                FlyoverConfigurations.TimelockNotElapsed.selector,
+                eta,
+                eta - 1
             )
         );
         config.applyPegOutChange();
@@ -92,15 +99,18 @@ contract PegOutConfigurationsTest is ConfigurationsTestBase {
     /// and maxMinerFee (escrow should persist that snapshot at request time).
     function test_configChange_leavesPriorSnapshotUntouched() public {
         uint256 amount = 1 ether;
-        IFlyoverConfigurations.PegOutConfiguration memory snapshot = config.getPegOutConfiguration();
+        IFlyoverConfigurations.PegOutConfiguration memory snapshot = config
+            .getPegOutConfiguration();
         uint256 snapshottedFee = config.calculatePegOutFee(amount);
 
-        IFlyoverConfigurations.PegOutConfiguration memory next = _queueAltPegOut();
+        IFlyoverConfigurations.PegOutConfiguration
+            memory next = _queueAltPegOut();
         vm.warp(block.timestamp + TIMELOCK_DELAY);
         vm.prank(owner);
         config.applyPegOutChange();
 
-        IFlyoverConfigurations.PegOutConfiguration memory live = config.getPegOutConfiguration();
+        IFlyoverConfigurations.PegOutConfiguration memory live = config
+            .getPegOutConfiguration();
         assertEq(live.fixedFee, next.fixedFee);
         assertEq(live.claimWindow, next.claimWindow);
         assertEq(live.callTime, next.callTime);
@@ -116,7 +126,10 @@ contract PegOutConfigurationsTest is ConfigurationsTestBase {
         assertEq(snapshot.callTime, SEED_CALL_TIME);
         assertEq(snapshot.expireTime, SEED_EXPIRE_TIME);
         assertEq(snapshot.maxMinerFee, SEED_MAX_MINER_FEE);
-        assertEq(snapshottedFee, _expectedFee(SEED_FIXED_FEE, SEED_PCT, amount));
+        assertEq(
+            snapshottedFee,
+            _expectedFee(SEED_FIXED_FEE, SEED_PCT, amount)
+        );
         assertTrue(snapshot.fixedFee != live.fixedFee);
         assertTrue(snapshottedFee != config.calculatePegOutFee(amount));
     }
