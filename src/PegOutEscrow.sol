@@ -14,12 +14,6 @@ import {IPegOutEscrow} from "./interfaces/IPegOutEscrow.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 import {Quotes} from "./libraries/Quotes.sol";
 
-/// @dev Narrow read of PegOutContract's public dust threshold (avoid concrete import).
-/// TODO: drop this if dustThreshold is added to {IPegOut} (or another shared interface).
-interface IDustThreshold {
-    function dustThreshold() external view returns (uint256);
-}
-
 /// @title PegOutEscrow
 /// @notice Commit-first peg-out escrow. User deposits RBTC first; LPs claim and settle via
 /// PegOutContract. Fee / deadline parameters come from {IFlyoverConfigurations}.
@@ -326,16 +320,12 @@ contract PegOutEscrow is
             revert Flyover.InsufficientAmount(value, amountPlusCallFee);
         }
         changeRefund = value - amountPlusCallFee;
-        uint256 dust = _dustThreshold(address($.pegOutContract));
+        uint256 dust = $.pegOutContract.dustThreshold();
         // solhint-disable-next-line gas-strict-inequalities
         if (dust > changeRefund) {
             callFee += changeRefund;
             changeRefund = 0;
         }
-    }
-
-    function _dustThreshold(address pegOutContract) private view returns (uint256) {
-        return IDustThreshold(pegOutContract).dustThreshold();
     }
 
     function _requireRequested(PegOutEscrowStorage storage $, bytes32 requestHash) private view {

@@ -200,4 +200,8 @@ interface IPegOut is IPausable, IERC5267 {
     /// @param addr The address to get the balance of
     /// @return balance The balance of the address
     function getBalance(address addr) external view returns (uint256);
+
+    /// @notice Dust threshold for overpayment change refunds (wei)
+    /// @dev Used by depositPegOut and by PegOutEscrow request-time change handling.
+    function dustThreshold() external view returns (uint256);
 }
