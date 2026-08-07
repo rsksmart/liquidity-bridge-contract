@@ -13,6 +13,7 @@ import {IPegOut} from "./interfaces/IPegOut.sol";
 import {IPegOutEscrow} from "./interfaces/IPegOutEscrow.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 import {Quotes} from "./libraries/Quotes.sol";
+import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 
 /// @title PegOutEscrow
 /// @notice Commit-first peg-out escrow. User deposits RBTC first; LPs claim and settle via
@@ -172,9 +173,42 @@ contract PegOutEscrow is
     }
 
     /// @inheritdoc IPegOutEscrow
-    // TODO: implement claim path (LP signature, collateral check, registerClaimedPegOut)
-    function claimPegOut(bytes32, bytes calldata) external override {
-        revert PegOutPathNotImplemented();
+    function claimPegOut(bytes32 requestHash, bytes calldata signature)
+        external
+        override
+        nonReentrant
+        whenNotSoftPaused
+    {
+        PegOutEscrowStorage storage $ = _getStorage();
+        _requireRequested($, requestHash);
+
+        Quotes.PegOutQuote storage q = $.quotes[requestHash];
+        if (block.timestamp > q.depositDateLimit) {
+            revert ClaimWindowClosed(q.depositDateLimit);
+        }
+        if (address($.collateralManagement) == address(0)) revert CollateralManagementNotSet();
+        if (!$.collateralManagement.isRegistered(Flyover.ProviderType.PegOut, msg.sender)) {
+            revert Flyover.ProviderNotRegistered(msg.sender);
+        }
+        if (!$.collateralManagement.isCollateralSufficient(Flyover.ProviderType.PegOut, msg.sender)) {
+            revert IPegOut.InsufficientCollateral(
+                $.collateralManagement.getPegOutCollateral(msg.sender)
+            );
+        }
+
+        q.lpRskAddress = msg.sender;
+        Quotes.PegOutQuote memory signedQuote = q;
+        bytes32 eip712Hash = $.pegOutContract.hashPegOutQuoteEIP712(signedQuote);
+        if (!SignatureValidator.verify(msg.sender, eip712Hash, signature)) {
+            revert SignatureValidator.IncorrectSignature(msg.sender, eip712Hash, signature);
+        }
+
+        $.state[requestHash] = EscrowedPegOutState.CLAIMED;
+
+        uint256 valueToSend = q.value + q.callFee + q.gasFee;
+        emit PegOutClaimed(msg.sender, requestHash);
+
+        $.pegOutContract.registerClaimedPegOut{value: valueToSend}(requestHash, signature);
     }
 
     /// @inheritdoc IPegOutEscrow
