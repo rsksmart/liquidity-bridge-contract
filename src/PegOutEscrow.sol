@@ -232,16 +232,18 @@ contract PegOutEscrow is
         delete $.quotes[requestHash];
     }
 
-    /// @dev ETH transfer that ignores returndata (refundAddress can be a contract).
     // slither-disable-next-line arbitrary-send-eth,low-level-calls
     function _payout(address to, uint256 amount) private {
-        bool sent;
+        address target = to;
+        uint256 value = amount;
+        uint256 gasLimit = gasleft();
+        bytes memory data = "";
+        bool success;
         // solhint-disable-next-line no-inline-assembly
-        assembly ("memory-safe") {
-            // out size 0: do not copy returndata (return-bomb safe)
-            sent := call(gas(), to, amount, 0, 0, 0, 0)
+        assembly {
+            success := call(gasLimit, target, value, add(data, 0x20), mload(data), 0, 0)
         }
-        if (!sent) {
+        if (!success) {
             revert Flyover.PaymentFailed(to, amount, hex"");
         }
     }
