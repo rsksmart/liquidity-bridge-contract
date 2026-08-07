@@ -232,10 +232,17 @@ contract PegOutEscrow is
         delete $.quotes[requestHash];
     }
 
+    /// @dev ETH transfer that ignores returndata (refundAddress can be a contract).
+    // slither-disable-next-line arbitrary-send-eth,low-level-calls
     function _payout(address to, uint256 amount) private {
-        (bool sent, bytes memory reason) = to.call{value: amount}("");
+        bool sent;
+        // solhint-disable-next-line no-inline-assembly
+        assembly ("memory-safe") {
+            // out size 0: do not copy returndata (return-bomb safe)
+            sent := call(gas(), to, amount, 0, 0, 0, 0)
+        }
         if (!sent) {
-            revert Flyover.PaymentFailed(to, amount, reason);
+            revert Flyover.PaymentFailed(to, amount, hex"");
         }
     }
 
@@ -321,6 +328,7 @@ contract PegOutEscrow is
         }
         changeRefund = value - amountPlusCallFee;
         uint256 dust = $.pegOutContract.dustThreshold();
+        // Match PegOutContract.depositPegOut: fold when dust > change (refund when change >= dust).
         // solhint-disable-next-line gas-strict-inequalities
         if (dust > changeRefund) {
             callFee += changeRefund;
