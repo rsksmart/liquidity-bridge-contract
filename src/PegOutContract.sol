@@ -166,8 +166,11 @@ contract PegOutContract is
         }
 
         Quotes.PegOutQuote memory quote = _requireClaimedEscrowQuote(requestHash);
-        if (!_collateralManagement.isCollateralSufficient(_PEG_TYPE, quote.lpRskAddress)) {
+        if (!_collateralManagement.isRegistered(_PEG_TYPE, quote.lpRskAddress)) {
             revert Flyover.ProviderNotRegistered(quote.lpRskAddress);
+        }
+        if (!_collateralManagement.isCollateralSufficient(_PEG_TYPE, quote.lpRskAddress)) {
+            revert InsufficientCollateral(_collateralManagement.getPegOutCollateral(quote.lpRskAddress));
         }
         uint256 requiredAmount = quote.value + quote.callFee + quote.gasFee;
         if (msg.value != requiredAmount) {
