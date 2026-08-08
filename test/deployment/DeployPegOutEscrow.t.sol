@@ -14,10 +14,7 @@ import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
 import {FlyoverConfigurationsRegtest} from "../../src/libraries/FlyoverConfigurationsRegtest.sol";
 import {BridgeMock} from "../../src/test-contracts/BridgeMock.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {
-    TransparentUpgradeableProxy,
-    ITransparentUpgradeableProxy
-} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {TransparentUpgradeableProxy, ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
 /**
@@ -112,10 +109,10 @@ contract DeployPegOutEscrowTest is Test {
         );
     }
 
-    function _deployEscrow(address deployer, uint48 adminDelay)
-        internal
-        returns (address proxy)
-    {
+    function _deployEscrow(
+        address deployer,
+        uint48 adminDelay
+    ) internal returns (address proxy) {
         address impl = address(new PegOutEscrow());
         proxy = address(
             new TransparentUpgradeableProxy(

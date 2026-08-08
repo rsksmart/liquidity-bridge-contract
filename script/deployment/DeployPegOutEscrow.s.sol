@@ -39,7 +39,10 @@ contract DeployPegOutEscrow is Script {
         address configurationsProxy = vm.envAddress(
             "FLYOVER_CONFIGURATIONS_PROXY"
         );
-        require(pauseRegistryProxy != address(0), "PAUSE_REGISTRY_PROXY required");
+        require(
+            pauseRegistryProxy != address(0),
+            "PAUSE_REGISTRY_PROXY required"
+        );
         require(pegOutProxy != address(0), "PEGOUT_PROXY required");
         require(
             collateralManagementProxy != address(0),
@@ -75,15 +78,16 @@ contract DeployPegOutEscrow is Script {
         address configurationsProxy,
         Options memory opts
     ) external returns (DeploymentResult memory) {
-        return _deploy(
-            defaultAdmin,
-            adminDelay,
-            pauseRegistryProxy,
-            pegOutProxy,
-            collateralManagementProxy,
-            configurationsProxy,
-            opts
-        );
+        return
+            _deploy(
+                defaultAdmin,
+                adminDelay,
+                pauseRegistryProxy,
+                pegOutProxy,
+                collateralManagementProxy,
+                configurationsProxy,
+                opts
+            );
     }
 
     function _deploy(

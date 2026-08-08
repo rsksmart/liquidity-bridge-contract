@@ -357,10 +357,7 @@ contract DeployFlyover is Script {
             "PegInAddressRegistry ProxyAdmin:",
             d.pegInAddressRegistryProxyAdmin
         );
-        console.log(
-            "FlyoverConfigurations impl:",
-            d.flyoverConfigurationsImpl
-        );
+        console.log("FlyoverConfigurations impl:", d.flyoverConfigurationsImpl);
         console.log(
             "FlyoverConfigurations proxy:",
             d.flyoverConfigurationsProxy

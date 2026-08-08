@@ -721,9 +721,13 @@ contract PegOutEscrowTest is Test {
         );
     }
 
-    function test_R2_RefundOnNoClaimAtExactLimit_RevertsClaimWindowOpen() public {
+    function test_R2_RefundOnNoClaimAtExactLimit_RevertsClaimWindowOpen()
+        public
+    {
         bytes32 requestHash = _requestDefault();
-        uint256 depositDateLimit = escrow.getPegOutQuote(requestHash).depositDateLimit;
+        uint256 depositDateLimit = escrow
+            .getPegOutQuote(requestHash)
+            .depositDateLimit;
 
         vm.warp(depositDateLimit);
 
@@ -872,7 +876,9 @@ contract PegOutEscrowTest is Test {
         );
     }
 
-    function test_FeeSnapshot_ConfigChangeMidFlight_UnchangedEconomics() public {
+    function test_FeeSnapshot_ConfigChangeMidFlight_UnchangedEconomics()
+        public
+    {
         bytes32 requestHash = _requestDefault();
         Quotes.PegOutQuote memory before = escrow.getPegOutQuote(requestHash);
 
@@ -911,7 +917,10 @@ contract PegOutEscrowTest is Test {
         escrow.claimPegOut(requestHash, signature);
 
         assertEq(escrow.getPegOutQuote(requestHash).callFee, before.callFee);
-        assertEq(escrow.getPegOutQuote(requestHash).penaltyFee, before.penaltyFee);
+        assertEq(
+            escrow.getPegOutQuote(requestHash).penaltyFee,
+            before.penaltyFee
+        );
         assertEq(
             uint256(escrow.getPegOutState(requestHash)),
             uint256(IPegOutEscrow.EscrowedPegOutState.CLAIMED)
