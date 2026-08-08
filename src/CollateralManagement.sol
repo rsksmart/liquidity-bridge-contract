@@ -212,6 +212,13 @@ contract CollateralManagementContract is
     }
 
     /// @inheritdoc ICollateralManagement
+    /// @dev Stub until proportional global slash is implemented. Callers
+    ///      (e.g. PegOutEscrow.refundOnNoClaim) must not block user refunds on this reverting.
+    function globalSlash(uint256) external onlyRole(COLLATERAL_SLASHER) override {
+        revert GlobalSlashNotImplemented();
+    }
+
+    /// @inheritdoc ICollateralManagement
     function withdrawCollateral() external nonReentrant whenNotHardPaused override {
         _withdrawCollateralTo(payable(msg.sender));
     }
