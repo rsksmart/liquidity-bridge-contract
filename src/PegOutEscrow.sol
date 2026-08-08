@@ -29,7 +29,7 @@ contract PegOutEscrow is
     struct PegOutEscrowStorage {
         /// Settlement contract (claim forwards funds here; also supplies dustThreshold).
         IPegOut pegOutContract;
-        /// Collateral registry used by claim / no-claim slash (wired now; unused until those paths).
+        /// Collateral registry used by claim / no-claim global slash.
         ICollateralManagement collateralManagement;
         /// Active peg-out fee, bounds, deadlines, and confirmation tiers.
         IFlyoverConfigurations configurations;
@@ -212,15 +212,42 @@ contract PegOutEscrow is
     }
 
     /// @inheritdoc IPegOutEscrow
-    // TODO: implement no-claim refund after depositDateLimit (+ optional globalSlash)
-    function refundOnNoClaim(bytes32) external override {
-        revert PegOutPathNotImplemented();
+    function refundOnNoClaim(bytes32 requestHash) external override nonReentrant whenNotSoftPaused {
+        PegOutEscrowStorage storage $ = _getStorage();
+        _requireRequested($, requestHash);
+        Quotes.PegOutQuote memory q = $.quotes[requestHash];
+        // solhint-disable-next-line gas-strict-inequalities
+        if (block.timestamp <= q.depositDateLimit) {
+            revert ClaimWindowOpen(q.depositDateLimit);
+        }
+
+        uint256 payout = q.value + q.callFee + q.gasFee;
+        _terminate($, requestHash, EscrowedPegOutState.REFUNDED);
+        emit PegOutRefundedOnNoClaim(requestHash, q.rskRefundAddress, payout);
+
+        // If globalSlash reverts (stub / missing role / no eligible LPs), user still refunded.
+        if (address($.collateralManagement) == address(0)) revert CollateralManagementNotSet();
+        try $.collateralManagement.globalSlash(q.penaltyFee) {}
+        catch {
+            emit GlobalSlashSkipped(requestHash);
+        }
+
+        _payout(q.rskRefundAddress, payout);
     }
 
     /// @inheritdoc IPegOutEscrow
-    // TODO: implement PegOutContract settlement callback (CLAIMED → FULFILLED/REFUNDED)
-    function onSettlement(bytes32, EscrowedPegOutState) external override {
-        revert PegOutPathNotImplemented();
+    function onSettlement(bytes32 requestHash, EscrowedPegOutState finalState) external override {
+        PegOutEscrowStorage storage $ = _getStorage();
+        if (msg.sender != address($.pegOutContract)) {
+            revert OnlyPegOutContract(msg.sender);
+        }
+        if ($.state[requestHash] != EscrowedPegOutState.CLAIMED) {
+            revert InvalidState(requestHash, EscrowedPegOutState.CLAIMED, $.state[requestHash]);
+        }
+        if (finalState != EscrowedPegOutState.FULFILLED && finalState != EscrowedPegOutState.REFUNDED) {
+            revert InvalidState(requestHash, EscrowedPegOutState.FULFILLED, finalState);
+        }
+        _terminate($, requestHash, finalState);
     }
 
     /// @inheritdoc IPegOutEscrow
