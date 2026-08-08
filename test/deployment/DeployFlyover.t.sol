@@ -6,11 +6,15 @@ import "lib/forge-std/src/console.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {ProxyReader} from "../../script/helpers/ProxyReader.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
+import {FlyoverConfigurations} from "../../src/FlyoverConfigurations.sol";
 import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {PegInContract} from "../../src/PegInContract.sol";
 import {PegOutContract} from "../../src/PegOutContract.sol";
+import {PegOutEscrow} from "../../src/PegOutEscrow.sol";
+import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
+import {FlyoverConfigurationsRegtest} from "../../src/libraries/FlyoverConfigurationsRegtest.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {TransparentUpgradeableProxy, ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
@@ -36,6 +40,8 @@ contract DeployFlyoverTest is Test {
     FlyoverDiscovery public discovery;
     PegInContract public pegInContract;
     PegOutContract public pegOutContract;
+    FlyoverConfigurations public flyoverConfigurations;
+    PegOutEscrow public pegOutEscrow;
 
     function setUp() public {
         helperConfig = new HelperConfig();
@@ -61,6 +67,8 @@ contract DeployFlyoverTest is Test {
         _assertTransparentProxyAdmin(address(discovery), deployer_);
         _assertTransparentProxyAdmin(address(pegInContract), deployer_);
         _assertTransparentProxyAdmin(address(pegOutContract), deployer_);
+        _assertTransparentProxyAdmin(address(flyoverConfigurations), deployer_);
+        _assertTransparentProxyAdmin(address(pegOutEscrow), deployer_);
     }
 
     /// @notice Deploy all contracts inline (mirrors DeployFlyover script)
@@ -79,6 +87,12 @@ contract DeployFlyoverTest is Test {
 
         // 4) PegOutContract
         _deployPegOut(deployer, cfg);
+
+        // 5) FlyoverConfigurations
+        _deployFlyoverConfigurations(deployer, cfg);
+
+        // 6) PegOutEscrow (+ wire + slash role)
+        _deployPegOutEscrow(deployer, cfg);
     }
 
     function _deployCollateralManagement(
@@ -182,6 +196,66 @@ contract DeployFlyoverTest is Test {
         pegOutContract = PegOutContract(payable(proxy));
     }
 
+    function _deployFlyoverConfigurations(
+        address deployer,
+        HelperConfig.FlyoverConfig memory cfg
+    ) private {
+        address impl = address(new FlyoverConfigurations());
+        address proxy = address(
+            new TransparentUpgradeableProxy(
+                impl,
+                deployer,
+                abi.encodeCall(
+                    FlyoverConfigurations.initialize,
+                    (
+                        deployer,
+                        cfg.adminDelay,
+                        FlyoverConfigurationsRegtest.TIMELOCK_DELAY,
+                        FlyoverConfigurationsRegtest.pegInConfig(),
+                        FlyoverConfigurationsRegtest.pegInMin(),
+                        FlyoverConfigurationsRegtest.pegInMax()
+                    )
+                )
+            )
+        );
+        flyoverConfigurations = FlyoverConfigurations(payable(proxy));
+        flyoverConfigurations.initializePegOut(
+            FlyoverConfigurationsRegtest.pegOutConfig(),
+            FlyoverConfigurationsRegtest.pegOutMin(),
+            FlyoverConfigurationsRegtest.pegOutMax()
+        );
+    }
+
+    function _deployPegOutEscrow(
+        address deployer,
+        HelperConfig.FlyoverConfig memory cfg
+    ) private {
+        address impl = address(new PegOutEscrow());
+        address proxy = address(
+            new TransparentUpgradeableProxy(
+                impl,
+                deployer,
+                abi.encodeCall(
+                    PegOutEscrow.initialize,
+                    (
+                        deployer,
+                        cfg.adminDelay,
+                        IPauseRegistry(pauseRegistryProxy),
+                        address(pegOutContract),
+                        address(collateralManagement),
+                        address(flyoverConfigurations)
+                    )
+                )
+            )
+        );
+        pegOutEscrow = PegOutEscrow(payable(proxy));
+        pegOutContract.setPegOutEscrow(proxy);
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_SLASHER(),
+            proxy
+        );
+    }
+
     function test_FullDeploymentFlow() public {
         console.log("\n=== TEST FULL FLYOVER DEPLOYMENT ===\n");
 
@@ -218,6 +292,21 @@ contract DeployFlyoverTest is Test {
         );
         console.log("   Proxy:", address(pegOutContract));
 
+        console.log("\n5. Verifying FlyoverConfigurations...");
+        assertTrue(
+            address(flyoverConfigurations) != address(0),
+            "Configs should not be zero"
+        );
+        console.log("   Proxy:", address(flyoverConfigurations));
+
+        console.log("\n6. Verifying PegOutEscrow...");
+        assertTrue(
+            address(pegOutEscrow) != address(0),
+            "Escrow should not be zero"
+        );
+        assertEq(pegOutEscrow.getPegOutContract(), address(pegOutContract));
+        console.log("   Proxy:", address(pegOutEscrow));
+
         console.log("\n[PASS] All contracts deployed successfully!");
     }
 
@@ -245,6 +334,7 @@ contract DeployFlyoverTest is Test {
             collateralSlasherRole,
             address(pegOutContract)
         );
+        // Escrow slash role is granted inside _deployPegOutEscrow.
 
         // Verify FlyoverDiscovery has COLLATERAL_ADDER
         console.log("1. Checking FlyoverDiscovery has COLLATERAL_ADDER...");
@@ -278,6 +368,16 @@ contract DeployFlyoverTest is Test {
             "PegOutContract should have COLLATERAL_SLASHER"
         );
         console.log("   PegOutContract has COLLATERAL_SLASHER: true");
+
+        console.log("\n4. Checking PegOutEscrow has COLLATERAL_SLASHER...");
+        assertTrue(
+            collateralManagement.hasRole(
+                collateralSlasherRole,
+                address(pegOutEscrow)
+            ),
+            "PegOutEscrow should have COLLATERAL_SLASHER"
+        );
+        console.log("   PegOutEscrow has COLLATERAL_SLASHER: true");
 
         console.log("\n[PASS] All roles set up correctly!");
     }
