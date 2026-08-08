@@ -151,6 +151,10 @@ help:
 	@echo "  deploy-pegin-broadcast   - Deploy PegInContract (actual deployment)"
 	@echo "  deploy-pegout-fork       - Deploy PegOutContract (fork simulation)"
 	@echo "  deploy-pegout-broadcast  - Deploy PegOutContract (actual deployment)"
+	@echo "  deploy-flyover-configurations-fork - Deploy FlyoverConfigurations (fork simulation)"
+	@echo "  deploy-flyover-configurations-broadcast - Deploy FlyoverConfigurations (actual deployment)"
+	@echo "  deploy-pegout-escrow-fork - Deploy PegOutEscrow (fork simulation)"
+	@echo "  deploy-pegout-escrow-broadcast - Deploy PegOutEscrow (actual deployment)"
 	@echo ""
 	@echo "Legacy LBC Deployment:"
 	@echo "  deploy-lbc-fork        - Deploy LiquidityBridgeContract (fork simulation)"
@@ -439,6 +443,62 @@ deploy-pegout-broadcast:
 	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
 	@export NETWORK=$(NETWORK); \
 	$(FORGE) script/deployment/DeployPegOut.s.sol:DeployPegOut \
+		$(RPC_OPTS) \
+		$(PRIVATE_KEY_OPTS) \
+		$(call get_library_flags,$(NETWORK)) \
+		--gas-limit $(GAS_LIMIT) \
+		--legacy \
+		--broadcast
+
+# Deploy FlyoverConfigurations (fork simulation)
+.PHONY: deploy-flyover-configurations-fork
+deploy-flyover-configurations-fork:
+	@echo "Deploying FlyoverConfigurations on $(NETWORK) (FORK SIMULATION)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@export NETWORK=$(NETWORK); \
+	$(FORGE) script/deployment/DeployFlyoverConfigurations.s.sol:DeployFlyoverConfigurations \
+		$(FORK_OPTS) \
+		$(PRIVATE_KEY_OPTS) \
+		$(call get_library_flags,$(NETWORK)) \
+		--gas-limit $(GAS_LIMIT) \
+		--legacy
+
+# Deploy FlyoverConfigurations (actual deployment)
+.PHONY: deploy-flyover-configurations-broadcast
+deploy-flyover-configurations-broadcast:
+	@echo "Deploying FlyoverConfigurations on $(NETWORK) (ACTUAL DEPLOYMENT)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@export NETWORK=$(NETWORK); \
+	$(FORGE) script/deployment/DeployFlyoverConfigurations.s.sol:DeployFlyoverConfigurations \
+		$(RPC_OPTS) \
+		$(PRIVATE_KEY_OPTS) \
+		$(call get_library_flags,$(NETWORK)) \
+		--gas-limit $(GAS_LIMIT) \
+		--legacy \
+		--broadcast
+
+# Deploy PegOutEscrow (fork simulation)
+# Requires PAUSE_REGISTRY_PROXY, PEGOUT_PROXY, COLLATERAL_MANAGEMENT_PROXY, FLYOVER_CONFIGURATIONS_PROXY
+.PHONY: deploy-pegout-escrow-fork
+deploy-pegout-escrow-fork:
+	@echo "Deploying PegOutEscrow on $(NETWORK) (FORK SIMULATION)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@export NETWORK=$(NETWORK); \
+	$(FORGE) script/deployment/DeployPegOutEscrow.s.sol:DeployPegOutEscrow \
+		$(FORK_OPTS) \
+		$(PRIVATE_KEY_OPTS) \
+		$(call get_library_flags,$(NETWORK)) \
+		--gas-limit $(GAS_LIMIT) \
+		--legacy
+
+# Deploy PegOutEscrow (actual deployment)
+# Requires PAUSE_REGISTRY_PROXY, PEGOUT_PROXY, COLLATERAL_MANAGEMENT_PROXY, FLYOVER_CONFIGURATIONS_PROXY
+.PHONY: deploy-pegout-escrow-broadcast
+deploy-pegout-escrow-broadcast:
+	@echo "Deploying PegOutEscrow on $(NETWORK) (ACTUAL DEPLOYMENT)..."
+	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
+	@export NETWORK=$(NETWORK); \
+	$(FORGE) script/deployment/DeployPegOutEscrow.s.sol:DeployPegOutEscrow \
 		$(RPC_OPTS) \
 		$(PRIVATE_KEY_OPTS) \
 		$(call get_library_flags,$(NETWORK)) \
