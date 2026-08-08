@@ -576,18 +576,117 @@ contract PegOutEscrowTest is Test {
     }
 
     // -------------------------------------------------------------------------
-    // stubs
+    // deadline refunds (acceptance)
     // -------------------------------------------------------------------------
 
-    function test_stubs_revertNotImplemented() public {
-        vm.expectRevert(PegOutEscrow.PegOutPathNotImplemented.selector);
-        escrow.refundOnNoClaim(bytes32(0));
+    function test_refundOnNoClaim_beforeDeadline_reverts() public {
+        bytes32 requestHash = _requestDefault();
+        uint256 depositDateLimit = escrow
+            .getPegOutQuote(requestHash)
+            .depositDateLimit;
 
-        vm.expectRevert(PegOutEscrow.PegOutPathNotImplemented.selector);
-        escrow.onSettlement(
-            bytes32(0),
-            IPegOutEscrow.EscrowedPegOutState.FULFILLED
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOutEscrow.ClaimWindowOpen.selector,
+                depositDateLimit
+            )
         );
+        vm.prank(other);
+        escrow.refundOnNoClaim(requestHash);
+    }
+
+    function test_refundUserPegOut_beforeExpire_reverts() public {
+        bytes32 requestHash = _claimDefault();
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOut.QuoteNotExpired.selector,
+                requestHash
+            )
+        );
+        vm.prank(other);
+        pegOut.refundUserPegOut(requestHash);
+    }
+
+    function test_refundOnNoClaim_afterDeadline_anyoneRefundsAndAttemptsGlobalSlash()
+        public
+    {
+        bytes32 requestHash = _requestDefault();
+        Quotes.PegOutQuote memory q = escrow.getPegOutQuote(requestHash);
+        uint256 payout = q.value + q.callFee + q.gasFee;
+        uint256 userBefore = user.balance;
+
+        vm.warp(uint256(q.depositDateLimit) + 1);
+
+        vm.expectEmit(true, true, false, true, address(escrow));
+        emit IPegOutEscrow.PegOutRefundedOnNoClaim(requestHash, user, payout);
+        vm.expectEmit(true, false, false, true, address(escrow));
+        emit IPegOutEscrow.GlobalSlashSkipped(requestHash);
+
+        vm.prank(other);
+        escrow.refundOnNoClaim(requestHash);
+
+        assertEq(
+            uint256(escrow.getPegOutState(requestHash)),
+            uint256(IPegOutEscrow.EscrowedPegOutState.REFUNDED)
+        );
+        assertEq(user.balance, userBefore + payout);
+    }
+
+    function test_cancelPegOut_doesNotCallGlobalSlash() public {
+        collateral.setGlobalSlashReverts(false);
+
+        bytes32 requestHash = _requestDefault();
+        vm.prank(user);
+        escrow.cancelPegOut(requestHash);
+
+        assertEq(collateral.globalSlashCalls(), 0);
+        assertEq(
+            uint256(escrow.getPegOutState(requestHash)),
+            uint256(IPegOutEscrow.EscrowedPegOutState.CANCELLED)
+        );
+    }
+
+    function test_refundUserPegOut_afterExpire_anyoneRefundsIndividualSlashAndLateReverts()
+        public
+    {
+        bytes32 requestHash = _claimDefault();
+        Quotes.PegOutQuote memory q = escrow.getPegOutQuote(requestHash);
+        uint256 payout = q.value + q.callFee + q.gasFee;
+        uint256 userBefore = user.balance;
+
+        _warpPastFulfillment(q);
+
+        vm.expectEmit(true, true, false, true, address(pegOut));
+        emit IPegOut.PegOutUserRefunded(requestHash, user, payout);
+        vm.expectEmit(true, true, true, true, address(collateral));
+        emit ICollateralManagement.Penalized(
+            address(0),
+            address(0),
+            bytes32(0),
+            Flyover.ProviderType.PegOut,
+            0,
+            0
+        );
+
+        vm.prank(other);
+        pegOut.refundUserPegOut(requestHash);
+
+        assertEq(user.balance, userBefore + payout);
+        assertTrue(pegOut.isQuoteCompleted(requestHash));
+        assertEq(
+            uint256(escrow.getPegOutState(requestHash)),
+            uint256(IPegOutEscrow.EscrowedPegOutState.REFUNDED)
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOut.QuoteAlreadyCompleted.selector,
+                requestHash
+            )
+        );
+        vm.prank(other);
+        pegOut.refundUserPegOut(requestHash);
     }
 
     // -------------------------------------------------------------------------
@@ -597,6 +696,19 @@ contract PegOutEscrowTest is Test {
     function _requestDefault() internal returns (bytes32 requestHash) {
         vm.prank(user);
         requestHash = escrow.requestPegOut{value: DEFAULT_VALUE}(DEST, user);
+    }
+
+    function _claimDefault() internal returns (bytes32 requestHash) {
+        requestHash = _requestDefault();
+        Quotes.PegOutQuote memory quote = escrow.getPegOutQuote(requestHash);
+        bytes memory signature = _signForLp(lpKey, quote, lp);
+        vm.prank(lp);
+        escrow.claimPegOut(requestHash, signature);
+    }
+
+    function _warpPastFulfillment(Quotes.PegOutQuote memory q) internal {
+        vm.warp(uint256(q.expireDate) + 1);
+        vm.roll(uint256(q.expireBlock) + 1);
     }
 
     function _signForLp(
