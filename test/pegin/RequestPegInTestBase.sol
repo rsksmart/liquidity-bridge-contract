@@ -7,7 +7,7 @@ import {PegInContract} from "../../src/PegInContract.sol";
 import {PegInAddressRegistryHarness} from "../pegin-registry/PegInAddressRegistryHarness.sol";
 import {IFlyoverConfigurations} from "../../src/interfaces/IFlyoverConfigurations.sol";
 import {PegInDerivation} from "../../src/libraries/PegInDerivation.sol";
-import {Quotes} from "../../src/libraries/Quotes.sol";
+import {Flyover} from "../../src/libraries/Flyover.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 
@@ -289,10 +289,10 @@ abstract contract RequestPegInTestBase is PegInTestBase {
 
     function _toSats(uint256 amountWei) internal pure returns (uint64) {
         require(
-            amountWei % Quotes.SAT_TO_WEI_CONVERSION == 0,
+            amountWei % Flyover.SAT_TO_WEI_CONVERSION == 0,
             "fixture amount is not a whole number of satoshis"
         );
-        return uint64(amountWei / Quotes.SAT_TO_WEI_CONVERSION);
+        return uint64(amountWei / Flyover.SAT_TO_WEI_CONVERSION);
     }
 
     // ---- call helpers ----

@@ -2,6 +2,14 @@
 pragma solidity 0.8.25;
 
 library Flyover {
+    /// @notice 1 satoshi expressed in wei — the scale every BTC amount crosses when it becomes an
+    /// RBTC amount.
+    /// @dev Declared here, and not on the contract that owns the amount policy, only because
+    /// Solidity cannot reference a contract's public constant by type name: doing so needs an
+    /// external call. {FlyoverConfigurations-SAT_TO_WEI_CONVERSION} re-exports this as the public,
+    /// externally readable value, and is the one consumers should read.
+    uint256 internal constant SAT_TO_WEI_CONVERSION = 10 ** 10;
+
     enum ProviderType { PegIn, PegOut, Both }
 
     struct LiquidityProvider {

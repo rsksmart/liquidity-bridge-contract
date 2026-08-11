@@ -49,8 +49,14 @@ contract FlyoverConfigurations is
     uint256 public constant FEE_PERCENTAGE_DENOMINATOR = 10_000;
 
     /// @notice 1 satoshi expressed in wei; fees are rounded down to a satoshi boundary so on-chain
-    /// fees agree with the bridge. Mirrors `Quotes.SAT_TO_WEI_CONVERSION`.
-    uint256 public constant SAT_TO_WEI_CONVERSION = 10 ** 10;
+    /// fees agree with the bridge.
+    /// @dev The public home of the scale for the commit-first path: this getter is what the SDK
+    /// and every LPS read. The value itself is defined once in {Flyover} so the peg-in contract
+    /// can share it without an external call — see that declaration for why it cannot live here.
+    /// `Quotes.SAT_TO_WEI_CONVERSION` is the legacy quote path's own copy, left alone because that
+    /// path's ABI is frozen; `test/configurations/Fee.t.sol` asserts the two agree so they cannot
+    /// drift. `PegOutContract` holds a third, private copy.
+    uint256 public constant SAT_TO_WEI_CONVERSION = Flyover.SAT_TO_WEI_CONVERSION;
 
     // ERC-7201: keccak256(abi.encode(uint256(keccak256("rsk.flyover.FlyoverConfigurations")) - 1)) &
     // ~bytes32(uint256(0xff))

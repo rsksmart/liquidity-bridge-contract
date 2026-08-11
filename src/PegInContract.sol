@@ -482,7 +482,7 @@ contract PegInContract is
         if (!found) {
             revert DepositOutputNotFound(rskAddr, btcTxHash);
         }
-        return uint256(depositSats) * Quotes.SAT_TO_WEI_CONVERSION;
+        return uint256(depositSats) * Flyover.SAT_TO_WEI_CONVERSION;
     }
 
     /// @notice Reverts unless Bridge confirmations meet the configured tier for amount
