@@ -164,8 +164,10 @@ contract PegInDerivationTest is Test {
     /// @notice The two networks' placeholders must differ EXACTLY in the version byte — the whole
     /// reason the placeholders became network-dependent.
     function test_PlaceholdersDifferOnlyInVersionByte() public pure {
-        bytes memory testnetPlaceholder = PegInDerivation.getRefundPlaceholderBtcAddress(false);
-        bytes memory mainnetPlaceholder = PegInDerivation.getRefundPlaceholderBtcAddress(true);
+        bytes memory testnetPlaceholder = PegInDerivation
+            .getRefundPlaceholderBtcAddress(false);
+        bytes memory mainnetPlaceholder = PegInDerivation
+            .getRefundPlaceholderBtcAddress(true);
         assertTrue(
             testnetPlaceholder[0] != mainnetPlaceholder[0],
             "version byte must differ between networks"

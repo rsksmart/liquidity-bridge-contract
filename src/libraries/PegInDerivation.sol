@@ -54,6 +54,14 @@ library PegInDerivation {
     /// rotates every derived address (the same rotation path as a federation change).
     bytes internal constant DERIVATION_DOMAIN = "FLYOVER_PEGIN_V1";
 
+    /// @notice Base58check version byte of a mainnet P2SH address — the leading byte of the
+    /// deposit-address payload built in {depositAddressPayload}.
+    bytes1 internal constant P2SH_VERSION_MAINNET = 0x05;
+
+    /// @notice Base58check version byte of a testnet/regtest P2SH address. Differing from
+    /// {P2SH_VERSION_MAINNET} is what keeps the two networks' deposit addresses disjoint.
+    bytes1 internal constant P2SH_VERSION_TESTNET = 0xC4;
+
     /// @notice The P2PKH zero address payload for mainnet: version byte `0x00` followed by a
     /// 20-byte zero HASH160. Well-formed and non-empty, but provably unspendable.
     bytes internal constant BITCOIN_ZERO_ADDRESS_MAINNET = hex"000000000000000000000000000000000000000000";
@@ -172,15 +180,16 @@ library PegInDerivation {
     }
 
     /// @notice Step 5 (address form): the base58check payload of the PLAIN P2SH deposit address:
-    /// version (0x05 mainnet / 0xC4 testnet) ++ scriptHash ++ 4-byte double-sha256 checksum.
+    /// version ({P2SH_VERSION_MAINNET} / {P2SH_VERSION_TESTNET}) ++ scriptHash ++ 4-byte
+    /// double-sha256 checksum.
     /// Returned as the raw 25 bytes — the caller (SDK/LPS) base58-ENCODEs them to the address
     /// string shown to the user. MUST stay a plain P2SH: the segwit-wrapped form is pitfall #2
     /// (-304).
     /// @param scriptHash Step 4's output
-    /// @param isMainnet True for the mainnet version byte (0x05), false for testnet/regtest (0xC4)
+    /// @param isMainnet True for {P2SH_VERSION_MAINNET}, false for {P2SH_VERSION_TESTNET}
     /// @return The 25-byte base58check payload of the deposit address
     function depositAddressPayload(bytes20 scriptHash, bool isMainnet) internal pure returns (bytes memory) {
-        bytes1 version = isMainnet ? bytes1(0x05) : bytes1(0xC4);
+        bytes1 version = isMainnet ? P2SH_VERSION_MAINNET : P2SH_VERSION_TESTNET;
         bytes memory versionedHash = bytes.concat(version, scriptHash);
         bytes32 checksum = sha256(abi.encodePacked(sha256(versionedHash)));
         return bytes.concat(versionedHash, checksum[0], checksum[1], checksum[2], checksum[3]);
