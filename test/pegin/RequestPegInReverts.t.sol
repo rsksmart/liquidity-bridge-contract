@@ -248,9 +248,9 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         );
     }
 
-    /// @notice The tier is looked up with the DERIVED amount, so a large deposit presented with
-    /// only enough confirmations for a small one is rejected. Under the old signature the
-    /// claimer simply declared the small amount and bought the low tier.
+    /// @notice The tier is looked up with the amount READ off the deposit, so a large deposit
+    /// presented with only enough confirmations for a small one is rejected. Under the old
+    /// signature the claimer simply declared the small amount and bought the low tier.
     function test_revert_largeDeposit_cannotBuyTheLowConfirmationTier() public {
         uint256 smallAmount = 1 ether;
         uint256 largeAmount = 50 ether;

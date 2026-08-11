@@ -75,7 +75,8 @@ interface IPegInCommitFirst {
 
     /// @notice Reverts requestPegIn when the presented transaction has no output paying the
     /// deposit address derived from the destination address
-    /// @dev The check that makes the peg-in amount a derived value instead of a declared one.
+    /// @dev The check that makes the peg-in amount a value read off the deposit instead of one
+    /// declared by the caller.
     /// Without it any confirmed txid pairs with any registered destination, so a dust claim
     /// locks the real depositor out under PegInAlreadyProcessed. Same rule the registry
     /// enforces at registration, through the same shared helper.
@@ -107,7 +108,8 @@ interface IPegInCommitFirst {
     /// from the same bytes, so the SPV proof, the peg-in id and the amount provably describe
     /// one transaction. Nothing about the deposit's value is caller-supplied.
     ///
-    /// Payable: msg.value must equal the derived amount minus the fee. The claim record stores
+    /// Payable: msg.value must equal the amount read from the deposit minus the fee. The claim
+    /// record stores
     /// the claimer, the fronted amount, and the fee at claim time, because the configuration
     /// can change before settlement pays the claimer back (~17 hours later). The opReturn
     /// argument is accepted and ignored this sprint (plain transfers only; contract-call

@@ -96,7 +96,7 @@ abstract contract RequestPegInTestBase is PegInTestBase {
     }
 
     /// @notice Replaces the single flat tier with a low tier up to `lowTierMaxAmount` and a high
-    /// tier above it, so tests can prove the tier is chosen by the DERIVED amount.
+    /// tier above it, so tests can prove the tier is chosen by the amount READ off the deposit.
     function _applyTwoTierConfiguration(
         uint256 lowTierMaxAmount,
         uint256 lowTierConfirmations,

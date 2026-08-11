@@ -344,7 +344,7 @@ contract PegInContract is
         if (!_pegInAddressRegistry.isRegistered(rskAddr)) {
             revert AddressNotRegistered(rskAddr);
         }
-        uint256 amount = _derivePegInAmount(rskAddr, btcTxSerialized, btcTxHash);
+        uint256 amount = _readPegInAmount(rskAddr, btcTxSerialized, btcTxHash);
         _requirePegInConfirmations(amount, btcTxHash, btcBlockHash, merkleBranchPath, merkleBranchHashes);
 
         uint256 fee = _configurations.calculatePegInFee(amount);
@@ -452,13 +452,14 @@ contract PegInContract is
     }
 
     /// @notice Reads the peg-in amount out of the deposit transaction
-    /// @dev The contract derives the deposit scriptPubkey for rskAddr and takes the value of the
-    /// FIRST output paying it, through the same {PegInDerivation} helpers the registry uses at
-    /// registration. See {PegInDerivation-findFirstBtcOutputPaying} for why first-match and not the
-    /// sum, and why that is the open question here rather than in the registry.
-    /// Both the derivation inputs (this proxy's address and the live powpeg script)
-    /// and the matched output come from state or from the SPV-proven bytes, so there is no
-    /// argument a caller can move to change the answer.
+    /// @dev Two different operations, and only the first is a derivation: the deposit
+    /// scriptPubkey for rskAddr is DERIVED (a formula over this proxy's address and the live
+    /// powpeg script), and the amount is then READ from the FIRST output paying that script.
+    /// Both go through the {PegInDerivation} helpers the registry uses at registration. See
+    /// {PegInDerivation-findFirstBtcOutputPaying} for why first-match and not the sum, and why
+    /// that is the open question here rather than in the registry.
+    /// The derivation inputs come from state and the matched output from the SPV-proven bytes,
+    /// so there is no argument a caller can move to change the answer.
     ///
     /// The powpeg script is read fresh from the bridge on every call, so a federation change
     /// rotates the expected script here exactly as it rotates the issued address. In-flight
@@ -468,16 +469,16 @@ contract PegInContract is
     /// @param btcTxSerialized The witness-stripped raw deposit transaction
     /// @param btcTxHash The txid hashed from btcTxSerialized, for the revert reason
     /// @return The gross peg-in amount in wei
-    function _derivePegInAmount(address rskAddr, bytes calldata btcTxSerialized, bytes32 btcTxHash)
+    function _readPegInAmount(address rskAddr, bytes calldata btcTxSerialized, bytes32 btcTxHash)
         private
         view
         returns (uint256)
     {
-        bytes memory expectedPkScript = PegInDerivation.depositPkScript(
+        bytes memory pkScript = PegInDerivation.depositPkScript(
             rskAddr, address(this), _bridge.getActivePowpegRedeemScript()
         );
         (uint64 depositSats, bool found) =
-            PegInDerivation.findFirstBtcOutputPaying(btcTxSerialized, expectedPkScript);
+            PegInDerivation.findFirstBtcOutputPaying(btcTxSerialized, pkScript);
         if (!found) {
             revert DepositOutputNotFound(rskAddr, btcTxHash);
         }
