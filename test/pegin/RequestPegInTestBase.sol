@@ -132,6 +132,10 @@ abstract contract RequestPegInTestBase is PegInTestBase {
     /// @notice Exposes BtcUtils.hashBtcTx to the memory-held fixtures. The library takes
     /// calldata, so the tests reach it through an external self-call rather than
     /// re-implementing the txid.
+    /// @dev Being an external self-call, this CONSUMES a pending vm.prank. Call it (and the
+    /// helpers below that wrap it) before vm.prank, never inside a vm.expectRevert payload that
+    /// follows one, or the call under test runs as the test contract instead of the pranked
+    /// sender and the test silently stops asserting who claimed.
     function hashTx(bytes calldata btcTx) external pure returns (bytes32) {
         return BtcUtils.hashBtcTx(btcTx);
     }

@@ -42,7 +42,9 @@ contract RequestPegInAtomicityTest is RequestPegInTestBase {
 
     function test_failedCheck_isAtomic_depositOutputNotFound() public {
         bytes memory unrelated = _unrelatedTx();
-        bytes32 pegInId = _pegInIdForTx(rskUser, unrelated);
+        // Hashed before the prank: hashTx is an external self-call and would consume it.
+        bytes32 txHash = this.hashTx(unrelated);
+        bytes32 pegInId = _pegInId(rskUser, txHash);
         uint256 userBefore = rskUser.balance;
 
         vm.prank(claimer);
@@ -50,7 +52,7 @@ contract RequestPegInAtomicityTest is RequestPegInTestBase {
             abi.encodeWithSelector(
                 IPegInCommitFirst.DepositOutputNotFound.selector,
                 rskUser,
-                this.hashTx(unrelated)
+                txHash
             )
         );
         pegInContract.requestPegIn{value: 1 wei}(

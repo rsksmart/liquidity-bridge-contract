@@ -167,6 +167,10 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         // is served afterwards under the same pegInId the attacker tried to burn.
         bytes memory realDeposit = _defaultTx();
         bytes32 pegInId = _pegInIdForTx(rskUser, realDeposit);
+        // Built and hashed before the prank: hashTx is an external self-call and would consume
+        // it, dropping the dust claim back to the default sender instead of the attacker.
+        bytes memory dustClaimTx = _unrelatedTx();
+        bytes32 dustClaimTxHash = this.hashTx(dustClaimTx);
         address attacker = makeAddr("attacker");
         vm.deal(attacker, 1 ether);
 
@@ -175,12 +179,12 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
             abi.encodeWithSelector(
                 IPegInCommitFirst.DepositOutputNotFound.selector,
                 rskUser,
-                this.hashTx(_unrelatedTx())
+                dustClaimTxHash
             )
         );
         pegInContract.requestPegIn{value: 1 wei}(
             rskUser,
-            _unrelatedTx(),
+            dustClaimTx,
             "",
             bytes32(0),
             0,
