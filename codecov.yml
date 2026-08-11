@@ -1,3 +1,8 @@
+codecov:
+  # This repo integrates on version branches, not on master. Point Codecov at
+  # the current one so project status compares against a live baseline.
+  branch: v2.6.0
+
 coverage:
   status:
     project:
