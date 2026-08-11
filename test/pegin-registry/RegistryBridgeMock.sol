@@ -8,7 +8,6 @@ import {IBridge} from "../../src/interfaces/IBridge.sol";
 // solhint-disable comprehensive-interface
 contract RegistryBridgeMock is IBridge {
     bytes private _redeemScript;
-    string private _federationAddress;
     int256 private _confirmations = 6;
     uint256 public mutatingBridgeCallCount;
 
@@ -24,8 +23,6 @@ contract RegistryBridgeMock is IBridge {
             hex"7dae9cb373a5d536e66a8c4f67468bbcfb063809bab643072d78a1242103c5946b3fbae03a654237da86",
             hex"3c9ed534e0878657175b132b8ca630f245df04db53ae"
         );
-        // Plain-P2SH federation address for the default powpeg fixture (testnet/regtest form).
-        _federationAddress = "2N5muMepJizJE1gR7FbHJU6CD18V3BpNF9p";
     }
 
     // solhint-disable-next-line no-empty-blocks
@@ -42,10 +39,6 @@ contract RegistryBridgeMock is IBridge {
 
     function setRedeemScript(bytes calldata redeemScript) external {
         _redeemScript = redeemScript;
-    }
-
-    function setFederationAddress(string calldata federationAddress) external {
-        _federationAddress = federationAddress;
     }
 
     function setConfirmations(int256 confirmations) external {
@@ -247,11 +240,11 @@ contract RegistryBridgeMock is IBridge {
 
     function getFederationAddress()
         external
-        view
+        pure
         override
         returns (string memory)
     {
-        return _federationAddress;
+        return "";
     }
 
     function getFederationSize() external pure override returns (int256) {

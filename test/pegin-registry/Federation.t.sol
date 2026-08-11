@@ -9,20 +9,6 @@ contract FederationTest is PegInRegistryTestBase {
     address internal constant FIXTURE_RSK =
         0x0000000000000000000000000000000000000aBc;
 
-    string internal constant FIXTURE_SEGWIT_FEDERATION =
-        "2NDX645q5ArRrjue7CLhnnwcLBudrCG3XGE";
-
-    bytes internal constant ROTATED_POWPEG_SCRIPT =
-        abi.encodePacked(
-            hex"5221037c8a5e4f5a8e7b1c9d0e2f3a4b5c6d7e8f90112233445566778899aabbccddeeff",
-            hex"2103aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899",
-            hex"52ae"
-        );
-
-    // Plain-P2SH federation for ROTATED_POWPEG_SCRIPT (testnet form).
-    string internal constant ROTATED_PLAIN_FEDERATION =
-        "2N7yYDxPPQa9sAFCyB4Vnq26GFGQs1Rpyh7";
-
     // R2 bounds — batch cap
     function test_batch_reverts_over_max() public {
         _deploy(false);
@@ -57,27 +43,14 @@ contract FederationTest is PegInRegistryTestBase {
         _deploy(false);
         (bytes memory beforeChange, ) = registry.getPegInAddress(FIXTURE_RSK);
 
-        bridge.setRedeemScript(ROTATED_POWPEG_SCRIPT);
-        bridge.setFederationAddress(ROTATED_PLAIN_FEDERATION);
+        bytes memory newRedeem = abi.encodePacked(
+            hex"5221037c8a5e4f5a8e7b1c9d0e2f3a4b5c6d7e8f90112233445566778899aabbccddeeff",
+            hex"2103aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899",
+            hex"52ae"
+        );
+        bridge.setRedeemScript(newRedeem);
 
         (bytes memory afterChange, ) = registry.getPegInAddress(FIXTURE_RSK);
         assertTrue(keccak256(beforeChange) != keccak256(afterChange));
-    }
-
-    // Powpeg script change and format switch yield a new derived address.
-    function test_federation_and_format_switch_yields_new_address() public {
-        _deploy(false);
-        (bytes memory plainAddr, ) = registry.getPegInAddress(FIXTURE_RSK);
-
-        bridge.setFederationAddress(FIXTURE_SEGWIT_FEDERATION);
-        (bytes memory segwitSameScript, ) = registry.getPegInAddress(
-            FIXTURE_RSK
-        );
-        assertTrue(keccak256(plainAddr) != keccak256(segwitSameScript));
-
-        bridge.setRedeemScript(ROTATED_POWPEG_SCRIPT);
-        bridge.setFederationAddress(ROTATED_PLAIN_FEDERATION);
-        (bytes memory rotatedPlain, ) = registry.getPegInAddress(FIXTURE_RSK);
-        assertTrue(keccak256(segwitSameScript) != keccak256(rotatedPlain));
     }
 }

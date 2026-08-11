@@ -18,13 +18,9 @@ contract DerivationTest is PegInRegistryTestBase {
     address internal constant FIXTURE_RSK =
         0x0000000000000000000000000000000000000aBc;
     bytes internal constant FIXTURE_TESTNET_ADDRESS =
-        hex"c453239f29b16aa66c9a5e3ec7f2b1de034fe0dea79440b320";
-    bytes internal constant FIXTURE_MAINNET_ADDRESS =
-        hex"0553239f29b16aa66c9a5e3ec7f2b1de034fe0dea72259d920";
-    bytes internal constant FIXTURE_SEGWIT_TESTNET_ADDRESS =
         hex"c423670b6bf4ab398f05d8536da400767b562425bc199d1a4a";
-    string internal constant FIXTURE_SEGWIT_FEDERATION =
-        "2NDX645q5ArRrjue7CLhnnwcLBudrCG3XGE";
+    bytes internal constant FIXTURE_MAINNET_ADDRESS =
+        hex"0523670b6bf4ab398f05d8536da400767b562425bc89840387";
 
     // R1 — deterministic derivation
     function test_derive_deterministic_same_rskAddr() public {
@@ -255,68 +251,12 @@ contract DerivationTest is PegInRegistryTestBase {
         ok; // call is expected to revert via expectRevert
     }
 
-    function test_segwit_federation_derives_segwit_payload() public {
-        _deploy(false);
-        bridge.setFederationAddress(FIXTURE_SEGWIT_FEDERATION);
-        (bytes memory addr, ) = registry.getPegInAddress(FIXTURE_RSK);
-        assertEq(addr, FIXTURE_SEGWIT_TESTNET_ADDRESS);
-    }
-
-    function test_register_matches_segwit_derived_pkScript() public {
-        _deploy(false);
-        bridge.setFederationAddress(FIXTURE_SEGWIT_FEDERATION);
-        _register(FIXTURE_RSK, 1000, stranger);
-        assertTrue(registry.isRegistered(FIXTURE_RSK));
-    }
-
-    function test_derive_and_expected_pkScript_agree_segwit() public {
-        _deploy(false);
-        bridge.setFederationAddress(FIXTURE_SEGWIT_FEDERATION);
-        bytes memory powpeg = bridge.getActivePowpegRedeemScript();
-        PegInDerivation.FederationFormat format = PegInDerivation
-            .inferFederationFormat(
-                powpeg,
-                bridge.getFederationAddress(),
-                false
-            );
-        bytes32 dv = PegInDerivation.derivationValue(
-            FIXTURE_RSK,
-            PEGIN_CONTRACT
-        );
-        bytes memory redeem = PegInDerivation.flyoverRedeemScript(dv, powpeg);
-        bytes memory pkFromLib = PegInDerivation.p2shScriptPubkey(
-            PegInDerivation.scriptHashForFormat(redeem, format)
-        );
-        assertEq(pkFromLib, _depositPkScript(FIXTURE_RSK));
-    }
-
-    function test_inferFederationFormat_mock_plain_vs_segwit() public pure {
-        bytes
-            memory powpeg = hex"522102cd53fc53a07f211641a677d250f6de99caf620e8e77071e811a28b3bcddf0be1210362634ab57dae9cb373a5d536e66a8c4f67468bbcfb063809bab643072d78a1242103c5946b3fbae03a654237da863c9ed534e0878657175b132b8ca630f245df04db53ae";
-        assertTrue(
-            PegInDerivation.inferFederationFormat(
-                powpeg,
-                "2N5muMepJizJE1gR7FbHJU6CD18V3BpNF9p",
-                false
-            ) == PegInDerivation.FederationFormat.PlainP2SH,
-            "mock plain federation must infer PlainP2SH"
-        );
-        assertTrue(
-            PegInDerivation.inferFederationFormat(
-                powpeg,
-                FIXTURE_SEGWIT_FEDERATION,
-                false
-            ) == PegInDerivation.FederationFormat.SegwitP2SHP2WSH,
-            "mock segwit federation must infer SegwitP2SHP2WSH"
-        );
-    }
-
-    // Tripwire — PegInDerivation is the authoritative PLAIN P2SH scheme
-    // (HASH160 of the flyover redeem script; bridge-verified). PegInContract.validatePegInDepositAddress
-    // still derives a nested P2SH-P2WSH payload (HASH160 of OP_0 <32-byte sha256(redeemScript)>),
-    // so the two produce DIFFERENT deposit addresses. Keep this canary until settlement
-    // consumes PegInDerivation; drop or invert it once PegInContract is aligned.
-    function test_derivation_scheme_differs_from_pegin_contract() public {
+    // Wrapping pin — PegInDerivation wraps the flyover redeem script exactly the way
+    // PegInContract.validatePegInDepositAddress does: a P2SH commitment to the segwit witness
+    // program (HASH160 of OP_0 <32-byte sha256(redeemScript)>). The two paths still issue
+    // different deposit addresses because they embed different derivation values (registry:
+    // rskAddr mix; quote path: quote-hash mix).
+    function test_derivation_wrapping_matches_pegin_contract() public {
         _deploy(false);
         bytes memory powpeg = bridge.getActivePowpegRedeemScript();
         bytes32 dv = PegInDerivation.derivationValue(
@@ -325,7 +265,6 @@ contract DerivationTest is PegInRegistryTestBase {
         );
         bytes memory redeem = PegInDerivation.flyoverRedeemScript(dv, powpeg);
 
-        bytes20 registryPlainP2sh = PegInDerivation.flyoverScriptHash(redeem);
         bytes memory segwitScript = bytes.concat(
             OpCodes.OP_0,
             OpCodes.OP_PUSHBYTES_32,
@@ -334,7 +273,10 @@ contract DerivationTest is PegInRegistryTestBase {
         bytes20 nestedP2shP2wsh = ripemd160(
             abi.encodePacked(sha256(segwitScript))
         );
-
-        assertTrue(registryPlainP2sh != nestedP2shP2wsh);
+        assertEq(
+            PegInDerivation.flyoverScriptHash(redeem),
+            nestedP2shP2wsh,
+            "registry wrapping must match the quote-path P2SH-P2WSH wrapping"
+        );
     }
 }
