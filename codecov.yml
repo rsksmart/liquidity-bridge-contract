@@ -1,0 +1,21 @@
+coverage:
+  status:
+    project:
+      default:
+        target: auto # baseline is always the current v2.6.0 value
+        threshold: 1% # allow up to 1% drop before failing the check
+    patch:
+      default:
+        target: 80% # new/changed lines in a PR must be at least 80% covered
+        threshold: 5% # allow up to 5% below target before failing
+
+comment:
+  layout: "reach,diff,flags,files"
+  behavior: default
+  require_changes: true # only post a comment when coverage actually changes
+
+ignore:
+  - "test/**" # forge test suites
+  - "script/**" # deployment and task scripts
+  - "src/test/**" # test-only helper contracts
+  - "src/test-contracts/**" # mocks used by the test suites
