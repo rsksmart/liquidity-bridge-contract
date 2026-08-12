@@ -188,6 +188,9 @@ contract PegOutContract is
             revert SignatureValidator.IncorrectSignature(quote.lpRskAddress, eip712Hash, signature);
         }
 
+        // Mirror depositPegOut: same Quotes.PegOutQuote + registry so _validatePegOutTransaction
+        // reads claim-fed records unmodified (keyed by escrow requestHash / OP_RETURN id).
+        _pegOutQuotes[requestHash] = quote;
         _pegOutRegistry[requestHash].depositTimestamp = block.timestamp;
         _pegOutRegistry[requestHash].depositBlock = block.number;
 
@@ -408,7 +411,7 @@ contract PegOutContract is
         }
     }
 
-    /// @notice Escrow CLAIMED quote required for {registerClaimedPegOut}.
+    /// @notice Escrow CLAIMED quote required for {registerClaimedPegOut} (source before mirror into `_pegOutQuotes`).
     function _requireClaimedEscrowQuote(bytes32 requestHash)
         private
         view
