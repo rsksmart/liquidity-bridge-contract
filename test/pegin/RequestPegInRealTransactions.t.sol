@@ -186,7 +186,7 @@ contract RequestPegInRealTransactionsTest is RequestPegInTestBase {
     /// @notice Both outputs of a real transaction pay the derived deposit address. Today the
     /// amount is output 0's value alone (530135 sats), NOT the 998404 the two sum to.
     ///
-    /// This is the open question {PegInDerivation-findFirstBtcOutputPaying} records, pinned so it
+    /// This is the open question {BtcTransactionReader-findFirstOutputPaying} records, pinned so it
     /// cannot change silently: if first-match ever becomes sum, this test fails and forces the
     /// registry — which reads the same helper as a minimum-deposit gate — to be moved in the same
     /// change. A user whose wallet splits a deposit across two outputs to the same address is

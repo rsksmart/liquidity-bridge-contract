@@ -10,6 +10,7 @@ import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {IBridge} from "./interfaces/IBridge.sol";
 import {IPauseRegistry} from "./interfaces/IPauseRegistry.sol";
 import {IPegInAddressRegistry} from "./interfaces/IPegInAddressRegistry.sol";
+import {BtcTransactionReader} from "./libraries/BtcTransactionReader.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 import {PegInDerivation} from "./libraries/PegInDerivation.sol";
 
@@ -222,7 +223,7 @@ contract PegInAddressRegistry is
 
     /// @notice Returns the satoshi value of the first output paying the derived deposit script,
     /// reverting when the transaction has none.
-    /// @dev Thin wrapper over {PegInDerivation-findFirstBtcOutputPaying} that turns the library's
+    /// @dev Thin wrapper over {BtcTransactionReader-findFirstOutputPaying} that turns the library's
     /// found flag into the registry's own named error. Here the value is only compared against
     /// MIN_DEPOSIT_SATS, so the library's first-match rule undercounts in the conservative
     /// direction; `PegInContract` uses the same helper for the peg-in amount, where it does not.
@@ -232,7 +233,7 @@ contract PegInAddressRegistry is
         returns (uint64 depositValue)
     {
         bool found;
-        (depositValue, found) = PegInDerivation.findFirstBtcOutputPaying(btcTxSerialized, pkScript);
+        (depositValue, found) = BtcTransactionReader.findFirstOutputPaying(btcTxSerialized, pkScript);
         if (!found) {
             revert DepositOutputNotFound(rskAddr);
         }

@@ -16,6 +16,7 @@ import {IPauseRegistry} from "./interfaces/IPauseRegistry.sol";
 import {IPegIn} from "./interfaces/IPegIn.sol";
 import {IPegInAddressRegistry} from "./interfaces/IPegInAddressRegistry.sol";
 import {IPegInCommitFirst} from "./interfaces/IPegInCommitFirst.sol";
+import {BtcTransactionReader} from "./libraries/BtcTransactionReader.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 import {PegInDerivation} from "./libraries/PegInDerivation.sol";
 import {Quotes} from "./libraries/Quotes.sol";
@@ -455,8 +456,9 @@ contract PegInContract is
     /// @dev Two different operations, and only the first is a derivation: the deposit
     /// scriptPubkey for rskAddr is DERIVED (a formula over this proxy's address and the live
     /// powpeg script), and the amount is then READ from the FIRST output paying that script.
-    /// Both go through the {PegInDerivation} helpers the registry uses at registration. See
-    /// {PegInDerivation-findFirstBtcOutputPaying} for why first-match and not the sum, and why
+    /// Both go through the same helpers the registry uses at registration —
+    /// {PegInDerivation-depositPkScript} for the script, {BtcTransactionReader} for the lookup. See
+    /// {BtcTransactionReader-findFirstOutputPaying} for why first-match and not the sum, and why
     /// that is the open question here rather than in the registry.
     /// The derivation inputs come from state and the matched output from the SPV-proven bytes,
     /// so there is no argument a caller can move to change the answer.
@@ -478,7 +480,7 @@ contract PegInContract is
             rskAddr, address(this), _bridge.getActivePowpegRedeemScript()
         );
         (uint64 depositSats, bool found) =
-            PegInDerivation.findFirstBtcOutputPaying(btcTxSerialized, pkScript);
+            BtcTransactionReader.findFirstOutputPaying(btcTxSerialized, pkScript);
         if (!found) {
             revert DepositOutputNotFound(rskAddr, btcTxHash);
         }

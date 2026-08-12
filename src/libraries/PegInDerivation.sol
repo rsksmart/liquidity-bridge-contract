@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCodes.sol";
 
 /// @title PegInDerivation
@@ -31,11 +30,12 @@ import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCod
 /// Each step is a separate function taking the previous step's output, so every consumer enters
 /// the pipeline at the step it needs and none re-implements any script math.
 ///
-/// The pipeline does not stop at the address. Every consumer that reads a VALUE out of a deposit
+/// The pipeline ends at the script. Every consumer that reads a VALUE out of a deposit
 /// transaction — the registry gating registration, `PegInContract.requestPegIn` computing the
-/// peg-in amount — must match outputs against the SAME script this library derives, so
-/// {depositPkScript} and {findFirstBtcOutputPaying} live here too. A caller-supplied amount is
-/// never an input to either path: the amount is a value the contract computes.
+/// peg-in amount — matches outputs against the script {depositPkScript} returns, but the matching
+/// itself is a lookup over transaction bytes and lives in {BtcTransactionReader}. A
+/// caller-supplied amount is never an input to either path: the amount is a value the contract
+/// computes.
 ///
 /// Two known pitfalls, both proven on-chain and both encoded as negative tests:
 ///   1. Keying the redeem-script tag with `derivationArgumentsHash` directly (skipping step 2's
@@ -174,39 +174,5 @@ library PegInDerivation {
         bytes32 derivationValue_ = derivationValue(rskAddr, pegInContract);
         bytes memory redeemScript = flyoverRedeemScript(derivationValue_, activePowpegRedeemScript);
         return p2shScriptPubkey(flyoverScriptHash(redeemScript));
-    }
-
-    /// @notice Searches the outputs of `btcTxSerialized` for the FIRST one locked by `pkScript`
-    /// and returns its satoshi value.
-    /// @dev A search, not an accessor: the `found` flag is the failure mode, and both call sites
-    /// turn it into their own named error (a library revert would flatten the two into one).
-    ///
-    /// FIRST match, not the sum of every matching output. A deposit split across several outputs
-    /// to the same derived address therefore counts only its first output, which UNDERSTATES the
-    /// deposit — the name says `First` so no caller mistakes this for the amount paid. The rule is
-    /// inherited from the registry, where the value is only a minimum-deposit gate and
-    /// undercounting is conservative. `PegInContract.requestPegIn` uses it as the peg-in AMOUNT,
-    /// where undercounting silently drops the user's remaining outputs, so summing is the likely
-    /// correct rule there; it is not applied yet because the two call sites must move together and
-    /// because the reconciling side (`resolvePegIn`, and whether the RSK bridge sums outputs to the
-    /// derivation address) is not implemented. Revisit with settlement.
-    /// @param btcTxSerialized The witness-stripped raw deposit transaction
-    /// @param pkScript The scriptPubkey to search for, from {depositPkScript}
-    /// @return value The matched output's value in satoshis, 0 when no output matched
-    /// @return found Whether any output was locked by `pkScript`
-    function findFirstBtcOutputPaying(bytes calldata btcTxSerialized, bytes memory pkScript)
-        internal
-        pure
-        returns (uint64 value, bool found)
-    {
-        BtcUtils.TxRawOutput[] memory outputs = BtcUtils.getOutputs(btcTxSerialized);
-        bytes32 pkScriptHash = keccak256(pkScript);
-        uint256 outputCount = outputs.length;
-        for (uint256 i = 0; i < outputCount; ++i) {
-            if (keccak256(outputs[i].pkScript) == pkScriptHash) {
-                return (outputs[i].value, true);
-            }
-        }
-        return (0, false);
     }
 }
