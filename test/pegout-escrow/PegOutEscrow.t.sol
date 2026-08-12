@@ -19,6 +19,7 @@ import {FlyoverConfigurationsMock} from "../pegin/FlyoverConfigurationsMock.sol"
 
 /// @title PegOutEscrow S11.1 state machine + claim gates
 /// @dev Test names map to S11.1 transition / race / B-scenario ids where applicable.
+/// TODO: rename tests that embed user-story ids (e.g. S13.1) once those ids are no longer needed for review.
 contract PegOutEscrowTest is Test {
     /// @dev Mirrors impl-only {PegOutEscrow.EscrowPegOutChangePaid} for expectEmit.
     event EscrowPegOutChangePaid(
@@ -440,6 +441,39 @@ contract PegOutEscrowTest is Test {
         assertEq(escrow.getPegOutQuote(requestHash).lpRskAddress, lp);
         assertEq(address(pegOut).balance, pegOutBefore + payout);
         assertEq(address(escrow).balance, escrowBefore - payout);
+    }
+
+    /// @notice Claim-fed quote mirrored into PegOutContract passes today's validatePegout.
+    /// TODO: rename off the S13.1 story id once review no longer needs the ticket tag.
+    function test_S13_1_ClaimFedRecord_PassesValidatePegout() public {
+        bytes memory dest = _btcAddressP2pkh();
+        vm.prank(user);
+        bytes32 requestHash = escrow.requestPegOut{value: DEFAULT_VALUE}(
+            dest,
+            user
+        );
+
+        Quotes.PegOutQuote memory quote = escrow.getPegOutQuote(requestHash);
+        bytes memory signature = _signForLp(lpKey, quote, lp);
+        vm.prank(lp);
+        escrow.claimPegOut(requestHash, signature);
+
+        quote = escrow.getPegOutQuote(requestHash);
+        bytes memory btcTx = _generateBtcTx(quote, requestHash);
+
+        vm.prank(lp);
+        Quotes.PegOutQuote memory returned = pegOut.validatePegout(
+            requestHash,
+            btcTx
+        );
+
+        assertEq(returned.lpRskAddress, lp);
+        assertEq(returned.value, quote.value);
+        assertEq(returned.callFee, quote.callFee);
+        assertEq(
+            keccak256(returned.depositAddress),
+            keccak256(quote.depositAddress)
+        );
     }
 
     function test_R4_B1_SecondClaim_RevertsInvalidState() public {
@@ -952,6 +986,11 @@ contract PegOutEscrowTest is Test {
     // helpers
     // -------------------------------------------------------------------------
 
+    string constant HELPER_SCRIPT_GENERATE_BTC_TX =
+        "script/helpers/generate-btc-tx.ts";
+    string constant HELPER_SCRIPT_GET_BTC_ADDRESS_BYTES =
+        "script/helpers/get-btc-address-bytes.ts";
+
     function _requestDefault() internal returns (bytes32 requestHash) {
         vm.prank(user);
         requestHash = escrow.requestPegOut{value: DEFAULT_VALUE}(DEST, user);
@@ -979,6 +1018,31 @@ contract PegOutEscrowTest is Test {
         bytes32 eip712Hash = pegOut.hashPegOutQuoteEIP712(quote);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, eip712Hash);
         return abi.encodePacked(r, s, v);
+    }
+
+    /// @dev P2PKH address bytes matching generate-btc-tx.ts / LpRefund helpers.
+    function _btcAddressP2pkh() internal returns (bytes memory) {
+        string[] memory inputs = new string[](4);
+        inputs[0] = "npx";
+        inputs[1] = "ts-node";
+        inputs[2] = HELPER_SCRIPT_GET_BTC_ADDRESS_BYTES;
+        inputs[3] = "p2pkh";
+        return vm.ffi(inputs);
+    }
+
+    function _generateBtcTx(
+        Quotes.PegOutQuote memory quote,
+        bytes32 quoteHash
+    ) internal returns (bytes memory) {
+        string[] memory inputs = new string[](7);
+        inputs[0] = "npx";
+        inputs[1] = "ts-node";
+        inputs[2] = HELPER_SCRIPT_GENERATE_BTC_TX;
+        inputs[3] = vm.toString(quoteHash);
+        inputs[4] = vm.toString(quote.depositAddress);
+        inputs[5] = vm.toString(quote.value);
+        inputs[6] = "p2pkh";
+        return vm.ffi(inputs);
     }
 
     /// @dev `state` mapping is at struct offset 4 under the ERC-7201 root.
