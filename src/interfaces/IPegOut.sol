@@ -136,8 +136,9 @@ interface IPegOut is IPausable, IERC5267 {
     function depositPegOut(Quotes.PegOutQuote calldata quote, bytes calldata signature) external payable;
 
     /// @notice Commit-first path: PegOutEscrow registers a claimed peg-out under the request hash
-    /// @dev Only callable by the wired PegOutEscrow. Quote terms stay on escrow; this contract records
-    /// claim timing / completion and holds the forwarded RBTC.
+    /// @dev Only callable by the wired PegOutEscrow. Loads the escrow-built quote, re-verifies the LP
+    /// signature, stores the same quote-shaped record as {depositPegOut} under requestHash, records
+    /// claim timing, and holds the forwarded RBTC so settlement validation stays on one struct / one path.
     /// @param requestHash Escrow-minted request id
     /// @param signature LP EIP-712 signature over the escrowed quote (with lpRskAddress set)
     function registerClaimedPegOut(bytes32 requestHash, bytes calldata signature) external payable;
