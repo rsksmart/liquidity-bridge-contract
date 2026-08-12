@@ -143,27 +143,50 @@ contract LpRefundTest is PegOutTestBase {
         );
     }
 
-    function test_RefundPegOut_RevertsIfNotCalledByLP() public {
+    function test_RefundPegOut_AllowsThirdPartyCallerAndPaysRecordedLp()
+        public
+    {
         Quotes.PegOutQuote memory quote = createAndDepositQuote();
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
 
-        bytes memory btcTx = generateBtcTx(quote, quoteHash);
-
-        // fullLp tries to refund pegOutLp's quote
-        vm.prank(fullLp);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Flyover.InvalidSender.selector,
-                pegOutLp,
-                fullLp
-            )
+        bytes memory header = createBtcBlockHeader(
+            uint32(block.timestamp + 100)
         );
+        bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
+        bridgeMock.setConfirmations(
+            int256(uint256(quote.transferConfirmations))
+        );
+
+        bytes memory btcTx = generateBtcTx(quote, quoteHash);
+        uint256 refundAmount = getTotalValue(quote);
+        uint256 lpBalanceBefore = pegOutLp.balance;
+        uint256 callerBalanceBefore = fullLp.balance;
+        uint256 callerRewardsBefore = collateralManagement.getRewards(fullLp);
+
+        vm.prank(fullLp);
         pegOutContract.refundPegOut(
             quoteHash,
             btcTx,
             BLOCK_HEADER_HASH,
             PARTIAL_MERKLE_TREE,
             merkleHashes
+        );
+
+        assertTrue(pegOutContract.isQuoteCompleted(quoteHash));
+        assertEq(
+            pegOutLp.balance,
+            lpBalanceBefore + refundAmount,
+            "Recorded LP must receive the payout"
+        );
+        assertEq(
+            fullLp.balance,
+            callerBalanceBefore,
+            "Third-party caller must not receive the RBTC payout"
+        );
+        assertEq(
+            collateralManagement.getRewards(fullLp),
+            callerRewardsBefore,
+            "On-time third-party refund pays no punisher reward"
         );
     }
 
@@ -415,13 +438,12 @@ contract LpRefundTest is PegOutTestBase {
     {
         Quotes.PegOutQuote memory quote = createAndDepositQuote();
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+        // Registry depositTimestamp is stamped at deposit (legacy) / claim (commit-first).
+        uint256 depositTimestamp = block.timestamp;
 
-        // Setup header with late timestamp (after transferTime + btcBlockTime)
+        // Setup header with late timestamp (after deposit/claim + transferTime + btcBlockTime)
         uint32 lateTime = uint32(
-            quote.agreementTimestamp +
-                quote.transferTime +
-                TEST_BTC_BLOCK_TIME +
-                500
+            depositTimestamp + quote.transferTime + TEST_BTC_BLOCK_TIME + 500
         );
         bytes memory header = createBtcBlockHeader(lateTime);
         bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
@@ -435,9 +457,7 @@ contract LpRefundTest is PegOutTestBase {
         uint256 penalty = quote.penaltyFee;
         uint256 reward = (penalty * TEST_REWARD_PERCENTAGE) / 10000;
 
-        // assert to confirm time is late enough
-        assertTrue(quote.expireDate < lateTime);
-        // Refund should succeed but emit penalization
+        // Refund should succeed but emit penalization (LP self-submit keeps self-punisher)
         vm.prank(pegOutLp);
         vm.expectEmit(true, false, false, true);
         emit IPegOut.PegOutRefunded(quoteHash);
@@ -456,6 +476,62 @@ contract LpRefundTest is PegOutTestBase {
             BLOCK_HEADER_HASH,
             PARTIAL_MERKLE_TREE,
             merkleHashes
+        );
+    }
+
+    function test_RefundPegOut_ThirdPartyLateProofPaysLpAndRewardsCaller()
+        public
+    {
+        Quotes.PegOutQuote memory quote = createAndDepositQuote();
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+        uint256 depositTimestamp = block.timestamp;
+
+        uint32 lateTime = uint32(
+            depositTimestamp + quote.transferTime + TEST_BTC_BLOCK_TIME + 500
+        );
+        bytes memory header = createBtcBlockHeader(lateTime);
+        bridgeMock.setHeaderByHash(BLOCK_HEADER_HASH, header);
+        bridgeMock.setConfirmations(
+            int256(uint256(quote.transferConfirmations))
+        );
+
+        bytes memory btcTx = generateBtcTx(quote, quoteHash);
+        uint256 refundAmount = getTotalValue(quote);
+        uint256 penalty = quote.penaltyFee;
+        uint256 reward = (penalty * TEST_REWARD_PERCENTAGE) / 10000;
+        uint256 lpBalanceBefore = pegOutLp.balance;
+        uint256 lpCollateralBefore = collateralManagement.getPegOutCollateral(
+            pegOutLp
+        );
+        uint256 callerRewardsBefore = collateralManagement.getRewards(fullLp);
+
+        vm.prank(fullLp);
+        vm.expectEmit(true, true, true, true);
+        emit ICollateralManagement.Penalized(
+            pegOutLp,
+            fullLp,
+            quoteHash,
+            Flyover.ProviderType.PegOut,
+            penalty,
+            reward
+        );
+        pegOutContract.refundPegOut(
+            quoteHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
+
+        assertTrue(pegOutContract.isQuoteCompleted(quoteHash));
+        assertEq(pegOutLp.balance, lpBalanceBefore + refundAmount);
+        assertEq(
+            collateralManagement.getPegOutCollateral(pegOutLp),
+            lpCollateralBefore - penalty
+        );
+        assertEq(
+            collateralManagement.getRewards(fullLp),
+            callerRewardsBefore + reward
         );
     }
 
@@ -802,22 +878,19 @@ contract LpRefundTest is PegOutTestBase {
         pegOutContract.validatePegout(quoteHash, btcTx);
     }
 
-    function test_ValidatePegout_RevertsIfNotCalledByLP() public {
+    function test_ValidatePegout_AllowsThirdPartyCaller() public {
         Quotes.PegOutQuote memory quote = createAndDepositQuote();
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
 
         bytes memory btcTx = generateBtcTx(quote, quoteHash);
 
-        // fullLp tries to validate pegOutLp's quote
         vm.prank(fullLp);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Flyover.InvalidSender.selector,
-                pegOutLp,
-                fullLp
-            )
+        Quotes.PegOutQuote memory returnedQuote = pegOutContract.validatePegout(
+            quoteHash,
+            btcTx
         );
-        pegOutContract.validatePegout(quoteHash, btcTx);
+        assertEq(returnedQuote.lpRskAddress, pegOutLp);
+        assertEq(returnedQuote.value, quote.value);
     }
 
     function test_ValidatePegout_RevertsIfBtcTxNotRelatedToQuote() public {
