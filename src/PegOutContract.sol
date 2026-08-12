@@ -32,8 +32,9 @@ contract PegOutContract is
     /// @notice This struct is used to store the information of a peg out
     /// @param completed whether the peg out has been completed or not,
     /// completed means the peg out was paid and refunded (to any party)
-    /// @param depositTimestamp the timestamp of the deposit
-    /// @param depositBlock the block where the deposit was recorded
+    /// @param depositTimestamp Penalty-clock anchor: user deposit time for legacy
+    /// {depositPegOut}, claim time for commit-first {registerClaimedPegOut}
+    /// @param depositBlock Block of the same anchor as {depositTimestamp}
     struct PegOutRecord {
         bool completed;
         uint256 depositTimestamp;
@@ -486,9 +487,9 @@ contract PegOutContract is
         return _pegOutRegistry[quoteHash].completed;
     }
 
-    /// @notice This function is used to check if a liquidity provider should be penalized
-    /// according to the following rules:
-    /// - If the transfer was not made on time, the liquidity provider should be penalized
+    /// @notice Whether the LP should be penalized for late BTC delivery or late refund.
+    /// @dev The transfer deadline is measured from the registry anchor
+    /// (`depositTimestamp` / `depositBlock`: claim time on commit-first, deposit time on legacy).
     /// @param quote the peg out quote
     /// @param quoteHash the hash of the quote
     /// @param blockHash the hash of the block that contains the first confirmation of the peg out transaction
@@ -549,7 +550,6 @@ contract PegOutContract is
 
         quote = _pegOutQuotes[quoteHash];
         if (quote.lbcAddress == address(0)) revert Flyover.QuoteNotFound(quoteHash);
-        if (quote.lpRskAddress != msg.sender) revert Flyover.InvalidSender(quote.lpRskAddress, msg.sender);
 
         BtcUtils.TxRawOutput[] memory outputs = BtcUtils.getOutputs(btcTx);
         _validateBtcTxNullData(outputs, quoteHash);
