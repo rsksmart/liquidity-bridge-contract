@@ -291,10 +291,13 @@ contract UserRefundTest is PegOutTestBase {
             "Quote should be marked as completed"
         );
 
-        // Verify cannot refund again
+        // Verify cannot refund again — completed registry wins over deleted quote body
         vm.prank(user);
         vm.expectRevert(
-            abi.encodeWithSelector(Flyover.QuoteNotFound.selector, quoteHash)
+            abi.encodeWithSelector(
+                IPegOut.QuoteAlreadyCompleted.selector,
+                quoteHash
+            )
         );
         pegOutContract.refundUserPegOut(quoteHash);
     }

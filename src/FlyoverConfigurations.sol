@@ -8,22 +8,31 @@ import {IFlyoverConfigurations} from "./interfaces/IFlyoverConfigurations.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 
 /// @title FlyoverConfigurations
-/// @notice The single on-chain source of the commit-first peg-in parameters (fee, confirmation
-/// tiers, amount limits) that every party reads: the SDK for its estimate, every LPS for its
-/// serve decision, and the settlement path for its amount validation. Admin changes are
-/// time-locked in two steps (queue then apply) and re-validated at both steps against immutable
-/// bounds fixed at deployment, so an admin mistake cannot set absurd values even with the role.
-/// @dev Implements the frozen {IFlyoverConfigurations} (peg-in only); its function signatures and
-/// structs are the shared ABI every consumer depends on, so they must not be changed here.
-/// Upgradeable, ERC-7201 namespaced storage, deployed behind a TransparentUpgradeableProxy per
-/// repo pattern.
+/// @notice On-chain source of commit-first peg-in and peg-out parameters, exposed via the
+/// frozen {IFlyoverConfigurations}. Peg-out storage uses a separate ERC-7201 namespace so
+/// peg-in layout / tests stay unchanged. Admin changes are time-locked (queue then apply)
+/// and re-validated against immutable bounds.
 /// @author Rootstock Labs
 contract FlyoverConfigurations is
     AccessControlDefaultAdminRulesUpgradeable,
     IFlyoverConfigurations
 {
     /// @notice Identifies the scalar field an out-of-bounds revert refers to.
-    enum Field { FixedFee, PercentageFee, MinAmount, MaxAmount }
+    enum Field {
+        FixedFee,
+        PercentageFee,
+        MinAmount,
+        MaxAmount,
+        PenaltyFee,
+        ClaimWindow,
+        ClaimWindowBlocks,
+        CallTime,
+        ExpireTime,
+        ExpireBlocks,
+        MaxMinerFee,
+        GasFee,
+        DepositConfirmations
+    }
 
     /// @custom:storage-location erc7201:rsk.flyover.FlyoverConfigurations
     struct FlyoverConfigurationsStorage {
@@ -40,6 +49,17 @@ contract FlyoverConfigurations is
         uint256 timelockDelay;
         PegConfiguration min;
         PegConfiguration max;
+    }
+
+    /// @custom:storage-location erc7201:rsk.flyover.FlyoverConfigurations.pegOut
+    /// @dev Separate namespace so peg-out never shifts peg-in storage (Timelock slot tests, etc.).
+    struct PegOutConfigurationsStorage {
+        PegOutConfiguration active;
+        PegOutConfiguration pending;
+        uint256 pendingEta;
+        PegOutConfiguration minBound;
+        PegOutConfiguration maxBound;
+        bool initialized;
     }
 
     /// @notice The version of the contract
@@ -62,6 +82,11 @@ contract FlyoverConfigurations is
     bytes32 private constant _FLYOVER_CONFIGURATIONS_BOUNDS =
         0x62f8e0a1022a246e45081dab13f708870be3f38423627ed9d784f6bc5369e500;
 
+    // ERC-7201: keccak256(abi.encode(uint256(keccak256("rsk.flyover.FlyoverConfigurations.pegOut")) - 1)) &
+    // ~bytes32(uint256(0xff))
+    bytes32 private constant _FLYOVER_CONFIGURATIONS_PEGOUT =
+        0x15978da28ad46e9b891b8591ece2c0413e91c9a5c9c768c642316e015001be00;
+
     /// @notice Emitted when a configuration change is queued by the admin.
     /// @param newConfiguration The configuration that will activate once the time lock elapses
     /// @param eta The earliest timestamp `applyChange` may activate the queued configuration
@@ -70,6 +95,9 @@ contract FlyoverConfigurations is
     /// @notice Emitted when a queued configuration change is applied and becomes active.
     /// @param newConfiguration The now-active configuration
     event ChangeApplied(PegConfiguration newConfiguration);
+
+    event PegOutChangeQueued(PegOutConfiguration newConfiguration, uint256 eta);
+    event PegOutChangeApplied(PegOutConfiguration newConfiguration);
 
     /// @notice Raised when a scalar field falls outside its immutable deployment bound.
     error ConfigValueOutOfBounds(Field field, uint256 value, uint256 min, uint256 max);
@@ -85,6 +113,12 @@ contract FlyoverConfigurations is
     error TimelockNotElapsed(uint256 eta, uint256 nowTime);
     /// @notice Raised when applying while no change is queued.
     error NoQueuedChange();
+    /// @notice Raised when peg-out seed/bounds were already written via {initializePegOut}.
+    error PegOutAlreadyInitialized();
+    /// @notice Raised when peg-out has not been seeded yet.
+    error PegOutNotInitialized();
+    /// @notice Raised when peg-out claim/expire windows are zero.
+    error InvalidPegOutDeadlines();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -127,6 +161,24 @@ contract FlyoverConfigurations is
         _getStorage().activePegIn = pegInConfig;
     }
 
+    /// @notice One-time seed of peg-out active config + immutable bounds (call after {initialize}).
+    /// @dev Kept separate from {initialize} so the peg-in ABI and existing deploy/tests stay unchanged.
+    // solhint-disable-next-line comprehensive-interface
+    function initializePegOut(
+        PegOutConfiguration calldata pegOutConfig,
+        PegOutConfiguration calldata pegOutMin,
+        PegOutConfiguration calldata pegOutMax
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        PegOutConfigurationsStorage storage pegOut = _getPegOutStorage();
+        if (pegOut.initialized) revert PegOutAlreadyInitialized();
+
+        pegOut.minBound = pegOutMin;
+        pegOut.maxBound = pegOutMax;
+        _validatePegOutConfig(pegOutConfig);
+        pegOut.active = pegOutConfig;
+        pegOut.initialized = true;
+    }
+
     /// @inheritdoc IFlyoverConfigurations
     function queueChange(PegConfiguration calldata newConfiguration) external override onlyRole(DEFAULT_ADMIN_ROLE) {
         _validateConfig(newConfiguration);
@@ -155,6 +207,38 @@ contract FlyoverConfigurations is
         delete $.pending;
         $.pendingEta = 0;
         emit ChangeApplied(pending);
+    }
+
+    /// @inheritdoc IFlyoverConfigurations
+    function queuePegOutChange(PegOutConfiguration calldata newConfiguration)
+        external
+        override
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        _requirePegOutInitialized();
+        _validatePegOutConfig(newConfiguration);
+        PegOutConfigurationsStorage storage pegOut = _getPegOutStorage();
+        uint256 eta = block.timestamp + _getBounds().timelockDelay;
+        pegOut.pending = newConfiguration;
+        pegOut.pendingEta = eta;
+        emit PegOutChangeQueued(newConfiguration, eta);
+    }
+
+    /// @inheritdoc IFlyoverConfigurations
+    function applyPegOutChange() external override onlyRole(DEFAULT_ADMIN_ROLE) {
+        _requirePegOutInitialized();
+        PegOutConfigurationsStorage storage pegOut = _getPegOutStorage();
+        uint256 eta = pegOut.pendingEta;
+        if (eta == 0) revert NoQueuedChange();
+        if (block.timestamp < eta) revert TimelockNotElapsed(eta, block.timestamp);
+
+        PegOutConfiguration memory pending = pegOut.pending;
+        _validatePegOutConfig(pending);
+
+        pegOut.active = pegOut.pending;
+        delete pegOut.pending;
+        pegOut.pendingEta = 0;
+        emit PegOutChangeApplied(pending);
     }
 
     /// @inheritdoc IFlyoverConfigurations
@@ -205,9 +289,67 @@ contract FlyoverConfigurations is
         return _getBounds().timelockDelay;
     }
 
+    /// @inheritdoc IFlyoverConfigurations
+    function getPegOutConfiguration() external view override returns (PegOutConfiguration memory configuration) {
+        _requirePegOutInitialized();
+        return _getPegOutStorage().active;
+    }
+
+    /// @inheritdoc IFlyoverConfigurations
+    function calculatePegOutFee(uint256 amount) external view override returns (uint256 fee) {
+        _requirePegOutInitialized();
+        return _calculatePegOutFee(_getPegOutStorage().active, amount);
+    }
+
+    /// @inheritdoc IFlyoverConfigurations
+    function getRequiredPegOutBtcConfirmations(uint256 amount)
+        external
+        view
+        override
+        returns (uint256 confirmations)
+    {
+        _requirePegOutInitialized();
+        return _requiredPegOutConfirmations(_getPegOutStorage().active, amount);
+    }
+
+    /// @notice Returns the immutable peg-out deployment bounds.
+    // solhint-disable-next-line comprehensive-interface
+    function getPegOutConfigurationBounds()
+        external
+        view
+        returns (PegOutConfiguration memory min, PegOutConfiguration memory max)
+    {
+        _requirePegOutInitialized();
+        PegOutConfigurationsStorage storage pegOut = _getPegOutStorage();
+        return (pegOut.minBound, pegOut.maxBound);
+    }
+
+    /// @notice Returns the queued peg-out configuration change and its activation time.
+    // solhint-disable-next-line comprehensive-interface
+    function getPendingPegOutChange()
+        external
+        view
+        returns (PegOutConfiguration memory pending, uint256 eta)
+    {
+        PegOutConfigurationsStorage storage pegOut = _getPegOutStorage();
+        return (pegOut.pending, pegOut.pendingEta);
+    }
+
     /// @dev fee = fixedFee + amount * percentageFee / 10_000, then rounded DOWN to a satoshi
     /// boundary (mirrors `Quotes.checkAgreedAmount`), so on-chain fees agree with the bridge.
     function _calculateFee(PegConfiguration storage config, uint256 amount) private view returns (uint256) {
+        uint256 fee = config.fixedFee + (amount * config.percentageFee) / FEE_PERCENTAGE_DENOMINATOR;
+        if (fee > SAT_TO_WEI_CONVERSION && (fee % SAT_TO_WEI_CONVERSION) != 0) {
+            fee -= (fee % SAT_TO_WEI_CONVERSION);
+        }
+        return fee;
+    }
+
+    function _calculatePegOutFee(PegOutConfiguration storage config, uint256 amount)
+        private
+        view
+        returns (uint256)
+    {
         uint256 fee = config.fixedFee + (amount * config.percentageFee) / FEE_PERCENTAGE_DENOMINATOR;
         if (fee > SAT_TO_WEI_CONVERSION && (fee % SAT_TO_WEI_CONVERSION) != 0) {
             fee -= (fee % SAT_TO_WEI_CONVERSION);
@@ -219,6 +361,21 @@ contract FlyoverConfigurations is
     /// amount exceeds every tier, returns the highest (last) tier's confirmations, the most
     /// conservative answer. Tiers are kept strictly ascending, so the first match is the tightest.
     function _requiredConfirmations(PegConfiguration storage config, uint256 amount)
+        private
+        view
+        returns (uint256)
+    {
+        ConfirmationTier[] storage tiers = config.confirmationTiers;
+        uint256 length = tiers.length;
+        for (uint256 i = 0; i < length; ++i) {
+            if (amount <= tiers[i].maxAmount) {
+                return tiers[i].confirmations;
+            }
+        }
+        return tiers[length - 1].confirmations;
+    }
+
+    function _requiredPegOutConfirmations(PegOutConfiguration storage config, uint256 amount)
         private
         view
         returns (uint256)
@@ -275,6 +432,48 @@ contract FlyoverConfigurations is
         }
     }
 
+    function _validatePegOutConfig(PegOutConfiguration memory config) private view {
+        PegOutConfigurationsStorage storage pegOut = _getPegOutStorage();
+        PegOutConfiguration storage minB = pegOut.minBound;
+        PegOutConfiguration storage maxB = pegOut.maxBound;
+
+        _checkBound(Field.FixedFee, config.fixedFee, minB.fixedFee, maxB.fixedFee);
+        _checkBound(Field.PercentageFee, config.percentageFee, minB.percentageFee, maxB.percentageFee);
+        _checkBound(Field.MinAmount, config.minAmount, minB.minAmount, maxB.minAmount);
+        _checkBound(Field.MaxAmount, config.maxAmount, minB.maxAmount, maxB.maxAmount);
+        _checkBound(Field.PenaltyFee, config.penaltyFee, minB.penaltyFee, maxB.penaltyFee);
+        _checkBound(Field.ClaimWindow, config.claimWindow, minB.claimWindow, maxB.claimWindow);
+        _checkBound(
+            Field.ClaimWindowBlocks, config.claimWindowBlocks, minB.claimWindowBlocks, maxB.claimWindowBlocks
+        );
+        _checkBound(Field.CallTime, config.callTime, minB.callTime, maxB.callTime);
+        _checkBound(Field.ExpireTime, config.expireTime, minB.expireTime, maxB.expireTime);
+        _checkBound(Field.ExpireBlocks, config.expireBlocks, minB.expireBlocks, maxB.expireBlocks);
+        _checkBound(Field.MaxMinerFee, config.maxMinerFee, minB.maxMinerFee, maxB.maxMinerFee);
+        _checkBound(Field.GasFee, config.gasFee, minB.gasFee, maxB.gasFee);
+        _checkBound(
+            Field.DepositConfirmations,
+            config.depositConfirmations,
+            minB.depositConfirmations,
+            maxB.depositConfirmations
+        );
+
+        if (config.percentageFee > FEE_PERCENTAGE_DENOMINATOR) {
+            revert InvalidPercentageFee(config.percentageFee);
+        }
+        if (config.minAmount > config.maxAmount) {
+            revert InvalidAmountLimits(config.minAmount, config.maxAmount);
+        }
+        if (config.claimWindow == 0 || config.callTime == 0 || config.expireTime == 0) {
+            revert InvalidPegOutDeadlines();
+        }
+        _validateTiers(config.confirmationTiers);
+    }
+
+    function _requirePegOutInitialized() private view {
+        if (!_getPegOutStorage().initialized) revert PegOutNotInitialized();
+    }
+
     function _getStorage() private pure returns (FlyoverConfigurationsStorage storage $) {
         assembly {
             $.slot := _FLYOVER_CONFIGURATIONS_STORAGE
@@ -284,6 +483,12 @@ contract FlyoverConfigurations is
     function _getBounds() private pure returns (FlyoverConfigurationsBounds storage $) {
         assembly {
             $.slot := _FLYOVER_CONFIGURATIONS_BOUNDS
+        }
+    }
+
+    function _getPegOutStorage() private pure returns (PegOutConfigurationsStorage storage $) {
+        assembly {
+            $.slot := _FLYOVER_CONFIGURATIONS_PEGOUT
         }
     }
 }

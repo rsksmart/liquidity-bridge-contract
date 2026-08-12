@@ -87,6 +87,9 @@ interface ICollateralManagement is IPausable {
     /// @param minCollateral The minimum collateral that was invalid
     error MinCollateralTooLow(uint256 minCollateral);
 
+    /// @notice Raised when {globalSlash} is called before it is implemented
+    error GlobalSlashNotImplemented();
+
     /// @notice Adds peg in collateral to an account
     /// @param addr The address of the account
     /// @dev This function requires the COLLATERAL_ADDER role
@@ -138,6 +141,14 @@ interface ICollateralManagement is IPausable {
         Quotes.PegOutQuote calldata quote,
         bytes32 quoteHash
     ) external;
+
+    /// @notice Slashes `total` proportionally across registered LPs past the grace window.
+    /// @dev Used when a serviceable request goes unclaimed (peg-in unclaimed settle;
+    /// peg-out {IPegOutEscrow-refundOnNoClaim}). Requires the COLLATERAL_SLASHER role.
+    /// Drains peg-in collateral first, then peg-out. Part of `total` may be paid as a
+    /// punisher reward (same split as individual slashes).
+    /// @param total The aggregate amount to slash across eligible LPs, in wei
+    function globalSlash(uint256 total) external;
 
     /// @notice Withdraws rewards from the contract. Sends to the caller. Use withdrawRewards(address payable to)
     /// to send to a different address (e.g. if the caller cannot receive ETH).
