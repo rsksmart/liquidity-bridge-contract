@@ -79,8 +79,7 @@ contract BridgeMockBlindSpotTest is RequestPegInTestBase {
             "wtxid differs from txid"
         );
         assertTrue(
-            _pegInIdForTx(rskUser, stripped) !=
-                _pegInIdForTx(rskUser, witness),
+            _pegInIdForTx(rskUser, stripped) != _pegInIdForTx(rskUser, witness),
             "so the two presentations get different pegInIds"
         );
     }
@@ -121,7 +120,11 @@ contract BridgeMockBlindSpotTest is RequestPegInTestBase {
             secondId
         );
         assertEq(firstClaimer, claimer, "claim 1 written");
-        assertEq(secondClaimer, claimer, "claim 2 written for the same deposit");
+        assertEq(
+            secondClaimer,
+            claimer,
+            "claim 2 written for the same deposit"
+        );
         assertEq(firstFronted, net, "claim 1 fronted full net");
         assertEq(secondFronted, net, "claim 2 fronted full net");
 

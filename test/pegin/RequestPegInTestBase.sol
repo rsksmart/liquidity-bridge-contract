@@ -44,8 +44,14 @@ abstract contract RequestPegInTestBase is PegInTestBase {
     /// destination and amount pass different nonces.
     uint256 internal constant DEFAULT_TX_NONCE = 1;
 
+    /// @notice The network flag both the PegInContract and the registry are deployed with here.
+    /// @dev Kept as one constant because the two MUST agree: the BTC placeholders mixed into the
+    /// deposit derivation are per-network, so a contract on one flag and a registry on the other
+    /// would issue an address the claim path never matches.
+    bool internal constant IS_MAINNET_DEPLOYMENT = false;
+
     function setUp() public virtual {
-        deployPegInContract();
+        pegInContract = deployPegInContract(IS_MAINNET_DEPLOYMENT);
 
         registry = _deployRegistryHarness();
         configurations = new FlyoverConfigurationsMock();
@@ -74,7 +80,13 @@ abstract contract RequestPegInTestBase is PegInTestBase {
         PegInAddressRegistryHarness implementation = new PegInAddressRegistryHarness();
         bytes memory initData = abi.encodeCall(
             implementation.initialize,
-            (owner, uint48(0), address(bridgeMock), false, pauseRegistry)
+            (
+                owner,
+                uint48(0),
+                address(bridgeMock),
+                IS_MAINNET_DEPLOYMENT,
+                pauseRegistry
+            )
         );
         ERC1967Proxy proxy = new ERC1967Proxy(
             address(implementation),
@@ -213,6 +225,9 @@ abstract contract RequestPegInTestBase is PegInTestBase {
 
     /// @notice The P2SH scriptPubkey a deposit for `rskAddr` must pay, derived exactly as
     /// PegInContract derives it.
+    /// @dev Passes {IS_MAINNET_DEPLOYMENT}, the flag both the contract and the registry were
+    /// deployed with. The BTC placeholders mixed into the derivation are per-network, so deriving
+    /// with the other flag builds a script the contract never matches.
     function _depositPkScript(
         address rskAddr
     ) internal view returns (bytes memory) {
@@ -220,7 +235,8 @@ abstract contract RequestPegInTestBase is PegInTestBase {
             PegInDerivation.depositPkScript(
                 rskAddr,
                 address(pegInContract),
-                bridgeMock.getActivePowpegRedeemScript()
+                bridgeMock.getActivePowpegRedeemScript(),
+                IS_MAINNET_DEPLOYMENT
             );
     }
 

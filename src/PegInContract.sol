@@ -467,6 +467,11 @@ contract PegInContract is
     /// rotates the expected script here exactly as it rotates the issued address. In-flight
     /// deposits to a pre-rotation address stop matching, which is the drain-then-rotate cost
     /// PegInDerivation documents, not a new failure mode.
+    ///
+    /// The network flag comes from this contract's own `_mainnet`, set at initialization. It must
+    /// agree with the flag the registry was initialized with: the BTC placeholders mixed into the
+    /// derivation are per-network, so a disagreement derives a script no deposit pays and every
+    /// claim reverts DepositOutputNotFound.
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param btcTxSerialized The witness-stripped raw deposit transaction
     /// @param btcTxHash The txid hashed from btcTxSerialized, for the revert reason
@@ -477,7 +482,7 @@ contract PegInContract is
         returns (uint256)
     {
         bytes memory pkScript = PegInDerivation.depositPkScript(
-            rskAddr, address(this), _bridge.getActivePowpegRedeemScript()
+            rskAddr, address(this), _bridge.getActivePowpegRedeemScript(), _mainnet
         );
         (uint64 depositSats, bool found) =
             BtcTransactionReader.findFirstOutputPaying(btcTxSerialized, pkScript);
