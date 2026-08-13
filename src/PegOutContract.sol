@@ -35,10 +35,13 @@ contract PegOutContract is
     /// @param depositTimestamp Penalty-clock anchor: user deposit time for legacy
     /// {depositPegOut}, claim time for commit-first {registerClaimedPegOut}
     /// @param depositBlock Block of the same anchor as {depositTimestamp}
+    /// @param maxMinerFee Snapshotted short-delivery floor cap (wei) from escrow at claim;
+    /// zero when unset (legacy depositPegOut)
     struct PegOutRecord {
         bool completed;
         uint256 depositTimestamp;
         uint256 depositBlock;
+        uint256 maxMinerFee;
     }
 
     /// @notice The version of the contract
@@ -194,6 +197,7 @@ contract PegOutContract is
         _pegOutQuotes[requestHash] = quote;
         _pegOutRegistry[requestHash].depositTimestamp = block.timestamp;
         _pegOutRegistry[requestHash].depositBlock = block.number;
+        _pegOutRegistry[requestHash].maxMinerFee = _pegOutEscrow.getMaxMinerFee(requestHash);
 
         emit PegOutDeposit(requestHash, quote.lpRskAddress, block.timestamp, msg.value);
     }
