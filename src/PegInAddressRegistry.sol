@@ -123,6 +123,12 @@ contract PegInAddressRegistry is
         address pegInContract = $.pegInContract;
         if (pegInContract == address(0)) revert PegInContractNotSet();
 
+        // Before the bytes are read or hashed: getOutputs reads the same outputs from either
+        // serialization, but hashBtcTx returns a wtxid for the witness form and the confirmation
+        // proof below is against a txid merkle tree. See
+        // {BtcTransactionReader-WitnessSerializedTxNotAccepted}.
+        BtcTransactionReader.requireWitnessStripped(btcTxSerialized);
+
         bytes memory expectedPkScript = _depositPkScript(rskAddr, pegInContract, $.bridge, $.isMainnet);
         uint64 depositValue = _requireDepositValue(btcTxSerialized, expectedPkScript, rskAddr);
 

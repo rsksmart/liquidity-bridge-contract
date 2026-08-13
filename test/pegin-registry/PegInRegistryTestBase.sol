@@ -145,6 +145,38 @@ abstract contract PegInRegistryTestBase is Test {
             );
     }
 
+    /// @notice The BIP144 (witness-included) serialization of the same one-output deposit.
+    /// @dev Identical to {_buildDepositTx} except for the 00 01 marker+flag after the version and a
+    /// one-item witness stack before the locktime. getOutputs reads the same output from both, so
+    /// only the serialization differs — which is exactly what the registry must reject.
+    function _buildWitnessDepositTx(
+        bytes memory pkScript,
+        uint64 value
+    ) internal pure returns (bytes memory) {
+        bytes memory valueLe = new bytes(8);
+        uint64 v = value;
+        for (uint256 i = 0; i < 8; ++i) {
+            valueLe[i] = bytes1(uint8(v & 0xFF));
+            v >>= 8;
+        }
+        return
+            abi.encodePacked(
+                hex"01000000",
+                hex"0001", // segwit marker + flag
+                hex"01",
+                bytes32(uint256(1)),
+                hex"00000000",
+                hex"00",
+                hex"ffffffff",
+                hex"01",
+                valueLe,
+                bytes1(uint8(pkScript.length)),
+                pkScript,
+                hex"0102ab", // witness: 1 item, 2 bytes
+                hex"00000000"
+            );
+    }
+
     function _emptyHashes() internal pure returns (bytes32[] memory) {
         return new bytes32[](0);
     }

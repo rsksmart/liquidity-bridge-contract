@@ -3,24 +3,25 @@ pragma solidity 0.8.25;
 
 import {RequestPegInTestBase} from "./RequestPegInTestBase.sol";
 import {IPegInCommitFirst} from "../../src/interfaces/IPegInCommitFirst.sol";
+import {IBridge} from "../../src/interfaces/IBridge.sol";
+import {BtcTransactionReader} from "../../src/libraries/BtcTransactionReader.sol";
 
-/// @title Why BridgeMock has to look at the txid
-/// @notice Two examples of the SAME scenario: one real deposit presented twice, once
-/// witness-stripped and once witness-serialized.
+/// @title One deposit, two serializations
+/// @notice A segwit deposit has two legal serializations (BIP144), and BtcUtils treats them
+/// inconsistently — correctly, on both sides:
+///   - getOutputs detects the segwit marker+flag and skips it, so it reads the SAME real output
+///     from both serializations. Same amount either way.
+///   - hashBtcTx double-sha256s whatever bytes it is given, so the witness serialization hashes to
+///     the WTXID, not the txid.
 ///
-/// BtcUtils treats those two byte strings inconsistently, and that is correct behaviour on both
-/// sides:
-///   - getOutputs (line 59) detects the segwit marker+flag and skips them, so it reads the SAME
-///     real output from both serializations. Same amount either way.
-///   - hashBtcTx (line 272) double-sha256s whatever bytes it is given, so the witness
-///     serialization hashes to the WTXID, not the txid.
+/// So the two presentations of one deposit yield two different pegInIds, and the already-processed
+/// guard — keyed on the hash — waves the second one through.
 ///
-/// So the two presentations of one deposit yield two different pegInIds. On a real chain the
-/// second one is dead on arrival: the bridge checks the hash against a merkle tree built from
-/// txids, and a wtxid is not in it. requestPegIn therefore reverts InsufficientConfirmations.
-///
-/// The current BridgeMock discards the hash argument, so the test environment cannot tell the two
-/// apart, and asserts behaviour that is impossible in production.
+/// `requestPegIn` now rejects the witness serialization at its own boundary, before hashing. The
+/// real bridge would also reject it (a wtxid is not in a merkle tree built from txids), but that is
+/// a collaborator we do not own, so these tests assert OUR revert and prove the bridge is never
+/// reached. The txid-aware BridgeMock stays: without it the suite still cannot see WHICH hash the
+/// contract asks the bridge about, which is a separate blind spot and the last test here.
 contract BridgeMockBlindSpotTest is RequestPegInTestBase {
     /// @notice A one-input, one-output SEGWIT-serialized transaction paying `pkScript`.
     /// @dev Identical to the base's _buildTx except for the 00 01 marker+flag after the version
@@ -67,7 +68,8 @@ contract BridgeMockBlindSpotTest is RequestPegInTestBase {
         witness = _buildWitnessTx(pkScript, sats, DEFAULT_TX_NONCE);
     }
 
-    /// @notice The premise both examples rest on: same parsed output, different hash.
+    /// @notice The premise the whole suite rests on: same parsed output, different hash.
+    /// @dev Tests raw hashing, not the entry point, so the new guard does not apply here.
     function test_premise_sameOutputDifferentHash() public view {
         (
             bytes memory stripped,
@@ -85,92 +87,37 @@ contract BridgeMockBlindSpotTest is RequestPegInTestBase {
     }
 
     // ------------------------------------------------------------------
-    // BAD: what the current, hash-blind BridgeMock lets you assert
+    // The double-claim, stopped at our boundary
     // ------------------------------------------------------------------
 
-    /// @notice Passes today. One real deposit is claimed TWICE for full value, because the mock
-    /// hands out confirmations for any hash at all — including a wtxid that no merkle tree
-    /// contains. The already-processed guard does not help: it is keyed on the hash, and the two
-    /// presentations hash differently.
-    ///
-    /// A green run here means the suite is blessing a double-claim that the real bridge rejects.
-    function test_BAD_hashBlindMock_letsOneDepositBeClaimedTwice() public {
+    /// @notice The exploit this guard exists for, run in the WEAKEST environment: a hash-blind
+    /// bridge that hands out confirmations for any hash at all, including a wtxid no merkle tree
+    /// contains. Before the guard this test claimed one deposit twice for full value. Now the
+    /// second presentation never gets far enough to be confirmed by anything.
+    function test_hashBlindMock_cannotClaimOneDepositTwice() public {
         (
             bytes memory stripped,
             bytes memory witness
         ) = _twoSerializationsOfOneDeposit();
         uint256 net = DEFAULT_AMOUNT - _expectedFee(DEFAULT_AMOUNT);
 
-        // Blanket confirmations for every hash — the current mock's only mode.
+        // Blanket confirmations for every hash — the mock's weakest mode, and the one that used to
+        // let the wtxid through.
         bridgeMock.setConfirmations(int256(DEFAULT_TIER_CONFIRMATIONS));
 
         uint256 userBefore = rskUser.balance;
 
         // Claim 1: the honest, witness-stripped presentation.
         bytes32 firstId = _requestPegInTx(claimer, rskUser, stripped, net);
-
-        // Claim 2: the SAME deposit, re-serialized with a witness. Fresh pegInId, so the
-        // already-processed check waves it through, and the mock confirms the wtxid.
-        bytes32 secondId = _requestPegInTx(claimer, rskUser, witness, net);
-
-        assertTrue(firstId != secondId, "two ids for one deposit");
-
         (address firstClaimer, uint256 firstFronted, , ) = _readClaim(firstId);
-        (address secondClaimer, uint256 secondFronted, , ) = _readClaim(
-            secondId
-        );
         assertEq(firstClaimer, claimer, "claim 1 written");
-        assertEq(
-            secondClaimer,
-            claimer,
-            "claim 2 written for the same deposit"
-        );
         assertEq(firstFronted, net, "claim 1 fronted full net");
-        assertEq(secondFronted, net, "claim 2 fronted full net");
 
-        // The user was paid twice for a single BTC deposit.
-        assertEq(
-            rskUser.balance,
-            userBefore + (net * 2),
-            "one deposit, two full deliveries"
-        );
-    }
-
-    // ------------------------------------------------------------------
-    // GOOD: what a txid-aware BridgeMock lets you assert
-    // ------------------------------------------------------------------
-
-    /// @notice The same scenario against a mock that only confirms hashes it was actually given,
-    /// which is what a merkle proof does. The stripped presentation succeeds; the witness
-    /// presentation reverts InsufficientConfirmations(0, required) — production behaviour.
-    function test_GOOD_txidAwareMock_rejectsTheSecondPresentation() public {
-        (
-            bytes memory stripped,
-            bytes memory witness
-        ) = _twoSerializationsOfOneDeposit();
-        uint256 net = DEFAULT_AMOUNT - _expectedFee(DEFAULT_AMOUNT);
-
-        // Only the real txid is in the "merkle tree". Nothing else is confirmable.
-        bridgeMock.setConfirmationsFor(
-            this.hashTx(stripped),
-            int256(DEFAULT_TIER_CONFIRMATIONS)
-        );
-
-        uint256 userBefore = rskUser.balance;
-
-        // Claim 1 still works: this is the transaction that is really on chain.
-        bytes32 firstId = _requestPegInTx(claimer, rskUser, stripped, net);
-        (address firstClaimer, , , ) = _readClaim(firstId);
-        assertEq(firstClaimer, claimer, "honest claim unaffected");
-
-        // Claim 2 is now stopped where the real bridge stops it.
+        // Claim 2: the SAME deposit, re-serialized with a witness. Rejected by us, not by the
+        // bridge, and not by the already-processed guard (which cannot see it — different hash).
         vm.prank(claimer);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                IPegInCommitFirst.InsufficientConfirmations.selector,
-                0,
-                DEFAULT_TIER_CONFIRMATIONS
-            )
+            BtcTransactionReader.WitnessSerializedTxNotAccepted.selector
         );
         pegInContract.requestPegIn{value: net}(
             rskUser,
@@ -192,10 +139,114 @@ contract BridgeMockBlindSpotTest is RequestPegInTestBase {
         );
     }
 
-    /// @notice The broader point, independent of segwit: with a txid-aware mock, the suite can
-    /// finally observe that requestPegIn asks the bridge about the hash it derived from the
-    /// presented bytes. Confirm a DIFFERENT hash and the claim must still fail.
-    function test_GOOD_txidAwareMock_pinsWhichHashIsProven() public {
+    /// @notice Rejection is ours, and it lands before the bridge is consulted at all.
+    /// @dev Both bridge reads on the claim path are asserted absent: the powpeg script
+    /// `_readPegInAmount` derives against, and the confirmation lookup after it.
+    function test_witnessTx_rejectedBeforeAnyBridgeCall() public {
+        (, bytes memory witness) = _twoSerializationsOfOneDeposit();
+        uint256 net = DEFAULT_AMOUNT - _expectedFee(DEFAULT_AMOUNT);
+
+        bridgeMock.setConfirmations(int256(DEFAULT_TIER_CONFIRMATIONS));
+
+        vm.expectCall(
+            address(bridgeMock),
+            abi.encodeWithSelector(
+                IBridge.getActivePowpegRedeemScript.selector
+            ),
+            0
+        );
+        vm.expectCall(
+            address(bridgeMock),
+            abi.encodeWithSelector(
+                IBridge.getBtcTransactionConfirmations.selector
+            ),
+            0
+        );
+
+        vm.prank(claimer);
+        vm.expectRevert(
+            BtcTransactionReader.WitnessSerializedTxNotAccepted.selector
+        );
+        pegInContract.requestPegIn{value: net}(
+            rskUser,
+            witness,
+            "",
+            bytes32(0),
+            0,
+            _emptyBranch()
+        );
+    }
+
+    /// @notice The witness-stripped presentation of the very same deposit still succeeds. The
+    /// guard discriminates on serialization, not on the deposit.
+    function test_strippedPresentationOfTheSameDepositStillSucceeds() public {
+        (bytes memory stripped, ) = _twoSerializationsOfOneDeposit();
+        uint256 net = DEFAULT_AMOUNT - _expectedFee(DEFAULT_AMOUNT);
+
+        bridgeMock.setConfirmationsFor(
+            this.hashTx(stripped),
+            int256(DEFAULT_TIER_CONFIRMATIONS)
+        );
+
+        uint256 userBefore = rskUser.balance;
+        bytes32 pegInId = _requestPegInTx(claimer, rskUser, stripped, net);
+
+        (address writtenClaimer, uint256 fronted, , ) = _readClaim(pegInId);
+        assertEq(writtenClaimer, claimer, "honest claim written");
+        assertEq(fronted, net, "fronted full net");
+        assertEq(rskUser.balance, userBefore + net, "user delivered once");
+    }
+
+    /// @notice A truncated transaction reverts with a reason, not an out-of-bounds panic.
+    /// @dev Five bytes is one short of the marker+flag the guard reads.
+    function test_txShorterThanSixBytes_revertsInvalidBtcTransaction() public {
+        uint256 net = DEFAULT_AMOUNT - _expectedFee(DEFAULT_AMOUNT);
+
+        vm.prank(claimer);
+        vm.expectRevert(BtcTransactionReader.InvalidBtcTransaction.selector);
+        pegInContract.requestPegIn{value: net}(
+            rskUser,
+            hex"0100000001",
+            "",
+            bytes32(0),
+            0,
+            _emptyBranch()
+        );
+    }
+
+    /// @notice Negative control: a LEGACY transaction whose sixth byte happens to be 0x01 is not
+    /// mistaken for a witness serialization.
+    /// @dev The prevout txid begins at offset 5, so a nonce whose most-significant byte is 0x01
+    /// puts 0x01 there. What keeps the guard exact is offset 4 — the input-count compactSize, 0x01
+    /// here and never 0x00 in a valid transaction. A check that looked at the wrong offset, or at
+    /// only one of the two bytes, would reject this deposit.
+    function test_legacyTxWithLeading01Outpoint_isNotRejected() public {
+        uint256 nonce = 1 << 248; // bytes32(nonce)[0] == 0x01
+        bytes memory btcTx = _depositTx(rskUser, DEFAULT_AMOUNT, nonce);
+        assertEq(btcTx[4], bytes1(0x01), "input count sits at offset 4");
+        assertEq(btcTx[5], bytes1(0x01), "and the outpoint starts with 0x01");
+
+        uint256 net = DEFAULT_AMOUNT - _expectedFee(DEFAULT_AMOUNT);
+        bridgeMock.setConfirmationsFor(
+            this.hashTx(btcTx),
+            int256(DEFAULT_TIER_CONFIRMATIONS)
+        );
+
+        bytes32 pegInId = _requestPegInTx(claimer, rskUser, btcTx, net);
+        (address writtenClaimer, , , ) = _readClaim(pegInId);
+        assertEq(writtenClaimer, claimer, "legacy deposit claimed normally");
+    }
+
+    // ------------------------------------------------------------------
+    // The other blind spot the txid-aware mock closed
+    // ------------------------------------------------------------------
+
+    /// @notice Independent of segwit: with a txid-aware mock the suite can observe that
+    /// requestPegIn asks the bridge about the hash it derived from the presented bytes. Confirm a
+    /// DIFFERENT hash and the claim must still fail.
+    /// @dev This one is a legacy transaction and MUST reach the bridge — the rejection under test
+    /// is the bridge's, and that is the point. Only witness-serialized bytes are stopped earlier.
+    function test_txidAwareMock_pinsWhichHashIsProven() public {
         bytes memory btcTx = _defaultTx();
         uint256 net = DEFAULT_AMOUNT - _expectedFee(DEFAULT_AMOUNT);
 
