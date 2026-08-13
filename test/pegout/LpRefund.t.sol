@@ -363,19 +363,19 @@ contract LpRefundTest is PegOutTestBase {
         );
     }
 
-    function test_RefundPegOut_RevertsIfBtcTxDoesNotHaveHighEnoughAmount()
-        public
-    {
+    function test_RefundPegOut_UnderFloor_TopsUpUserAndDebitsLp() public {
         Quotes.PegOutQuote memory quote = createAndDepositQuote();
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        uint256 originalValue = quote.value; // Store original value before modification
+        uint256 escrowed = quote.value + quote.callFee + quote.gasFee;
+        // Legacy path: maxMinerFee unset (0) → floor = value − callFee
+        uint256 floor = quote.value - quote.callFee;
+        uint256 paid = 0.9 ether;
+        uint256 topUp = floor - paid;
 
-        // Generate BTC tx with insufficient amount (0.9 ETH when quote needs 1 ETH)
         Quotes.PegOutQuote memory lowQuote = quote;
-        lowQuote.value = 0.9 ether;
-        bytes memory btcTx = generateBtcTx(lowQuote, quoteHash); // Low amount!
+        lowQuote.value = paid;
+        bytes memory btcTx = generateBtcTx(lowQuote, quoteHash);
 
-        // Setup headers
         bytes memory header = createBtcBlockHeader(
             uint32(block.timestamp + 100)
         );
@@ -384,16 +384,10 @@ contract LpRefundTest is PegOutTestBase {
             int256(uint256(quote.transferConfirmations))
         );
 
-        uint256 lowAmountWei = 0.9 ether;
+        uint256 userBefore = quote.rskRefundAddress.balance;
+        uint256 lpBefore = pegOutLp.balance;
 
         vm.prank(pegOutLp);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Flyover.InsufficientAmount.selector,
-                lowAmountWei,
-                originalValue
-            )
-        );
         pegOutContract.refundPegOut(
             quoteHash,
             btcTx,
@@ -401,6 +395,10 @@ contract LpRefundTest is PegOutTestBase {
             PARTIAL_MERKLE_TREE,
             merkleHashes
         );
+
+        assertEq(quote.rskRefundAddress.balance, userBefore + topUp);
+        assertEq(pegOutLp.balance, lpBefore + escrowed - topUp);
+        assertTrue(pegOutContract.isQuoteCompleted(quoteHash));
     }
 
     function test_RefundPegOut_RevertsIfBtcTxNotDirectedToUserAddress() public {
@@ -963,29 +961,22 @@ contract LpRefundTest is PegOutTestBase {
         pegOutContract.validatePegout(quoteHash, btcTx);
     }
 
-    function test_ValidatePegout_RevertsIfBtcTxDoesNotHaveHighEnoughAmount()
-        public
-    {
+    function test_ValidatePegout_AcceptsUnderFloorAmount() public {
         Quotes.PegOutQuote memory quote = createAndDepositQuote();
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        uint256 originalValue = quote.value; // Store original value before modification
+        uint256 storedValue = quote.value;
 
-        // Generate BTC tx with insufficient amount (0.9 ETH when quote needs 1 ETH)
+        // Under floor is accepted at validation; refundPegOut performs the top-up.
         Quotes.PegOutQuote memory lowQuote = quote;
         lowQuote.value = 0.9 ether;
-        bytes memory btcTx = generateBtcTx(lowQuote, quoteHash); // Low amount!
-
-        uint256 lowAmountWei = 0.9 ether;
+        bytes memory btcTx = generateBtcTx(lowQuote, quoteHash);
 
         vm.prank(pegOutLp);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Flyover.InsufficientAmount.selector,
-                lowAmountWei,
-                originalValue
-            )
+        Quotes.PegOutQuote memory returned = pegOutContract.validatePegout(
+            quoteHash,
+            btcTx
         );
-        pegOutContract.validatePegout(quoteHash, btcTx);
+        assertEq(returned.value, storedValue);
     }
 
     function test_ValidatePegout_RevertsIfBtcTxNotDirectedToUserAddress()
