@@ -293,12 +293,16 @@ contract PegOutContract is
         uint256 merkleBranchPath,
         bytes32[] calldata merkleBranchHashes
     ) external nonReentrant whenNotHardPaused override {
-        Quotes.PegOutQuote memory quote = _validatePegOutTransaction(quoteHash, btcTx);
+        (Quotes.PegOutQuote memory quote, uint256 paidAmount) = _validatePegOutTransaction(quoteHash, btcTx);
         _validateBtcTxConfirmations(quote, btcTx, btcBlockHeaderHash, merkleBranchPath, merkleBranchHashes);
+
+        uint256 floor = _deliveryFloor(quote, _pegOutRegistry[quoteHash].maxMinerFee);
+        uint256 topUp = paidAmount < floor ? floor - paidAmount : 0;
 
         delete _pegOutQuotes[quoteHash];
         _pegOutRegistry[quoteHash].completed = true;
         emit PegOutRefunded(quoteHash);
+        _notifyEscrowSettlement(quoteHash, IPegOutEscrow.EscrowedPegOutState.FULFILLED);
 
         if (_shouldPenalize(quote, quoteHash, btcBlockHeaderHash)) {
             uint256 collateral = _collateralManagement.getPegOutCollateral(quote.lpRskAddress);
@@ -308,7 +312,14 @@ contract PegOutContract is
             _collateralManagement.slashPegOutCollateral(msg.sender, quote, quoteHash);
         }
 
-        uint256 refundAmount = quote.value + quote.callFee + quote.gasFee;
+        if (topUp > 0) {
+            (bool topSent,) = quote.rskRefundAddress.call{value: topUp}("");
+            if (!topSent) {
+                _increaseBalance(quote.rskRefundAddress, topUp);
+            }
+        }
+
+        uint256 refundAmount = quote.value + quote.callFee + quote.gasFee - topUp;
         (bool sent,) = quote.lpRskAddress.call{value: refundAmount}("");
         if (!sent) {
             _increaseBalance(quote.lpRskAddress, refundAmount);
@@ -364,7 +375,7 @@ contract PegOutContract is
         bytes32 quoteHash,
         bytes calldata btcTx
     ) external view override returns (Quotes.PegOutQuote memory quote) {
-        return _validatePegOutTransaction(quoteHash, btcTx);
+        (quote,) = _validatePegOutTransaction(quoteHash, btcTx);
     }
 
     /// @inheritdoc IPegOut
@@ -543,13 +554,16 @@ contract PegOutContract is
     /// Used by both validatePegout (for unbroadcasted transactions) and refundPegOut (before confirmation check).
     /// The validation expects fixed output positions in btcTx:
     /// output 0 is the payment output and output 1 is the OP_RETURN quote-hash output.
+    /// Amount shortfalls relative to the short-delivery floor are not reverted here; {refundPegOut}
+    /// tops the user up from escrow.
     /// @param quoteHash the hash of the quote being validated
     /// @param btcTx the Bitcoin transaction
     /// @return quote the PegOutQuote associated with the transaction
+    /// @return paidAmount BTC payment output value in wei
     function _validatePegOutTransaction(
         bytes32 quoteHash,
         bytes calldata btcTx
-    ) private view returns (Quotes.PegOutQuote memory quote) {
+    ) private view returns (Quotes.PegOutQuote memory quote, uint256 paidAmount) {
         if (_isQuoteCompleted(quoteHash)) revert QuoteAlreadyCompleted(quoteHash);
 
         quote = _pegOutQuotes[quoteHash];
@@ -557,8 +571,21 @@ contract PegOutContract is
 
         BtcUtils.TxRawOutput[] memory outputs = BtcUtils.getOutputs(btcTx);
         _validateBtcTxNullData(outputs, quoteHash);
-        _validateBtcTxAmount(outputs, quote);
+        paidAmount = outputs[_PAY_TO_ADDRESS_OUTPUT].value * _SAT_TO_WEI_CONVERSION;
         _validateBtcTxDestination(outputs, quote);
+    }
+
+    /// @notice Short-delivery floor: `amount − callFee − maxMinerFee` (walkthrough 10·D / B8).
+    /// @dev Satoshi-floors the result the same way the legacy required amount did for `value`.
+    function _deliveryFloor(
+        Quotes.PegOutQuote memory quote,
+        uint256 maxMinerFee
+    ) private pure returns (uint256 floorAmount) {
+        uint256 deductions = quote.callFee + maxMinerFee;
+        floorAmount = quote.value > deductions ? quote.value - deductions : 0;
+        if (floorAmount > _SAT_TO_WEI_CONVERSION && (floorAmount % _SAT_TO_WEI_CONVERSION) != 0) {
+            floorAmount -= floorAmount % _SAT_TO_WEI_CONVERSION;
+        }
     }
 
     /// @notice This function is used to validate the number of confirmations of the Bitcoin transaction.
@@ -602,21 +629,6 @@ contract PegOutContract is
         if (keccak256(quote.depositAddress) != keccak256(btcTxDestination)) {
             revert InvalidDestination(quote.depositAddress, btcTxDestination);
         }
-    }
-
-    /// @notice This function is used to validate the amount of the Bitcoin transaction
-    /// @param outputs the outputs of the Bitcoin transaction
-    /// @param quote the peg out quote
-    function _validateBtcTxAmount(
-        BtcUtils.TxRawOutput[] memory outputs,
-        Quotes.PegOutQuote memory quote
-    ) private pure {
-        uint256 requiredAmount = quote.value;
-        if (quote.value > _SAT_TO_WEI_CONVERSION && (quote.value % _SAT_TO_WEI_CONVERSION) != 0) {
-            requiredAmount = quote.value - (quote.value % _SAT_TO_WEI_CONVERSION);
-        }
-        uint256 paidAmount = outputs[_PAY_TO_ADDRESS_OUTPUT].value * _SAT_TO_WEI_CONVERSION;
-        if (paidAmount < requiredAmount) revert Flyover.InsufficientAmount(paidAmount, requiredAmount);
     }
 
     /// @notice This function is used to validate the null data of the Bitcoin transaction. The null data
