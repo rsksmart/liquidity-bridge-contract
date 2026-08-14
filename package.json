@@ -10,6 +10,7 @@
     "test:invariant": "npm run compile && make test-invariant",
     "test:formal": "npm run compile && make test-formal",
     "coverage": "forge coverage",
+    "coverage:lcov": "make coverage-lcov",
     "lint:ts": "npx prettier --check . && npx eslint .",
     "lint:sol": "solhint 'src/**/*.sol'",
     "upgrade-rskDev": "npm run lint:sol && npm run compile && make upgrade-lbc-broadcast NETWORK=rskDevelopment VERIFY=true",

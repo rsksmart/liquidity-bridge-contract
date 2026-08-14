@@ -208,6 +208,7 @@ help:
 	@echo "  test-file         - Run a specific test file"
 	@echo "  test-func         - Run a specific test function"
 	@echo "  coverage          - Run tests with coverage"
+	@echo "  coverage-lcov     - Run tests with coverage and write coverage/lcov.info"
 	@echo ""
 	@echo "Fuzz Tests:"
 	@echo "  test-fuzz             - Run all fuzz tests"
@@ -915,6 +916,13 @@ test-func:
 coverage:
 	@echo "Running tests with coverage..."
 	forge coverage
+
+# Run tests with coverage and write an LCOV report for Codecov
+.PHONY: coverage-lcov
+coverage-lcov:
+	@echo "Running tests with coverage (LCOV report)..."
+	@mkdir -p coverage
+	forge coverage --report lcov --report-file coverage/lcov.info --no-match-path "test/{fuzz,invariant,differential,formal}/**/*"
 
 # ============ Fuzz Tests ============
 

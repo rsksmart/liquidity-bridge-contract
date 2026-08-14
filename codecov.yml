@@ -1,0 +1,61 @@
+codecov:
+  # This repo integrates on version branches, not on master. Point Codecov at
+  # the current one so project status compares against a live baseline.
+  branch: v2.6.0
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto # baseline is always the current v2.6.0 value
+        threshold: 1% # allow up to 1% drop before failing the check
+    patch:
+      default:
+        target: 80% # new/changed lines in a PR must be at least 80% covered
+        threshold: 5% # allow up to 5% below target before failing
+
+comment:
+  layout: "reach,diff,flags,components,files"
+  behavior: default
+  require_changes: true # only post a comment when coverage actually changes
+
+# Everything under script/ is measured, not ignored: the deployment and task
+# scripts are the code that puts contracts on chain and operates them, so their
+# coverage is worth seeing. They are split off into their own component below,
+# so their currently-low number is visible on its own instead of being blended
+# into (and dragging down) the contract check.
+component_management:
+  individual_components:
+    # Deployed contract code plus the pure libraries under script/helpers.
+    # Those helpers are libraries, not scripts - parsing and proxy-reading
+    # logic that unit tests can drive directly - so they belong here.
+    - component_id: contracts
+      name: contracts
+      paths:
+        - "src/**"
+        - "script/helpers/**"
+      statuses:
+        - type: project
+          target: auto
+          threshold: 1%
+    # Forge scripts: deployment, upgrades, ownership transfer and operator
+    # tasks. Baseline is ~11%, because most of test/deployment and test/tasks
+    # re-implements the deployment flow inline instead of executing the script
+    # contracts. target: auto ratchets that up and blocks regressions without
+    # demanding a jump today.
+    - component_id: deploy-scripts
+      name: deploy-scripts
+      paths:
+        - "script/*.s.sol"
+        - "script/deployment/**"
+        - "script/tasks/**"
+        - "script/legacy/**"
+      statuses:
+        - type: project
+          target: auto
+          threshold: 1%
+
+ignore:
+  - "test/**" # forge test suites
+  - "src/test/**" # test-only helper contracts
+  - "src/test-contracts/**" # mocks used by the test suites

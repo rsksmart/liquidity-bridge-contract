@@ -1,6 +1,7 @@
 # Liquidity Bridge Contract
 
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/rsksmart/liquidity-bridge-contract/badge)](https://scorecard.dev/viewer/?uri=github.com/rsksmart/liquidity-bridge-contract)
+[![codecov](https://codecov.io/gh/rsksmart/liquidity-bridge-contract/branch/v2.6.0/graph/badge.svg)](https://codecov.io/gh/rsksmart/liquidity-bridge-contract)
 
 The Liquidity Bridge Contract (LBC) manages the interaction between users and liquidity providers (LP) in order to achieve fast peg-ins and peg-outs.
 
