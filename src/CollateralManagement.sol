@@ -4,10 +4,11 @@ pragma solidity 0.8.25;
 import {
     AccessControlDefaultAdminRulesUpgradeable
 } from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {ICollateralManagement} from "./interfaces/ICollateralManagement.sol";
+import {IFlyoverDiscovery} from "./interfaces/IFlyoverDiscovery.sol";
 import {IPauseRegistry} from "./interfaces/IPauseRegistry.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 import {Quotes} from "./libraries/Quotes.sol";
@@ -16,6 +17,7 @@ import {Quotes} from "./libraries/Quotes.sol";
 /// @notice This contract is used to manage the collateral related aspects of the Flyover system.
 /// This involves adding, slashing, resigning and withdrawing collateral.
 /// @author Rootstock Labs
+// solhint-disable-next-line max-states-count
 contract CollateralManagementContract is
     AccessControlDefaultAdminRulesUpgradeable,
     ReentrancyGuard,
@@ -42,6 +44,12 @@ contract CollateralManagementContract is
     mapping(address => uint256) private _resignationBlockNum;
     mapping(address => uint256) private _rewards;
 
+    /// @dev FlyoverDiscovery is the source of truth for the listed provider set.
+    IFlyoverDiscovery private _flyoverDiscovery;
+    /// @dev Block at which peg-out collateral first became positive; used by the grace window.
+    mapping(address => uint256) private _pegOutRegistrationBlock;
+    uint256 private _globalSlashGraceBlocks;
+
     /// @notice Emitted when the minimum collateral is set
     /// @param oldMinCollateral The old minimum collateral
     /// @param newMinCollateral The new minimum collateral
@@ -54,6 +62,17 @@ contract CollateralManagementContract is
     /// @param oldReward The old reward percentage
     /// @param newReward The new reward percentage
     event RewardPercentageSet(uint256 indexed oldReward, uint256 indexed newReward);
+    /// @notice Emitted when the global-slash grace window is set
+    /// @param oldGraceBlocks The previous grace window in blocks
+    /// @param newGraceBlocks The new grace window in blocks
+    event GlobalSlashGraceBlocksSet(uint256 indexed oldGraceBlocks, uint256 indexed newGraceBlocks);
+    /// @notice Emitted when the FlyoverDiscovery address used for the provider set is updated
+    /// @param oldAddress The previous Discovery address
+    /// @param newAddress The new Discovery address
+    event FlyoverDiscoverySet(address indexed oldAddress, address indexed newAddress);
+
+    /// @notice Raised when {globalSlash} is called before FlyoverDiscovery is wired
+    error FlyoverDiscoveryNotSet();
 
     modifier onlyRegisteredForPegIn(address addr) {
         if (!_isRegistered(Flyover.ProviderType.PegIn, addr))
@@ -159,6 +178,24 @@ contract CollateralManagementContract is
         _rewardPercentage = rewardPercentage;
     }
 
+    /// @notice Sets the no-penalty grace window (blocks after peg-out registration) for global slash
+    /// @dev Default is 0 (no LP is in-window until configured).
+    /// @param graceBlocks The new grace window length in blocks
+    // solhint-disable-next-line comprehensive-interface
+    function setGlobalSlashGraceBlocks(uint256 graceBlocks) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        emit GlobalSlashGraceBlocksSet(_globalSlashGraceBlocks, graceBlocks);
+        _globalSlashGraceBlocks = graceBlocks;
+    }
+
+    /// @notice Sets the FlyoverDiscovery used as the provider-set source of truth for {globalSlash}
+    /// @param flyoverDiscovery_ The Discovery contract address
+    // solhint-disable-next-line comprehensive-interface
+    function setFlyoverDiscovery(address flyoverDiscovery_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (flyoverDiscovery_.code.length == 0) revert Flyover.NoContract(flyoverDiscovery_);
+        emit FlyoverDiscoverySet(address(_flyoverDiscovery), flyoverDiscovery_);
+        _flyoverDiscovery = IFlyoverDiscovery(flyoverDiscovery_);
+    }
+
     /// @inheritdoc ICollateralManagement
     /// @dev Intentionally not paused: slashing must remain available so PegIn/PegOut can enforce penalties
     ///      when they call this during registerPegIn/refundPegOut; a separate pause would cause reverts.
@@ -212,10 +249,17 @@ contract CollateralManagementContract is
     }
 
     /// @inheritdoc ICollateralManagement
-    /// @dev Stub until proportional global slash is implemented. Callers
-    ///      (e.g. PegOutEscrow.refundOnNoClaim) must not block user refunds on this reverting.
-    function globalSlash(uint256) external onlyRole(COLLATERAL_SLASHER) override {
-        revert GlobalSlashNotImplemented();
+    /// @dev Intentionally not paused: slashing must remain available so PegOutEscrow can
+    ///      enforce penalties from refundOnNoClaim. Provider set is FlyoverDiscovery.getProviders.
+    function globalSlash(uint256 total) external onlyRole(COLLATERAL_SLASHER) override {
+        if (total == 0) revert GlobalSlashZeroAmount();
+        if (address(_flyoverDiscovery) == address(0)) revert FlyoverDiscoveryNotSet();
+
+        (address[] memory lps, uint256[] memory amounts, uint256 sum, uint256 n) =
+            _eligiblePegOutProviders();
+        if (sum == 0) revert GlobalSlashNoEligibleProviders();
+
+        _distributeGlobalSlash(total, lps, amounts, sum, n);
     }
 
     /// @inheritdoc ICollateralManagement
@@ -272,6 +316,29 @@ contract CollateralManagementContract is
     /// @inheritdoc ICollateralManagement
     function getResignDelayInBlocks() external view override returns (uint256) {
         return _resignDelayInBlocks;
+    }
+
+    /// @notice Gets the no-penalty grace window used by {globalSlash}
+    /// @return The grace window length in blocks
+    // solhint-disable-next-line comprehensive-interface
+    function getGlobalSlashGraceBlocks() external view returns (uint256) {
+        return _globalSlashGraceBlocks;
+    }
+
+    /// @notice Gets the block at which an account's peg-out collateral first became positive
+    /// @dev Zero means no recorded registration (pre-upgrade / never registered for peg-out).
+    /// @param addr The liquidity provider address
+    /// @return The registration block, or 0 if unset
+    // solhint-disable-next-line comprehensive-interface
+    function getPegOutRegistrationBlock(address addr) external view returns (uint256) {
+        return _pegOutRegistrationBlock[addr];
+    }
+
+    /// @notice Gets the FlyoverDiscovery used as the provider-set source of truth
+    /// @return The Discovery contract address (zero if unset)
+    // solhint-disable-next-line comprehensive-interface
+    function getFlyoverDiscovery() external view returns (address) {
+        return address(_flyoverDiscovery);
     }
 
     /// @inheritdoc ICollateralManagement
@@ -357,12 +424,82 @@ contract CollateralManagementContract is
 
     /// @notice Adds peg out collateral to an account
     /// @dev Is very important for this function to remain private as the public function
-    /// is the one protected by the role checks
+    /// is the one protected by the role checks. Records the registration block on first
+    /// peg-out collateral for the global-slash grace window.
     /// @param addr The address of the account
     /// @param amount The amount of peg out collateral to add
     function _addPegOutCollateralTo(address addr, uint256 amount) private {
+        if (_pegOutCollateral[addr] == 0 && amount > 0) {
+            _pegOutRegistrationBlock[addr] = block.number;
+        }
         _pegOutCollateral[addr] += amount;
         emit ICollateralManagement.PegOutCollateralAdded(addr, amount);
+    }
+
+    /// @notice Takes `min(total, sum)` from eligible LPs proportional to peg-out collateral.
+    /// @dev Last LP receives the remainder, capped at their collateral, so rounding dust stays in the split.
+    /// @param total Requested slash amount
+    /// @param lps Eligible provider addresses
+    /// @param amounts Peg-out collateral of each eligible provider
+    /// @param sum Total peg-out collateral of eligible providers
+    /// @param n Number of eligible providers
+    function _distributeGlobalSlash(
+        uint256 total,
+        address[] memory lps,
+        uint256[] memory amounts,
+        uint256 sum,
+        uint256 n
+    ) private {
+        uint256 toTake = Math.min(total, sum);
+        uint256 distributed;
+        for (uint256 i; i < n; ++i) {
+            uint256 share = (i == n - 1)
+                ? Math.min(toTake - distributed, amounts[i])
+                : (toTake * amounts[i]) / sum;
+            if (share == 0) continue;
+            _pegOutCollateral[lps[i]] -= share;
+            distributed += share;
+            emit GlobalSlashShare(lps[i], share);
+        }
+        _penalties += distributed;
+        emit GlobalSlashExecuted(total, distributed);
+    }
+
+    /// @notice Listed PegOut/Both LPs outside the grace window, with their peg-out collateral.
+    /// @dev Arrays are sized to `getProviders().length`; only the first `n` entries are populated.
+    /// @return lps Eligible provider addresses
+    /// @return amounts Peg-out collateral of each eligible provider
+    /// @return sum Total peg-out collateral of eligible providers
+    /// @return n Number of eligible providers
+    function _eligiblePegOutProviders()
+        private
+        view
+        returns (address[] memory lps, uint256[] memory amounts, uint256 sum, uint256 n)
+    {
+        Flyover.LiquidityProvider[] memory providers = _flyoverDiscovery.getProviders();
+        uint256 length = providers.length;
+        lps = new address[](length);
+        amounts = new uint256[](length);
+
+        for (uint256 i; i < length; ++i) {
+            if (providers[i].providerType == Flyover.ProviderType.PegIn) continue;
+            address lp = providers[i].providerAddress;
+            if (_isInGlobalSlashGraceWindow(lp)) continue;
+            lps[n] = lp;
+            amounts[n] = _pegOutCollateral[lp];
+            sum += amounts[n];
+            ++n;
+        }
+    }
+
+    /// @notice Whether an LP is still inside the global-slash grace window
+    /// @dev `regBlock == 0` (never recorded) is eligible, not in grace.
+    /// @param addr The liquidity provider address
+    /// @return True if the LP must be skipped by {globalSlash}
+    function _isInGlobalSlashGraceWindow(address addr) private view returns (bool) {
+        uint256 regBlock = _pegOutRegistrationBlock[addr];
+        if (regBlock == 0) return false;
+        return block.number < regBlock + _globalSlashGraceBlocks;
     }
 
     /// @notice Checks if an account is registered
