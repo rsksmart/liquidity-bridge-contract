@@ -627,6 +627,54 @@ contract SlashingTest is CollateralTestBase {
         );
     }
 
+    /// @dev Registration at N; slash at N + window − 1 stays in grace (skipped).
+    function test_T3_GlobalSlash_AtRegPlusWindowMinusOne_StillSkipped() public {
+        uint256 grace = 100;
+        vm.prank(owner);
+        collateralManagement.setGlobalSlashGraceBlocks(grace);
+
+        _approvePegOut(lpA, COLLATERAL_A);
+        uint256 regN = collateralManagement.getPegOutRegistrationBlock(lpA);
+
+        vm.roll(regN + grace - 1);
+        assertEq(block.number, regN + grace - 1);
+
+        uint256 before = collateralManagement.getPegOutCollateral(lpA);
+        vm.prank(slasher);
+        vm.expectRevert(
+            ICollateralManagement.GlobalSlashNoEligibleProviders.selector
+        );
+        collateralManagement.globalSlash(SLASH_TOTAL);
+
+        assertEq(
+            collateralManagement.getPegOutCollateral(lpA),
+            before,
+            "LP still in grace at N+window-1"
+        );
+    }
+
+    /// @dev Registration at N; slash at N + window is eligible (past grace).
+    function test_T3_GlobalSlash_AtRegPlusWindow_Eligible() public {
+        uint256 grace = 100;
+        vm.prank(owner);
+        collateralManagement.setGlobalSlashGraceBlocks(grace);
+
+        _approvePegOut(lpA, COLLATERAL_A);
+        uint256 regN = collateralManagement.getPegOutRegistrationBlock(lpA);
+
+        vm.roll(regN + grace);
+        assertEq(block.number, regN + grace);
+
+        vm.prank(slasher);
+        collateralManagement.globalSlash(SLASH_TOTAL);
+
+        assertEq(
+            collateralManagement.getPegOutCollateral(lpA),
+            COLLATERAL_A - SLASH_TOTAL,
+            "LP eligible at N+window"
+        );
+    }
+
     function test_T3_GlobalSlash_SkipsResigned() public {
         _approvePegOut(lpA, COLLATERAL_A);
         _approvePegOut(lpB, COLLATERAL_B);

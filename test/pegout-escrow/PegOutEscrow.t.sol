@@ -280,6 +280,32 @@ contract PegOutEscrowTest is Test {
         escrow.requestPegOut{value: tiny}(DEST, user);
     }
 
+    /// @dev Unserviceable request never enters escrow, so nothing can arm a slash.
+    function test_B7_Unserviceable_DoesNotArmGlobalSlash() public {
+        collateral.setGlobalSlashReverts(false);
+        uint256 requestsBefore = escrow.totalRequests();
+
+        vm.prank(user);
+        vm.expectRevert(IPegOutEscrow.InvalidDestination.selector);
+        escrow.requestPegOut{value: DEFAULT_VALUE}("", user);
+
+        uint256 tiny = FIXED_FEE + 0.001 ether;
+        (uint256 amount, , ) = _expectedSplit(tiny);
+        vm.prank(user);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOutEscrow.NotServiceable.selector,
+                amount,
+                MIN_AMOUNT,
+                MAX_AMOUNT
+            )
+        );
+        escrow.requestPegOut{value: tiny}(DEST, user);
+
+        assertEq(escrow.totalRequests(), requestsBefore);
+        assertEq(collateral.globalSlashCalls(), 0);
+    }
+
     function test_requestPegOut_changeAtOrAboveDust_isRefunded() public {
         vm.prank(owner);
         pegOut.setDustThreshold(1 wei);
@@ -1535,6 +1561,7 @@ contract PegOutEscrowIndividualSlashTest is Test {
 
         vm.startPrank(owner);
         collateral.grantRole(adderRole, address(discovery));
+        collateral.setFlyoverDiscovery(address(discovery));
         pegOut.setPegOutEscrow(address(escrow));
         collateral.grantRole(slasherRole, address(pegOut));
         collateral.grantRole(slasherRole, address(escrow));
@@ -1544,6 +1571,61 @@ contract PegOutEscrowIndividualSlashTest is Test {
         _seedPegOutConfig();
         _registerPegOutLp(lp, "Claimer LP", "claimer.lp");
         _registerPegOutLp(otherLp, "Other LP", "other.lp");
+    }
+
+    /// @dev Cancel (B6) slashes nobody; deadline no-claim refund (T3) slashes globally.
+    function test_B6_Cancel_NoSlash_Vs_T3_DeadlineRefund_GlobalSlash() public {
+        // --- B6: user cancel while REQUESTED ---
+        bytes32 cancelId = _requestDefault();
+        uint256 lpBeforeCancel = collateral.getPegOutCollateral(lp);
+        uint256 otherBeforeCancel = collateral.getPegOutCollateral(otherLp);
+        uint256 penaltiesBeforeCancel = collateral.getPenalties();
+
+        vm.prank(user);
+        escrow.cancelPegOut(cancelId);
+
+        assertEq(
+            uint256(escrow.getPegOutState(cancelId)),
+            uint256(IPegOutEscrow.EscrowedPegOutState.CANCELLED)
+        );
+        assertEq(collateral.getPegOutCollateral(lp), lpBeforeCancel);
+        assertEq(collateral.getPegOutCollateral(otherLp), otherBeforeCancel);
+        assertEq(collateral.getPenalties(), penaltiesBeforeCancel);
+
+        // --- T3: unserved request past claim deadline → global slash ---
+        bytes32 refundId = _requestDefault();
+        Quotes.PegOutQuote memory q = escrow.getPegOutQuote(refundId);
+        uint256 payout = q.value + q.callFee + q.gasFee;
+        uint256 userBefore = user.balance;
+        uint256 lpBefore = collateral.getPegOutCollateral(lp);
+        uint256 otherBefore = collateral.getPegOutCollateral(otherLp);
+        uint256 penaltiesBefore = collateral.getPenalties();
+        uint256 totalPegOut = lpBefore + otherBefore;
+        uint256 expectedLpShare = (q.penaltyFee * lpBefore) / totalPegOut;
+        uint256 expectedOtherShare = q.penaltyFee - expectedLpShare;
+
+        vm.warp(uint256(q.depositDateLimit) + 1);
+
+        vm.prank(other);
+        escrow.refundOnNoClaim(refundId);
+
+        assertEq(
+            uint256(escrow.getPegOutState(refundId)),
+            uint256(IPegOutEscrow.EscrowedPegOutState.REFUNDED)
+        );
+        assertEq(user.balance, userBefore + payout);
+        assertEq(
+            collateral.getPegOutCollateral(lp),
+            lpBefore - expectedLpShare
+        );
+        assertEq(
+            collateral.getPegOutCollateral(otherLp),
+            otherBefore - expectedOtherShare
+        );
+        assertEq(
+            collateral.getPenalties(),
+            penaltiesBefore + expectedLpShare + expectedOtherShare
+        );
     }
 
     function test_T5_RefundUser_SlashesOnlyClaimer() public {
