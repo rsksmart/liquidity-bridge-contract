@@ -12,7 +12,10 @@ contract RegistrantFeeTest is ConfigurationsTestBase {
     }
 
     function test_seed_registrantFee_is_accepted() public view {
-        assertEq(config.getPegInConfiguration().registrantFee, SEED_REGISTRANT_FEE);
+        assertEq(
+            config.getPegInConfiguration().registrantFee,
+            SEED_REGISTRANT_FEE
+        );
     }
 
     function test_queueChange_rejects_registrantFee_at_cap() public {
@@ -37,7 +40,9 @@ contract RegistrantFeeTest is ConfigurationsTestBase {
         vm.prank(owner);
         vm.expectRevert(
             abi.encodeWithSelector(
-                FlyoverConfigurations.InsufficientFixedFeeForRegistrant.selector,
+                FlyoverConfigurations
+                    .InsufficientFixedFeeForRegistrant
+                    .selector,
                 c.fixedFee,
                 c.registrantFee,
                 uint256(0)
@@ -52,7 +57,8 @@ contract RegistrantFeeTest is ConfigurationsTestBase {
         c.registrantFee = SEED_REGISTRANT_FEE;
         vm.prank(owner);
         config.queueChange(c);
-        (IFlyoverConfigurations.PegConfiguration memory pending, ) = config.getPendingChange();
+        (IFlyoverConfigurations.PegConfiguration memory pending, ) = config
+            .getPendingChange();
         assertEq(pending.registrantFee, SEED_REGISTRANT_FEE);
     }
 }

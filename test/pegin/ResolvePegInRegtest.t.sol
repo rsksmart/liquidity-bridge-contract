@@ -10,10 +10,18 @@ contract ResolvePegInRegtestTest is ResolvePegInTestBase {
         registry.harness_seedRegistration(rskUser, registrant, 1);
 
         bytes memory rawTx = _minimalRawTx();
-        bytes32 derivationHash = PegInDerivation.derivationArgumentsHash(rskUser);
+        bytes32 derivationHash = PegInDerivation.derivationArgumentsHash(
+            rskUser
+        );
 
         uint256 fee = _expectedFee(DEFAULT_AMOUNT);
-        _requestPegIn(claimer, rskUser, DEFAULT_AMOUNT, _btcTxHash(rawTx), DEFAULT_AMOUNT - fee);
+        _requestPegIn(
+            claimer,
+            rskUser,
+            DEFAULT_AMOUNT,
+            _btcTxHash(rawTx),
+            DEFAULT_AMOUNT - fee
+        );
         bridgeMock.setPegin{value: DEFAULT_AMOUNT + fee}(derivationHash);
 
         int256 result = _resolve(claimer, rskUser, rawTx);
