@@ -44,12 +44,6 @@ contract PegOutContract is
         uint256 maxMinerFee;
     }
 
-    /// @notice Per-LP claim-fail count and freeze timestamp (`0` until ⇒ not frozen).
-    struct LpRestriction {
-        uint256 claimFailCount;
-        uint256 restrictedUntil;
-    }
-
     /// @notice The version of the contract
     string constant public VERSION = "1.0.0";
     /// @notice The name of the contract (used for EIP712)
@@ -65,11 +59,6 @@ contract PegOutContract is
     uint256 constant private _NATIVE_PEGOUT_BLOCKS = 4000;
     uint256 constant private _NATIVE_PEGOUT_SECONDS = 129_600; // 36 hours
 
-    /// @notice Unit for claim-fail freeze duration (`(BASE ** n) * UNIT`)
-    uint256 public constant RESTRICTION_UNIT = 1 days;
-    /// @notice Base for claim-fail freeze duration (`(BASE ** n) * UNIT`)
-    uint256 public constant RESTRICTION_BASE = 2;
-
     IBridge private _bridge;
     ICollateralManagement private _collateralManagement;
     IPegOutEscrow private _pegOutEscrow;
@@ -84,7 +73,6 @@ contract PegOutContract is
     /// @notice Average Bitcoin block time in seconds, used to calculate the expected confirmation time
     uint256 public btcBlockTime;
     bool private _mainnet;
-    mapping(address => LpRestriction) private _lpRestriction;
 
     /// @notice This event is emitted when the dust threshold is set
     /// @param oldThreshold the old dust threshold
@@ -374,23 +362,12 @@ contract PegOutContract is
 
         emit PegOutUserRefunded(quoteHash, addressToTransfer, valueToTransfer);
         _notifyEscrowSettlement(quoteHash, IPegOutEscrow.EscrowedPegOutState.REFUNDED);
-        _onClaimFail(quote.lpRskAddress);
         _collateralManagement.slashPegOutCollateral(msg.sender, quote, quoteHash);
 
         (bool sent,) = addressToTransfer.call{value: valueToTransfer}("");
         if (!sent) {
             _increaseBalance(addressToTransfer, valueToTransfer);
         }
-    }
-
-    /// @inheritdoc IPegOut
-    function revoke(address lp) external override onlyRole(DEFAULT_ADMIN_ROLE) {
-        _lpRestriction[lp].restrictedUntil = type(uint256).max;
-    }
-
-    /// @inheritdoc IPegOut
-    function unrevoke(address lp) external override onlyRole(DEFAULT_ADMIN_ROLE) {
-        _lpRestriction[lp].restrictedUntil = 0;
     }
 
     /// @inheritdoc IPegOut
@@ -426,16 +403,6 @@ contract PegOutContract is
         return _balances[addr];
     }
 
-    /// @inheritdoc IPegOut
-    function claimFailCount(address lp) external view override returns (uint256) {
-        return _lpRestriction[lp].claimFailCount;
-    }
-
-    /// @inheritdoc IPegOut
-    function restrictedUntil(address lp) external view override returns (uint256) {
-        return _lpRestriction[lp].restrictedUntil;
-    }
-
     /// @notice This function is used to increase the balance of an account
     /// @dev This function must remain private. Any exposure can lead to a loss of funds.
     /// It is responsibility of the caller to ensure that the account is a liquidity provider
@@ -458,13 +425,6 @@ contract PegOutContract is
             _balances[dest] -= amount;
             emit BalanceDecrease(dest, amount);
         }
-    }
-
-    /// @notice Bump fail count and freeze new claims. Always overwrites `restrictedUntil`.
-    function _onClaimFail(address lp) private {
-        LpRestriction storage restriction = _lpRestriction[lp];
-        uint256 n = ++restriction.claimFailCount;
-        restriction.restrictedUntil = block.timestamp + ((RESTRICTION_BASE ** n) * RESTRICTION_UNIT);
     }
 
     /// @notice Escrow CLAIMED quote required for {registerClaimedPegOut} (source before mirror into `_pegOutQuotes`).
@@ -492,6 +452,9 @@ contract PegOutContract is
         // Soft-skips non-CLAIMED ids (e.g. legacy depositPegOut refunds that never touched escrow).
         if (_pegOutEscrow.getPegOutState(requestHash) != IPegOutEscrow.EscrowedPegOutState.CLAIMED) {
             return;
+        }
+        if (finalState == IPegOutEscrow.EscrowedPegOutState.REFUNDED) {
+            _pegOutEscrow.onClaimFail(_pegOutEscrow.getPegOutQuote(requestHash).lpRskAddress);
         }
         _pegOutEscrow.onSettlement(requestHash, finalState);
     }

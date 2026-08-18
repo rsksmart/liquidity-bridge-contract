@@ -62,6 +62,7 @@ interface IPegOutEscrow {
     error PegOutContractNotSet();
     error CollateralManagementNotSet();
     error OnlyPegOutContract(address caller);
+    error LpRestricted(address lp, uint256 restrictedUntil);
 
     /// @notice User commits RBTC. Splits `msg.value` into `amount` + `callFee` from
     /// FlyoverConfigurations, stores a quote-shaped record, emits {PegOutRequested}.
@@ -98,6 +99,22 @@ interface IPegOutEscrow {
     /// @dev Attempts global slash; user refund must not depend on slash success.
     function refundOnNoClaim(bytes32 requestHash) external;
 
+    /// @notice Called by PegOutContract when settlement finishes (`FULFILLED` or `REFUNDED`)
+    /// @dev Escrow does not move funds here; custody already left at claim.
+    function onSettlement(bytes32 requestHash, EscrowedPegOutState finalState) external;
+
+    /// @notice Called by PegOutContract on claimed-expired user refund (`refundUserPegOut`).
+    /// @dev Increments `claimFailCount` and sets `restrictedUntil` to
+    /// `now + (RESTRICTION_BASE ** n) * RESTRICTION_UNIT`. Always overwrites `restrictedUntil`
+    /// (including after admin revoke). Only PegOutContract may call.
+    function onClaimFail(address lp) external;
+
+    /// @notice Admin indefinite ban: `restrictedUntil = type(uint256).max`. Does not change fail count.
+    function revoke(address lp) external;
+
+    /// @notice Admin clear ban / timed freeze: `restrictedUntil = 0`. Does not change fail count.
+    function unrevoke(address lp) external;
+
     /// @notice Current lifecycle state for `requestHash` (`NONE` if never requested)
     function getPegOutState(bytes32 requestHash) external view returns (EscrowedPegOutState);
 
@@ -117,7 +134,9 @@ interface IPegOutEscrow {
     /// @notice `requestHash` minted for sequence `nonce` (1-based); zero if unused
     function requestIdAt(uint256 nonce) external view returns (bytes32);
 
-    /// @notice Called by PegOutContract when settlement finishes (`FULFILLED` or `REFUNDED`)
-    /// @dev Escrow does not move funds here; custody already left at claim.
-    function onSettlement(bytes32 requestHash, EscrowedPegOutState finalState) external;
+    /// @notice Number of claim-fail bumps for `lp` (used as exponent `n` in freeze length)
+    function claimFailCount(address lp) external view returns (uint256);
+
+    /// @notice Timestamp until which `lp` cannot call {claimPegOut} (`0` ⇒ not frozen)
+    function restrictedUntil(address lp) external view returns (uint256);
 }

@@ -120,9 +120,6 @@ interface IPegOut is IPausable, IERC5267 {
     /// @param amount the amount of collateral that is insufficient
     error InsufficientCollateral(uint amount);
 
-    /// @notice LP cannot start a new claim while `block.timestamp < restrictedUntil`
-    error LpRestricted(address lp, uint256 restrictedUntil);
-
 
     /// @notice This function is used to withdraw funds from the contract
     /// @dev This is usually used if some payment failed and the funds need to be returned to a different address.
@@ -175,12 +172,6 @@ interface IPegOut is IPausable, IERC5267 {
     /// @param quoteHash the hash of the quote being refunded
     function refundUserPegOut(bytes32 quoteHash) external;
 
-    /// @notice Admin indefinite ban: `restrictedUntil = type(uint256).max`. Does not change fail count.
-    function revoke(address lp) external;
-
-    /// @notice Admin clear ban / timed freeze: `restrictedUntil = 0`. Does not change fail count.
-    function unrevoke(address lp) external;
-
     /// @notice This view is used to get the hash of a quote, this should be used as the single source of truth so
     /// all the involved parties can compute the quote hash in the same way.
     /// Users should review all fields of the quote before relying on its hash, as those fields are the terms agreed
@@ -219,10 +210,4 @@ interface IPegOut is IPausable, IERC5267 {
     /// @notice Dust threshold for overpayment change refunds (wei)
     /// @dev Used by depositPegOut and by PegOutEscrow request-time change handling.
     function dustThreshold() external view returns (uint256);
-
-    /// @notice Number of claim-fail bumps for `lp` (used as exponent `n` in freeze length)
-    function claimFailCount(address lp) external view returns (uint256);
-
-    /// @notice Timestamp until which `lp` cannot call {claimPegOut} (`0` ⇒ not frozen)
-    function restrictedUntil(address lp) external view returns (uint256);
 }
