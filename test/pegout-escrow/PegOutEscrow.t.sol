@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 import {Test} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {PegOutEscrow} from "../../src/PegOutEscrow.sol";
 import {PegOutContract} from "../../src/PegOutContract.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
@@ -1185,6 +1186,287 @@ contract PegOutEscrowTest is Test {
     }
 
     // -------------------------------------------------------------------------
+    // Claim-fail freeze / revoke
+    // -------------------------------------------------------------------------
+
+    function test_T5_RefundUser_BumpsFailCount() public {
+        bytes32 requestHash = _claimDefault();
+        Quotes.PegOutQuote memory q = escrow.getPegOutQuote(requestHash);
+        assertEq(pegOut.claimFailCount(lp), 0);
+        assertEq(pegOut.restrictedUntil(lp), 0);
+
+        _warpPastFulfillment(q);
+        uint256 failTs = block.timestamp;
+        vm.prank(other);
+        pegOut.refundUserPegOut(requestHash);
+
+        assertEq(pegOut.claimFailCount(lp), 1);
+        assertEq(
+            pegOut.restrictedUntil(lp),
+            failTs + (uint256(2) ** 1) * 1 days
+        );
+    }
+
+    function test_T5_RefundUser_BumpTable_SecondAndThirdFail() public {
+        // First fail → n=1, 2 days
+        bytes32 id1 = _claimDefault();
+        Quotes.PegOutQuote memory q1 = escrow.getPegOutQuote(id1);
+        _warpPastFulfillment(q1);
+        vm.prank(other);
+        pegOut.refundUserPegOut(id1);
+        assertEq(pegOut.claimFailCount(lp), 1);
+        uint256 until1 = pegOut.restrictedUntil(lp);
+
+        // Clear timed freeze so LP can claim again (count preserved).
+        vm.prank(owner);
+        pegOut.unrevoke(lp);
+        assertEq(pegOut.claimFailCount(lp), 1);
+        assertEq(pegOut.restrictedUntil(lp), 0);
+
+        bytes32 id2 = _claimDefault();
+        Quotes.PegOutQuote memory q2 = escrow.getPegOutQuote(id2);
+        _warpPastFulfillment(q2);
+        uint256 failTs2 = block.timestamp;
+        vm.prank(other);
+        pegOut.refundUserPegOut(id2);
+        assertEq(pegOut.claimFailCount(lp), 2);
+        assertEq(
+            pegOut.restrictedUntil(lp),
+            failTs2 + (uint256(2) ** 2) * 1 days
+        );
+        assertGt(pegOut.restrictedUntil(lp), until1);
+
+        vm.prank(owner);
+        pegOut.unrevoke(lp);
+
+        bytes32 id3 = _claimDefault();
+        Quotes.PegOutQuote memory q3 = escrow.getPegOutQuote(id3);
+        _warpPastFulfillment(q3);
+        uint256 failTs3 = block.timestamp;
+        vm.prank(other);
+        pegOut.refundUserPegOut(id3);
+        assertEq(pegOut.claimFailCount(lp), 3);
+        assertEq(
+            pegOut.restrictedUntil(lp),
+            failTs3 + (uint256(2) ** 3) * 1 days
+        );
+    }
+
+    function test_T4_Fulfill_DoesNotBump() public {
+        (
+            bytes32 requestHash,
+            Quotes.PegOutQuote memory quote,
+
+        ) = _claimWithP2pkhDest();
+        bytes memory btcTx = _generateBtcTxWithAmount(
+            quote,
+            requestHash,
+            _floor(quote, escrow.getMaxMinerFee(requestHash))
+        );
+        _setupBridgeConfirmations(quote);
+
+        vm.prank(lp);
+        pegOut.refundPegOut(
+            requestHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
+
+        assertEq(pegOut.claimFailCount(lp), 0);
+        assertEq(pegOut.restrictedUntil(lp), 0);
+    }
+
+    function test_T1_Cancel_DoesNotBump() public {
+        bytes32 requestHash = _requestDefault();
+        vm.prank(user);
+        escrow.cancelPegOut(requestHash);
+
+        assertEq(pegOut.claimFailCount(lp), 0);
+        assertEq(pegOut.restrictedUntil(lp), 0);
+    }
+
+    function test_T3_RefundOnNoClaim_DoesNotBump() public {
+        bytes32 requestHash = _requestDefault();
+        Quotes.PegOutQuote memory q = escrow.getPegOutQuote(requestHash);
+        vm.warp(uint256(q.depositDateLimit) + 1);
+        vm.prank(other);
+        escrow.refundOnNoClaim(requestHash);
+
+        assertEq(pegOut.claimFailCount(lp), 0);
+        assertEq(pegOut.restrictedUntil(lp), 0);
+    }
+
+    function test_T2_Claim_LpRestricted_Reverts() public {
+        bytes32 id1 = _claimDefault();
+        Quotes.PegOutQuote memory q1 = escrow.getPegOutQuote(id1);
+        _warpPastFulfillment(q1);
+        vm.prank(other);
+        pegOut.refundUserPegOut(id1);
+        uint256 until = pegOut.restrictedUntil(lp);
+        assertTrue(block.timestamp < until);
+
+        bytes32 id2 = _requestDefault();
+        Quotes.PegOutQuote memory quote = escrow.getPegOutQuote(id2);
+        bytes memory signature = _signForLp(lpKey, quote, lp);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(IPegOut.LpRestricted.selector, lp, until)
+        );
+        vm.prank(lp);
+        escrow.claimPegOut(id2, signature);
+    }
+
+    function test_T2_Claim_AtRestrictedUntil_Succeeds() public {
+        bytes32 id1 = _claimDefault();
+        Quotes.PegOutQuote memory q1 = escrow.getPegOutQuote(id1);
+        _warpPastFulfillment(q1);
+        vm.prank(other);
+        pegOut.refundUserPegOut(id1);
+        uint256 until = pegOut.restrictedUntil(lp);
+
+        vm.warp(until);
+        bytes32 id2 = _requestDefault();
+        Quotes.PegOutQuote memory quote = escrow.getPegOutQuote(id2);
+        // Request clocks are pinned at request; claim window must still be open.
+        bytes memory signature = _signForLp(lpKey, quote, lp);
+        vm.prank(lp);
+        escrow.claimPegOut(id2, signature);
+        assertEq(
+            uint256(escrow.getPegOutState(id2)),
+            uint256(IPegOutEscrow.EscrowedPegOutState.CLAIMED)
+        );
+    }
+
+    function test_T5_RevokeAfterClaim_DoesNotBlockUserRefund() public {
+        bytes32 requestHash = _claimDefault();
+        Quotes.PegOutQuote memory q = escrow.getPegOutQuote(requestHash);
+
+        vm.prank(owner);
+        pegOut.revoke(lp);
+        assertEq(pegOut.restrictedUntil(lp), type(uint256).max);
+        assertEq(pegOut.claimFailCount(lp), 0);
+
+        _warpPastFulfillment(q);
+        vm.prank(other);
+        pegOut.refundUserPegOut(requestHash);
+
+        assertTrue(pegOut.isQuoteCompleted(requestHash));
+        assertEq(
+            uint256(escrow.getPegOutState(requestHash)),
+            uint256(IPegOutEscrow.EscrowedPegOutState.REFUNDED)
+        );
+        // onClaimFail overwrites indefinite ban with finite freeze.
+        assertEq(pegOut.claimFailCount(lp), 1);
+        assertTrue(pegOut.restrictedUntil(lp) < type(uint256).max);
+        assertTrue(pegOut.restrictedUntil(lp) > block.timestamp - 1);
+    }
+
+    function test_T4_RevokeAfterClaim_DoesNotBlockFulfill() public {
+        (
+            bytes32 requestHash,
+            Quotes.PegOutQuote memory quote,
+
+        ) = _claimWithP2pkhDest();
+
+        vm.prank(owner);
+        pegOut.revoke(lp);
+
+        bytes memory btcTx = _generateBtcTxWithAmount(
+            quote,
+            requestHash,
+            _floor(quote, escrow.getMaxMinerFee(requestHash))
+        );
+        _setupBridgeConfirmations(quote);
+
+        vm.prank(lp);
+        pegOut.refundPegOut(
+            requestHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
+
+        assertEq(
+            uint256(escrow.getPegOutState(requestHash)),
+            uint256(IPegOutEscrow.EscrowedPegOutState.FULFILLED)
+        );
+        assertEq(pegOut.claimFailCount(lp), 0);
+        assertEq(pegOut.restrictedUntil(lp), type(uint256).max);
+    }
+
+    function test_Revoke_SetsMax_DoesNotChangeFailCount() public {
+        assertEq(pegOut.claimFailCount(lp), 0);
+        vm.prank(owner);
+        pegOut.revoke(lp);
+        assertEq(pegOut.restrictedUntil(lp), type(uint256).max);
+        assertEq(pegOut.claimFailCount(lp), 0);
+
+        bytes32 requestHash = _requestDefault();
+        Quotes.PegOutQuote memory quote = escrow.getPegOutQuote(requestHash);
+        bytes memory signature = _signForLp(lpKey, quote, lp);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOut.LpRestricted.selector,
+                lp,
+                type(uint256).max
+            )
+        );
+        vm.prank(lp);
+        escrow.claimPegOut(requestHash, signature);
+    }
+
+    function test_Unrevoke_ClearsUntil_DoesNotChangeFailCount() public {
+        bytes32 id1 = _claimDefault();
+        Quotes.PegOutQuote memory q1 = escrow.getPegOutQuote(id1);
+        _warpPastFulfillment(q1);
+        vm.prank(other);
+        pegOut.refundUserPegOut(id1);
+        assertEq(pegOut.claimFailCount(lp), 1);
+        assertTrue(pegOut.restrictedUntil(lp) > 0);
+
+        vm.prank(owner);
+        pegOut.unrevoke(lp);
+        assertEq(pegOut.restrictedUntil(lp), 0);
+        assertEq(pegOut.claimFailCount(lp), 1);
+
+        bytes32 id2 = _requestDefault();
+        Quotes.PegOutQuote memory quote = escrow.getPegOutQuote(id2);
+        bytes memory signature = _signForLp(lpKey, quote, lp);
+        vm.prank(lp);
+        escrow.claimPegOut(id2, signature);
+        assertEq(
+            uint256(escrow.getPegOutState(id2)),
+            uint256(IPegOutEscrow.EscrowedPegOutState.CLAIMED)
+        );
+    }
+
+    function test_Revoke_Unrevoke_NonAdmin_Reverts() public {
+        bytes32 adminRole = pegOut.DEFAULT_ADMIN_ROLE();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                other,
+                adminRole
+            )
+        );
+        vm.prank(other);
+        pegOut.revoke(lp);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                other,
+                adminRole
+            )
+        );
+        vm.prank(other);
+        pegOut.unrevoke(lp);
+    }
+
+    // -------------------------------------------------------------------------
     // helpers
     // -------------------------------------------------------------------------
 
@@ -1810,6 +2092,10 @@ contract PegOutEscrowIndividualSlashTest is Test {
         // Restore claimer above min so a second claim is allowed.
         vm.prank(owner);
         collateral.addPegOutCollateralTo{value: PENALTY_FEE}(lp);
+
+        // Clear claim-fail freeze from the prior T5 so the LP can claim again.
+        vm.prank(owner);
+        pegOut.unrevoke(lp);
 
         // Fresh peg-out: pause after claim must extend expiry.
         bytes32 requestHash2 = _claimDefault();
