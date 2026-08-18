@@ -196,6 +196,10 @@ contract PegOutEscrow is
         if (block.timestamp > q.depositDateLimit) {
             revert ClaimWindowClosed(q.depositDateLimit);
         }
+        uint256 until = $.pegOutContract.restrictedUntil(msg.sender);
+        if (block.timestamp < until) {
+            revert IPegOut.LpRestricted(msg.sender, until);
+        }
         if (address($.collateralManagement) == address(0)) revert CollateralManagementNotSet();
         if (!$.collateralManagement.isRegistered(Flyover.ProviderType.PegOut, msg.sender)) {
             revert Flyover.ProviderNotRegistered(msg.sender);
