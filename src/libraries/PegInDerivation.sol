@@ -14,12 +14,9 @@ import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCod
 /// scans the SPV-proven transaction for an output paying it. The SHAPE of the derivation below was
 /// validated end-to-end on a live regtest against the UNMODIFIED powpeg bridge (rskj 9.0.2,
 /// 2026-06-30, settle tx 0x174ab0df7cc86648a40d9b36da95fd4dacf2f18c135606141d532b7d1363c7de). That
-/// run used a real regtest p2pkh as the two BTC placeholders; they are now the per-network ZERO
-/// address (see {getRefundPlaceholderBtcAddress}). The zero-address form is well-formed and
-/// non-empty, but no end-to-end run has yet settled with it — the settlement path does not exist on
-/// this branch (`PegInContract.resolvePegIn` reverts `ResolvePegInNotImplemented`). Proving the
-/// bridge accepts a zero-hash address is owed by the settlement work, and is a merge gate for
-/// production, not a property this library may assume:
+/// run used a real regtest p2pkh as the two BTC placeholders; they are now the per-network zero
+/// address (see {getRefundPlaceholderBtcAddress}). The zero address is well-formed and non-empty.
+/// Bridge acceptance of that placeholder must be verified on the target network before mainnet use:
 ///
 ///   derivationArgumentsHash = keccak256(DERIVATION_DOMAIN ++ rskAddr)                    (step 1)
 ///   derivationValue         = keccak256(
@@ -44,7 +41,7 @@ import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCod
 /// wrapping supported here. A powpeg running a pre-segwit federation format would need the plain
 /// wrapping instead and is deliberately NOT supported.
 ///
-/// Two known pitfalls, both encoded as negative tests:
+/// Two known pitfalls:
 ///   1. Keying the redeem-script tag with `derivationArgumentsHash` directly (skipping step 2's
 ///      address mixing) makes the bridge re-derive a DIFFERENT address and fail with -900
 ///      (FAST_BRIDGE_GENERIC_ERROR).

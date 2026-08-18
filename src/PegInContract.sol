@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {AccessControlDefaultAdminRulesUpgradeable} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
+import {
+    AccessControlDefaultAdminRulesUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
 import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
@@ -471,7 +473,7 @@ contract PegInContract is
         _creditResolvedPegIn(pegInId, rskAddr, claim, uint256(registerResult));
     }
 
-    /// @dev Bridge fast-register for commit-first settlement with placeholder bytes.
+    /// @dev Bridge fast-register with per-network BTC placeholder addresses.
     function _registerCommitFirstBridge(
         address rskAddr,
         bytes calldata btcRawTransaction,

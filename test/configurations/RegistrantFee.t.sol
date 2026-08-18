@@ -6,7 +6,6 @@ import {FlyoverConfigurations} from "../../src/FlyoverConfigurations.sol";
 import {IFlyoverConfigurations} from "../../src/interfaces/IFlyoverConfigurations.sol";
 
 /// @title RegistrantFeeTest
-/// @notice T11 / R12: registrantFee bounds and fixedFee >= registrantFee + cushion
 contract RegistrantFeeTest is ConfigurationsTestBase {
     function setUp() public {
         _deploy();
