@@ -4,8 +4,6 @@ pragma solidity 0.8.25;
 import {ResolvePegInTestBase} from "./ResolvePegInTestBase.sol";
 import {PegInDerivation} from "../../src/libraries/PegInDerivation.sol";
 
-/// @title ResolvePegInRegtestTest
-/// @notice T17 / R16 merge gate: end-to-end claimed settle with FLY-2521 placeholder bytes on regtest wiring
 contract ResolvePegInRegtestTest is ResolvePegInTestBase {
     function test_regtest_end_to_end_settle_with_placeholders() public {
         address registrant = makeAddr("regtestRegistrant");

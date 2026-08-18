@@ -4,15 +4,8 @@ pragma solidity 0.8.25;
 import {Test} from "forge-std/Test.sol";
 import {PegInDerivation} from "../../src/libraries/PegInDerivation.sol";
 
-/// @title PegInDerivation Library Tests
-/// @notice Pins the derivation vectors as FIXED-BYTE fixtures, PER NETWORK, and encodes the two
-/// known derivation pitfalls as negative tests.
-/// @dev Every expected value below is a pinned constant computed once offline by an independent
-/// implementation of the scheme (keccak256/sha256/ripemd160 outside Solidity), never by calling the
-/// library under test. Nothing is recomputed from the library's own constants: if any constant,
-/// opcode, or version byte changes, these tests fail. That is the point.
-///
-/// Merged stack: #514 segwit P2SH-P2WSH wrapping + #515 per-network zero-address placeholders.
+/// @dev Pinned byte fixtures per network. Expected values are fixed offline; any change to
+/// library constants or P2SH-P2WSH wrapping fails these tests.
 contract PegInDerivationTest is Test {
     address internal constant FIXTURE_RSK = 0x0000000000000000000000000000000000000aBc;
     address internal constant FIXTURE_PEGIN_CONTRACT = 0x00000000000000000000000000000000C0FFEE01;

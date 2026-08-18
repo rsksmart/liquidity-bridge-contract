@@ -5,24 +5,14 @@ import {ConfigurationsTestBase} from "./ConfigurationsTestBase.sol";
 import {FlyoverConfigurations} from "../../src/FlyoverConfigurations.sol";
 import {IFlyoverConfigurations} from "../../src/interfaces/IFlyoverConfigurations.sol";
 
-/// @title TimelockTest
-/// @notice The two-step time-locked admin path, all four spec cases:
-/// (1) queue-then-apply after the delay succeeds;
-/// (2) apply before the delay reverts;
-/// (3) out-of-bounds values revert at both queue and apply time;
-/// (4) a second queue replaces the pending change.
-/// Plus exact-eta success, applying with nothing queued, and event emission.
 contract TimelockTest is ConfigurationsTestBase {
-    /// @dev pending.fixedFee lives at the mutable namespace base + 6 (activePegIn occupies six
-    /// scalar slots before confirmationTiers-length).
+    /// @dev pending.fixedFee slot: namespace base + 6 (five scalars and tiers length in active config).
     bytes32 private constant _PENDING_FIXED_FEE_SLOT =
         bytes32(uint256(STORAGE_SLOT) + 6);
 
     function setUp() public {
         _deploy();
     }
-
-    // ------------------------------------------------------ case 1: queue then apply succeeds
 
     function test_case1_queueThenApplyAfterDelay_succeeds() public {
         IFlyoverConfigurations.PegConfiguration memory c = _queueAlt();
@@ -70,8 +60,6 @@ contract TimelockTest is ConfigurationsTestBase {
         );
     }
 
-    // ------------------------------------------------------ case 2: apply before delay reverts
-
     function test_case2_applyBeforeDelay_reverts() public {
         _queueAlt();
         (, uint256 eta) = config.getPendingChange();
@@ -96,8 +84,6 @@ contract TimelockTest is ConfigurationsTestBase {
         vm.expectRevert(FlyoverConfigurations.NoQueuedChange.selector);
         config.applyChange();
     }
-
-    // ------------------------------------------------------ case 3: out-of-bounds at both steps
 
     function test_case3_outOfBounds_revertsAtQueueTime() public {
         IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
@@ -149,8 +135,6 @@ contract TimelockTest is ConfigurationsTestBase {
         // The active config remains the seed; the corrupted change never took effect.
         assertEq(config.getPegInConfiguration().fixedFee, SEED_FIXED_FEE);
     }
-
-    // ------------------------------------------------------ case 4: second queue replaces pending
 
     function test_case4_secondQueueReplacesPending() public {
         // First queued change.
