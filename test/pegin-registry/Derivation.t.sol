@@ -17,10 +17,13 @@ import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCod
 contract DerivationTest is PegInRegistryTestBase {
     address internal constant FIXTURE_RSK =
         0x0000000000000000000000000000000000000aBc;
+    /// @dev The two payloads no longer share a script hash: the BTC placeholders mixed into the
+    /// derivation are per-network (FLY-2521), so the mainnet address differs from the testnet one in
+    /// every byte, not just the version prefix. Pinned offline; see test/libraries/PegInDerivation.t.sol.
     bytes internal constant FIXTURE_TESTNET_ADDRESS =
-        hex"c423670b6bf4ab398f05d8536da400767b562425bc199d1a4a";
+        hex"c490a45e9bf80f1a2d9aac68ef224d929bb9b507d8545026ec";
     bytes internal constant FIXTURE_MAINNET_ADDRESS =
-        hex"0523670b6bf4ab398f05d8536da400767b562425bc89840387";
+        hex"05ed4761212ddb2ff1ac15a2d401a32baeaa4bbabfdb51b9c1";
 
     // R1 — deterministic derivation
     function test_derive_deterministic_same_rskAddr() public {
@@ -261,7 +264,8 @@ contract DerivationTest is PegInRegistryTestBase {
         bytes memory powpeg = bridge.getActivePowpegRedeemScript();
         bytes32 dv = PegInDerivation.derivationValue(
             FIXTURE_RSK,
-            PEGIN_CONTRACT
+            PEGIN_CONTRACT,
+            false
         );
         bytes memory redeem = PegInDerivation.flyoverRedeemScript(dv, powpeg);
 
