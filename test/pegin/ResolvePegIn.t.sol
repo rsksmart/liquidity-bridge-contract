@@ -52,9 +52,20 @@ contract ResolvePegInTest is ResolvePegInTestBase {
 
         bridgeMock.setPegin{value: bridgeRelease}(_derivationHash(rskUser));
         vm.prank(claimer);
-        vm.expectRevert(abi.encodeWithSelector(IPegInCommitFirst.PegInAlreadyProcessed.selector, pegInId));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegInCommitFirst.PegInAlreadyProcessed.selector,
+                pegInId
+            )
+        );
         pegInContract.resolvePegIn(rskUser, rawTx, hex"00", 100);
-        assertEq(_balance(claimer), DEFAULT_AMOUNT - _expectedFee(DEFAULT_AMOUNT) + _expectedFee(DEFAULT_AMOUNT) - 1e14);
+        assertEq(
+            _balance(claimer),
+            DEFAULT_AMOUNT -
+                _expectedFee(DEFAULT_AMOUNT) +
+                _expectedFee(DEFAULT_AMOUNT) -
+                1e14
+        );
     }
 
     function test_third_party_caller_same_credits() public {
@@ -67,7 +78,10 @@ contract ResolvePegInTest is ResolvePegInTestBase {
     function test_unclaimed_reverts_without_bridge_credit() public {
         vm.prank(claimer);
         vm.expectRevert(
-            abi.encodeWithSelector(IPegInCommitFirst.PegInNotClaimed.selector, _pegInId(rskUser, btcTxHash))
+            abi.encodeWithSelector(
+                IPegInCommitFirst.PegInNotClaimed.selector,
+                _pegInId(rskUser, btcTxHash)
+            )
         );
         pegInContract.resolvePegIn(rskUser, rawTx, hex"00", 100);
         assertEq(_balance(claimer), 0);
@@ -76,7 +90,9 @@ contract ResolvePegInTest is ResolvePegInTestBase {
     function test_witness_serialized_tx_reverts() public {
         _claimAndFund(rskUser, rawTx, bridgeRelease);
         vm.prank(claimer);
-        vm.expectRevert(BtcTransactionReader.WitnessSerializedTxNotAccepted.selector);
+        vm.expectRevert(
+            BtcTransactionReader.WitnessSerializedTxNotAccepted.selector
+        );
         pegInContract.resolvePegIn(rskUser, WITNESS_MARKED_TX, hex"00", 100);
         assertEq(_balance(claimer), 0);
     }
@@ -86,7 +102,12 @@ contract ResolvePegInTest is ResolvePegInTestBase {
         bytes32 wrongPegInId = _pegInId(rskUser, _btcTxHash(wrongRawTx));
         _claimAndFund(rskUser, rawTx, bridgeRelease);
         vm.prank(claimer);
-        vm.expectRevert(abi.encodeWithSelector(IPegInCommitFirst.PegInNotClaimed.selector, wrongPegInId));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegInCommitFirst.PegInNotClaimed.selector,
+                wrongPegInId
+            )
+        );
         pegInContract.resolvePegIn(rskUser, wrongRawTx, hex"00", 100);
     }
 
@@ -113,7 +134,13 @@ contract ResolvePegInTest is ResolvePegInTestBase {
         uint256 claimerPayout = DEFAULT_AMOUNT - fee + fee - 1e14;
         vm.expectEmit(true, true, true, true);
         emit IPegInCommitFirst.PegInResolved(
-            pegInId, claimer, registrant, bridgeRelease, claimerPayout, 1e14, 0
+            pegInId,
+            claimer,
+            registrant,
+            bridgeRelease,
+            claimerPayout,
+            1e14,
+            0
         );
         _resolve(claimer, rskUser, rawTx);
     }
@@ -121,14 +148,20 @@ contract ResolvePegInTest is ResolvePegInTestBase {
     function test_hard_pause_blocks_resolve() public {
         _claimAndFund(rskUser, rawTx, bridgeRelease);
         vm.prank(owner);
-        pauseRegistry.setPauseLevel(IPauseRegistry.PauseLevel.Hard, "resolve hard pause");
+        pauseRegistry.setPauseLevel(
+            IPauseRegistry.PauseLevel.Hard,
+            "resolve hard pause"
+        );
         vm.prank(claimer);
         vm.expectRevert(Flyover.EnforcedPause.selector);
         pegInContract.resolvePegIn(rskUser, rawTx, hex"00", 100);
     }
 
     function test_bridge_args_use_placeholder_getters() public pure {
-        assertEq(PegInDerivation.getRefundPlaceholderBtcAddress(false).length, 21);
+        assertEq(
+            PegInDerivation.getRefundPlaceholderBtcAddress(false).length,
+            21
+        );
         assertEq(PegInDerivation.getLpPlaceholderBtcAddress(false).length, 21);
     }
 }
