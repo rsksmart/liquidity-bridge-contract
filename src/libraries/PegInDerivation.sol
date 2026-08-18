@@ -16,9 +16,8 @@ import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCod
 /// 2026-06-30, settle tx 0x174ab0df7cc86648a40d9b36da95fd4dacf2f18c135606141d532b7d1363c7de). That
 /// run used a real regtest p2pkh as the two BTC placeholders; they are now the per-network ZERO
 /// address (see {getRefundPlaceholderBtcAddress}). The zero-address form is well-formed and
-/// non-empty, but no end-to-end run has yet settled with it — the settlement path does not exist on
-/// this branch (`PegInContract.resolvePegIn` reverts `ResolvePegInNotImplemented`). Proving the
-/// bridge accepts a zero-hash address is owed by the settlement work, and is a merge gate for
+/// non-empty. Settlement is live on this branch (`PegInContract.resolvePegIn`); proving the
+/// bridge accepts a zero-hash address on the target network remains a merge gate for
 /// production, not a property this library may assume:
 ///
 ///   derivationArgumentsHash = keccak256(DERIVATION_DOMAIN ++ rskAddr)                    (step 1)
