@@ -13,7 +13,8 @@ abstract contract ResolvePegInTestBase is RequestPegInTestBase {
         hex"01000000000101000000000000000000000000000000000000000000000000000000000000000000ffffffff";
 
     function _minimalRawTx() internal pure returns (bytes memory) {
-        bytes memory pkScript = hex"76a914000000000000000000000000000000000000000088ac";
+        bytes
+            memory pkScript = hex"76a914000000000000000000000000000000000000000088ac";
         return
             abi.encodePacked(
                 hex"01000000",
@@ -45,7 +46,13 @@ abstract contract ResolvePegInTestBase is RequestPegInTestBase {
     ) internal returns (bytes32 pegInId) {
         bytes32 btcTxHash = _btcTxHash(rawTx);
         uint256 fee = _expectedFee(DEFAULT_AMOUNT);
-        pegInId = _requestPegIn(claimer, rskAddr, DEFAULT_AMOUNT, btcTxHash, DEFAULT_AMOUNT - fee);
+        pegInId = _requestPegIn(
+            claimer,
+            rskAddr,
+            DEFAULT_AMOUNT,
+            btcTxHash,
+            DEFAULT_AMOUNT - fee
+        );
         bridgeMock.setPegin{value: bridgeRelease}(_derivationHash(rskAddr));
         return pegInId;
     }
@@ -68,7 +75,11 @@ abstract contract ResolvePegInTestBase is RequestPegInTestBase {
             uint256(
                 vm.load(
                     address(pegInContract),
-                    bytes32(uint256(keccak256(abi.encode(rskAddr, REGISTRANT_PAID_SLOT))))
+                    bytes32(
+                        uint256(
+                            keccak256(abi.encode(rskAddr, REGISTRANT_PAID_SLOT))
+                        )
+                    )
                 )
             ) == 1;
     }
@@ -78,7 +89,11 @@ abstract contract ResolvePegInTestBase is RequestPegInTestBase {
             uint256(
                 vm.load(
                     address(pegInContract),
-                    bytes32(uint256(keccak256(abi.encode(pegInId, PEGIN_SETTLED_SLOT))))
+                    bytes32(
+                        uint256(
+                            keccak256(abi.encode(pegInId, PEGIN_SETTLED_SLOT))
+                        )
+                    )
                 )
             ) == 1;
     }
