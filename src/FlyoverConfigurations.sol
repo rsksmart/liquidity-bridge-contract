@@ -23,7 +23,13 @@ contract FlyoverConfigurations is
     IFlyoverConfigurations
 {
     /// @notice Identifies the scalar field an out-of-bounds revert refers to.
-    enum Field { FixedFee, PercentageFee, MinAmount, MaxAmount }
+    enum Field { FixedFee, PercentageFee, MinAmount, MaxAmount, RegistrantFee }
+
+    /// @notice Rejects registrantFee values at or above this cap (0.001 ether).
+    uint256 public constant MAX_REGISTRANT_FEE_EXCLUSIVE = 0.001 ether;
+
+    /// @notice LP claim-gas headroom required between fixedFee and registrantFee at queue/apply.
+    uint256 private constant _REGISTRANT_FEE_LP_GAS_CUSHION = 0;
 
     /// @custom:storage-location erc7201:rsk.flyover.FlyoverConfigurations
     struct FlyoverConfigurationsStorage {
@@ -85,6 +91,10 @@ contract FlyoverConfigurations is
     error TimelockNotElapsed(uint256 eta, uint256 nowTime);
     /// @notice Raised when applying while no change is queued.
     error NoQueuedChange();
+    /// @notice Raised when registrantFee is at or above {MAX_REGISTRANT_FEE_EXCLUSIVE}.
+    error RegistrantFeeTooHigh(uint256 registrantFee, uint256 maxExclusive);
+    /// @notice Raised when fixedFee cannot cover registrantFee plus the LP gas cushion.
+    error InsufficientFixedFeeForRegistrant(uint256 fixedFee, uint256 registrantFee, uint256 cushion);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -251,6 +261,21 @@ contract FlyoverConfigurations is
         );
         _checkBound(Field.MinAmount, config.minAmount, minConfigBoundary.minAmount, maxConfigBoundary.minAmount);
         _checkBound(Field.MaxAmount, config.maxAmount, minConfigBoundary.maxAmount, maxConfigBoundary.maxAmount);
+        _checkBound(
+            Field.RegistrantFee,
+            config.registrantFee,
+            minConfigBoundary.registrantFee,
+            maxConfigBoundary.registrantFee
+        );
+
+        if (config.registrantFee >= MAX_REGISTRANT_FEE_EXCLUSIVE) {
+            revert RegistrantFeeTooHigh(config.registrantFee, MAX_REGISTRANT_FEE_EXCLUSIVE);
+        }
+        if (config.fixedFee < config.registrantFee + _REGISTRANT_FEE_LP_GAS_CUSHION) {
+            revert InsufficientFixedFeeForRegistrant(
+                config.fixedFee, config.registrantFee, _REGISTRANT_FEE_LP_GAS_CUSHION
+            );
+        }
 
         if (config.percentageFee > FEE_PERCENTAGE_DENOMINATOR) {
             revert InvalidPercentageFee(config.percentageFee);

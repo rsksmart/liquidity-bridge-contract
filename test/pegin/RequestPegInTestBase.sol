@@ -78,6 +78,7 @@ abstract contract RequestPegInTestBase is PegInTestBase {
 
     function _applyDefaultConfiguration() internal {
         configurations.setFee(DEFAULT_FIXED_FEE, DEFAULT_PERCENTAGE_FEE);
+        configurations.setRegistrantFee(1e14);
         configurations.setAmountBounds(TEST_MIN_PEGIN, DEFAULT_MAX_AMOUNT);
         IFlyoverConfigurations.ConfirmationTier[]
             memory tiers = new IFlyoverConfigurations.ConfirmationTier[](1);

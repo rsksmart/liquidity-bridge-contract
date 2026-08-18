@@ -26,6 +26,7 @@ library FlyoverConfigurationsRegtest {
         config.percentageFee = 10; // pricing: 0.10% (10 / 10_000)
         config.minAmount = 0.005 ether; // amount limit: Flyover peg-in floor
         config.maxAmount = 10 ether; // amount limit: Flyover peg-in ceiling
+        config.registrantFee = 1e14; // first-peg-in registrant payout (0.0001 RBTC)
         config.confirmationTiers = _tiers();
     }
 
@@ -38,6 +39,7 @@ library FlyoverConfigurationsRegtest {
         bound.percentageFee = 0; // percentage may be zeroed
         bound.minAmount = 0.001 ether; // lowest permissible Flyover floor
         bound.maxAmount = 0.01 ether; // lowest permissible Flyover ceiling
+        bound.registrantFee = 0;
         // Tiers are validated for ordering/non-emptiness only, never min/max-bounded.
         bound.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
     }
@@ -50,6 +52,7 @@ library FlyoverConfigurationsRegtest {
         bound.percentageFee = 1_000; // 10% max (1_000 / 10_000)
         bound.minAmount = 1 ether; // highest permissible Flyover floor
         bound.maxAmount = 1_000 ether; // highest permissible Flyover ceiling
+        bound.registrantFee = 0.001 ether - 1;
         bound.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
     }
 

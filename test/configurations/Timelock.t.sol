@@ -13,10 +13,10 @@ import {IFlyoverConfigurations} from "../../src/interfaces/IFlyoverConfiguration
 /// (4) a second queue replaces the pending change.
 /// Plus exact-eta success, applying with nothing queued, and event emission.
 contract TimelockTest is ConfigurationsTestBase {
-    /// @dev pending.fixedFee lives at the mutable namespace base + 5 (activePegIn occupies the
-    /// first 5 slots: fixedFee, percentageFee, minAmount, maxAmount, confirmationTiers-length).
+    /// @dev pending.fixedFee lives at the mutable namespace base + 6 (activePegIn occupies six
+    /// scalar slots before confirmationTiers-length).
     bytes32 private constant _PENDING_FIXED_FEE_SLOT =
-        bytes32(uint256(STORAGE_SLOT) + 5);
+        bytes32(uint256(STORAGE_SLOT) + 6);
 
     function setUp() public {
         _deploy();
