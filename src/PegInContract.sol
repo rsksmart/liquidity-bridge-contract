@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {
-    AccessControlDefaultAdminRulesUpgradeable
-} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
+import {AccessControlDefaultAdminRulesUpgradeable} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlDefaultAdminRulesUpgradeable.sol";
 import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
@@ -17,6 +15,8 @@ import {IPegIn} from "./interfaces/IPegIn.sol";
 import {IPegInAddressRegistry} from "./interfaces/IPegInAddressRegistry.sol";
 import {IPegInCommitFirst} from "./interfaces/IPegInCommitFirst.sol";
 import {Flyover} from "./libraries/Flyover.sol";
+import {PegInDerivation} from "./libraries/PegInDerivation.sol";
+import {BtcTransactionReader} from "./libraries/BtcTransactionReader.sol";
 import {Quotes} from "./libraries/Quotes.sol";
 import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 
@@ -54,18 +54,19 @@ contract PegInContract is
     }
 
     /// @notice The version of the contract
-    string constant public VERSION = "1.0.0";
+    string public constant VERSION = "1.0.0";
     /// @notice The name of the contract (used for EIP712)
-    string constant public NAME = "PegInContract";
-    Flyover.ProviderType constant private _PEG_TYPE = Flyover.ProviderType.PegIn;
-    uint256 constant private _REFUND_ADDRESS_LENGTH = 21;
+    string public constant NAME = "PegInContract";
+    Flyover.ProviderType private constant _PEG_TYPE =
+        Flyover.ProviderType.PegIn;
+    uint256 private constant _REFUND_ADDRESS_LENGTH = 21;
 
-    uint256 constant private _MAX_CALL_GAS_COST = 35000;
-    uint256 constant private _MAX_REFUND_GAS_LIMIT = 2300;
+    uint256 private constant _MAX_CALL_GAS_COST = 35000;
+    uint256 private constant _MAX_REFUND_GAS_LIMIT = 2300;
 
-    int256 constant private _BRIDGE_UNPROCESSABLE_TX_VALIDATIONS_ERROR = -303;
-    int256 constant private _BRIDGE_REFUNDED_USER_ERROR_CODE = -100;
-    int256 constant private _BRIDGE_REFUNDED_LP_ERROR_CODE = -200;
+    int256 private constant _BRIDGE_UNPROCESSABLE_TX_VALIDATIONS_ERROR = -303;
+    int256 private constant _BRIDGE_REFUNDED_USER_ERROR_CODE = -100;
+    int256 private constant _BRIDGE_REFUNDED_LP_ERROR_CODE = -200;
 
     IBridge private _bridge;
     ICollateralManagement private _collateralManagement;
@@ -86,11 +87,18 @@ contract PegInContract is
     IFlyoverConfigurations private _configurations;
     /// @notice Commit-first claims keyed by keccak256(rskAddr ++ btcTxHash)
     mapping(bytes32 => PegInClaim) private _pegInClaims;
+    /// @notice Whether the registrant fee was already paid for a destination address
+    mapping(address => bool) private _registrantPaid;
+    /// @notice Whether a peg-in id was already settled on the claimed path
+    mapping(bytes32 => bool) private _pegInSettled;
 
     /// @notice Emitted when the dust threshold is set
     /// @param oldThreshold The old dust threshold
     /// @param newThreshold The new dust threshold
-    event DustThresholdSet(uint256 indexed oldThreshold, uint256 indexed newThreshold);
+    event DustThresholdSet(
+        uint256 indexed oldThreshold,
+        uint256 indexed newThreshold
+    );
 
     /// @notice Emitted when the minimum peg in amount is set
     /// @param oldMinPegIn The old minimum peg in amount
@@ -113,8 +121,6 @@ contract PegInContract is
     error PegInAddressRegistryNotSet();
     /// @notice Reverts when the FlyoverConfigurations dependency has not been set
     error FlyoverConfigurationsNotSet();
-    /// @notice Reverts resolvePegIn until settlement is implemented
-    error ResolvePegInNotImplemented();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -146,8 +152,10 @@ contract PegInContract is
         bool mainnet,
         IPauseRegistry pauseRegistry
     ) external initializer {
-        if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
-        if (address(pauseRegistry).code.length == 0) revert Flyover.NoContract(address(pauseRegistry));
+        if (collateralManagement.code.length == 0)
+            revert Flyover.NoContract(collateralManagement);
+        if (address(pauseRegistry).code.length == 0)
+            revert Flyover.NoContract(address(pauseRegistry));
         __AccessControlDefaultAdminRules_init(0, defaultAdmin);
         __EIP712_init(NAME, VERSION);
         __EmergencyPause_init(pauseRegistry);
@@ -162,9 +170,15 @@ contract PegInContract is
     /// @param collateralManagement the address of the Collateral Management contract
     /// @dev This function is only callable by the owner of the contract
     // solhint-disable-next-line comprehensive-interface
-    function setCollateralManagement(address collateralManagement) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
-        if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
-        emit CollateralManagementSet(address(_collateralManagement), collateralManagement);
+    function setCollateralManagement(
+        address collateralManagement
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
+        if (collateralManagement.code.length == 0)
+            revert Flyover.NoContract(collateralManagement);
+        emit CollateralManagementSet(
+            address(_collateralManagement),
+            collateralManagement
+        );
         _collateralManagement = ICollateralManagement(collateralManagement);
     }
 
@@ -172,7 +186,9 @@ contract PegInContract is
     /// @param threshold the new dust threshold
     /// @dev This function is only callable by the owner of the contract
     // solhint-disable-next-line comprehensive-interface
-    function setDustThreshold(uint256 threshold) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
+    function setDustThreshold(
+        uint256 threshold
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         emit DustThresholdSet(dustThreshold, threshold);
         dustThreshold = threshold;
     }
@@ -181,7 +197,9 @@ contract PegInContract is
     /// @param minPegIn the new minimum peg in amount
     /// @dev This function is only callable by the owner of the contract
     // solhint-disable-next-line comprehensive-interface
-    function setMinPegIn(uint256 minPegIn) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
+    function setMinPegIn(
+        uint256 minPegIn
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         emit MinPegInSet(_minPegIn, minPegIn);
         _minPegIn = minPegIn;
     }
@@ -191,37 +209,52 @@ contract PegInContract is
     /// @param configurations The FlyoverConfigurations contract address
     /// @dev Only callable by DEFAULT_ADMIN_ROLE. Both addresses must have code.
     // solhint-disable-next-line comprehensive-interface
-    function setPegInDependencies(address registry, address configurations)
-        external
-        onlyRole(DEFAULT_ADMIN_ROLE)
-        nonReentrant
-    {
+    function setPegInDependencies(
+        address registry,
+        address configurations
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         if (registry.code.length == 0) revert Flyover.NoContract(registry);
-        if (configurations.code.length == 0) revert Flyover.NoContract(configurations);
+        if (configurations.code.length == 0)
+            revert Flyover.NoContract(configurations);
         address oldRegistry = address(_pegInAddressRegistry);
         address oldConfigurations = address(_configurations);
         _pegInAddressRegistry = IPegInAddressRegistry(registry);
         _configurations = IFlyoverConfigurations(configurations);
-        emit PegInDependenciesSet(oldRegistry, registry, oldConfigurations, configurations);
+        emit PegInDependenciesSet(
+            oldRegistry,
+            registry,
+            oldConfigurations,
+            configurations
+        );
     }
 
     /// @inheritdoc IPegIn
-    function deposit() external payable nonReentrant whenNotSoftPaused override {
-        if(!_collateralManagement.isRegistered(_PEG_TYPE, msg.sender)) {
+    function deposit()
+        external
+        payable
+        override
+        nonReentrant
+        whenNotSoftPaused
+    {
+        if (!_collateralManagement.isRegistered(_PEG_TYPE, msg.sender)) {
             revert Flyover.ProviderNotRegistered(msg.sender);
         }
         _increaseBalance(msg.sender, msg.value);
     }
 
     /// @inheritdoc IPegIn
-    function withdraw(uint256 amount) external nonReentrant whenNotHardPaused override {
+    function withdraw(
+        uint256 amount
+    ) external override nonReentrant whenNotHardPaused {
         uint256 balance = _balances[msg.sender];
         if (balance < amount) {
             revert Flyover.NoBalance(amount, balance);
         }
         _decreaseBalance(msg.sender, amount);
         emit Withdrawal(msg.sender, amount);
-        (bool success, bytes memory reason) = msg.sender.call{value: amount}("");
+        (bool success, bytes memory reason) = msg.sender.call{value: amount}(
+            ""
+        );
         if (!success) {
             revert Flyover.PaymentFailed(msg.sender, amount, reason);
         }
@@ -230,14 +263,18 @@ contract PegInContract is
     /// @inheritdoc IPegIn
     function callForUser(
         Quotes.PegInQuote calldata quote
-    ) external payable nonReentrant whenNotHardPaused override returns (bool) {
-        if(!_collateralManagement.isRegistered(_PEG_TYPE, msg.sender)) {
+    ) external payable override nonReentrant whenNotHardPaused returns (bool) {
+        if (!_collateralManagement.isRegistered(_PEG_TYPE, msg.sender)) {
             revert Flyover.ProviderNotRegistered(msg.sender);
         }
         if (quote.liquidityProviderRskAddress != msg.sender) {
-            revert Flyover.InvalidSender(quote.liquidityProviderRskAddress, msg.sender);
+            revert Flyover.InvalidSender(
+                quote.liquidityProviderRskAddress,
+                msg.sender
+            );
         }
-        uint256 newBalance = _balances[quote.liquidityProviderRskAddress] + msg.value;
+        uint256 newBalance = _balances[quote.liquidityProviderRskAddress] +
+            msg.value;
         if (newBalance < quote.value) {
             revert Flyover.InsufficientAmount(newBalance, quote.value);
         }
@@ -251,9 +288,12 @@ contract PegInContract is
 
         // This check ensures that the call cannot be performed with less gas than the agreed amount
         if (gasleft() < quote.gasLimit + _MAX_CALL_GAS_COST) {
-            revert InsufficientGas(gasleft(), quote.gasLimit + _MAX_CALL_GAS_COST);
+            revert InsufficientGas(
+                gasleft(),
+                quote.gasLimit + _MAX_CALL_GAS_COST
+            );
         }
-        (bool success,) = quote.contractAddress.call{
+        (bool success, ) = quote.contractAddress.call{
             gas: quote.gasLimit,
             value: quote.value
         }(quote.data);
@@ -285,10 +325,16 @@ contract PegInContract is
         bytes calldata btcRawTransaction,
         bytes calldata partialMerkleTree,
         uint256 height
-    ) external nonReentrant whenNotHardPaused override returns (int256) {
+    ) external override nonReentrant whenNotHardPaused returns (int256) {
         bytes32 quoteHash = _hashPegInQuote(quote);
         _validateRegisterParams(quote, quoteHash, height, signature);
-        int256 registerResult = _registerBridge(quote, btcRawTransaction, partialMerkleTree, height, quoteHash);
+        int256 registerResult = _registerBridge(
+            quote,
+            btcRawTransaction,
+            partialMerkleTree,
+            height,
+            quoteHash
+        );
 
         bool btcRefunded = registerResult == _BRIDGE_REFUNDED_USER_ERROR_CODE ||
             registerResult == _BRIDGE_REFUNDED_LP_ERROR_CODE;
@@ -300,8 +346,19 @@ contract PegInContract is
 
         Registry memory callRegistry = _callRegistry[quoteHash];
         delete _callRegistry[quoteHash];
-        if (_shouldPenalize(quote, registerResult, callRegistry.timestamp, height)) {
-            _collateralManagement.slashPegInCollateral(msg.sender, quote, quoteHash);
+        if (
+            _shouldPenalize(
+                quote,
+                registerResult,
+                callRegistry.timestamp,
+                height
+            )
+        ) {
+            _collateralManagement.slashPegInCollateral(
+                msg.sender,
+                quote,
+                quoteHash
+            );
         }
         if (btcRefunded) {
             _processedQuotes[quoteHash] = PegInStates.PROCESSED_QUOTE;
@@ -317,7 +374,12 @@ contract PegInContract is
         _processedQuotes[quoteHash] = PegInStates.PROCESSED_QUOTE;
         emit PegInRegistered(quoteHash, transferredAmount);
         if (callRegistry.timestamp > 0) {
-            _registerCallDone(quote, quoteHash, callRegistry.success, transferredAmount);
+            _registerCallDone(
+                quote,
+                quoteHash,
+                callRegistry.success,
+                transferredAmount
+            );
         } else {
             _registerCallNotDone(quote, quoteHash, transferredAmount);
         }
@@ -333,7 +395,14 @@ contract PegInContract is
         bytes32 btcBlockHash,
         uint256 merkleBranchPath,
         bytes32[] calldata merkleBranchHashes
-    ) external payable nonReentrant whenNotHardPaused override returns (bytes32 pegInId) {
+    )
+        external
+        payable
+        override
+        nonReentrant
+        whenNotHardPaused
+        returns (bytes32 pegInId)
+    {
         pegInId = keccak256(abi.encodePacked(rskAddr, btcTxHash));
         if (_pegInClaims[pegInId].claimer != address(0)) {
             revert PegInAlreadyProcessed(pegInId);
@@ -343,7 +412,13 @@ contract PegInContract is
         if (!_pegInAddressRegistry.isRegistered(rskAddr)) {
             revert AddressNotRegistered(rskAddr);
         }
-        _requirePegInConfirmations(amount, btcTxHash, btcBlockHash, merkleBranchPath, merkleBranchHashes);
+        _requirePegInConfirmations(
+            amount,
+            btcTxHash,
+            btcBlockHash,
+            merkleBranchPath,
+            merkleBranchHashes
+        );
 
         uint256 fee = _configurations.calculatePegInFee(amount);
         uint256 expected = _requireCorrectFronting(amount, fee);
@@ -355,18 +430,130 @@ contract PegInContract is
             requestBlock: block.number
         });
         _payPegInUser(rskAddr, expected);
-        emit PegInRequested(pegInId, msg.sender, rskAddr, amount, expected, true);
+        emit PegInRequested(
+            pegInId,
+            msg.sender,
+            rskAddr,
+            amount,
+            expected,
+            true
+        );
     }
 
     /// @inheritdoc IPegInCommitFirst
     function resolvePegIn(
         address rskAddr,
-        bytes32 btcTxHash,
         bytes calldata btcRawTransaction,
         bytes calldata partialMerkleTree,
         uint256 height
-    ) external pure override returns (int256) {
-        revert ResolvePegInNotImplemented();
+    )
+        external
+        override
+        nonReentrant
+        whenNotHardPaused
+        returns (int256 registerResult)
+    {
+        bytes32 pegInId = _resolvePegInId(rskAddr, btcRawTransaction);
+        PegInClaim memory claim = _requireClaimedUnsettled(pegInId);
+        _requirePegInDepsSet();
+
+        registerResult = _registerCommitFirstBridge(
+            rskAddr,
+            btcRawTransaction,
+            partialMerkleTree,
+            height
+        );
+
+        if (registerResult <= 0) {
+            return registerResult;
+        }
+
+        _creditResolvedPegIn(pegInId, rskAddr, claim, uint256(registerResult));
+    }
+
+    /// @dev Bridge fast-register for commit-first settlement with placeholder bytes.
+    function _registerCommitFirstBridge(
+        address rskAddr,
+        bytes calldata btcRawTransaction,
+        bytes calldata partialMerkleTree,
+        uint256 height
+    ) private returns (int256) {
+        return
+            _bridge.registerFastBridgeBtcTransaction(
+                btcRawTransaction,
+                height,
+                partialMerkleTree,
+                PegInDerivation.derivationArgumentsHash(rskAddr),
+                PegInDerivation.getRefundPlaceholderBtcAddress(_mainnet),
+                payable(address(this)),
+                PegInDerivation.getLpPlaceholderBtcAddress(_mainnet),
+                true
+            );
+    }
+
+    /// @dev Derives pegInId from witness-stripped raw tx bytes.
+    function _resolvePegInId(
+        address rskAddr,
+        bytes calldata btcRawTransaction
+    ) private pure returns (bytes32 pegInId) {
+        BtcTransactionReader.requireWitnessStripped(btcRawTransaction);
+        pegInId = keccak256(
+            abi.encodePacked(rskAddr, BtcUtils.hashBtcTx(btcRawTransaction))
+        );
+    }
+
+    /// @dev Loads a claimed, not-yet-settled peg-in or reverts.
+    function _requireClaimedUnsettled(
+        bytes32 pegInId
+    ) private view returns (PegInClaim memory claim) {
+        if (_pegInSettled[pegInId]) {
+            revert PegInAlreadyProcessed(pegInId);
+        }
+        claim = _pegInClaims[pegInId];
+        if (claim.claimer == address(0)) {
+            revert PegInNotClaimed(pegInId);
+        }
+    }
+
+    /// @dev Credits claimer and registrant balances and emits PegInResolved after a positive bridge return.
+    function _creditResolvedPegIn(
+        bytes32 pegInId,
+        address rskAddr,
+        PegInClaim memory claim,
+        uint256 released
+    ) private {
+        uint256 registrantFeeConfig = _configurations
+            .getPegInConfiguration()
+            .registrantFee;
+        uint256 registrantFeePaid = _min(registrantFeeConfig, claim.feeAtClaim);
+        uint256 claimerPayout = claim.frontedAmount +
+            claim.feeAtClaim -
+            registrantFeePaid;
+
+        _increaseBalance(claim.claimer, claimerPayout);
+
+        address registrant = address(0);
+        if (!_registrantPaid[rskAddr]) {
+            registrant = _pegInAddressRegistry
+                .getRegistration(rskAddr)
+                .registrant;
+            if (registrantFeePaid > 0 && registrant != address(0)) {
+                _increaseBalance(registrant, registrantFeePaid);
+            }
+            _registrantPaid[rskAddr] = true;
+        }
+
+        _pegInSettled[pegInId] = true;
+
+        emit PegInResolved(
+            pegInId,
+            claim.claimer,
+            registrant,
+            released,
+            claimerPayout,
+            registrantFeePaid,
+            0
+        );
     }
 
     /// @notice Returns the wired PegInAddressRegistry address
@@ -400,8 +587,13 @@ contract PegInContract is
             OpCodes.OP_DROP,
             _bridge.getActivePowpegRedeemScript()
         );
-        bytes memory segwitScript = bytes.concat(OpCodes.OP_0, OpCodes.OP_PUSHBYTES_32, sha256(flyoverRedeemScript));
-        return BtcUtils.validateP2SHAdress(depositAddress, segwitScript, _mainnet);
+        bytes memory segwitScript = bytes.concat(
+            OpCodes.OP_0,
+            OpCodes.OP_PUSHBYTES_32,
+            sha256(flyoverRedeemScript)
+        );
+        return
+            BtcUtils.validateP2SHAdress(depositAddress, segwitScript, _mainnet);
     }
 
     /// @inheritdoc IPegIn
@@ -416,17 +608,23 @@ contract PegInContract is
     }
 
     /// @inheritdoc IPegIn
-    function hashPegInQuote(Quotes.PegInQuote calldata quote) external view override returns (bytes32) {
+    function hashPegInQuote(
+        Quotes.PegInQuote calldata quote
+    ) external view override returns (bytes32) {
         return _hashPegInQuote(quote);
     }
 
     /// @inheritdoc IPegIn
-    function hashPegInQuoteEIP712(Quotes.PegInQuote calldata quote) external view override returns (bytes32) {
+    function hashPegInQuoteEIP712(
+        Quotes.PegInQuote calldata quote
+    ) external view override returns (bytes32) {
         return _hashPegInQuoteEIP712(quote);
     }
 
     /// @inheritdoc IPegIn
-    function getQuoteStatus(bytes32 quoteHash) external view override returns (PegInStates) {
+    function getQuoteStatus(
+        bytes32 quoteHash
+    ) external view override returns (PegInStates) {
         if (_reentrancyGuardEntered()) revert ReentrancyGuardReentrantCall();
         return _processedQuotes[quoteHash];
     }
@@ -445,8 +643,10 @@ contract PegInContract is
 
     /// @notice Reverts unless commit-first registry and configurations are wired
     function _requirePegInDepsSet() private view {
-        if (address(_pegInAddressRegistry) == address(0)) revert PegInAddressRegistryNotSet();
-        if (address(_configurations) == address(0)) revert FlyoverConfigurationsNotSet();
+        if (address(_pegInAddressRegistry) == address(0))
+            revert PegInAddressRegistryNotSet();
+        if (address(_configurations) == address(0))
+            revert FlyoverConfigurationsNotSet();
     }
 
     /// @notice Reverts unless Bridge confirmations meet the configured tier for amount
@@ -458,10 +658,17 @@ contract PegInContract is
         bytes32[] calldata merkleBranchHashes
     ) private view {
         int256 reportedConfirmations = _bridge.getBtcTransactionConfirmations(
-            btcTxHash, btcBlockHash, merkleBranchPath, merkleBranchHashes
+            btcTxHash,
+            btcBlockHash,
+            merkleBranchPath,
+            merkleBranchHashes
         );
-        uint256 requiredConfirmations = _configurations.getRequiredPegInBtcConfirmations(amount);
-        if (reportedConfirmations < 0 || uint256(reportedConfirmations) < requiredConfirmations) {
+        uint256 requiredConfirmations = _configurations
+            .getRequiredPegInBtcConfirmations(amount);
+        if (
+            reportedConfirmations < 0 ||
+            uint256(reportedConfirmations) < requiredConfirmations
+        ) {
             revert InsufficientConfirmations(
                 reportedConfirmations < 0 ? 0 : uint256(reportedConfirmations),
                 requiredConfirmations
@@ -470,7 +677,10 @@ contract PegInContract is
     }
 
     /// @notice Validates msg.value equals amount minus fee; returns the expected net
-    function _requireCorrectFronting(uint256 amount, uint256 fee) private view returns (uint256 expected) {
+    function _requireCorrectFronting(
+        uint256 amount,
+        uint256 fee
+    ) private view returns (uint256 expected) {
         if (amount < fee) {
             revert IncorrectFronting(0, msg.value);
         }
@@ -520,16 +730,17 @@ contract PegInContract is
         bytes32 derivationHash
     ) private returns (int256) {
         Registry memory callRegistry = _callRegistry[derivationHash];
-        return _bridge.registerFastBridgeBtcTransaction(
-            btcRawTransaction,
-            height,
-            partialMerkleTree,
-            derivationHash,
-            quote.btcRefundAddress,
-            payable(this),
-            quote.liquidityProviderBtcAddress,
-            callRegistry.timestamp > 0 && callRegistry.success
-        );
+        return
+            _bridge.registerFastBridgeBtcTransaction(
+                btcRawTransaction,
+                height,
+                partialMerkleTree,
+                derivationHash,
+                quote.btcRefundAddress,
+                payable(this),
+                quote.liquidityProviderBtcAddress,
+                callRegistry.timestamp > 0 && callRegistry.success
+            );
     }
 
     /// @notice This function is used by the registerPegIn function to handle the scenarios
@@ -550,16 +761,22 @@ contract PegInContract is
     ) private {
         uint refundAmount;
         if (callSuccessful) {
-            refundAmount = _min(transferredAmount, quote.value + quote.callFee + quote.gasFee);
+            refundAmount = _min(
+                transferredAmount,
+                quote.value + quote.callFee + quote.gasFee
+            );
         } else {
-            refundAmount = _min(transferredAmount, quote.callFee + quote.gasFee);
+            refundAmount = _min(
+                transferredAmount,
+                quote.callFee + quote.gasFee
+            );
         }
         _increaseBalance(quote.liquidityProviderRskAddress, refundAmount);
 
         uint remainingAmount = transferredAmount - refundAmount;
         if (remainingAmount > dustThreshold) {
             // refund rskRefundAddress, if remaining amount greater than dust
-            (bool success,) = quote.rskRefundAddress.call{
+            (bool success, ) = quote.rskRefundAddress.call{
                 gas: _MAX_REFUND_GAS_LIMIT,
                 value: remainingAmount
             }("");
@@ -573,7 +790,10 @@ contract PegInContract is
 
             if (!success) {
                 // transfer funds to LP instead, if for some reason transfer to rskRefundAddress was unsuccessful
-                _increaseBalance(quote.liquidityProviderRskAddress, remainingAmount);
+                _increaseBalance(
+                    quote.liquidityProviderRskAddress,
+                    remainingAmount
+                );
             }
         }
     }
@@ -594,8 +814,9 @@ contract PegInContract is
     ) private {
         uint refundAmount = transferredAmount;
 
-        if (quote.callOnRegister && refundAmount >= quote.value) { // solhint-disable-line gas-strict-inequalities
-            (bool callSuccess,) = quote.contractAddress.call{
+        if (quote.callOnRegister && refundAmount >= quote.value) {
+            // solhint-disable-line gas-strict-inequalities
+            (bool callSuccess, ) = quote.contractAddress.call{
                 gas: quote.gasLimit,
                 value: quote.value
             }(quote.data);
@@ -616,7 +837,7 @@ contract PegInContract is
         }
         if (refundAmount > dustThreshold) {
             // refund rskRefundAddress, if refund amount greater than dust
-            (bool success,) = quote.rskRefundAddress.call{
+            (bool success, ) = quote.rskRefundAddress.call{
                 gas: _MAX_REFUND_GAS_LIMIT,
                 value: refundAmount
             }("");
@@ -652,8 +873,18 @@ contract PegInContract is
             revert QuoteAlreadyProcessed(quoteHash);
         }
         bytes32 eip712hash = _hashPegInQuoteEIP712(quote);
-        if (!SignatureValidator.verify(quote.liquidityProviderRskAddress, eip712hash, signature)) {
-            revert SignatureValidator.IncorrectSignature(quote.liquidityProviderRskAddress, eip712hash, signature);
+        if (
+            !SignatureValidator.verify(
+                quote.liquidityProviderRskAddress,
+                eip712hash,
+                signature
+            )
+        ) {
+            revert SignatureValidator.IncorrectSignature(
+                quote.liquidityProviderRskAddress,
+                eip712hash,
+                signature
+            );
         }
         // the actual type in the RSKj node source code is a java int which is equivalent to int32
         if (height > uint256(int(type(int32).max)) - 1) {
@@ -671,7 +902,9 @@ contract PegInContract is
     /// - The sum of the timestamp values is not greater than the maximum uint32 value
     /// @param quote The peg in quote
     /// @return quoteHash The hash of the quote
-    function _hashPegInQuote(Quotes.PegInQuote calldata quote) private view returns (bytes32) {
+    function _hashPegInQuote(
+        Quotes.PegInQuote calldata quote
+    ) private view returns (bytes32) {
         _validatePegInQuote(quote);
         return keccak256(Quotes.encodeQuote(quote));
     }
@@ -686,12 +919,16 @@ contract PegInContract is
     /// - The sum of the timestamp values is not greater than the maximum uint32 value
     /// @param quote The peg in quote
     /// @return quoteHash The hash struct to be combined with the domain separator
-    function _hashPegInQuoteEIP712(Quotes.PegInQuote calldata quote) private view returns (bytes32) {
+    function _hashPegInQuoteEIP712(
+        Quotes.PegInQuote calldata quote
+    ) private view returns (bytes32) {
         _validatePegInQuote(quote);
         return _hashTypedDataV4(Quotes.hashPegInQuoteEIP712(quote));
     }
 
-    function _validatePegInQuote(Quotes.PegInQuote calldata quote) private view {
+    function _validatePegInQuote(
+        Quotes.PegInQuote calldata quote
+    ) private view {
         if (quote.chainId != block.chainid) {
             revert Flyover.InvalidChainId(block.chainid, quote.chainId);
         }
@@ -713,7 +950,8 @@ contract PegInContract is
             revert InvalidRefundAddress(quote.btcRefundAddress);
         }
         if (
-            quote.liquidityProviderBtcAddress.length != _REFUND_ADDRESS_LENGTH ||
+            quote.liquidityProviderBtcAddress.length !=
+            _REFUND_ADDRESS_LENGTH ||
             !_isValidBtcPrefix(quote.liquidityProviderBtcAddress[0])
         ) {
             revert InvalidRefundAddress(quote.liquidityProviderBtcAddress);
@@ -722,7 +960,10 @@ contract PegInContract is
         if (total < _minPegIn) {
             revert AmountUnderMinimum(_minPegIn);
         }
-        if (type(uint32).max < uint64(quote.agreementTimestamp) + uint64(quote.timeForDeposit)) {
+        if (
+            type(uint32).max <
+            uint64(quote.agreementTimestamp) + uint64(quote.timeForDeposit)
+        ) {
             revert Flyover.Overflow(type(uint32).max);
         }
     }
@@ -731,9 +972,10 @@ contract PegInContract is
     /// @param prefix The prefix of the address
     /// @return isValid Whether the prefix is valid or not
     function _isValidBtcPrefix(bytes1 prefix) private view returns (bool) {
-        return _mainnet ?
-            prefix == 0x00 || prefix == 0x05 : // p2pkh and p2sh mainnet
-            prefix == 0x6f || prefix == 0xc4; // p2pkh and p2sh testnet
+        return
+            _mainnet
+                ? prefix == 0x00 || prefix == 0x05 // p2pkh and p2sh mainnet
+                : prefix == 0x6f || prefix == 0xc4; // p2pkh and p2sh testnet
     }
 
     /// @notice This function is used to determine if the liquidity provider should be penalized
@@ -754,8 +996,10 @@ contract PegInContract is
             return false;
         }
 
-        bytes memory firstConfirmationHeader = _bridge.getBtcBlockchainBlockHeaderByHeight(height);
-        if (firstConfirmationHeader.length < 1) revert Flyover.EmptyBlockHeader(bytes32(height));
+        bytes memory firstConfirmationHeader = _bridge
+            .getBtcBlockchainBlockHeaderByHeight(height);
+        if (firstConfirmationHeader.length < 1)
+            revert Flyover.EmptyBlockHeader(bytes32(height));
 
         uint256 firstConfirmationTimestamp = BtcUtils.getBtcBlockTimestamp(
             firstConfirmationHeader
@@ -767,10 +1011,12 @@ contract PegInContract is
             return false;
         }
 
-        bytes memory nConfirmationsHeader = _bridge.getBtcBlockchainBlockHeaderByHeight(
-            height + quote.depositConfirmations - 1
-        );
-        if (nConfirmationsHeader.length < 1) revert Flyover.EmptyBlockHeader(bytes32(height));
+        bytes memory nConfirmationsHeader = _bridge
+            .getBtcBlockchainBlockHeaderByHeight(
+                height + quote.depositConfirmations - 1
+            );
+        if (nConfirmationsHeader.length < 1)
+            revert Flyover.EmptyBlockHeader(bytes32(height));
         uint256 nConfirmationsTimestamp = BtcUtils.getBtcBlockTimestamp(
             nConfirmationsHeader
         );
@@ -779,7 +1025,9 @@ contract PegInContract is
             nConfirmationsTimestamp,
             block.timestamp
         );
-        uint256 adjustedDeadline = nConfirmationsTimestamp + quote.callTime + pauseOverlap;
+        uint256 adjustedDeadline = nConfirmationsTimestamp +
+            quote.callTime +
+            pauseOverlap;
 
         // if LP never called: penalize only if adjusted deadline has passed
         if (callTimestamp == 0) {

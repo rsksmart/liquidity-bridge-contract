@@ -65,6 +65,10 @@ interface IPegInCommitFirst {
     /// @param pegInId The id of the already-claimed peg-in
     error PegInAlreadyProcessed(bytes32 pegInId);
 
+    /// @notice Reverts resolvePegIn when no claim record exists for the peg-in
+    /// @param pegInId The id of the unclaimed peg-in
+    error PegInNotClaimed(bytes32 pegInId);
+
     /// @notice Reverts requestPegIn when the destination address has no registration record
     /// @dev Walkthrough anchors: step 11, exception A5.
     /// @param rskAddr The unregistered RSK destination address
@@ -120,7 +124,6 @@ interface IPegInCommitFirst {
     /// the contract distributes from storage. Walkthrough anchors: steps 13c-14, decision
     /// D12; the missing registrant parameter settles the walkthrough's 13c pending decision.
     /// @param rskAddr The RSK destination address of the peg-in
-    /// @param btcTxHash The hash of the BTC deposit transaction
     /// @param btcRawTransaction The raw witness-stripped deposit transaction
     /// @param partialMerkleTree The partial merkle tree proving the deposit's inclusion
     /// @param height The Bitcoin block height of the deposit
@@ -128,7 +131,6 @@ interface IPegInCommitFirst {
     /// error code, same convention as registerPegIn
     function resolvePegIn(
         address rskAddr,
-        bytes32 btcTxHash,
         bytes calldata btcRawTransaction,
         bytes calldata partialMerkleTree,
         uint256 height
