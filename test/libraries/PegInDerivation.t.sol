@@ -14,20 +14,24 @@ import {PegInDerivation} from "../../src/libraries/PegInDerivation.sol";
 ///
 /// Merged stack: #514 segwit P2SH-P2WSH wrapping + #515 per-network zero-address placeholders.
 contract PegInDerivationTest is Test {
-    address internal constant FIXTURE_RSK = 0x0000000000000000000000000000000000000aBc;
-    address internal constant FIXTURE_PEGIN_CONTRACT = 0x00000000000000000000000000000000C0FFEE01;
+    address internal constant FIXTURE_RSK =
+        0x0000000000000000000000000000000000000aBc;
+    address internal constant FIXTURE_PEGIN_CONTRACT =
+        0x00000000000000000000000000000000C0FFEE01;
     bytes internal constant FIXTURE_POWPEG_SCRIPT =
         hex"522102cd53fc53a07f211641a677d250f6de99caf620e8e77071e811a28b3bcddf0be1210362634ab5"
         hex"7dae9cb373a5d536e66a8c4f67468bbcfb063809bab643072d78a1242103c5946b3fbae03a654237da86"
         hex"3c9ed534e0878657175b132b8ca630f245df04db53ae";
 
-    bytes internal constant PINNED_DOMAIN = hex"464c594f5645525f504547494e5f5631";
+    bytes internal constant PINNED_DOMAIN =
+        hex"464c594f5645525f504547494e5f5631";
     bytes internal constant PINNED_BITCOIN_ZERO_ADDRESS_TESTNET =
         hex"6f0000000000000000000000000000000000000000";
     bytes internal constant PINNED_BITCOIN_ZERO_ADDRESS_MAINNET =
         hex"000000000000000000000000000000000000000000";
 
-    bytes32 internal constant PINNED_ARGS_HASH = 0x0ac85b6d14264cdf09e4b64c6250b2fb650d8d87f04164e8f0c69b1f29e1a89a;
+    bytes32 internal constant PINNED_ARGS_HASH =
+        0x0ac85b6d14264cdf09e4b64c6250b2fb650d8d87f04164e8f0c69b1f29e1a89a;
     bytes32 internal constant PINNED_DERIVATION_VALUE_TESTNET =
         0x6ca7b4e64cad153fbd1ddfda69945f982f204c662da0a904367b9ca593b42a9b;
     bytes internal constant PINNED_REDEEM_SCRIPT_TESTNET =
@@ -66,7 +70,11 @@ contract PegInDerivationTest is Test {
         hex"c40c63443c601c577510e7f80cdd7f663e075dc07e862c627a";
 
     function test_DomainConstantIsPinned() public pure {
-        assertEq(PegInDerivation.DERIVATION_DOMAIN, PINNED_DOMAIN, "DERIVATION_DOMAIN changed");
+        assertEq(
+            PegInDerivation.DERIVATION_DOMAIN,
+            PINNED_DOMAIN,
+            "DERIVATION_DOMAIN changed"
+        );
     }
 
     function test_RefundPlaceholderIsPinned() public pure {
@@ -109,7 +117,11 @@ contract PegInDerivationTest is Test {
             "version byte must differ between networks"
         );
         for (uint256 i = 1; i < 21; ++i) {
-            assertEq(testnetPlaceholder[i], mainnetPlaceholder[i], "only the version byte may differ");
+            assertEq(
+                testnetPlaceholder[i],
+                mainnetPlaceholder[i],
+                "only the version byte may differ"
+            );
         }
         assertEq(
             keccak256(PegInDerivation.getLpPlaceholderBtcAddress(false)),
@@ -133,7 +145,11 @@ contract PegInDerivationTest is Test {
 
     function test_Step2_DerivationValue_Testnet() public pure {
         assertEq(
-            PegInDerivation.derivationValue(FIXTURE_RSK, FIXTURE_PEGIN_CONTRACT, false),
+            PegInDerivation.derivationValue(
+                FIXTURE_RSK,
+                FIXTURE_PEGIN_CONTRACT,
+                false
+            ),
             PINNED_DERIVATION_VALUE_TESTNET,
             "step 2 testnet drifted"
         );
@@ -141,7 +157,11 @@ contract PegInDerivationTest is Test {
 
     function test_Step2_DerivationValue_Mainnet() public pure {
         assertEq(
-            PegInDerivation.derivationValue(FIXTURE_RSK, FIXTURE_PEGIN_CONTRACT, true),
+            PegInDerivation.derivationValue(
+                FIXTURE_RSK,
+                FIXTURE_PEGIN_CONTRACT,
+                true
+            ),
             PINNED_DERIVATION_VALUE_MAINNET,
             "step 2 mainnet drifted"
         );
@@ -153,15 +173,26 @@ contract PegInDerivationTest is Test {
             "pinned per-network values must differ"
         );
         assertTrue(
-            PegInDerivation.derivationValue(FIXTURE_RSK, FIXTURE_PEGIN_CONTRACT, false) !=
-                PegInDerivation.derivationValue(FIXTURE_RSK, FIXTURE_PEGIN_CONTRACT, true),
+            PegInDerivation.derivationValue(
+                FIXTURE_RSK,
+                FIXTURE_PEGIN_CONTRACT,
+                false
+            ) !=
+                PegInDerivation.derivationValue(
+                    FIXTURE_RSK,
+                    FIXTURE_PEGIN_CONTRACT,
+                    true
+                ),
             "isMainnet flag must change the derivation value"
         );
     }
 
     function test_Step3_FlyoverRedeemScript_Testnet() public pure {
         assertEq(
-            PegInDerivation.flyoverRedeemScript(PINNED_DERIVATION_VALUE_TESTNET, FIXTURE_POWPEG_SCRIPT),
+            PegInDerivation.flyoverRedeemScript(
+                PINNED_DERIVATION_VALUE_TESTNET,
+                FIXTURE_POWPEG_SCRIPT
+            ),
             PINNED_REDEEM_SCRIPT_TESTNET,
             "step 3 testnet drifted"
         );
@@ -169,7 +200,10 @@ contract PegInDerivationTest is Test {
 
     function test_Step3_FlyoverRedeemScript_Mainnet() public pure {
         assertEq(
-            PegInDerivation.flyoverRedeemScript(PINNED_DERIVATION_VALUE_MAINNET, FIXTURE_POWPEG_SCRIPT),
+            PegInDerivation.flyoverRedeemScript(
+                PINNED_DERIVATION_VALUE_MAINNET,
+                FIXTURE_POWPEG_SCRIPT
+            ),
             PINNED_REDEEM_SCRIPT_MAINNET,
             "step 3 mainnet drifted"
         );
@@ -225,7 +259,10 @@ contract PegInDerivationTest is Test {
 
     function test_Step5b_TestnetPayload() public pure {
         assertEq(
-            PegInDerivation.depositAddressPayload(PINNED_SCRIPT_HASH_TESTNET, false),
+            PegInDerivation.depositAddressPayload(
+                PINNED_SCRIPT_HASH_TESTNET,
+                false
+            ),
             PINNED_TESTNET_PAYLOAD,
             "step 5b testnet drifted"
         );
@@ -233,7 +270,10 @@ contract PegInDerivationTest is Test {
 
     function test_Step5b_MainnetPayload() public pure {
         assertEq(
-            PegInDerivation.depositAddressPayload(PINNED_SCRIPT_HASH_MAINNET, true),
+            PegInDerivation.depositAddressPayload(
+                PINNED_SCRIPT_HASH_MAINNET,
+                true
+            ),
             PINNED_MAINNET_PAYLOAD,
             "step 5b mainnet drifted"
         );
@@ -241,12 +281,18 @@ contract PegInDerivationTest is Test {
 
     function test_FullChainMatchesPinnedFixtures() public pure {
         assertEq(
-            PegInDerivation.depositAddressPayload(_deriveScriptHash(false), false),
+            PegInDerivation.depositAddressPayload(
+                _deriveScriptHash(false),
+                false
+            ),
             PINNED_TESTNET_PAYLOAD,
             "full-chain testnet payload drifted"
         );
         assertEq(
-            PegInDerivation.depositAddressPayload(_deriveScriptHash(true), true),
+            PegInDerivation.depositAddressPayload(
+                _deriveScriptHash(true),
+                true
+            ),
             PINNED_MAINNET_PAYLOAD,
             "full-chain mainnet payload drifted"
         );
@@ -260,13 +306,28 @@ contract PegInDerivationTest is Test {
     }
 
     function test_DerivationIsDeterministic() public pure {
-        assertEq(_deriveScriptHash(false), _deriveScriptHash(false), "same inputs must derive the same script hash");
+        assertEq(
+            _deriveScriptHash(false),
+            _deriveScriptHash(false),
+            "same inputs must derive the same script hash"
+        );
     }
 
     function test_DifferentRskAddressesDeriveDifferentAddresses() public pure {
-        bytes32 valueA = PegInDerivation.derivationValue(address(0x1111), FIXTURE_PEGIN_CONTRACT, false);
-        bytes32 valueB = PegInDerivation.derivationValue(address(0x2222), FIXTURE_PEGIN_CONTRACT, false);
-        assertTrue(valueA != valueB, "different rskAddr must derive different values");
+        bytes32 valueA = PegInDerivation.derivationValue(
+            address(0x1111),
+            FIXTURE_PEGIN_CONTRACT,
+            false
+        );
+        bytes32 valueB = PegInDerivation.derivationValue(
+            address(0x2222),
+            FIXTURE_PEGIN_CONTRACT,
+            false
+        );
+        assertTrue(
+            valueA != valueB,
+            "different rskAddr must derive different values"
+        );
     }
 
     function test_Negative_DirectTagKeyingDivergesFromFixture() public pure {
@@ -278,7 +339,11 @@ contract PegInDerivationTest is Test {
             PegInDerivation.flyoverScriptHash(wrongRedeemScript),
             false
         );
-        assertEq(wrongPayload, PINNED_DIRECT_TAG_PAYLOAD, "direct-tag payload drifted from its pin");
+        assertEq(
+            wrongPayload,
+            PINNED_DIRECT_TAG_PAYLOAD,
+            "direct-tag payload drifted from its pin"
+        );
         assertTrue(
             keccak256(wrongPayload) != keccak256(PINNED_TESTNET_PAYLOAD),
             "direct-tag keying must NOT produce the correct address"
@@ -290,7 +355,11 @@ contract PegInDerivationTest is Test {
             ripemd160(abi.encodePacked(sha256(PINNED_REDEEM_SCRIPT_TESTNET))),
             false
         );
-        assertEq(wrongPayload, PINNED_PLAIN_WRAP_PAYLOAD, "plain-wrap payload drifted from its pin");
+        assertEq(
+            wrongPayload,
+            PINNED_PLAIN_WRAP_PAYLOAD,
+            "plain-wrap payload drifted from its pin"
+        );
         assertTrue(
             keccak256(wrongPayload) != keccak256(PINNED_TESTNET_PAYLOAD),
             "plain wrapping must NOT produce the correct address"
@@ -303,12 +372,28 @@ contract PegInDerivationTest is Test {
         bytes1 version,
         string memory label
     ) private pure {
-        assertEq(placeholder.length, 21, string.concat(label, ": must be 21 bytes (version ++ HASH160)"));
-        assertEq(placeholder[0], version, string.concat(label, ": wrong version byte"));
+        assertEq(
+            placeholder.length,
+            21,
+            string.concat(label, ": must be 21 bytes (version ++ HASH160)")
+        );
+        assertEq(
+            placeholder[0],
+            version,
+            string.concat(label, ": wrong version byte")
+        );
         for (uint256 i = 1; i < 21; ++i) {
-            assertEq(placeholder[i], bytes1(0x00), string.concat(label, ": HASH160 must be all zeroes"));
+            assertEq(
+                placeholder[i],
+                bytes1(0x00),
+                string.concat(label, ": HASH160 must be all zeroes")
+            );
         }
-        assertEq(placeholder, pinned, string.concat(label, ": placeholder changed"));
+        assertEq(
+            placeholder,
+            pinned,
+            string.concat(label, ": placeholder changed")
+        );
     }
 
     function _deriveScriptHash(bool isMainnet) private pure returns (bytes20) {
@@ -317,7 +402,10 @@ contract PegInDerivationTest is Test {
             FIXTURE_PEGIN_CONTRACT,
             isMainnet
         );
-        bytes memory redeemScript = PegInDerivation.flyoverRedeemScript(derivationValue, FIXTURE_POWPEG_SCRIPT);
+        bytes memory redeemScript = PegInDerivation.flyoverRedeemScript(
+            derivationValue,
+            FIXTURE_POWPEG_SCRIPT
+        );
         return PegInDerivation.flyoverScriptHash(redeemScript);
     }
 }
