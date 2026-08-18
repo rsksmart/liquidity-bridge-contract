@@ -50,7 +50,7 @@ import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCod
 /// wrapping supported here. A powpeg running a pre-segwit federation format would need the plain
 /// wrapping instead and is deliberately NOT supported.
 ///
-/// Two known pitfalls, both proven on-chain and both encoded as negative tests:
+/// Two known pitfalls:
 ///   1. Keying the redeem-script tag with `derivationArgumentsHash` directly (skipping step 2's
 ///      address mixing) makes the bridge re-derive a DIFFERENT address and fail with -900
 ///      (FAST_BRIDGE_GENERIC_ERROR).

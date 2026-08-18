@@ -5,7 +5,6 @@ import {RequestPegInTestBase} from "./RequestPegInTestBase.sol";
 import {PegInDerivation} from "../../src/libraries/PegInDerivation.sol";
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 
-/// @title Base for commit-first resolvePegIn tests
 abstract contract ResolvePegInTestBase is RequestPegInTestBase {
     uint256 internal constant REGISTRANT_PAID_SLOT = 11;
     uint256 internal constant PEGIN_SETTLED_SLOT = 12;
