@@ -30,25 +30,26 @@ import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCod
 ///   )                                                                                    (step 2)
 ///   flyoverRedeemScript = OP_PUSHBYTES_32 ++ derivationValue ++ OP_DROP
 ///                         ++ activePowpegRedeemScript                                    (step 3)
-///   flyoverScriptHash   = HASH160(flyoverRedeemScript)                                   (step 4)
-///   depositAddress      = base58check(version ++ flyoverScriptHash)   // PLAIN P2SH      (step 5)
+///   witnessProgram      = OP_0 ++ OP_PUSHBYTES_32 ++ sha256(flyoverRedeemScript)
+///   flyoverScriptHash   = HASH160(witnessProgram)                                        (step 4)
+///   depositAddress      = base58check(version ++ flyoverScriptHash)                      (step 5)
 ///
 /// Each step is a separate function taking the previous step's output, so every consumer enters
 /// the pipeline at the step it needs and none re-implements any script math.
 ///
-/// Two known pitfalls, both proven on-chain and both encoded as negative tests:
+/// FEDERATION FORMAT: step 4 replicates the `P2SH_P2WSH_ERP_FEDERATION` branch of rskj
+/// `PegUtils.getFlyoverFederationOutputScript` — the deposit output is a P2SH commitment to the
+/// segwit witness program, not a plain HASH160 of the redeem script. Every live powpeg (mainnet,
+/// testnet and every regtest cut after the segwit migration) runs that format, so it is the only
+/// wrapping supported here. A powpeg running a pre-segwit federation format would need the plain
+/// wrapping instead and is deliberately NOT supported.
+///
+/// Two known pitfalls, both encoded as negative tests:
 ///   1. Keying the redeem-script tag with `derivationArgumentsHash` directly (skipping step 2's
 ///      address mixing) makes the bridge re-derive a DIFFERENT address and fail with -900
 ///      (FAST_BRIDGE_GENERIC_ERROR).
-///   2. Wrapping the redeem script as a segwit P2SH-of-P2WSH instead of a PLAIN P2SH settles as
-///      -304 (VALUE_ZERO): the bridge derives the plain form and attributes zero value.
-///
-/// SEGWIT / FEDERATION-FORMAT NOTE: the bridge wraps the flyover redeem script as a PLAIN P2SH
-/// for every currently deployed federation format. Newer rskj versions add a segwit federation
-/// format (`P2SH_P2WSH_ERP_FEDERATION`) for which `PegUtils.getFlyoverFederationOutputScript`
-/// switches to a P2SH-P2WSH wrapping. A powpeg migration to that format rotates every derived
-/// address (as any federation change does) AND requires this library to gain a matching wrapping
-/// path first — same drain-then-rotate rule as a federation change.
+///   2. Wrapping the redeem script with the wrong federation format settles as -304 (VALUE_ZERO):
+///      the bridge derives the other form and attributes zero value to the deposit output.
 library PegInDerivation {
     /// @notice Versioned scheme tag mixed into every derivation. Bumping it deterministically
     /// rotates every derived address (the same rotation path as a federation change).
@@ -145,7 +146,7 @@ library PegInDerivation {
         );
     }
 
-    /// @notice Step 3: the flyover redeem script the bridge wraps as a PLAIN P2SH:
+    /// @notice Step 3: the flyover redeem script the bridge commits to:
     /// OP_PUSHBYTES_32 <derivationValue> OP_DROP <activePowpegRedeemScript>. The push-then-drop
     /// prefix embeds the 32 bytes without changing the spending condition, so the powpeg keys
     /// still spend the output while every distinct value yields a distinct address.
@@ -162,12 +163,21 @@ library PegInDerivation {
         return bytes.concat(OpCodes.OP_PUSHBYTES_32, derivationValue_, OpCodes.OP_DROP, activePowpegRedeemScript);
     }
 
-    /// @notice Step 4: HASH160 (ripemd160 of sha256) of the flyover redeem script — the 20-byte
-    /// hash a P2SH output commits to. Bitcoin's standard recipe; no design freedom.
+    /// @notice Step 4: HASH160 (ripemd160 of sha256) of the flyover WITNESS PROGRAM — the 20-byte
+    /// hash the deposit P2SH output commits to under a segwit powpeg federation. Bitcoin's
+    /// standard P2SH-of-P2WSH recipe; no design freedom.
     /// @param redeemScript Step 3's output
     /// @return The 20-byte P2SH script hash
     function flyoverScriptHash(bytes memory redeemScript) internal pure returns (bytes20) {
-        return ripemd160(abi.encodePacked(sha256(redeemScript)));
+        return ripemd160(abi.encodePacked(sha256(witnessProgram(redeemScript))));
+    }
+
+    /// @notice The segwit witness program the deposit P2SH output commits to:
+    /// OP_0 OP_PUSHBYTES_32 sha256(flyoverRedeemScript).
+    /// @param redeemScript Step 3's output
+    /// @return The 34-byte witness program
+    function witnessProgram(bytes memory redeemScript) internal pure returns (bytes memory) {
+        return bytes.concat(OpCodes.OP_0, OpCodes.OP_PUSHBYTES_32, sha256(redeemScript));
     }
 
     /// @notice Step 5 (output-script form): the on-chain P2SH scriptPubkey a deposit output must
@@ -179,12 +189,13 @@ library PegInDerivation {
         return bytes.concat(OpCodes.OP_HASH160, bytes1(uint8(20)), scriptHash, OpCodes.OP_EQUAL);
     }
 
-    /// @notice Step 5 (address form): the base58check payload of the PLAIN P2SH deposit address:
+    /// @notice Step 5 (address form): the base58check payload of the P2SH deposit address:
     /// version ({P2SH_VERSION_MAINNET} / {P2SH_VERSION_TESTNET}) ++ scriptHash ++ 4-byte
     /// double-sha256 checksum.
     /// Returned as the raw 25 bytes — the caller (SDK/LPS) base58-ENCODEs them to the address
-    /// string shown to the user. MUST stay a plain P2SH: the segwit-wrapped form is pitfall #2
-    /// (-304).
+    /// string shown to the user. The address stays a P2SH in both federation formats; only the
+    /// script hash it commits to differs, so feeding it a plain HASH160(redeemScript) is
+    /// pitfall #2 (-304).
     /// @param scriptHash Step 4's output
     /// @param isMainnet True for {P2SH_VERSION_MAINNET}, false for {P2SH_VERSION_TESTNET}
     /// @return The 25-byte base58check payload of the deposit address
