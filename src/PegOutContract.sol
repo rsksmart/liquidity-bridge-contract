@@ -35,13 +35,10 @@ contract PegOutContract is
     /// @param depositTimestamp Penalty-clock anchor: user deposit time for legacy
     /// {depositPegOut}, claim time for commit-first escrow claim
     /// @param depositBlock Block of the same anchor as {depositTimestamp}
-    /// @param maxMinerFee Snapshotted short-delivery floor cap (wei) from escrow at claim;
-    /// zero when unset (legacy depositPegOut)
     struct PegOutRecord {
         bool completed;
         uint256 depositTimestamp;
         uint256 depositBlock;
-        uint256 maxMinerFee;
     }
 
     /// @notice The version of the contract
@@ -87,7 +84,7 @@ contract PegOutContract is
 
     error OnlyPegOutEscrow(address caller);
     error PegOutEscrowNotSet();
-    error EscrowQuoteNotClaimed(bytes32 requestHash);
+    error EscrowQuoteNotClaimed(bytes32 quoteHash);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -155,9 +152,6 @@ contract PegOutContract is
         _pegOutQuotes[quoteHash] = quote;
         _pegOutRegistry[quoteHash].depositTimestamp = block.timestamp;
         _pegOutRegistry[quoteHash].depositBlock = block.number;
-        if (escrowPath) {
-            _pegOutRegistry[quoteHash].maxMinerFee = quote.gasFee;
-        }
 
         emit PegOutDeposit(quoteHash, msg.sender, block.timestamp, msg.value);
 
@@ -264,16 +258,13 @@ contract PegOutContract is
         uint256 merkleBranchPath,
         bytes32[] calldata merkleBranchHashes
     ) external nonReentrant whenNotHardPaused override {
-        (Quotes.PegOutQuote memory quote, uint256 paidAmount) = _validatePegOutTransaction(quoteHash, btcTx);
+        Quotes.PegOutQuote memory quote = _validatePegOutTransaction(quoteHash, btcTx);
         _validateBtcTxConfirmations(quote, btcTx, btcBlockHeaderHash, merkleBranchPath, merkleBranchHashes);
-
-        uint256 floor = _deliveryFloor(quote, _pegOutRegistry[quoteHash].maxMinerFee);
-        uint256 topUp = paidAmount < floor ? floor - paidAmount : 0;
 
         delete _pegOutQuotes[quoteHash];
         _pegOutRegistry[quoteHash].completed = true;
         emit PegOutRefunded(quoteHash);
-        _notifyEscrowSettlement(quoteHash, IPegOutEscrow.EscrowedPegOutState.FULFILLED);
+        _notifyEscrowSettlement(quoteHash, IPegOutEscrow.EscrowedPegOutState.FULFILLED, quote.lpRskAddress);
 
         if (_shouldPenalize(quote, quoteHash, btcBlockHeaderHash)) {
             uint256 collateral = _collateralManagement.getPegOutCollateral(quote.lpRskAddress);
@@ -283,14 +274,7 @@ contract PegOutContract is
             _collateralManagement.slashPegOutCollateral(msg.sender, quote, quoteHash);
         }
 
-        if (topUp > 0) {
-            (bool topSent,) = quote.rskRefundAddress.call{value: topUp}("");
-            if (!topSent) {
-                _increaseBalance(quote.rskRefundAddress, topUp);
-            }
-        }
-
-        uint256 refundAmount = quote.value + quote.callFee + quote.gasFee - topUp;
+        uint256 refundAmount = quote.value + quote.callFee + quote.gasFee;
         (bool sent,) = quote.lpRskAddress.call{value: refundAmount}("");
         if (!sent) {
             _increaseBalance(quote.lpRskAddress, refundAmount);
@@ -299,20 +283,8 @@ contract PegOutContract is
 
     /// @inheritdoc IPegOut
     function refundUserPegOut(bytes32 quoteHash) external nonReentrant whenNotHardPaused override {
-        // TODO: after retiring depositPegOut, require escrow (revert PegOutEscrowNotSet) and drop the legacy branch.
-        Quotes.PegOutQuote memory quote;
-        if (address(_pegOutEscrow) == address(0)) {
-            // Legacy depositPegOut: replay after refund surfaces QuoteNotFound (quote body deleted).
-            quote = _pegOutQuotes[quoteHash];
-            if (quote.lbcAddress == address(0)) revert Flyover.QuoteNotFound(quoteHash);
-        } else {
-            // Commit-first: quote body lives on PegOutEscrow while CLAIMED.
-            if (_isQuoteCompleted(quoteHash)) revert QuoteAlreadyCompleted(quoteHash);
-            if (_pegOutEscrow.getPegOutState(quoteHash) != IPegOutEscrow.EscrowedPegOutState.CLAIMED) {
-                revert EscrowQuoteNotClaimed(quoteHash);
-            }
-            quote = _pegOutEscrow.getPegOutQuote(quoteHash);
-        }
+        Quotes.PegOutQuote memory quote = _pegOutQuotes[quoteHash];
+        if (quote.lbcAddress == address(0)) revert Flyover.QuoteNotFound(quoteHash);
 
         uint256 depositTs = _pegOutRegistry[quoteHash].depositTimestamp;
         uint256 depositBlock = _pegOutRegistry[quoteHash].depositBlock;
@@ -327,12 +299,13 @@ contract PegOutContract is
 
         uint256 valueToTransfer = quote.value + quote.callFee + quote.gasFee;
         address addressToTransfer = quote.rskRefundAddress;
+        address lp = quote.lpRskAddress;
 
         delete _pegOutQuotes[quoteHash];
         _pegOutRegistry[quoteHash].completed = true;
 
         emit PegOutUserRefunded(quoteHash, addressToTransfer, valueToTransfer);
-        _notifyEscrowSettlement(quoteHash, IPegOutEscrow.EscrowedPegOutState.REFUNDED);
+        _notifyEscrowSettlement(quoteHash, IPegOutEscrow.EscrowedPegOutState.REFUNDED, lp);
         _collateralManagement.slashPegOutCollateral(msg.sender, quote, quoteHash);
 
         (bool sent,) = addressToTransfer.call{value: valueToTransfer}("");
@@ -346,7 +319,7 @@ contract PegOutContract is
         bytes32 quoteHash,
         bytes calldata btcTx
     ) external view override returns (Quotes.PegOutQuote memory quote) {
-        (quote,) = _validatePegOutTransaction(quoteHash, btcTx);
+        quote = _validatePegOutTransaction(quoteHash, btcTx);
     }
 
     /// @inheritdoc IPegOut
@@ -400,11 +373,11 @@ contract PegOutContract is
 
     /// @notice Flip escrow CLAIMED → terminal when settlement finishes on this contract.
     /// @dev Soft-skips when escrow is unset so legacy depositPegOut refunds still work.
-    /// TODO: after retiring depositPegOut, require escrow (PegOutEscrowNotSet) and
-    /// CLAIMED (EscrowQuoteNotClaimed) instead of early returns.
+    /// Passes `lp` so refund paths do not re-read escrow quote storage after delete.
     function _notifyEscrowSettlement(
         bytes32 requestHash,
-        IPegOutEscrow.EscrowedPegOutState finalState
+        IPegOutEscrow.EscrowedPegOutState finalState,
+        address lp
     ) private {
         if (address(_pegOutEscrow) == address(0)) return;
         // Soft-skips non-CLAIMED ids (e.g. legacy depositPegOut refunds that never touched escrow).
@@ -412,7 +385,7 @@ contract PegOutContract is
             return;
         }
         if (finalState == IPegOutEscrow.EscrowedPegOutState.REFUNDED) {
-            _pegOutEscrow.onClaimFail(_pegOutEscrow.getPegOutQuote(requestHash).lpRskAddress);
+            _pegOutEscrow.onClaimFail(lp);
         }
         _pegOutEscrow.onSettlement(requestHash, finalState);
     }
@@ -515,16 +488,13 @@ contract PegOutContract is
     /// Used by both validatePegout (for unbroadcasted transactions) and refundPegOut (before confirmation check).
     /// The validation expects fixed output positions in btcTx:
     /// output 0 is the payment output and output 1 is the OP_RETURN quote-hash output.
-    /// Amount shortfalls relative to the short-delivery floor are not reverted here; {refundPegOut}
-    /// tops the user up from escrow.
     /// @param quoteHash the hash of the quote being validated
     /// @param btcTx the Bitcoin transaction
     /// @return quote the PegOutQuote associated with the transaction
-    /// @return paidAmount BTC payment output value in wei
     function _validatePegOutTransaction(
         bytes32 quoteHash,
         bytes calldata btcTx
-    ) private view returns (Quotes.PegOutQuote memory quote, uint256 paidAmount) {
+    ) private view returns (Quotes.PegOutQuote memory quote) {
         if (_isQuoteCompleted(quoteHash)) revert QuoteAlreadyCompleted(quoteHash);
 
         quote = _pegOutQuotes[quoteHash];
@@ -532,21 +502,8 @@ contract PegOutContract is
 
         BtcUtils.TxRawOutput[] memory outputs = BtcUtils.getOutputs(btcTx);
         _validateBtcTxNullData(outputs, quoteHash);
-        paidAmount = outputs[_PAY_TO_ADDRESS_OUTPUT].value * _SAT_TO_WEI_CONVERSION;
+        _validateBtcTxAmount(outputs, quote);
         _validateBtcTxDestination(outputs, quote);
-    }
-
-    /// @notice Short-delivery floor: `amount − callFee − maxMinerFee` (walkthrough 10·D / B8).
-    /// @dev Satoshi-floors the result the same way the legacy required amount did for `value`.
-    function _deliveryFloor(
-        Quotes.PegOutQuote memory quote,
-        uint256 maxMinerFee
-    ) private pure returns (uint256 floorAmount) {
-        uint256 deductions = quote.callFee + maxMinerFee;
-        floorAmount = quote.value > deductions ? quote.value - deductions : 0;
-        if (floorAmount > _SAT_TO_WEI_CONVERSION && (floorAmount % _SAT_TO_WEI_CONVERSION) != 0) {
-            floorAmount -= floorAmount % _SAT_TO_WEI_CONVERSION;
-        }
     }
 
     /// @notice This function is used to validate the number of confirmations of the Bitcoin transaction.
@@ -590,6 +547,21 @@ contract PegOutContract is
         if (keccak256(quote.depositAddress) != keccak256(btcTxDestination)) {
             revert InvalidDestination(quote.depositAddress, btcTxDestination);
         }
+    }
+
+    /// @notice Requires the BTC payment output to cover at least `quote.value` (satoshi-floored).
+    /// @param outputs the outputs of the Bitcoin transaction
+    /// @param quote the peg out quote
+    function _validateBtcTxAmount(
+        BtcUtils.TxRawOutput[] memory outputs,
+        Quotes.PegOutQuote memory quote
+    ) private pure {
+        uint256 requiredAmount = quote.value;
+        if (quote.value > _SAT_TO_WEI_CONVERSION && (quote.value % _SAT_TO_WEI_CONVERSION) != 0) {
+            requiredAmount = quote.value - (quote.value % _SAT_TO_WEI_CONVERSION);
+        }
+        uint256 paidAmount = outputs[_PAY_TO_ADDRESS_OUTPUT].value * _SAT_TO_WEI_CONVERSION;
+        if (paidAmount < requiredAmount) revert Flyover.InsufficientAmount(paidAmount, requiredAmount);
     }
 
     /// @notice This function is used to validate the null data of the Bitcoin transaction. The null data
