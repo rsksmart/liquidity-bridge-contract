@@ -17,10 +17,13 @@ import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCod
 contract DerivationTest is PegInRegistryTestBase {
     address internal constant FIXTURE_RSK =
         0x0000000000000000000000000000000000000aBc;
+    /// @dev The two payloads no longer share a script hash: the BTC placeholders mixed into the
+    /// derivation are per-network (FLY-2521), so the mainnet address differs from the testnet one in
+    /// every byte, not just the version prefix. Pinned offline; see test/libraries/PegInDerivation.t.sol.
     bytes internal constant FIXTURE_TESTNET_ADDRESS =
-        hex"c453239f29b16aa66c9a5e3ec7f2b1de034fe0dea79440b320";
+        hex"c490a45e9bf80f1a2d9aac68ef224d929bb9b507d8545026ec";
     bytes internal constant FIXTURE_MAINNET_ADDRESS =
-        hex"0553239f29b16aa66c9a5e3ec7f2b1de034fe0dea72259d920";
+        hex"05ed4761212ddb2ff1ac15a2d401a32baeaa4bbabfdb51b9c1";
 
     // R1 — deterministic derivation
     function test_derive_deterministic_same_rskAddr() public {
@@ -251,21 +254,21 @@ contract DerivationTest is PegInRegistryTestBase {
         ok; // call is expected to revert via expectRevert
     }
 
-    // Tripwire — PegInDerivation is the authoritative PLAIN P2SH scheme
-    // (HASH160 of the flyover redeem script; bridge-verified). PegInContract.validatePegInDepositAddress
-    // still derives a nested P2SH-P2WSH payload (HASH160 of OP_0 <32-byte sha256(redeemScript)>),
-    // so the two produce DIFFERENT deposit addresses. Keep this canary until settlement
-    // consumes PegInDerivation; drop or invert it once PegInContract is aligned.
-    function test_derivation_scheme_differs_from_pegin_contract() public {
+    // Wrapping pin — PegInDerivation wraps the flyover redeem script exactly the way
+    // PegInContract.validatePegInDepositAddress does: a P2SH commitment to the segwit witness
+    // program (HASH160 of OP_0 <32-byte sha256(redeemScript)>). The two paths still issue
+    // different deposit addresses because they embed different derivation values (registry:
+    // rskAddr mix; quote path: quote-hash mix).
+    function test_derivation_wrapping_matches_pegin_contract() public {
         _deploy(false);
         bytes memory powpeg = bridge.getActivePowpegRedeemScript();
         bytes32 dv = PegInDerivation.derivationValue(
             FIXTURE_RSK,
-            PEGIN_CONTRACT
+            PEGIN_CONTRACT,
+            false
         );
         bytes memory redeem = PegInDerivation.flyoverRedeemScript(dv, powpeg);
 
-        bytes20 registryPlainP2sh = PegInDerivation.flyoverScriptHash(redeem);
         bytes memory segwitScript = bytes.concat(
             OpCodes.OP_0,
             OpCodes.OP_PUSHBYTES_32,
@@ -274,7 +277,10 @@ contract DerivationTest is PegInRegistryTestBase {
         bytes20 nestedP2shP2wsh = ripemd160(
             abi.encodePacked(sha256(segwitScript))
         );
-
-        assertTrue(registryPlainP2sh != nestedP2shP2wsh);
+        assertEq(
+            PegInDerivation.flyoverScriptHash(redeem),
+            nestedP2shP2wsh,
+            "registry wrapping must match the quote-path P2SH-P2WSH wrapping"
+        );
     }
 }

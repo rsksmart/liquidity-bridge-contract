@@ -66,6 +66,36 @@ contract ScaffoldingTest is ConfigurationsTestBase {
         new ERC1967Proxy(address(impl), initData);
     }
 
+    /// @notice An inverted seed bounds pair is rejected at initialization, so no code path can
+    /// install bounds that admit no value at all.
+    function test_initialize_invertedBounds_reverts() public {
+        FlyoverConfigurations impl = new FlyoverConfigurations();
+        IFlyoverConfigurations.PegConfiguration memory badMax = _boundsMax();
+        badMax.fixedFee = BOUND_MIN_FIXED_FEE - 1;
+
+        bytes memory initData = abi.encodeCall(
+            FlyoverConfigurations.initialize,
+            (
+                owner,
+                ADMIN_DELAY,
+                TIMELOCK_DELAY,
+                _seedConfig(),
+                _boundsMin(),
+                badMax
+            )
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                FlyoverConfigurations.InvalidBounds.selector,
+                FlyoverConfigurations.Field.FixedFee,
+                BOUND_MIN_FIXED_FEE,
+                BOUND_MIN_FIXED_FEE - 1
+            )
+        );
+        new ERC1967Proxy(address(impl), initData);
+    }
+
     /// @notice The contract does not accept plain value transfers.
     function test_receive_rejectsValue() public {
         vm.deal(stranger, 1 ether);
