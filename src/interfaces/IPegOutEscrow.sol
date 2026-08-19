@@ -79,7 +79,7 @@ interface IPegOutEscrow {
     /// stays attributed. `msg.value` must exceed `fixedFee` and the derived `amount`
     /// must lie in `[minAmount, maxAmount]` or the call reverts.
     /// @param destinationAddress User BTC payout script / address bytes
-    /// @param refundAddress Who may cancel and who receives refunds; address(0) → msg.sender
+    /// @param refundAddress Who may cancel and who receives refunds; must be non-zero
     /// @return requestHash The id under the frozen preimage above
     function requestPegOut(
         bytes calldata destinationAddress,

@@ -143,9 +143,7 @@ contract PegOutEscrow is
         address refundAddress
     ) external payable override nonReentrant whenNotSoftPaused returns (bytes32 requestHash) {
         if (destinationAddress.length == 0) revert InvalidDestination();
-        if (refundAddress == address(0)) {
-            refundAddress = msg.sender;
-        }
+        if (refundAddress == address(0)) revert Flyover.InvalidAddress(refundAddress);
 
         PegOutEscrowStorage storage $ = _getStorage();
         if (address($.pegOutContract) == address(0)) revert PegOutContractNotSet();
