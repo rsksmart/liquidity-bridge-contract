@@ -19,7 +19,8 @@ interface IPegInCommitFirst {
     /// @param pegInId The id under which the claim was recorded
     /// @param claimer The account that fronted the RBTC and holds the claim
     /// @param rskAddr The RSK destination address that received the funds
-    /// @param amount The gross peg-in amount, in wei
+    /// @param amount The gross peg-in amount, in wei — the deposit output's satoshi value
+    /// scaled by 10**10, never a caller-supplied figure
     /// @param netToUser The amount delivered to the user (amount minus fee), in wei
     /// @param callSuccess Whether the delivery call succeeded (always true this sprint)
     event PegInRequested(
@@ -60,8 +61,10 @@ interface IPegInCommitFirst {
     );
 
     /// @notice Reverts requestPegIn when the peg-in already has a claimer
-    /// @dev First check in the function, so the loser of a claim race burns minimal gas.
-    /// Walkthrough anchors: decisions D10-D11, exception A1.
+    /// @dev First check in the function, so the loser of a claim race burns minimal gas. The
+    /// deposit txid is hashed out of the raw transaction before it, because the id is keyed on
+    /// that txid; nothing else runs ahead of it. Walkthrough anchors: decisions D10-D11,
+    /// exception A1.
     /// @param pegInId The id of the already-claimed peg-in
     error PegInAlreadyProcessed(bytes32 pegInId);
 
@@ -70,9 +73,23 @@ interface IPegInCommitFirst {
     /// @param rskAddr The unregistered RSK destination address
     error AddressNotRegistered(address rskAddr);
 
+    /// @notice Reverts requestPegIn when the presented transaction has no output paying the
+    /// deposit address derived from the destination address
+    /// @dev The check that makes the peg-in amount a value read off the deposit instead of one
+    /// declared by the caller.
+    /// Without it any confirmed txid pairs with any registered destination, so a dust claim
+    /// locks the real depositor out under PegInAlreadyProcessed. Same rule the registry
+    /// enforces at registration, through the same shared helper.
+    /// Walkthrough anchors: step 11, exception A1.
+    /// @param rskAddr The destination address whose derived deposit output was not found
+    /// @param btcTxHash The hash of the presented transaction
+    error DepositOutputNotFound(address rskAddr, bytes32 btcTxHash);
+
     /// @notice Reverts requestPegIn when the deposit lacks the confirmations the
     /// configuration requires for its amount
-    /// @dev Walkthrough anchor: step 11.
+    /// @dev The amount driving the tier lookup is the one read off the deposit output, so
+    /// understating a large deposit to buy the low tier is not expressible.
+    /// Walkthrough anchor: step 11.
     /// @param have The confirmations the bridge reports
     /// @param required The confirmations the active configuration requires
     error InsufficientConfirmations(uint256 have, uint256 required);
@@ -86,25 +103,30 @@ interface IPegInCommitFirst {
 
     /// @notice Claims a confirmed BTC deposit by fronting the net amount in RBTC, which is
     /// delivered to the destination address in the same transaction
-    /// @dev Payable: msg.value must equal amount minus the fee. The claim record stores the
-    /// claimer, the fronted amount, and the fee at claim time, because the configuration can
-    /// change before settlement pays the claimer back (~17 hours later). The opReturn
+    /// @dev Takes the raw deposit transaction, not an amount and not a txid. The gross amount
+    /// is READ from the output paying the address derived for rskAddr, and the txid is hashed
+    /// from the same bytes, so the SPV proof, the peg-in id and the amount provably describe
+    /// one transaction. Nothing about the deposit's value is caller-supplied.
+    ///
+    /// Payable: msg.value must equal the amount read from the deposit minus the fee. The claim
+    /// record stores
+    /// the claimer, the fronted amount, and the fee at claim time, because the configuration
+    /// can change before settlement pays the claimer back (~17 hours later). The opReturn
     /// argument is accepted and ignored this sprint (plain transfers only; contract-call
-    /// delivery lands in sprint 2). Walkthrough anchors: step 11 (the five checks), step 12,
+    /// delivery lands in sprint 2). Walkthrough anchors: step 11 (the checks), step 12,
     /// "Why record the claim at requestPegIn time?", decisions D9-D11.
     /// @param rskAddr The RSK destination address of the peg-in
-    /// @param amount The gross peg-in amount, in wei
-    /// @param btcTxHash The hash of the BTC deposit transaction
+    /// @param btcTxSerialized The witness-stripped raw BTC deposit transaction
     /// @param opReturn The OP_RETURN payload of the deposit, if any (ignored this sprint)
     /// @param btcBlockHash The hash of the Bitcoin block containing the deposit
     /// @param merkleBranchPath The path bitmap of the merkle branch proving inclusion
     /// @param merkleBranchHashes The hashes of the merkle branch proving inclusion
     /// @return pegInId The id under which the claim was recorded:
-    /// keccak256(rskAddr ++ btcTxHash), the same id resolvePegIn re-derives at settlement
+    /// keccak256(rskAddr ++ btcTxHash), with btcTxHash hashed from btcTxSerialized — the same
+    /// id resolvePegIn re-derives at settlement
     function requestPegIn(
         address rskAddr,
-        uint256 amount,
-        bytes32 btcTxHash,
+        bytes calldata btcTxSerialized,
         bytes calldata opReturn,
         bytes32 btcBlockHash,
         uint256 merkleBranchPath,

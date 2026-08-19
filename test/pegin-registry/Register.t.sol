@@ -6,6 +6,8 @@ import {IPegInAddressRegistry} from "../../src/interfaces/IPegInAddressRegistry.
 import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
+import {BtcTransactionReader} from "../../src/libraries/BtcTransactionReader.sol";
+import {IBridge} from "../../src/interfaces/IBridge.sol";
 
 /// @title PegInAddressRegistry write-path tests
 contract RegisterTest is PegInRegistryTestBase {
@@ -487,6 +489,88 @@ contract RegisterTest is PegInRegistryTestBase {
             bytes32(0),
             MERKLE_PATH,
             hashes
+        );
+    }
+
+    // ---- serialization guard ----
+
+    /// @notice A witness-serialized deposit is rejected even though its outputs are valid.
+    /// @dev getOutputs reads the same output from either serialization, so nothing downstream
+    /// notices the difference; hashBtcTx does, and returns a wtxid the confirmation proof can never
+    /// match. The registry rejects the form rather than relying on the bridge to.
+    function test_revert_when_tx_is_witness_serialized() public {
+        _deploy(false);
+        bytes memory pkScript = _depositPkScript(FIXTURE_RSK);
+        bytes memory witnessTx = _buildWitnessDepositTx(pkScript, 10_000);
+        _programProof(witnessTx, BLOCK_HASH, MERKLE_PATH, _emptyHashes());
+
+        vm.expectRevert(
+            BtcTransactionReader.WitnessSerializedTxNotAccepted.selector
+        );
+        registry.registerAddress(
+            FIXTURE_RSK,
+            witnessTx,
+            BLOCK_HASH,
+            MERKLE_PATH,
+            _emptyHashes()
+        );
+        assertFalse(registry.isRegistered(FIXTURE_RSK), "nothing registered");
+    }
+
+    /// @notice The rejection is the registry's own, and lands before the bridge is consulted.
+    function test_witness_serialized_tx_rejected_before_any_bridge_call()
+        public
+    {
+        _deploy(false);
+        bytes memory witnessTx = _buildWitnessDepositTx(
+            _depositPkScript(FIXTURE_RSK),
+            10_000
+        );
+        _programProof(witnessTx, BLOCK_HASH, MERKLE_PATH, _emptyHashes());
+
+        vm.expectCall(
+            address(bridge),
+            abi.encodeWithSelector(
+                IBridge.getActivePowpegRedeemScript.selector
+            ),
+            0
+        );
+        vm.expectCall(
+            address(bridge),
+            abi.encodeWithSelector(
+                IBridge.getBtcTransactionConfirmations.selector
+            ),
+            0
+        );
+        vm.expectRevert(
+            BtcTransactionReader.WitnessSerializedTxNotAccepted.selector
+        );
+        registry.registerAddress(
+            FIXTURE_RSK,
+            witnessTx,
+            BLOCK_HASH,
+            MERKLE_PATH,
+            _emptyHashes()
+        );
+    }
+
+    /// @notice The witness-stripped presentation of the same deposit registers normally.
+    function test_stripped_presentation_of_same_deposit_registers() public {
+        _deploy(false);
+        _register(FIXTURE_RSK, 10_000, stranger);
+        assertTrue(registry.isRegistered(FIXTURE_RSK));
+    }
+
+    /// @notice A truncated transaction reverts with a reason, not an out-of-bounds panic.
+    function test_revert_when_tx_shorter_than_six_bytes() public {
+        _deploy(false);
+        vm.expectRevert(BtcTransactionReader.InvalidBtcTransaction.selector);
+        registry.registerAddress(
+            FIXTURE_RSK,
+            hex"0100000001",
+            BLOCK_HASH,
+            MERKLE_PATH,
+            _emptyHashes()
         );
     }
 }

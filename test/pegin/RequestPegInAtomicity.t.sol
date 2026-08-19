@@ -12,7 +12,8 @@ import {Flyover} from "../../src/libraries/Flyover.sol";
 contract RequestPegInAtomicityTest is RequestPegInTestBase {
     function test_failedCheck_isAtomic_unregistered() public {
         address unregistered = makeAddr("unregisteredAtomic");
-        bytes32 pegInId = _pegInId(unregistered, DEFAULT_BTC_TX_HASH);
+        bytes memory btcTx = _depositTx(unregistered, DEFAULT_AMOUNT);
+        bytes32 pegInId = _pegInIdForTx(unregistered, btcTx);
         uint256 userBefore = unregistered.balance;
 
         vm.prank(claimer);
@@ -24,8 +25,7 @@ contract RequestPegInAtomicityTest is RequestPegInTestBase {
         );
         pegInContract.requestPegIn{value: 1 ether}(
             unregistered,
-            DEFAULT_AMOUNT,
-            DEFAULT_BTC_TX_HASH,
+            btcTx,
             "",
             bytes32(0),
             0,
@@ -40,9 +40,42 @@ contract RequestPegInAtomicityTest is RequestPegInTestBase {
         );
     }
 
+    function test_failedCheck_isAtomic_depositOutputNotFound() public {
+        bytes memory unrelated = _unrelatedTx();
+        // Hashed before the prank: hashTx is an external self-call and would consume it.
+        bytes32 txHash = this.hashTx(unrelated);
+        bytes32 pegInId = _pegInId(rskUser, txHash);
+        uint256 userBefore = rskUser.balance;
+
+        vm.prank(claimer);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegInCommitFirst.DepositOutputNotFound.selector,
+                rskUser,
+                txHash
+            )
+        );
+        pegInContract.requestPegIn{value: 1 wei}(
+            rskUser,
+            unrelated,
+            "",
+            bytes32(0),
+            0,
+            _emptyBranch()
+        );
+
+        _assertNoClaim(pegInId);
+        assertEq(
+            rskUser.balance,
+            userBefore,
+            "no delivery when no output pays the derived address"
+        );
+    }
+
     function test_failedCheck_isAtomic_insufficientConfirmations() public {
         bridgeMock.setConfirmations(int256(DEFAULT_TIER_CONFIRMATIONS) - 1);
-        bytes32 pegInId = _pegInId(rskUser, DEFAULT_BTC_TX_HASH);
+        bytes memory btcTx = _defaultTx();
+        bytes32 pegInId = _pegInIdForTx(rskUser, btcTx);
         uint256 userBefore = rskUser.balance;
 
         vm.prank(claimer);
@@ -55,8 +88,7 @@ contract RequestPegInAtomicityTest is RequestPegInTestBase {
         );
         pegInContract.requestPegIn{value: 1 ether}(
             rskUser,
-            DEFAULT_AMOUNT,
-            DEFAULT_BTC_TX_HASH,
+            btcTx,
             "",
             bytes32(0),
             0,
@@ -74,7 +106,8 @@ contract RequestPegInAtomicityTest is RequestPegInTestBase {
     function test_failedCheck_isAtomic_incorrectFronting() public {
         uint256 amount = DEFAULT_AMOUNT;
         uint256 wrongValue = amount; // not amount - fee
-        bytes32 pegInId = _pegInId(rskUser, DEFAULT_BTC_TX_HASH);
+        bytes memory btcTx = _defaultTx();
+        bytes32 pegInId = _pegInIdForTx(rskUser, btcTx);
         uint256 userBefore = rskUser.balance;
 
         vm.prank(claimer);
@@ -87,8 +120,7 @@ contract RequestPegInAtomicityTest is RequestPegInTestBase {
         );
         pegInContract.requestPegIn{value: wrongValue}(
             rskUser,
-            amount,
-            DEFAULT_BTC_TX_HASH,
+            btcTx,
             "",
             bytes32(0),
             0,
@@ -112,15 +144,15 @@ contract RequestPegInAtomicityTest is RequestPegInTestBase {
 
         uint256 amount = DEFAULT_AMOUNT;
         uint256 net = amount - _expectedFee(amount);
-        bytes32 pegInId = _pegInId(rskUser, DEFAULT_BTC_TX_HASH);
+        bytes memory btcTx = _defaultTx();
+        bytes32 pegInId = _pegInIdForTx(rskUser, btcTx);
         uint256 userBefore = rskUser.balance;
 
         vm.prank(claimer);
         vm.expectRevert(Flyover.EnforcedPause.selector);
         pegInContract.requestPegIn{value: net}(
             rskUser,
-            amount,
-            DEFAULT_BTC_TX_HASH,
+            btcTx,
             "",
             bytes32(0),
             0,
