@@ -460,7 +460,12 @@ contract PegOutEscrowTest is Test {
         emit IPegOutEscrow.PegOutClaimed(lp, requestHash);
         // Claim timestamp is readable via PegOutDeposit (no public registry getter).
         vm.expectEmit(true, true, true, true, address(pegOut));
-        emit IPegOut.PegOutDeposit(requestHash, address(escrow), claimTs, payout);
+        emit IPegOut.PegOutDeposit(
+            requestHash,
+            address(escrow),
+            claimTs,
+            payout
+        );
 
         vm.prank(lp);
         escrow.claimPegOut(requestHash, signature);
@@ -742,10 +747,7 @@ contract PegOutEscrowTest is Test {
         );
 
         vm.expectRevert(
-            abi.encodeWithSelector(
-                Flyover.QuoteNotFound.selector,
-                requestHash
-            )
+            abi.encodeWithSelector(Flyover.QuoteNotFound.selector, requestHash)
         );
         vm.prank(other);
         pegOut.refundUserPegOut(requestHash);
@@ -1002,7 +1004,10 @@ contract PegOutEscrowTest is Test {
 
     /// @dev B8: delivery at quote.value settles with no RBTC top-up.
     function test_B8_AtQuoteValue_Settles() public {
-        (bytes32 requestHash, Quotes.PegOutQuote memory quote) = _claimWithP2pkhDest();
+        (
+            bytes32 requestHash,
+            Quotes.PegOutQuote memory quote
+        ) = _claimWithP2pkhDest();
         uint256 escrowed = quote.value + quote.callFee + quote.gasFee;
 
         bytes memory btcTx = _generateBtcTxWithAmount(
@@ -1035,7 +1040,10 @@ contract PegOutEscrowTest is Test {
 
     /// @dev B8: delivery above quote.value settles with no RBTC top-up.
     function test_B8_AboveQuoteValue_Settles() public {
-        (bytes32 requestHash, Quotes.PegOutQuote memory quote) = _claimWithP2pkhDest();
+        (
+            bytes32 requestHash,
+            Quotes.PegOutQuote memory quote
+        ) = _claimWithP2pkhDest();
         uint256 escrowed = quote.value + quote.callFee + quote.gasFee;
         uint256 paid = quote.value + Quotes.SAT_TO_WEI_CONVERSION;
 
@@ -1061,7 +1069,10 @@ contract PegOutEscrowTest is Test {
 
     /// @dev B8: under quote.value delivery reverts InsufficientAmount.
     function test_B8_UnderQuoteValue_RevertsInsufficientAmount() public {
-        (bytes32 requestHash, Quotes.PegOutQuote memory quote) = _claimWithP2pkhDest();
+        (
+            bytes32 requestHash,
+            Quotes.PegOutQuote memory quote
+        ) = _claimWithP2pkhDest();
         uint256 paid = quote.value - Quotes.SAT_TO_WEI_CONVERSION;
         uint256 paidWei = (paid / Quotes.SAT_TO_WEI_CONVERSION) *
             Quotes.SAT_TO_WEI_CONVERSION;
@@ -1216,7 +1227,10 @@ contract PegOutEscrowTest is Test {
     }
 
     function test_T4_Fulfill_DoesNotBump() public {
-        (bytes32 requestHash, Quotes.PegOutQuote memory quote) = _claimWithP2pkhDest();
+        (
+            bytes32 requestHash,
+            Quotes.PegOutQuote memory quote
+        ) = _claimWithP2pkhDest();
         bytes memory btcTx = _generateBtcTxWithAmount(
             quote,
             requestHash,
@@ -1327,7 +1341,10 @@ contract PegOutEscrowTest is Test {
     }
 
     function test_T4_RevokeAfterClaim_DoesNotBlockFulfill() public {
-        (bytes32 requestHash, Quotes.PegOutQuote memory quote) = _claimWithP2pkhDest();
+        (
+            bytes32 requestHash,
+            Quotes.PegOutQuote memory quote
+        ) = _claimWithP2pkhDest();
 
         vm.prank(owner);
         escrow.revoke(lp);
@@ -1577,7 +1594,8 @@ contract PegOutEscrowTest is Test {
         view
         returns (uint256 amount, uint256 callFee, uint256 residual)
     {
-        amount = ((value - FIXED_FEE - MAX_MINER_FEE) * BASIS) /
+        amount =
+            ((value - FIXED_FEE - MAX_MINER_FEE) * BASIS) /
             (BASIS + PERCENTAGE_FEE);
         amount -= amount % Quotes.SAT_TO_WEI_CONVERSION;
         callFee = configurations.calculatePegOutFee(amount);
@@ -1621,7 +1639,9 @@ contract PegOutEscrowTest is Test {
             depositDateLimit: uint32(block.timestamp + CLAIM_WINDOW),
             transferTime: uint32(CALL_TIME),
             expireDate: uint32(block.timestamp + CLAIM_WINDOW + EXPIRE_TIME),
-            expireBlock: uint32(block.number + CLAIM_WINDOW_BLOCKS + EXPIRE_BLOCKS),
+            expireBlock: uint32(
+                block.number + CLAIM_WINDOW_BLOCKS + EXPIRE_BLOCKS
+            ),
             depositConfirmations: 0,
             transferConfirmations: confirmations,
             depositAddress: destination,
@@ -1987,10 +2007,7 @@ contract PegOutEscrowIndividualSlashTest is Test {
 
         _warpPastFulfillment(quote);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                Flyover.QuoteNotFound.selector,
-                requestHash
-            )
+            abi.encodeWithSelector(Flyover.QuoteNotFound.selector, requestHash)
         );
         vm.prank(other);
         pegOut.refundUserPegOut(requestHash);

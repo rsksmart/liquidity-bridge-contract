@@ -168,38 +168,6 @@ contract PegOutEscrow is
         }
     }
 
-    function _registerRequestedPegOut(
-        PegOutEscrowStorage storage $,
-        IFlyoverConfigurations.PegOutConfiguration memory cfg,
-        address refundAddress,
-        bytes calldata destinationAddress,
-        uint256 amount,
-        uint256 callFee,
-        uint256 gasFee,
-        uint256 nonce,
-        uint256 confirmations
-    ) private returns (bytes32 requestHash) {
-        Quotes.PegOutQuote memory quote = _buildQuote(
-            $,
-            cfg,
-            refundAddress,
-            destinationAddress,
-            amount,
-            callFee,
-            gasFee,
-            nonce,
-            confirmations
-        );
-
-        requestHash = $.pegOutContract.hashPegOutQuote(quote);
-
-        $.state[requestHash] = EscrowedPegOutState.REQUESTED;
-        $.requestHashByNonce[nonce] = requestHash;
-        $.quotes[requestHash] = quote;
-
-        emit PegOutRequested(requestHash, refundAddress, amount, destinationAddress);
-    }
-
     /// @inheritdoc IPegOutEscrow
     function cancelPegOut(bytes32 requestHash) external override nonReentrant whenNotSoftPaused {
         PegOutEscrowStorage storage $ = _getStorage();
@@ -275,6 +243,7 @@ contract PegOutEscrow is
         emit PegOutRefundedOnNoClaim(requestHash, q.rskRefundAddress, payout);
 
         // If globalSlash reverts (stub / missing role / no eligible LPs), user still refunded.
+        // solhint-disable-next-line no-empty-blocks
         try $.collateralManagement.globalSlash(q.penaltyFee) {}
         catch {
             emit GlobalSlashSkipped(requestHash);
@@ -360,6 +329,38 @@ contract PegOutEscrow is
     // solhint-disable-next-line comprehensive-interface
     function getFlyoverConfigurations() external view returns (address) {
         return address(_getStorage().configurations);
+    }
+
+    function _registerRequestedPegOut(
+        PegOutEscrowStorage storage $,
+        IFlyoverConfigurations.PegOutConfiguration memory cfg,
+        address refundAddress,
+        bytes calldata destinationAddress,
+        uint256 amount,
+        uint256 callFee,
+        uint256 gasFee,
+        uint256 nonce,
+        uint256 confirmations
+    ) private returns (bytes32 requestHash) {
+        Quotes.PegOutQuote memory quote = _buildQuote(
+            $,
+            cfg,
+            refundAddress,
+            destinationAddress,
+            amount,
+            callFee,
+            gasFee,
+            nonce,
+            confirmations
+        );
+
+        requestHash = $.pegOutContract.hashPegOutQuote(quote);
+
+        $.state[requestHash] = EscrowedPegOutState.REQUESTED;
+        $.requestHashByNonce[nonce] = requestHash;
+        $.quotes[requestHash] = quote;
+
+        emit PegOutRequested(requestHash, refundAddress, amount, destinationAddress);
     }
 
     function _terminate(
