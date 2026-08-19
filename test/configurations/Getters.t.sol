@@ -5,8 +5,8 @@ import {ConfigurationsTestBase} from "./ConfigurationsTestBase.sol";
 import {IFlyoverConfigurations} from "../../src/interfaces/IFlyoverConfigurations.sol";
 
 /// @title GettersTest
-/// @notice Every read surface: the active configuration (incl. limits), the immutable bounds,
-/// the pending change, and the time-lock delay.
+/// @notice Every read surface: the active configuration (incl. limits), the active bounds, the
+/// pending configuration change, the pending bounds change, and the time-lock delay.
 contract GettersTest is ConfigurationsTestBase {
     function setUp() public {
         _deploy();
@@ -120,5 +120,63 @@ contract GettersTest is ConfigurationsTestBase {
 
     function test_version_isSet() public view {
         assertEq(config.VERSION(), "1.0.0");
+    }
+
+    // ------------------------------------------------- pending bounds change (FLY-2523)
+
+    function test_getPendingBoundsChange_zeroedWhenNothingQueued() public view {
+        (
+            IFlyoverConfigurations.PegConfiguration memory min,
+            IFlyoverConfigurations.PegConfiguration memory max,
+            uint256 eta
+        ) = config.getPendingBoundsChange();
+        assertEq(eta, 0);
+        assertEq(min.fixedFee, 0);
+        assertEq(min.percentageFee, 0);
+        assertEq(min.minAmount, 0);
+        assertEq(min.maxAmount, 0);
+        assertEq(max.fixedFee, 0);
+        assertEq(max.percentageFee, 0);
+        assertEq(max.minAmount, 0);
+        assertEq(max.maxAmount, 0);
+    }
+
+    function test_getPendingBoundsChange_reflectsQueuedChange() public {
+        uint256 expectedEta = block.timestamp + TIMELOCK_DELAY;
+        _queueWideBounds();
+
+        (
+            IFlyoverConfigurations.PegConfiguration memory min,
+            IFlyoverConfigurations.PegConfiguration memory max,
+            uint256 eta
+        ) = config.getPendingBoundsChange();
+        assertEq(eta, expectedEta);
+        assertEq(min.fixedFee, WIDE_MIN_FIXED_FEE);
+        assertEq(min.percentageFee, WIDE_MIN_PCT);
+        assertEq(min.minAmount, WIDE_MIN_MIN_AMOUNT);
+        assertEq(min.maxAmount, WIDE_MIN_MAX_AMOUNT);
+        assertEq(max.fixedFee, WIDE_MAX_FIXED_FEE);
+        assertEq(max.percentageFee, WIDE_MAX_PCT);
+        assertEq(max.minAmount, WIDE_MAX_MIN_AMOUNT);
+        assertEq(max.maxAmount, WIDE_MAX_MAX_AMOUNT);
+    }
+
+    function test_getPendingBoundsChange_clearedAfterApply() public {
+        _applyBounds(_wideMin(), _wideMax());
+
+        (
+            IFlyoverConfigurations.PegConfiguration memory min,
+            IFlyoverConfigurations.PegConfiguration memory max,
+            uint256 eta
+        ) = config.getPendingBoundsChange();
+        assertEq(eta, 0);
+        assertEq(min.fixedFee, 0);
+        assertEq(max.fixedFee, 0);
+    }
+
+    /// @notice The delay is not editable by the bounds path; it is the review window itself.
+    function test_getTimelockDelay_unchangedByBoundsChange() public {
+        _applyBounds(_wideMin(), _wideMax());
+        assertEq(config.getTimelockDelay(), TIMELOCK_DELAY);
     }
 }
