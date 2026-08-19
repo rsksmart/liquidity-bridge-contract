@@ -37,6 +37,13 @@ import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCod
 /// Each step is a separate function taking the previous step's output, so every consumer enters
 /// the pipeline at the step it needs and none re-implements any script math.
 ///
+/// The pipeline ends at the script. Every consumer that reads a VALUE out of a deposit
+/// transaction — the registry gating registration, `PegInContract.requestPegIn` computing the
+/// peg-in amount — matches outputs against the script {depositPkScript} returns, but the matching
+/// itself is a lookup over transaction bytes and lives in {BtcTransactionReader}. A
+/// caller-supplied amount is never an input to either path: the amount is a value the contract
+/// computes.
+///
 /// FEDERATION FORMAT: step 4 replicates the `P2SH_P2WSH_ERP_FEDERATION` branch of rskj
 /// `PegUtils.getFlyoverFederationOutputScript` — the deposit output is a P2SH commitment to the
 /// segwit witness program, not a plain HASH160 of the redeem script. Every live powpeg (mainnet,
@@ -44,7 +51,7 @@ import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCod
 /// wrapping supported here. A powpeg running a pre-segwit federation format would need the plain
 /// wrapping instead and is deliberately NOT supported.
 ///
-/// Two known pitfalls, both encoded as negative tests:
+/// Two known pitfalls, both proven on-chain and both encoded as negative tests:
 ///   1. Keying the redeem-script tag with `derivationArgumentsHash` directly (skipping step 2's
 ///      address mixing) makes the bridge re-derive a DIFFERENT address and fail with -900
 ///      (FAST_BRIDGE_GENERIC_ERROR).
@@ -204,5 +211,30 @@ library PegInDerivation {
         bytes memory versionedHash = bytes.concat(version, scriptHash);
         bytes32 checksum = sha256(abi.encodePacked(sha256(versionedHash)));
         return bytes.concat(versionedHash, checksum[0], checksum[1], checksum[2], checksum[3]);
+    }
+
+    /// @notice Steps 2-5 composed: the on-chain P2SH scriptPubkey a deposit output must carry to
+    /// count as a deposit for `rskAddr`. The single entry point for deposit matching — the
+    /// registry and the peg-in claim path both call this rather than re-composing the steps, so
+    /// the script that gates registration and the script that fixes the peg-in amount cannot
+    /// drift apart.
+    /// @param rskAddr The RSK destination address the deposit address is derived for
+    /// @param pegInContract The PegInContract PROXY address mixed into step 2
+    /// @param activePowpegRedeemScript The live powpeg redeem script, read from the bridge at
+    /// call time — never stored
+    /// @param isMainnet Whether the derivation targets mainnet or testnet. The BTC placeholders
+    /// mixed into step 2 are per-network (see {getRefundPlaceholderBtcAddress}), so a caller that
+    /// passes a different flag than the one used at issuance derives a different script and matches
+    /// nothing.
+    /// @return The 23-byte P2SH scriptPubkey of the deposit address
+    function depositPkScript(
+        address rskAddr,
+        address pegInContract,
+        bytes memory activePowpegRedeemScript,
+        bool isMainnet
+    ) internal pure returns (bytes memory) {
+        bytes32 derivationValue_ = derivationValue(rskAddr, pegInContract, isMainnet);
+        bytes memory redeemScript = flyoverRedeemScript(derivationValue_, activePowpegRedeemScript);
+        return p2shScriptPubkey(flyoverScriptHash(redeemScript));
     }
 }

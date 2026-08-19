@@ -7,12 +7,13 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import {Flyover} from "../../src/libraries/Flyover.sol";
 
 /// @title requestPegIn reentrancy-guard test
-/// @notice A malicious destination re-enters requestPegIn on delivery with a different btcTxHash
-/// (a fresh pegInId), so the block comes from the nonReentrant guard rather than the
-/// already-processed check. The re-entry's revert bubbles through the delivery call, so the whole
-/// transaction reverts atomically and no claim is written for either pegInId.
+/// @notice A malicious destination re-enters requestPegIn on delivery with a second, genuine
+/// deposit transaction of its own (a different txid, so a fresh pegInId), so the block comes from
+/// the nonReentrant guard rather than the already-processed check or the deposit match. The
+/// re-entry's revert bubbles through the delivery call, so the whole transaction reverts
+/// atomically and no claim is written for either pegInId.
 contract RequestPegInReentrancyTest is RequestPegInTestBase {
-    bytes32 internal constant REENTER_BTC_TX_HASH = keccak256("reenter-btc-tx");
+    uint256 internal constant REENTER_TX_NONCE = 99;
 
     function test_reentrancy_maliciousRskAddr_differentPegInId() public {
         RequestPegInReenterReceiver receiver = new RequestPegInReenterReceiver(
@@ -26,10 +27,20 @@ contract RequestPegInReentrancyTest is RequestPegInTestBase {
 
         uint256 amount = DEFAULT_AMOUNT;
         uint256 net = amount - _expectedFee(amount);
-        receiver.setAttack(true, REENTER_BTC_TX_HASH);
 
-        bytes32 outerId = _pegInId(address(receiver), DEFAULT_BTC_TX_HASH);
-        bytes32 reenterId = _pegInId(address(receiver), REENTER_BTC_TX_HASH);
+        // Both transactions really pay the receiver's derived deposit address, so the re-entry
+        // is stopped by the guard and not by a failed derivation.
+        bytes memory outerTx = _depositTx(address(receiver), amount);
+        bytes memory reenterTx = _depositTx(
+            address(receiver),
+            amount,
+            REENTER_TX_NONCE
+        );
+        receiver.setAttack(true, reenterTx);
+
+        bytes32 outerId = _pegInIdForTx(address(receiver), outerTx);
+        bytes32 reenterId = _pegInIdForTx(address(receiver), reenterTx);
+        assertTrue(outerId != reenterId, "re-entry targets a fresh pegInId");
 
         // The re-entry reverts with the reentrancy guard error, which the delivery call surfaces
         // (and the implementation wraps) as PaymentFailed, reverting the whole transaction.
@@ -47,8 +58,7 @@ contract RequestPegInReentrancyTest is RequestPegInTestBase {
         );
         pegInContract.requestPegIn{value: net}(
             address(receiver),
-            amount,
-            DEFAULT_BTC_TX_HASH,
+            outerTx,
             "",
             bytes32(0),
             0,

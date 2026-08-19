@@ -32,7 +32,8 @@ contract RequestPegInHappyPathTest is RequestPegInTestBase {
         uint256 amount = DEFAULT_AMOUNT;
         uint256 fee = _expectedFee(amount);
         uint256 expectedNet = amount - fee;
-        bytes32 pegInId = _pegInId(rskUser, DEFAULT_BTC_TX_HASH);
+        bytes memory btcTx = _defaultTx();
+        bytes32 pegInId = _pegInIdForTx(rskUser, btcTx);
 
         uint256 claimerBefore = claimer.balance;
         uint256 userBefore = rskUser.balance;
@@ -47,11 +48,10 @@ contract RequestPegInHappyPathTest is RequestPegInTestBase {
             true
         );
 
-        bytes32 returnedId = _requestPegIn(
+        bytes32 returnedId = _requestPegInTx(
             claimer,
             rskUser,
-            amount,
-            DEFAULT_BTC_TX_HASH,
+            btcTx,
             expectedNet
         );
 
@@ -87,15 +87,10 @@ contract RequestPegInHappyPathTest is RequestPegInTestBase {
         uint256 amount = DEFAULT_AMOUNT;
         uint256 fee = _expectedFee(amount);
         uint256 expectedNet = amount - fee;
-        bytes32 pegInId = _pegInId(rskUser, DEFAULT_BTC_TX_HASH);
+        bytes memory btcTx = _defaultTx();
+        bytes32 pegInId = _pegInIdForTx(rskUser, btcTx);
 
-        _requestPegIn(
-            claimer,
-            rskUser,
-            amount,
-            DEFAULT_BTC_TX_HASH,
-            expectedNet
-        );
+        _requestPegInTx(claimer, rskUser, btcTx, expectedNet);
 
         (, , uint256 feeAtClaimBefore, ) = _readClaim(pegInId);
         assertEq(feeAtClaimBefore, fee, "fee snapshot at claim");
@@ -116,5 +111,74 @@ contract RequestPegInHappyPathTest is RequestPegInTestBase {
             feeAtClaimBefore,
             "recorded feeAtClaim unchanged after config change"
         );
+    }
+
+    /// @notice The amount is read off the deposit output, so a caller who wants a different
+    /// amount has to present a different deposit. Two deposits of different sizes, claimed with
+    /// nothing but the transaction changing, produce two different peg-in amounts.
+    function test_amount_followsTheDepositOutput() public {
+        address second = makeAddr("rskUserSecond");
+        registry.harness_seedRegistration(second, makeAddr("registrant3"), 1);
+
+        uint256 small = 0.5 ether;
+        uint256 large = 20 ether;
+        vm.deal(claimer, 100 ether);
+
+        bytes memory smallTx = _depositTx(rskUser, small);
+        bytes memory largeTx = _depositTx(second, large);
+
+        vm.expectEmit(true, true, true, true);
+        emit IPegInCommitFirst.PegInRequested(
+            _pegInIdForTx(rskUser, smallTx),
+            claimer,
+            rskUser,
+            small,
+            small - _expectedFee(small),
+            true
+        );
+        _requestPegInTx(claimer, rskUser, smallTx, small - _expectedFee(small));
+
+        vm.expectEmit(true, true, true, true);
+        emit IPegInCommitFirst.PegInRequested(
+            _pegInIdForTx(second, largeTx),
+            claimer,
+            second,
+            large,
+            large - _expectedFee(large),
+            true
+        );
+        _requestPegInTx(claimer, second, largeTx, large - _expectedFee(large));
+    }
+
+    /// @notice Satoshi-to-wei conversion pinned to a literal fixture, so an off-by-a-power-of-ten
+    /// in the scaling cannot pass CI. 123_456_789 sats is 1.23456789 RBTC; every neighbouring
+    /// power of ten is a different number and would fail this assertion.
+    function test_satToWei_pinnedFixture() public {
+        uint64 depositSats = 123_456_789;
+        uint256 expectedAmount = 1.23456789 ether;
+        assertEq(
+            uint256(depositSats) * 10 ** 10,
+            expectedAmount,
+            "fixture self-check: 123456789 sats == 1.23456789 ether"
+        );
+
+        bytes memory btcTx = _buildTx(
+            _depositPkScript(rskUser),
+            depositSats,
+            42
+        );
+        uint256 net = expectedAmount - _expectedFee(expectedAmount);
+        vm.deal(claimer, 100 ether);
+
+        vm.expectEmit(true, true, true, true);
+        emit IPegInCommitFirst.PegInRequested(
+            _pegInIdForTx(rskUser, btcTx),
+            claimer,
+            rskUser,
+            expectedAmount,
+            net,
+            true
+        );
+        _requestPegInTx(claimer, rskUser, btcTx, net);
     }
 }

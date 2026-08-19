@@ -56,10 +56,6 @@ contract FlyoverConfigurations is
     /// @notice Percentage fee denominator: 10_000 == 100%.
     uint256 public constant FEE_PERCENTAGE_DENOMINATOR = 10_000;
 
-    /// @notice 1 satoshi expressed in wei; fees are rounded down to a satoshi boundary so on-chain
-    /// fees agree with the bridge. Mirrors `Quotes.SAT_TO_WEI_CONVERSION`.
-    uint256 public constant SAT_TO_WEI_CONVERSION = 10 ** 10;
-
     // ERC-7201: keccak256(abi.encode(uint256(keccak256("rsk.flyover.FlyoverConfigurations")) - 1)) &
     // ~bytes32(uint256(0xff))
     bytes32 private constant _FLYOVER_CONFIGURATIONS_STORAGE =
@@ -325,11 +321,15 @@ contract FlyoverConfigurations is
     }
 
     /// @dev fee = fixedFee + amount * percentageFee / 10_000, then rounded DOWN to a satoshi
-    /// boundary (mirrors `Quotes.checkAgreedAmount`), so on-chain fees agree with the bridge.
+    /// boundary (mirrors `Quotes.checkAgreedAmount`), so on-chain fees agree with the bridge. The
+    /// scale is read from {Flyover}, which declares it once; `Quotes.SAT_TO_WEI_CONVERSION` is the
+    /// legacy quote path's own copy, left alone because that path's ABI is frozen, and
+    /// `test/configurations/Fee.t.sol` asserts the two agree so they cannot drift.
+    /// `PegOutContract` holds a third, private copy.
     function _calculateFee(PegConfiguration storage config, uint256 amount) private view returns (uint256) {
         uint256 fee = config.fixedFee + (amount * config.percentageFee) / FEE_PERCENTAGE_DENOMINATOR;
-        if (fee > SAT_TO_WEI_CONVERSION && (fee % SAT_TO_WEI_CONVERSION) != 0) {
-            fee -= (fee % SAT_TO_WEI_CONVERSION);
+        if (fee > Flyover.SAT_TO_WEI_CONVERSION && (fee % Flyover.SAT_TO_WEI_CONVERSION) != 0) {
+            fee -= (fee % Flyover.SAT_TO_WEI_CONVERSION);
         }
         return fee;
     }
