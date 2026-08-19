@@ -197,7 +197,7 @@ contract PegOutContract is
         _pegOutQuotes[requestHash] = quote;
         _pegOutRegistry[requestHash].depositTimestamp = block.timestamp;
         _pegOutRegistry[requestHash].depositBlock = block.number;
-        _pegOutRegistry[requestHash].maxMinerFee = _pegOutEscrow.getMaxMinerFee(requestHash);
+        _pegOutRegistry[requestHash].maxMinerFee = quote.gasFee;
 
         emit PegOutDeposit(requestHash, quote.lpRskAddress, block.timestamp, msg.value);
     }
