@@ -72,6 +72,40 @@ contract RequestPegInAtomicityTest is RequestPegInTestBase {
         );
     }
 
+    function test_failedCheck_isAtomic_belowMinimum() public {
+        uint256 amount = TEST_MIN_PEGIN - Flyover.SAT_TO_WEI_CONVERSION;
+        bytes memory btcTx = _depositTx(rskUser, amount);
+        bytes32 pegInId = _pegInIdForTx(rskUser, btcTx);
+        uint256 userBefore = rskUser.balance;
+        uint256 claimerBefore = claimer.balance;
+        uint256 sentValue = 1 ether;
+
+        vm.prank(claimer);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegInCommitFirst.PegInBelowMinimum.selector,
+                amount,
+                TEST_MIN_PEGIN
+            )
+        );
+        pegInContract.requestPegIn{value: sentValue}(
+            rskUser,
+            btcTx,
+            "",
+            bytes32(0),
+            0,
+            _emptyBranch()
+        );
+
+        _assertNoClaim(pegInId);
+        assertEq(rskUser.balance, userBefore, "no delivery below minimum");
+        assertEq(
+            claimer.balance,
+            claimerBefore,
+            "msg.value held on below-minimum revert"
+        );
+    }
+
     function test_failedCheck_isAtomic_insufficientConfirmations() public {
         bridgeMock.setConfirmations(int256(DEFAULT_TIER_CONFIRMATIONS) - 1);
         bytes memory btcTx = _defaultTx();

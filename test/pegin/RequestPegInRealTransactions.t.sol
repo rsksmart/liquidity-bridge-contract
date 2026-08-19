@@ -31,6 +31,17 @@ import {Flyover} from "../../src/libraries/Flyover.sol";
 /// which puts a real deposit inside a real transaction and asserts the amount read back is that
 /// output's real value.
 contract RequestPegInRealTransactionsTest is RequestPegInTestBase {
+    /// @dev Real spliced outputs are 468269–810134 sats (~0.005–0.008 ether), below the
+    /// default Foundry floor (`TEST_MIN_PEGIN` = 0.5 ether). This suite owns first-match
+    /// parse, not the Flyover minimum. Drop the floor to 1 sat so those values can still claim.
+    function setUp() public override {
+        super.setUp();
+        configurations.setAmountBounds(
+            Flyover.SAT_TO_WEI_CONVERSION,
+            DEFAULT_MAX_AMOUNT
+        );
+    }
+
     // ---- real transaction 1: mainnet Flyover deposit, 2 inputs, 2 P2SH outputs ----
 
     bytes32 private constant _TXID_2IN =

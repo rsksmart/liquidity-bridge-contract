@@ -4,6 +4,8 @@ pragma solidity 0.8.25;
 import {RequestPegInTestBase} from "./RequestPegInTestBase.sol";
 import {PegInContract} from "../../src/PegInContract.sol";
 import {IPegInCommitFirst} from "../../src/interfaces/IPegInCommitFirst.sol";
+import {IBridge} from "../../src/interfaces/IBridge.sol";
+import {Flyover} from "../../src/libraries/Flyover.sol";
 
 /// @title requestPegIn ordered-check revert and race/ordering tests
 /// @notice One test per check with the specific custom error and its arguments, plus proofs that
@@ -198,7 +200,84 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         assertEq(claimerAddr, claimer, "honest LP still able to claim");
     }
 
-    // ---- Check 5: insufficient confirmations ----
+    // ---- Check 5: below configured minimum ----
+
+    function test_revert_pegInBelowMinimum_oneSatBelow() public {
+        uint256 amount = TEST_MIN_PEGIN - Flyover.SAT_TO_WEI_CONVERSION;
+        bytes memory btcTx = _depositTx(rskUser, amount);
+
+        vm.prank(claimer);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegInCommitFirst.PegInBelowMinimum.selector,
+                amount,
+                TEST_MIN_PEGIN
+            )
+        );
+        pegInContract.requestPegIn{value: 1 ether}(
+            rskUser,
+            btcTx,
+            "",
+            bytes32(0),
+            0,
+            _emptyBranch()
+        );
+    }
+
+    function test_revert_pegInBelowMinimum_skipsBridgeCall() public {
+        uint256 amount = TEST_MIN_PEGIN - Flyover.SAT_TO_WEI_CONVERSION;
+        bytes memory btcTx = _depositTx(rskUser, amount);
+        bridgeMock.setConfirmations(0);
+
+        vm.expectCall(
+            address(bridgeMock),
+            abi.encodeWithSelector(
+                IBridge.getBtcTransactionConfirmations.selector
+            ),
+            0
+        );
+        vm.prank(claimer);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegInCommitFirst.PegInBelowMinimum.selector,
+                amount,
+                TEST_MIN_PEGIN
+            )
+        );
+        pegInContract.requestPegIn{value: 1 ether}(
+            rskUser,
+            btcTx,
+            "",
+            bytes32(0),
+            0,
+            _emptyBranch()
+        );
+    }
+
+    function test_ordering_alreadyProcessed_beforeBelowMinimum() public {
+        uint256 amount = TEST_MIN_PEGIN - Flyover.SAT_TO_WEI_CONVERSION;
+        bytes memory btcTx = _depositTx(rskUser, amount);
+        bytes32 pegInId = _pegInIdForTx(rskUser, btcTx);
+        _seedClaim(pegInContract, pegInId, claimer);
+
+        vm.prank(claimer);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegInCommitFirst.PegInAlreadyProcessed.selector,
+                pegInId
+            )
+        );
+        pegInContract.requestPegIn{value: 1 ether}(
+            rskUser,
+            btcTx,
+            "",
+            bytes32(0),
+            0,
+            _emptyBranch()
+        );
+    }
+
+    // ---- Check 6: insufficient confirmations ----
 
     function test_revert_insufficientConfirmations_tierBoundary() public {
         uint256 required = DEFAULT_TIER_CONFIRMATIONS;
@@ -302,7 +381,7 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         );
     }
 
-    // ---- Check 6: incorrect fronting ----
+    // ---- Check 7: incorrect fronting ----
 
     function test_revert_incorrectFronting_overstated() public {
         uint256 amount = DEFAULT_AMOUNT;
