@@ -18,7 +18,7 @@ contract ResolvePegInTest is ResolvePegInTestBase {
         super.setUp();
         registrant = makeAddr("registrant");
         registry.harness_seedRegistration(rskUser, registrant, 1);
-        rawTx = _minimalRawTx();
+        rawTx = _depositTx(rskUser, DEFAULT_AMOUNT);
         btcTxHash = _btcTxHash(rawTx);
         bridgeRelease = 6 ether;
     }
@@ -40,7 +40,11 @@ contract ResolvePegInTest is ResolvePegInTestBase {
         assertEq(_balance(registrant), 1e14);
         assertTrue(_isRegistrantPaid(rskUser));
 
-        bytes memory rawTx2 = abi.encodePacked(rawTx, hex"01");
+        bytes memory rawTx2 = _depositTx(
+            rskUser,
+            DEFAULT_AMOUNT,
+            DEFAULT_TX_NONCE + 1
+        );
         _claimAndFund(rskUser, rawTx2, bridgeRelease);
         _resolve(claimer, rskUser, rawTx2);
         assertEq(_balance(registrant), 1e14);
@@ -98,7 +102,11 @@ contract ResolvePegInTest is ResolvePegInTestBase {
     }
 
     function test_wrong_tx_for_address_reverts_unclaimed() public {
-        bytes memory wrongRawTx = abi.encodePacked(rawTx, hex"ff");
+        bytes memory wrongRawTx = _depositTx(
+            rskUser,
+            DEFAULT_AMOUNT,
+            DEFAULT_TX_NONCE + 99
+        );
         bytes32 wrongPegInId = _pegInId(rskUser, _btcTxHash(wrongRawTx));
         _claimAndFund(rskUser, rawTx, bridgeRelease);
         vm.prank(claimer);

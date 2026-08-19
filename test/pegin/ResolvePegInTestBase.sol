@@ -12,25 +12,6 @@ abstract contract ResolvePegInTestBase is RequestPegInTestBase {
     bytes internal constant WITNESS_MARKED_TX =
         hex"01000000000101000000000000000000000000000000000000000000000000000000000000000000ffffffff";
 
-    function _minimalRawTx() internal pure returns (bytes memory) {
-        bytes
-            memory pkScript = hex"76a914000000000000000000000000000000000000000088ac";
-        return
-            abi.encodePacked(
-                hex"01000000",
-                hex"01",
-                bytes32(uint256(1)),
-                hex"00000000",
-                hex"00",
-                hex"ffffffff",
-                hex"01",
-                hex"008964000000000000",
-                bytes1(uint8(pkScript.length)),
-                pkScript,
-                hex"00000000"
-            );
-    }
-
     function _btcTxHash(bytes memory rawTx) internal pure returns (bytes32) {
         return BtcUtils.hashBtcTx(rawTx);
     }
@@ -41,20 +22,16 @@ abstract contract ResolvePegInTestBase is RequestPegInTestBase {
 
     function _claimAndFund(
         address rskAddr,
-        bytes memory rawTx,
+        bytes memory depositTx,
         uint256 bridgeRelease
     ) internal returns (bytes32 pegInId) {
-        bytes32 btcTxHash = _btcTxHash(rawTx);
-        uint256 fee = _expectedFee(DEFAULT_AMOUNT);
-        pegInId = _requestPegIn(
+        pegInId = _requestPegInTx(
             claimer,
             rskAddr,
-            DEFAULT_AMOUNT,
-            btcTxHash,
-            DEFAULT_AMOUNT - fee
+            depositTx,
+            DEFAULT_AMOUNT - _expectedFee(DEFAULT_AMOUNT)
         );
         bridgeMock.setPegin{value: bridgeRelease}(_derivationHash(rskAddr));
-        return pegInId;
     }
 
     function _resolve(
