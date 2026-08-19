@@ -128,20 +128,15 @@ interface IPegOut is IPausable, IERC5267 {
     /// @param amount The amount of the withdrawal
     function withdraw(address payable addr, uint256 amount) external;
 
-    /// @notice Legacy quote path: user pays a pre-signed peg-out quote
-    /// @dev Commit-first flow uses {registerClaimedPegOut} instead; this remains for existing LPS/SDK.
-    /// TODO: drop this when Commit-first flow is complete.
+    /// @notice This is the function used to pay for a peg out quote. This is the only correct function to execute
+    /// such payment, sending money directly to the contract does not work.
+    /// The user is expected to and is responsible for reviewing all fields of the quote, as they comprehend the terms
+    /// of the service agreed with the LP before paying.
+    /// @dev When PegOutEscrow is wired, only the escrow may call (after claim). Storage is keyed by the
+    /// incomplete-quote hash (`lpRskAddress = 0`); EIP-712 still binds the completed quote (LP set).
     /// @param quote The quote that is being paid
     /// @param signature The signature of the quote hash provided by the liquidity provider after the quote acceptance
     function depositPegOut(Quotes.PegOutQuote calldata quote, bytes calldata signature) external payable;
-
-    /// @notice Commit-first path: PegOutEscrow registers a claimed peg-out under the request hash
-    /// @dev Only callable by the wired PegOutEscrow. Loads the escrow-built quote, re-verifies the LP
-    /// signature, stores the same quote-shaped record as {depositPegOut} under requestHash, records
-    /// claim timing, and holds the forwarded RBTC so settlement validation stays on one struct / one path.
-    /// @param requestHash Escrow-minted request id
-    /// @param signature LP EIP-712 signature over the escrowed quote (with lpRskAddress set)
-    function registerClaimedPegOut(bytes32 requestHash, bytes calldata signature) external payable;
 
     /// @notice Recovers escrowed RBTC plus the LP fee against an SPV proof of the BTC payment.
     /// @dev Any caller may submit the proof (e.g. a watchtower). Payout always goes to the

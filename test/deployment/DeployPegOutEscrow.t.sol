@@ -9,6 +9,7 @@ import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
 import {FlyoverConfigurations} from "../../src/FlyoverConfigurations.sol";
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {PegOutContract} from "../../src/PegOutContract.sol";
+import {Quotes} from "../../src/libraries/Quotes.sol";
 import {PegOutEscrow} from "../../src/PegOutEscrow.sol";
 import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
 import {FlyoverConfigurationsRegtest} from "../../src/libraries/FlyoverConfigurationsRegtest.sol";
@@ -170,7 +171,8 @@ contract DeployPegOutEscrowTest is Test {
                 address(this)
             )
         );
-        pegOut.registerClaimedPegOut(bytes32(uint256(1)), "");
+        Quotes.PegOutQuote memory dummy;
+        pegOut.depositPegOut(dummy, "");
     }
 
     function test_DeployPegOutEscrow_SeedsRegtestPegOutConfig() public {

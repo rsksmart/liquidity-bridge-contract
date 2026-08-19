@@ -33,7 +33,7 @@ contract PegOutContract is
     /// @param completed whether the peg out has been completed or not,
     /// completed means the peg out was paid and refunded (to any party)
     /// @param depositTimestamp Penalty-clock anchor: user deposit time for legacy
-    /// {depositPegOut}, claim time for commit-first {registerClaimedPegOut}
+    /// {depositPegOut}, claim time for commit-first escrow claim
     /// @param depositBlock Block of the same anchor as {depositTimestamp}
     /// @param maxMinerFee Snapshotted short-delivery floor cap (wei) from escrow at claim;
     /// zero when unset (legacy depositPegOut)
@@ -104,6 +104,12 @@ contract PegOutContract is
         Quotes.PegOutQuote calldata quote,
         bytes calldata signature
     ) external payable nonReentrant whenNotSoftPaused override {
+        bool escrowPath = address(_pegOutEscrow) != address(0);
+        if (escrowPath) {
+            if (msg.sender != address(_pegOutEscrow)) {
+                revert OnlyPegOutEscrow(msg.sender);
+            }
+        }
         if(!_collateralManagement.isCollateralSufficient(_PEG_TYPE, quote.lpRskAddress)) {
             revert Flyover.ProviderNotRegistered(quote.lpRskAddress);
         }
@@ -118,11 +124,24 @@ contract PegOutContract is
             revert QuoteExpiredByBlocks(quote.expireBlock);
         }
 
+        // EIP-712 over the completed quote (binds the LP). Storage key is the incomplete hash
+        // when escrow is wired so it matches the escrow request id / OP_RETURN payload.
         bytes32 eip712Hash = _hashPegOutQuoteEIP712(quote);
         if (!SignatureValidator.verify(quote.lpRskAddress, eip712Hash, signature)) {
             revert SignatureValidator.IncorrectSignature(quote.lpRskAddress, eip712Hash, signature);
         }
-        bytes32 quoteHash = _hashPegOutQuote(quote);
+
+        bytes32 quoteHash;
+        if (escrowPath) {
+            Quotes.PegOutQuote memory incomplete = quote;
+            incomplete.lpRskAddress = address(0);
+            quoteHash = _hashPegOutQuote(incomplete);
+            if (_pegOutEscrow.getPegOutState(quoteHash) != IPegOutEscrow.EscrowedPegOutState.CLAIMED) {
+                revert EscrowQuoteNotClaimed(quoteHash);
+            }
+        } else {
+            quoteHash = _hashPegOutQuote(quote);
+        }
 
         Quotes.PegOutQuote storage registeredQuote = _pegOutQuotes[quoteHash];
 
@@ -136,6 +155,9 @@ contract PegOutContract is
         _pegOutQuotes[quoteHash] = quote;
         _pegOutRegistry[quoteHash].depositTimestamp = block.timestamp;
         _pegOutRegistry[quoteHash].depositBlock = block.number;
+        if (escrowPath) {
+            _pegOutRegistry[quoteHash].maxMinerFee = quote.gasFee;
+        }
 
         emit PegOutDeposit(quoteHash, msg.sender, block.timestamp, msg.value);
 
@@ -151,58 +173,7 @@ contract PegOutContract is
         }
     }
 
-    /// @inheritdoc IPegOut
-    function registerClaimedPegOut(
-        bytes32 requestHash,
-        bytes calldata signature
-    ) external payable override nonReentrant whenNotSoftPaused {
-        if (address(_pegOutEscrow) == address(0)) revert PegOutEscrowNotSet();
-        if (msg.sender != address(_pegOutEscrow)) {
-            revert OnlyPegOutEscrow(msg.sender);
-        }
-        // `depositTimestamp` is not cleared on settle, so the registered check alone would
-        // also block completed ids; keep `completed` first for a precise post-settlement revert.
-        if (_isQuoteCompleted(requestHash)) {
-            revert QuoteAlreadyCompleted(requestHash);
-        }
-        if (_pegOutRegistry[requestHash].depositTimestamp != 0) {
-            revert QuoteAlreadyRegistered(requestHash);
-        }
-
-        Quotes.PegOutQuote memory quote = _requireClaimedEscrowQuote(requestHash);
-        if (!_collateralManagement.isRegistered(_PEG_TYPE, quote.lpRskAddress)) {
-            revert Flyover.ProviderNotRegistered(quote.lpRskAddress);
-        }
-        if (!_collateralManagement.isCollateralSufficient(_PEG_TYPE, quote.lpRskAddress)) {
-            revert InsufficientCollateral(_collateralManagement.getPegOutCollateral(quote.lpRskAddress));
-        }
-        uint256 requiredAmount = quote.value + quote.callFee + quote.gasFee;
-        if (msg.value != requiredAmount) {
-            revert Flyover.InsufficientAmount(msg.value, requiredAmount);
-        }
-        if (quote.depositDateLimit < block.timestamp || quote.expireDate < block.timestamp) {
-            revert QuoteExpiredByTime(quote.depositDateLimit, quote.expireDate);
-        }
-        if (quote.expireBlock < block.number) {
-            revert QuoteExpiredByBlocks(quote.expireBlock);
-        }
-
-        bytes32 eip712Hash = _hashPegOutQuoteEIP712(quote);
-        if (!SignatureValidator.verify(quote.lpRskAddress, eip712Hash, signature)) {
-            revert SignatureValidator.IncorrectSignature(quote.lpRskAddress, eip712Hash, signature);
-        }
-
-        // Mirror depositPegOut: same Quotes.PegOutQuote + registry so _validatePegOutTransaction
-        // reads claim-fed records unmodified (keyed by escrow requestHash / OP_RETURN id).
-        _pegOutQuotes[requestHash] = quote;
-        _pegOutRegistry[requestHash].depositTimestamp = block.timestamp;
-        _pegOutRegistry[requestHash].depositBlock = block.number;
-        _pegOutRegistry[requestHash].maxMinerFee = quote.gasFee;
-
-        emit PegOutDeposit(requestHash, quote.lpRskAddress, block.timestamp, msg.value);
-    }
-
-    /// @notice Wires the commit-first PegOutEscrow (only that address may call registerClaimedPegOut)
+    /// @notice Wires the commit-first PegOutEscrow (only that address may call depositPegOut when set)
     // solhint-disable-next-line comprehensive-interface
     function setPegOutEscrow(address pegOutEscrow_) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (pegOutEscrow_ != address(0) && pegOutEscrow_.code.length == 0) {
@@ -425,19 +396,6 @@ contract PegOutContract is
             _balances[dest] -= amount;
             emit BalanceDecrease(dest, amount);
         }
-    }
-
-    /// @notice Escrow CLAIMED quote required for {registerClaimedPegOut} (source before mirror into `_pegOutQuotes`).
-    function _requireClaimedEscrowQuote(bytes32 requestHash)
-        private
-        view
-        returns (Quotes.PegOutQuote memory quote)
-    {
-        if (address(_pegOutEscrow) == address(0)) revert PegOutEscrowNotSet();
-        if (_pegOutEscrow.getPegOutState(requestHash) != IPegOutEscrow.EscrowedPegOutState.CLAIMED) {
-            revert EscrowQuoteNotClaimed(requestHash);
-        }
-        quote = _pegOutEscrow.getPegOutQuote(requestHash);
     }
 
     /// @notice Flip escrow CLAIMED → terminal when settlement finishes on this contract.
