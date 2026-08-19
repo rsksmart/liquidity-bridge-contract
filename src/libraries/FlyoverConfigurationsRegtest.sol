@@ -5,8 +5,10 @@ import {IFlyoverConfigurations} from "../interfaces/IFlyoverConfigurations.sol";
 
 /// @title FlyoverConfigurationsRegtest
 /// @notice Provisional regtest values for {FlyoverConfigurations}: the seed peg-in configuration,
-/// the immutable deployment bounds, and the time-lock delay. Shipped with the contract so the
-/// deploy wiring can consume them without hardcoding numbers in a script.
+/// the seed bounds, and the time-lock delay. Shipped with the contract so the deploy wiring can
+/// consume them without hardcoding numbers in a script. The bounds seeded here are the starting
+/// pair, not a permanent one: the admin can move them later through the contract's time-locked
+/// bounds change.
 /// @dev EVERY value here is provisional and calibrated only for regtest; none are production
 /// values. The fixed-fee floor is a SECURITY parameter, not just pricing: if it drops below
 /// worst-case RSK gas during congestion, an attacker can make minimum-amount peg-ins no LP will
@@ -29,9 +31,10 @@ library FlyoverConfigurationsRegtest {
         config.confirmationTiers = _tiers();
     }
 
-    /// @notice Lower bound for every peg-in scalar field (immutable at deployment).
+    /// @notice Lower bound for every peg-in scalar field, as seeded at deployment.
     /// @dev min.fixedFee IS the security floor: no queued change may set the fixed fee below it,
-    /// so the floor holds even against a compromised admin role.
+    /// so the floor holds even against a compromised admin role. Lowering the floor is itself a
+    /// time-locked bounds change, so it stays observable for a full delay before it takes effect.
     /// @return bound The lower bound configuration
     function pegInMin() internal pure returns (IFlyoverConfigurations.PegConfiguration memory bound) {
         bound.fixedFee = 0.0001 ether; // SECURITY floor: hard minimum fixed fee
@@ -42,7 +45,7 @@ library FlyoverConfigurationsRegtest {
         bound.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
     }
 
-    /// @notice Upper bound for every peg-in scalar field (immutable at deployment).
+    /// @notice Upper bound for every peg-in scalar field, as seeded at deployment.
     /// @dev Caps how high the admin can push each field, so a mistake cannot set absurd values.
     /// @return bound The upper bound configuration
     function pegInMax() internal pure returns (IFlyoverConfigurations.PegConfiguration memory bound) {
