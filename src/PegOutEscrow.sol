@@ -250,12 +250,13 @@ contract PegOutEscrow is
             revert SignatureValidator.IncorrectSignature(msg.sender, eip712Hash, signature);
         }
 
+        // Set CLAIMED before depositPegOut so PegOut's escrow-state check holds.
         $.state[requestHash] = EscrowedPegOutState.CLAIMED;
 
         uint256 valueToSend = q.value + q.callFee + q.gasFee;
         emit PegOutClaimed(msg.sender, requestHash);
 
-        $.pegOutContract.registerClaimedPegOut{value: valueToSend}(requestHash, signature);
+        $.pegOutContract.depositPegOut{value: valueToSend}(signedQuote, signature);
     }
 
     /// @inheritdoc IPegOutEscrow

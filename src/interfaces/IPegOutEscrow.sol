@@ -89,7 +89,8 @@ interface IPegOutEscrow {
 
     /// @notice Registered LP claims the peg-out and moves funds into PegOutContract.
     /// @dev Hard commitment: no release/unclaim path. Caller must pass EIP-712 over the
-    /// reconstructed quote with `lpRskAddress = msg.sender`.
+    /// reconstructed quote with `lpRskAddress = msg.sender`. Forwards to
+    /// {IPegOut.depositPegOut} with the completed quote.
     function claimPegOut(bytes32 requestHash, bytes calldata signature) external;
 
     /// @notice Permissionless refund after `depositDateLimit` if nobody claimed.
