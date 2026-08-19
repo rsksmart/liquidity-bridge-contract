@@ -11,8 +11,11 @@ import {Flyover} from "./libraries/Flyover.sol";
 /// @notice The single on-chain source of the commit-first peg-in parameters (fee, confirmation
 /// tiers, amount limits) that every party reads: the SDK for its estimate, every LPS for its
 /// serve decision, and the settlement path for its amount validation. Admin changes are
-/// time-locked in two steps (queue then apply) and re-validated at both steps against immutable
-/// bounds fixed at deployment, so an admin mistake cannot set absurd values even with the role.
+/// time-locked in two steps (queue then apply) and re-validated at both steps against the active
+/// bounds, so an admin mistake cannot set absurd values even with the role. The bounds themselves
+/// are seeded at deployment and are editable by the admin only through the same two-step time
+/// lock ({queueBoundsChange} / {applyBoundsChange}), so widening or tightening them is observable
+/// for a full delay before it can take effect and never needs a contract upgrade.
 /// @dev Implements the frozen {IFlyoverConfigurations} (peg-in only); its function signatures and
 /// structs are the shared ABI every consumer depends on, so they must not be changed here.
 /// Upgradeable, ERC-7201 namespaced storage, deployed behind a TransparentUpgradeableProxy per
@@ -33,13 +36,18 @@ contract FlyoverConfigurations is
     }
 
     /// @custom:storage-location erc7201:rsk.flyover.FlyoverConfigurations.bounds
-    /// @dev Held in a separate namespace from the mutable config. Written once in `initialize`
-    /// and never again; these are the immutable deployment bounds every queued change is
-    /// re-validated against.
+    /// @dev Held in a separate namespace from the mutable config: a bounds change and a
+    /// configuration change are independent pending slots, so queueing one never clobbers the
+    /// other. `min`/`max` are seeded in `initialize` and thereafter only ever written by
+    /// `applyBoundsChange`, which the same time lock as a configuration change guards.
+    /// `timelockDelay` is not editable; it is the review window itself.
     struct FlyoverConfigurationsBounds {
         uint256 timelockDelay;
         PegConfiguration min;
         PegConfiguration max;
+        PegConfiguration pendingMin;
+        PegConfiguration pendingMax;
+        uint256 pendingEta;
     }
 
     /// @notice The version of the contract
@@ -67,8 +75,21 @@ contract FlyoverConfigurations is
     /// @param newConfiguration The now-active configuration
     event ChangeApplied(PegConfiguration newConfiguration);
 
-    /// @notice Raised when a scalar field falls outside its immutable deployment bound.
+    /// @notice Emitted when a bounds change is queued by the admin.
+    /// @param newMin The lower bounds that will take effect once the time lock elapses
+    /// @param newMax The upper bounds that will take effect once the time lock elapses
+    /// @param eta The earliest timestamp `applyBoundsChange` may activate the queued bounds
+    event BoundsChangeQueued(PegConfiguration newMin, PegConfiguration newMax, uint256 eta);
+
+    /// @notice Emitted when a queued bounds change is applied and becomes active.
+    /// @param newMin The now-active lower bounds
+    /// @param newMax The now-active upper bounds
+    event BoundsChangeApplied(PegConfiguration newMin, PegConfiguration newMax);
+
+    /// @notice Raised when a scalar field falls outside its active bound.
     error ConfigValueOutOfBounds(Field field, uint256 value, uint256 min, uint256 max);
+    /// @notice Raised when a bounds pair inverts a field, i.e. its min exceeds its max.
+    error InvalidBounds(Field field, uint256 min, uint256 max);
     /// @notice Raised when minAmount exceeds maxAmount.
     error InvalidAmountLimits(uint256 minAmount, uint256 maxAmount);
     /// @notice Raised when percentageFee exceeds the 10_000 denominator (100%).
@@ -81,6 +102,10 @@ contract FlyoverConfigurations is
     error TimelockNotElapsed(uint256 eta, uint256 nowTime);
     /// @notice Raised when applying while no change is queued.
     error NoQueuedChange();
+    /// @notice Raised when applying while no bounds change is queued.
+    error NoQueuedBoundsChange();
+    /// @notice Raised when applying bounds that would leave the active configuration outside them.
+    error ActiveConfigOutsideNewBounds(Field field, uint256 value, uint256 min, uint256 max);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -93,12 +118,15 @@ contract FlyoverConfigurations is
         revert Flyover.PaymentNotAllowed();
     }
 
-    /// @notice Initializes the contract with the seed peg-in configuration and immutable bounds.
-    /// @dev Writes the bounds and time-lock delay once, then validates and stores the seed config
-    /// against those bounds. Must be called only once (proxy initializer).
+    /// @notice Initializes the contract with the seed peg-in configuration and the seed bounds.
+    /// @dev Writes the time-lock delay and the seed bounds, then validates and stores the seed
+    /// config against those bounds. The bounds are checked for well-formedness here for the same
+    /// reason `queueBoundsChange` checks them: no code path may install an inverted pair. Must be
+    /// called only once (proxy initializer).
     /// @param defaultAdmin The default admin and initial owner address
     /// @param initialDelay The initial admin delay for `AccessControlDefaultAdminRules`
-    /// @param timelockDelay The delay (seconds) every queued configuration change must wait
+    /// @param timelockDelay The delay (seconds) every queued change must wait, configuration and
+    /// bounds alike
     /// @param pegInConfig The initial peg-in configuration
     /// @param pegInMin Lower bound for every peg-in scalar field
     /// @param pegInMax Upper bound for every peg-in scalar field
@@ -112,6 +140,8 @@ contract FlyoverConfigurations is
         PegConfiguration calldata pegInMax
     ) external initializer {
         __AccessControlDefaultAdminRules_init(initialDelay, defaultAdmin);
+
+        _validateBoundsPair(pegInMin, pegInMax);
 
         FlyoverConfigurationsBounds storage bounds = _getBounds();
         bounds.timelockDelay = timelockDelay;
@@ -141,8 +171,8 @@ contract FlyoverConfigurations is
         if (block.timestamp < eta) revert TimelockNotElapsed(eta, block.timestamp);
 
         PegConfiguration memory pending = $.pending;
-        // Re-validate at apply time: bounds are immutable, but this closes the window where a
-        // value queued as valid could be applied after any invariant assumption changed.
+        // Re-validate at apply time: the bounds may themselves have moved during the delay, so a
+        // value that was in range when queued is not guaranteed to be in range when it lands.
         _validateConfig(pending);
 
         // Storage-to-storage deep copy (the memory-to-storage form is not supported for the
@@ -151,6 +181,79 @@ contract FlyoverConfigurations is
         delete $.pending;
         $.pendingEta = 0;
         emit ChangeApplied(pending);
+    }
+
+    /// @notice Queues a change to the configuration bounds, the first step of the time-locked
+    /// admin change. Admin-only.
+    /// @dev Deliberately no plain setter. A bound and a configuration value that could move in a
+    /// single transaction would make the bounds useless: catching an admin mistake is their only
+    /// job, and they cannot catch a mistake the same actor is free to redefine on the spot. The
+    /// delay is the review window, so a queued widening is observable before it can take effect.
+    ///
+    /// Only well-formedness (`min <= max` per field) is checked here. Whether the *active*
+    /// configuration still fits the new bounds is deliberately checked at apply time only: the
+    /// active configuration may legitimately change during the delay, so a queue-time verdict
+    /// would be advisory at best and would block the legitimate sequence of queueing a
+    /// tightening now and moving the active configuration into the new range during the wait.
+    ///
+    /// Follows the single-pending-change pattern: queueing again overwrites the pending bounds
+    /// and refreshes the eta. Independent of the configuration slot used by {queueChange}.
+    ///
+    /// The `confirmationTiers` field of a bounds pair is ignored, as it is at initialization: the
+    /// tier array is validated structurally (non-empty, strictly ascending), never min/max
+    /// bounded, so there is nothing for a bound to constrain.
+    /// @param newMin Lower bound for every peg-in scalar field
+    /// @param newMax Upper bound for every peg-in scalar field
+    // solhint-disable-next-line comprehensive-interface
+    function queueBoundsChange(PegConfiguration calldata newMin, PegConfiguration calldata newMax)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        _validateBoundsPair(newMin, newMax);
+
+        FlyoverConfigurationsBounds storage bounds = _getBounds();
+        uint256 eta = block.timestamp + bounds.timelockDelay;
+        bounds.pendingMin = newMin;
+        bounds.pendingMax = newMax;
+        bounds.pendingEta = eta;
+        emit BoundsChangeQueued(newMin, newMax, eta);
+    }
+
+    /// @notice Activates the queued bounds change, the second step of the time-locked admin
+    /// change. Admin-only.
+    /// @dev Reverts before the delay has elapsed, and reverts when nothing is queued.
+    ///
+    /// Bounds that the active configuration does not satisfy are rejected rather than accepted
+    /// as forward-only constraints. The alternative would leave `getPegInConfiguration` returning
+    /// values `getPegInConfigurationBounds` declares illegal, and no reader could tell whether
+    /// the pair it just read was consistent. Rejecting keeps one invariant that holds at every
+    /// block and needs no qualification: the active configuration is always within the active
+    /// bounds. The admin's remedy for a tightening that excludes the active configuration is to
+    /// move the configuration into the new range first (itself time-locked, and runnable during
+    /// this change's delay), then apply the bounds. Widening — the case this feature exists for —
+    /// is never blocked by this rule.
+    // solhint-disable-next-line comprehensive-interface
+    function applyBoundsChange() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        FlyoverConfigurationsBounds storage bounds = _getBounds();
+        uint256 eta = bounds.pendingEta;
+        if (eta == 0) revert NoQueuedBoundsChange();
+        if (block.timestamp < eta) revert TimelockNotElapsed(eta, block.timestamp);
+
+        // Re-validate at apply time for the same reason applyChange does: the queued pair must
+        // still be well-formed when it lands, not only when it was queued.
+        _validateBoundsPair(bounds.pendingMin, bounds.pendingMax);
+        _checkActiveConfigFits(bounds.pendingMin, bounds.pendingMax);
+
+        // Storage-to-storage deep copies (the memory-to-storage form is not supported for the
+        // nested ConfirmationTier[] array).
+        bounds.min = bounds.pendingMin;
+        bounds.max = bounds.pendingMax;
+        PegConfiguration memory newMin = bounds.min;
+        PegConfiguration memory newMax = bounds.max;
+        delete bounds.pendingMin;
+        delete bounds.pendingMax;
+        bounds.pendingEta = 0;
+        emit BoundsChangeApplied(newMin, newMax);
     }
 
     /// @inheritdoc IFlyoverConfigurations
@@ -173,7 +276,9 @@ contract FlyoverConfigurations is
         return _requiredConfirmations(_getStorage().activePegIn, amount);
     }
 
-    /// @notice Returns the immutable deployment bounds every queued change is validated against.
+    /// @notice Returns the active bounds every queued configuration change is validated against.
+    /// @dev Seeded at deployment; changed only through {queueBoundsChange} / {applyBoundsChange}.
+    /// The active configuration is always within the pair returned here.
     /// @return min The lower bound for every peg-in scalar field
     /// @return max The upper bound for every peg-in scalar field
     // solhint-disable-next-line comprehensive-interface
@@ -184,6 +289,20 @@ contract FlyoverConfigurations is
     {
         FlyoverConfigurationsBounds storage bounds = _getBounds();
         return (bounds.min, bounds.max);
+    }
+
+    /// @notice Returns the queued bounds change and its activation time.
+    /// @return min The queued lower bounds (zeroed when nothing is queued)
+    /// @return max The queued upper bounds (zeroed when nothing is queued)
+    /// @return eta The earliest activation timestamp; `0` means no bounds change is queued
+    // solhint-disable-next-line comprehensive-interface
+    function getPendingBoundsChange()
+        external
+        view
+        returns (PegConfiguration memory min, PegConfiguration memory max, uint256 eta)
+    {
+        FlyoverConfigurationsBounds storage bounds = _getBounds();
+        return (bounds.pendingMin, bounds.pendingMax, bounds.pendingEta);
     }
 
     /// @notice Returns the queued configuration change and its activation time.
@@ -233,7 +352,7 @@ contract FlyoverConfigurations is
         return tiers[length - 1].confirmations;
     }
 
-    /// @dev Validates a full config against the immutable bounds and the structural invariants:
+    /// @dev Validates a full config against the active bounds and the structural invariants:
     /// every scalar within [min, max], minAmount <= maxAmount, percentageFee <= 10_000, and the
     /// confirmation tiers non-empty and strictly ascending by maxAmount. The tier array itself is
     /// only ordering/non-emptiness checked; it is not min/max-bounded.
@@ -261,9 +380,55 @@ contract FlyoverConfigurations is
         _validateTiers(config.confirmationTiers);
     }
 
+    /// @dev Enforces the invariant that makes the bounds readable at all: the active
+    /// configuration lies within the active bounds. Called before a bounds change lands, so a
+    /// pair that would strand the live configuration outside it is rejected instead of applied.
+    /// See {applyBoundsChange} for why rejecting beats accepting it as a forward-only constraint.
+    function _checkActiveConfigFits(PegConfiguration memory min, PegConfiguration memory max)
+        private
+        view
+    {
+        PegConfiguration storage active = _getStorage().activePegIn;
+        _checkActiveField(Field.FixedFee, active.fixedFee, min.fixedFee, max.fixedFee);
+        _checkActiveField(
+            Field.PercentageFee,
+            active.percentageFee,
+            min.percentageFee,
+            max.percentageFee
+        );
+        _checkActiveField(Field.MinAmount, active.minAmount, min.minAmount, max.minAmount);
+        _checkActiveField(Field.MaxAmount, active.maxAmount, min.maxAmount, max.maxAmount);
+    }
+
     function _checkBound(Field field, uint256 value, uint256 minV, uint256 maxV) private pure {
         if (value < minV || value > maxV) {
             revert ConfigValueOutOfBounds(field, value, minV, maxV);
+        }
+    }
+
+    /// @dev A bounds pair is well-formed when no field inverts, i.e. `min <= max` on all four
+    /// scalars. An inverted field admits no value at all, which would wedge every future
+    /// configuration change. `confirmationTiers` carries no bound and is not inspected.
+    function _validateBoundsPair(PegConfiguration memory min, PegConfiguration memory max)
+        private
+        pure
+    {
+        _checkPairOrdered(Field.FixedFee, min.fixedFee, max.fixedFee);
+        _checkPairOrdered(Field.PercentageFee, min.percentageFee, max.percentageFee);
+        _checkPairOrdered(Field.MinAmount, min.minAmount, max.minAmount);
+        _checkPairOrdered(Field.MaxAmount, min.maxAmount, max.maxAmount);
+    }
+
+    function _checkPairOrdered(Field field, uint256 minV, uint256 maxV) private pure {
+        if (minV > maxV) revert InvalidBounds(field, minV, maxV);
+    }
+
+    function _checkActiveField(Field field, uint256 value, uint256 minV, uint256 maxV)
+        private
+        pure
+    {
+        if (value < minV || value > maxV) {
+            revert ActiveConfigOutsideNewBounds(field, value, minV, maxV);
         }
     }
 

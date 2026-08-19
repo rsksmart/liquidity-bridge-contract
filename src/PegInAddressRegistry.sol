@@ -42,8 +42,7 @@ contract PegInAddressRegistry is
     uint256 public constant MIN_DEPOSIT_SATS = 546;
 
     /// @notice Minimum BTC confirmations required for a deposit proof to gate registration.
-    /// @dev Walkthrough step 8 / D8 and the S3.2 ticket require confirmations ≥ 1. Named so
-    /// the floor can be raised without hunting magic numbers.
+    /// @dev Named so the floor can be raised without hunting magic numbers.
     int256 public constant MIN_CONFIRMATIONS = 1;
 
     /// @notice Maximum batch size for `getPegInAddresses`.
