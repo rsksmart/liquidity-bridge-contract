@@ -6,15 +6,14 @@ pragma solidity 0.8.25;
 /// BTC deposit is the only commitment, and liquidity providers compete to serve it by
 /// fronting RBTC (requestPegIn) and later settling against the bridge (resolvePegIn).
 /// PegInContract implements this surface next to the untouched quote flow.
-/// @dev Walkthrough (WALKTHROUGH-pegin.md) anchors: steps 11-14, decisions D9-D12. This
-/// interface is frozen (S0): any change to it is a cross-lane ABI event, not a side effect
-/// of another task.
+/// @dev This interface is frozen (S0): any change to it is a cross-lane ABI event, not a
+/// side effect of another task.
 interface IPegInCommitFirst {
     /// @notice Emitted when a peg-in is claimed and the user is paid, in the same
     /// transaction
     /// @dev Event fields and indexing are ABI, so they freeze here. callSuccess is always
     /// true this sprint (plain transfers only); it exists for the sprint-2 contract-call
-    /// delivery path (exception A8). Walkthrough anchors: steps 11-12.
+    /// delivery path.
     /// @param pegInId The id under which the claim was recorded
     /// @param claimer The account that fronted the RBTC and holds the claim
     /// @param rskAddr The RSK destination address that received the funds
@@ -34,10 +33,9 @@ interface IPegInCommitFirst {
     /// @notice Emitted when a peg-in is settled against the bridge and the released funds
     /// are distributed
     /// @dev The closing event of the peg-in lifecycle (PegInRequested opens it) and the
-    /// durable record of the step 14 distribution: the registry zeroes its registrant slot
+    /// durable record of settlement distribution: the registry zeroes its registrant slot
     /// after the first-peg-in payout, so the fee payment survives only here. Also the only
     /// signal of the slow rail (claimer == address(0)): no claim event ever fired for it.
-    /// Walkthrough anchors: steps 13c-14, decision D12.
     /// @param pegInId The id of the settled peg-in
     /// @param claimer The claimer repaid from the claim record; address(0) on the unclaimed
     /// slow rail, where the whole amount goes to the user
@@ -48,7 +46,7 @@ interface IPegInCommitFirst {
     /// fee), in wei; 0 when unclaimed
     /// @param registrantFee The registrant fee paid, in wei; 0 when none was paid
     /// @param userPayout The amount forwarded to the destination address (the over-limit
-    /// excess of exception A7, or the full settled amount on the slow rail), in wei
+    /// excess, or the full settled amount on the slow rail), in wei
     event PegInResolved(
         bytes32 indexed pegInId,
         address indexed claimer,
@@ -62,13 +60,11 @@ interface IPegInCommitFirst {
     /// @notice Reverts requestPegIn when the peg-in already has a claimer
     /// @dev First check in the function, so the loser of a claim race burns minimal gas. The
     /// deposit txid is hashed out of the raw transaction before it, because the id is keyed on
-    /// that txid; nothing else runs ahead of it. Walkthrough anchors: decisions D10-D11,
-    /// exception A1.
+    /// that txid; nothing else runs ahead of it.
     /// @param pegInId The id of the already-claimed peg-in
     error PegInAlreadyProcessed(bytes32 pegInId);
 
     /// @notice Reverts requestPegIn when the destination address has no registration record
-    /// @dev Walkthrough anchors: step 11, exception A5.
     /// @param rskAddr The unregistered RSK destination address
     error AddressNotRegistered(address rskAddr);
 
@@ -79,14 +75,11 @@ interface IPegInCommitFirst {
     /// Without it any confirmed txid pairs with any registered destination, so a dust claim
     /// locks the real depositor out under PegInAlreadyProcessed. Same rule the registry
     /// enforces at registration, through the same shared helper.
-    /// Walkthrough anchors: step 11, exception A1.
     /// @param rskAddr The destination address whose derived deposit output was not found
     /// @param btcTxHash The hash of the presented transaction
     error DepositOutputNotFound(address rskAddr, bytes32 btcTxHash);
 
     /// @notice Reverts requestPegIn when the deposit amount is below the configured minimum
-    /// @dev `amount` is the value read from the deposit output, in wei. `minAmount` is
-    /// `getPegInConfiguration().minAmount`, in wei. Walkthrough exception A4.
     /// @param amount The peg-in amount read from the deposit, in wei
     /// @param minAmount The configured Flyover minimum, in wei
     error PegInBelowMinimum(uint256 amount, uint256 minAmount);
@@ -95,14 +88,12 @@ interface IPegInCommitFirst {
     /// configuration requires for its amount
     /// @dev The amount driving the tier lookup is the one read off the deposit output, so
     /// understating a large deposit to buy the low tier is not expressible.
-    /// Walkthrough anchor: step 11.
     /// @param have The confirmations the bridge reports
     /// @param required The confirmations the active configuration requires
     error InsufficientConfirmations(uint256 have, uint256 required);
 
     /// @notice Reverts requestPegIn when msg.value does not equal the amount minus the fee
     /// @dev The credential is capital: there is no LP-only gate and no signature.
-    /// Walkthrough anchors: step 11, decision D9.
     /// @param expected The required msg.value (amount minus fee), in wei
     /// @param actual The msg.value sent, in wei
     error IncorrectFronting(uint256 expected, uint256 actual);
@@ -121,8 +112,6 @@ interface IPegInCommitFirst {
     /// argument is accepted and ignored this sprint (plain transfers only; contract-call
     /// delivery lands in sprint 2). Check order: witness strip → already processed → deps →
     /// unregistered → deposit output → below minimum → confirmations → fronting.
-    /// Walkthrough anchors: step 11 (the checks), step 12,
-    /// "Why record the claim at requestPegIn time?", decisions D9-D11.
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param btcTxSerialized The witness-stripped raw BTC deposit transaction
     /// @param opReturn The OP_RETURN payload of the deposit, if any (ignored this sprint)
@@ -147,8 +136,7 @@ interface IPegInCommitFirst {
     /// @dev Takes no registrant parameter: settlement reads the registrant from registry
     /// storage, never from a caller-supplied argument, so resolving someone else's peg-in
     /// redirects nothing. The bridge pays the contract (shouldTransferToContract = true) and
-    /// the contract distributes from storage. Walkthrough anchors: steps 13c-14, decision
-    /// D12; the missing registrant parameter settles the walkthrough's 13c pending decision.
+    /// the contract distributes from storage.
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param btcTxHash The hash of the BTC deposit transaction
     /// @param btcRawTransaction The raw witness-stripped deposit transaction
