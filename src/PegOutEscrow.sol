@@ -244,13 +244,13 @@ contract PegOutEscrow is
         if (block.timestamp <= q.depositDateLimit) {
             revert ClaimWindowOpen(q.depositDateLimit);
         }
+        if (address($.collateralManagement) == address(0)) revert CollateralManagementNotSet();
 
         uint256 payout = q.value + q.callFee + q.gasFee;
         _terminate($, requestHash, EscrowedPegOutState.REFUNDED);
         emit PegOutRefundedOnNoClaim(requestHash, q.rskRefundAddress, payout);
 
         // If globalSlash reverts (stub / missing role / no eligible LPs), user still refunded.
-        if (address($.collateralManagement) == address(0)) revert CollateralManagementNotSet();
         try $.collateralManagement.globalSlash(q.penaltyFee) {}
         catch {
             emit GlobalSlashSkipped(requestHash);
