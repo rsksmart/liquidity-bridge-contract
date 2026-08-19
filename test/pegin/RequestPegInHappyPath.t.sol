@@ -113,6 +113,39 @@ contract RequestPegInHappyPathTest is RequestPegInTestBase {
         );
     }
 
+    function test_minAmount_immutableAfterConfigRaise() public {
+        uint256 amount = DEFAULT_AMOUNT;
+        uint256 expectedNet = amount - _expectedFee(amount);
+        bytes memory btcTx = _defaultTx();
+        bytes32 pegInId = _pegInIdForTx(rskUser, btcTx);
+
+        _requestPegInTx(claimer, rskUser, btcTx, expectedNet);
+
+        (
+            address claimerAddrBefore,
+            uint256 frontedBefore,
+            uint256 feeBefore,
+            uint256 requestBlockBefore
+        ) = _readClaim(pegInId);
+
+        configurations.setAmountBounds(DEFAULT_AMOUNT + 1, DEFAULT_MAX_AMOUNT);
+
+        (
+            address claimerAddrAfter,
+            uint256 frontedAfter,
+            uint256 feeAfter,
+            uint256 requestBlockAfter
+        ) = _readClaim(pegInId);
+        assertEq(claimerAddrAfter, claimerAddrBefore, "claimer unchanged");
+        assertEq(frontedAfter, frontedBefore, "frontedAmount unchanged");
+        assertEq(feeAfter, feeBefore, "feeAtClaim unchanged");
+        assertEq(
+            requestBlockAfter,
+            requestBlockBefore,
+            "requestBlock unchanged"
+        );
+    }
+
     /// @notice The amount is read off the deposit output, so a caller who wants a different
     /// amount has to present a different deposit. Two deposits of different sizes, claimed with
     /// nothing but the transaction changing, produce two different peg-in amounts.

@@ -349,6 +349,10 @@ contract PegInContract is
             revert AddressNotRegistered(rskAddr);
         }
         uint256 amount = _readPegInAmount(rskAddr, btcTxSerialized, btcTxHash);
+        uint256 minAmount = _configurations.getPegInConfiguration().minAmount;
+        if (amount < minAmount) {
+            revert PegInBelowMinimum(amount, minAmount);
+        }
         _requirePegInConfirmations(amount, btcTxHash, btcBlockHash, merkleBranchPath, merkleBranchHashes);
 
         uint256 fee = _configurations.calculatePegInFee(amount);

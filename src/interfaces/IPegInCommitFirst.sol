@@ -10,7 +10,6 @@ pragma solidity 0.8.25;
 /// interface is frozen (S0): any change to it is a cross-lane ABI event, not a side effect
 /// of another task.
 interface IPegInCommitFirst {
-
     /// @notice Emitted when a peg-in is claimed and the user is paid, in the same
     /// transaction
     /// @dev Event fields and indexing are ABI, so they freeze here. callSuccess is always
@@ -85,6 +84,13 @@ interface IPegInCommitFirst {
     /// @param btcTxHash The hash of the presented transaction
     error DepositOutputNotFound(address rskAddr, bytes32 btcTxHash);
 
+    /// @notice Reverts requestPegIn when the deposit amount is below the configured minimum
+    /// @dev `amount` is the value read from the deposit output, in wei. `minAmount` is
+    /// `getPegInConfiguration().minAmount`, in wei. Walkthrough exception A4.
+    /// @param amount The peg-in amount read from the deposit, in wei
+    /// @param minAmount The configured Flyover minimum, in wei
+    error PegInBelowMinimum(uint256 amount, uint256 minAmount);
+
     /// @notice Reverts requestPegIn when the deposit lacks the confirmations the
     /// configuration requires for its amount
     /// @dev The amount driving the tier lookup is the one read off the deposit output, so
@@ -113,7 +119,9 @@ interface IPegInCommitFirst {
     /// the claimer, the fronted amount, and the fee at claim time, because the configuration
     /// can change before settlement pays the claimer back (~17 hours later). The opReturn
     /// argument is accepted and ignored this sprint (plain transfers only; contract-call
-    /// delivery lands in sprint 2). Walkthrough anchors: step 11 (the checks), step 12,
+    /// delivery lands in sprint 2). Check order: witness strip → already processed → deps →
+    /// unregistered → deposit output → below minimum → confirmations → fronting.
+    /// Walkthrough anchors: step 11 (the checks), step 12,
     /// "Why record the claim at requestPegIn time?", decisions D9-D11.
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param btcTxSerialized The witness-stripped raw BTC deposit transaction
