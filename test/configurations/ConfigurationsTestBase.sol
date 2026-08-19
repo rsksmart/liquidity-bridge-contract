@@ -28,7 +28,7 @@ abstract contract ConfigurationsTestBase is Test {
     uint256 internal constant SEED_MIN_AMOUNT = 0.001 ether;
     uint256 internal constant SEED_MAX_AMOUNT = 100 ether;
 
-    // --- immutable deployment bounds ---
+    // --- seed bounds, written at deployment ---
     // fixedFee lower bound IS the 2·D security floor; no queued change may drop below it.
     uint256 internal constant BOUND_MIN_FIXED_FEE = 100 * SAT;
     uint256 internal constant BOUND_MAX_FIXED_FEE = 1 ether;
@@ -40,6 +40,18 @@ abstract contract ConfigurationsTestBase is Test {
     uint256 internal constant BOUND_MAX_MIN_AMOUNT = 1 ether;
     uint256 internal constant BOUND_MIN_MAX_AMOUNT = 0;
     uint256 internal constant BOUND_MAX_MAX_AMOUNT = 10_000 ether;
+
+    // --- widened bounds, for the bounds-change tests ---
+    // Chosen to strictly contain both the current bounds and the seed config, so applying them
+    // is always legal and the widening is observable (values the old bounds rejected pass).
+    uint256 internal constant WIDE_MIN_FIXED_FEE = 50 * SAT;
+    uint256 internal constant WIDE_MAX_FIXED_FEE = 2 ether;
+    uint256 internal constant WIDE_MIN_PCT = 0;
+    uint256 internal constant WIDE_MAX_PCT = 30_000;
+    uint256 internal constant WIDE_MIN_MIN_AMOUNT = 0;
+    uint256 internal constant WIDE_MAX_MIN_AMOUNT = 2 ether;
+    uint256 internal constant WIDE_MIN_MAX_AMOUNT = 0;
+    uint256 internal constant WIDE_MAX_MAX_AMOUNT = 20_000 ether;
 
     // --- peg-out seed / bounds ---
     uint256 internal constant SEED_PENALTY_FEE = 0.01 ether;
@@ -68,6 +80,10 @@ abstract contract ConfigurationsTestBase is Test {
     // ERC-7201 base slot of the mutable namespace `rsk.flyover.FlyoverConfigurations`.
     bytes32 internal constant STORAGE_SLOT =
         0x13aa2a37a5354fe7c5dcced2a6c33933ec66091f98f22792660cd2862f158700;
+
+    // ERC-7201 base slot of the bounds namespace `rsk.flyover.FlyoverConfigurations.bounds`.
+    bytes32 internal constant BOUNDS_SLOT =
+        0x62f8e0a1022a246e45081dab13f708870be3f38423627ed9d784f6bc5369e500;
 
     // ERC-7201 base slot of `rsk.flyover.FlyoverConfigurations.pegOut`.
     bytes32 internal constant PEGOUT_STORAGE_SLOT =
@@ -198,6 +214,63 @@ abstract contract ConfigurationsTestBase is Test {
         c = _altConfig();
         vm.prank(owner);
         config.queueChange(c);
+    }
+
+    // ------------------------------------------------------------------ bounds-change helpers
+
+    /// @notice Widened lower bounds: strictly below the deployment min on every field.
+    function _wideMin()
+        internal
+        pure
+        returns (IFlyoverConfigurations.PegConfiguration memory c)
+    {
+        c.fixedFee = WIDE_MIN_FIXED_FEE;
+        c.percentageFee = WIDE_MIN_PCT;
+        c.minAmount = WIDE_MIN_MIN_AMOUNT;
+        c.maxAmount = WIDE_MIN_MAX_AMOUNT;
+        c.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
+    }
+
+    /// @notice Widened upper bounds: strictly above the deployment max on every field.
+    function _wideMax()
+        internal
+        pure
+        returns (IFlyoverConfigurations.PegConfiguration memory c)
+    {
+        c.fixedFee = WIDE_MAX_FIXED_FEE;
+        c.percentageFee = WIDE_MAX_PCT;
+        c.minAmount = WIDE_MAX_MIN_AMOUNT;
+        c.maxAmount = WIDE_MAX_MAX_AMOUNT;
+        c.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
+    }
+
+    /// @notice Convenience: queue the widened bounds as the admin.
+    function _queueWideBounds() internal {
+        vm.prank(owner);
+        config.queueBoundsChange(_wideMin(), _wideMax());
+    }
+
+    /// @notice Queue a bounds pair as the admin, wait the delay, and apply it.
+    function _applyBounds(
+        IFlyoverConfigurations.PegConfiguration memory min,
+        IFlyoverConfigurations.PegConfiguration memory max
+    ) internal {
+        vm.prank(owner);
+        config.queueBoundsChange(min, max);
+        vm.warp(block.timestamp + TIMELOCK_DELAY);
+        vm.prank(owner);
+        config.applyBoundsChange();
+    }
+
+    /// @notice Queue a configuration as the admin, wait the delay, and apply it.
+    function _applyConfig(
+        IFlyoverConfigurations.PegConfiguration memory c
+    ) internal {
+        vm.prank(owner);
+        config.queueChange(c);
+        vm.warp(block.timestamp + TIMELOCK_DELAY);
+        vm.prank(owner);
+        config.applyChange();
     }
 
     function _seedPegOutConfig()
