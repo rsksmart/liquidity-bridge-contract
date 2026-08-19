@@ -457,20 +457,6 @@ contract FlyoverConfigurations is
         return (pegOut.pending, pegOut.pendingEta);
     }
 
-    /// @dev fee = fixedFee + amount * percentageFee / 10_000, then rounded DOWN to a satoshi
-    /// boundary (mirrors `Quotes.checkAgreedAmount`), so on-chain fees agree with the bridge.
-    function _calculateFee(uint256 fixedFee, uint256 percentageFee, uint256 amount)
-        private
-        pure
-        returns (uint256)
-    {
-        uint256 fee = fixedFee + (amount * percentageFee) / FEE_PERCENTAGE_DENOMINATOR;
-        if (fee > SAT_TO_WEI_CONVERSION && (fee % SAT_TO_WEI_CONVERSION) != 0) {
-            fee -= (fee % SAT_TO_WEI_CONVERSION);
-        }
-        return fee;
-    }
-
     /// @dev Returns the confirmations of the first tier whose maxAmount covers the amount. If the
     /// amount exceeds every tier, returns the highest (last) tier's confirmations, the most
     /// conservative answer. Tiers are kept strictly ascending, so the first match is the tightest.
@@ -481,6 +467,8 @@ contract FlyoverConfigurations is
     {
         uint256 length = tiers.length;
         for (uint256 i = 0; i < length; ++i) {
+            // Inclusive tier bound: amount in (prev.max, this.max].
+            // solhint-disable-next-line gas-strict-inequalities
             if (amount <= tiers[i].maxAmount) {
                 return tiers[i].confirmations;
             }
@@ -536,6 +524,56 @@ contract FlyoverConfigurations is
         _checkActiveField(Field.MaxAmount, active.maxAmount, min.maxAmount, max.maxAmount);
     }
 
+    function _validatePegOutConfig(PegOutConfiguration memory config) private view {
+        PegOutConfigurationsStorage storage pegOut = _getPegOutStorage();
+        PegOutConfiguration storage minB = pegOut.minBound;
+        PegOutConfiguration storage maxB = pegOut.maxBound;
+
+        _checkBound(Field.FixedFee, config.fixedFee, minB.fixedFee, maxB.fixedFee);
+        _checkBound(Field.PercentageFee, config.percentageFee, minB.percentageFee, maxB.percentageFee);
+        _checkBound(Field.MinAmount, config.minAmount, minB.minAmount, maxB.minAmount);
+        _checkBound(Field.MaxAmount, config.maxAmount, minB.maxAmount, maxB.maxAmount);
+        _checkBound(Field.PenaltyFee, config.penaltyFee, minB.penaltyFee, maxB.penaltyFee);
+        _checkBound(Field.ClaimWindow, config.claimWindow, minB.claimWindow, maxB.claimWindow);
+        _checkBound(
+            Field.ClaimWindowBlocks, config.claimWindowBlocks, minB.claimWindowBlocks, maxB.claimWindowBlocks
+        );
+        _checkBound(Field.CallTime, config.callTime, minB.callTime, maxB.callTime);
+        _checkBound(Field.ExpireTime, config.expireTime, minB.expireTime, maxB.expireTime);
+        _checkBound(Field.ExpireBlocks, config.expireBlocks, minB.expireBlocks, maxB.expireBlocks);
+        _checkBound(Field.MaxMinerFee, config.maxMinerFee, minB.maxMinerFee, maxB.maxMinerFee);
+
+        if (config.percentageFee > FEE_PERCENTAGE_DENOMINATOR) {
+            revert InvalidPercentageFee(config.percentageFee);
+        }
+        if (config.minAmount > config.maxAmount) {
+            revert InvalidAmountLimits(config.minAmount, config.maxAmount);
+        }
+        if (config.claimWindow == 0 || config.callTime == 0 || config.expireTime == 0) {
+            revert InvalidPegOutDeadlines();
+        }
+        _validateTiers(config.confirmationTiers);
+    }
+
+    function _requirePegOutInitialized() private view {
+        // solhint-disable-next-line gas-strict-inequalities
+        if (_getInitializedVersion() < 2) revert PegOutNotInitialized();
+    }
+
+    /// @dev fee = fixedFee + amount * percentageFee / 10_000, then rounded DOWN to a satoshi
+    /// boundary (mirrors `Quotes.checkAgreedAmount`), so on-chain fees agree with the bridge.
+    function _calculateFee(uint256 fixedFee, uint256 percentageFee, uint256 amount)
+        private
+        pure
+        returns (uint256)
+    {
+        uint256 fee = fixedFee + (amount * percentageFee) / FEE_PERCENTAGE_DENOMINATOR;
+        if (fee > SAT_TO_WEI_CONVERSION && (fee % SAT_TO_WEI_CONVERSION) != 0) {
+            fee -= (fee % SAT_TO_WEI_CONVERSION);
+        }
+        return fee;
+    }
+
     function _checkBound(Field field, uint256 value, uint256 minV, uint256 maxV) private pure {
         if (value < minV || value > maxV) {
             revert ConfigValueOutOfBounds(field, value, minV, maxV);
@@ -572,44 +610,10 @@ contract FlyoverConfigurations is
         uint256 length = tiers.length;
         if (length == 0) revert EmptyTiers();
         for (uint256 i = 1; i < length; ++i) {
+            // Strictly ascending maxAmount (equal or lower is invalid).
+            // solhint-disable-next-line gas-strict-inequalities
             if (tiers[i].maxAmount <= tiers[i - 1].maxAmount) revert TiersNotAscending();
         }
-    }
-
-    function _validatePegOutConfig(PegOutConfiguration memory config) private view {
-        PegOutConfigurationsStorage storage pegOut = _getPegOutStorage();
-        PegOutConfiguration storage minB = pegOut.minBound;
-        PegOutConfiguration storage maxB = pegOut.maxBound;
-
-        _checkBound(Field.FixedFee, config.fixedFee, minB.fixedFee, maxB.fixedFee);
-        _checkBound(Field.PercentageFee, config.percentageFee, minB.percentageFee, maxB.percentageFee);
-        _checkBound(Field.MinAmount, config.minAmount, minB.minAmount, maxB.minAmount);
-        _checkBound(Field.MaxAmount, config.maxAmount, minB.maxAmount, maxB.maxAmount);
-        _checkBound(Field.PenaltyFee, config.penaltyFee, minB.penaltyFee, maxB.penaltyFee);
-        _checkBound(Field.ClaimWindow, config.claimWindow, minB.claimWindow, maxB.claimWindow);
-        _checkBound(
-            Field.ClaimWindowBlocks, config.claimWindowBlocks, minB.claimWindowBlocks, maxB.claimWindowBlocks
-        );
-        _checkBound(Field.CallTime, config.callTime, minB.callTime, maxB.callTime);
-        _checkBound(Field.ExpireTime, config.expireTime, minB.expireTime, maxB.expireTime);
-        _checkBound(Field.ExpireBlocks, config.expireBlocks, minB.expireBlocks, maxB.expireBlocks);
-        _checkBound(Field.MaxMinerFee, config.maxMinerFee, minB.maxMinerFee, maxB.maxMinerFee);
-
-        if (config.percentageFee > FEE_PERCENTAGE_DENOMINATOR) {
-            revert InvalidPercentageFee(config.percentageFee);
-        }
-        if (config.minAmount > config.maxAmount) {
-            revert InvalidAmountLimits(config.minAmount, config.maxAmount);
-        }
-        if (config.claimWindow == 0 || config.callTime == 0 || config.expireTime == 0) {
-            revert InvalidPegOutDeadlines();
-        }
-        _validateTiers(config.confirmationTiers);
-    }
-
-    function _requirePegOutInitialized() private view {
-        // solhint-disable-next-line gas-strict-inequalities
-        if (_getInitializedVersion() < 2) revert PegOutNotInitialized();
     }
 
     function _getStorage() private pure returns (FlyoverConfigurationsStorage storage $) {

@@ -102,69 +102,28 @@ contract PegOutContract is
         bytes calldata signature
     ) external payable nonReentrant whenNotSoftPaused override {
         bool escrowPath = address(_pegOutEscrow) != address(0);
-        if (escrowPath) {
-            if (msg.sender != address(_pegOutEscrow)) {
-                revert OnlyPegOutEscrow(msg.sender);
-            }
+        if (escrowPath && msg.sender != address(_pegOutEscrow)) {
+            revert OnlyPegOutEscrow(msg.sender);
         }
-        if(!_collateralManagement.isCollateralSufficient(_PEG_TYPE, quote.lpRskAddress)) {
+        if (!_collateralManagement.isCollateralSufficient(_PEG_TYPE, quote.lpRskAddress)) {
             revert Flyover.ProviderNotRegistered(quote.lpRskAddress);
         }
+
         uint256 requiredAmount = quote.value + quote.callFee + quote.gasFee;
         if (msg.value < requiredAmount) {
             revert Flyover.InsufficientAmount(msg.value, requiredAmount);
         }
-        if (quote.depositDateLimit < block.timestamp || quote.expireDate < block.timestamp) {
-            revert QuoteExpiredByTime(quote.depositDateLimit, quote.expireDate);
-        }
-        if (quote.expireBlock < block.number) {
-            revert QuoteExpiredByBlocks(quote.expireBlock);
-        }
+        _requirePegOutDepositTiming(quote);
 
-        // EIP-712 over the completed quote (binds the LP). Storage key is the incomplete hash
-        // when escrow is wired so it matches the escrow request id / OP_RETURN payload.
         bytes32 eip712Hash = _hashPegOutQuoteEIP712(quote);
         if (!SignatureValidator.verify(quote.lpRskAddress, eip712Hash, signature)) {
             revert SignatureValidator.IncorrectSignature(quote.lpRskAddress, eip712Hash, signature);
         }
 
-        bytes32 quoteHash;
-        if (escrowPath) {
-            Quotes.PegOutQuote memory incomplete = quote;
-            incomplete.lpRskAddress = address(0);
-            quoteHash = _hashPegOutQuote(incomplete);
-            if (_pegOutEscrow.getPegOutState(quoteHash) != IPegOutEscrow.EscrowedPegOutState.CLAIMED) {
-                revert EscrowQuoteNotClaimed(quoteHash);
-            }
-        } else {
-            quoteHash = _hashPegOutQuote(quote);
-        }
-
-        Quotes.PegOutQuote storage registeredQuote = _pegOutQuotes[quoteHash];
-
-        if (_isQuoteCompleted(quoteHash)) {
-            revert QuoteAlreadyCompleted(quoteHash);
-        }
-        if (registeredQuote.lbcAddress != address(0)) {
-            revert QuoteAlreadyRegistered(quoteHash);
-        }
-
-        _pegOutQuotes[quoteHash] = quote;
-        _pegOutRegistry[quoteHash].depositTimestamp = block.timestamp;
-        _pegOutRegistry[quoteHash].depositBlock = block.number;
-
+        bytes32 quoteHash = _pegOutDepositStorageKey(quote, escrowPath);
+        _registerPegOutDeposit(quoteHash, quote);
         emit PegOutDeposit(quoteHash, msg.sender, block.timestamp, msg.value);
-
-        if (dustThreshold > msg.value - requiredAmount) {
-            return;
-        }
-
-        uint256 change = msg.value - requiredAmount;
-        emit PegOutChangePaid(quoteHash, quote.rskRefundAddress, change);
-        (bool sent, bytes memory reason) = quote.rskRefundAddress.call{value: change}("");
-        if (!sent) {
-            revert Flyover.PaymentFailed(quote.rskRefundAddress, change, reason);
-        }
+        _refundPegOutDepositChange(quoteHash, quote.rskRefundAddress, msg.value, requiredAmount);
     }
 
     /// @notice Wires the commit-first PegOutEscrow (only that address may call depositPegOut when set)
@@ -388,6 +347,61 @@ contract PegOutContract is
             _pegOutEscrow.onClaimFail(lp);
         }
         _pegOutEscrow.onSettlement(requestHash, finalState);
+    }
+
+    function _registerPegOutDeposit(bytes32 quoteHash, Quotes.PegOutQuote calldata quote) private {
+        if (_isQuoteCompleted(quoteHash)) {
+            revert QuoteAlreadyCompleted(quoteHash);
+        }
+        if (_pegOutQuotes[quoteHash].lbcAddress != address(0)) {
+            revert QuoteAlreadyRegistered(quoteHash);
+        }
+        _pegOutQuotes[quoteHash] = quote;
+        _pegOutRegistry[quoteHash].depositTimestamp = block.timestamp;
+        _pegOutRegistry[quoteHash].depositBlock = block.number;
+    }
+
+    function _refundPegOutDepositChange(
+        bytes32 quoteHash,
+        address refundAddress,
+        uint256 paid,
+        uint256 requiredAmount
+    ) private {
+        if (dustThreshold > paid - requiredAmount) {
+            return;
+        }
+        uint256 change = paid - requiredAmount;
+        emit PegOutChangePaid(quoteHash, refundAddress, change);
+        (bool sent, bytes memory reason) = refundAddress.call{value: change}("");
+        if (!sent) {
+            revert Flyover.PaymentFailed(refundAddress, change, reason);
+        }
+    }
+
+    function _requirePegOutDepositTiming(Quotes.PegOutQuote calldata quote) private view {
+        if (quote.depositDateLimit < block.timestamp || quote.expireDate < block.timestamp) {
+            revert QuoteExpiredByTime(quote.depositDateLimit, quote.expireDate);
+        }
+        if (quote.expireBlock < block.number) {
+            revert QuoteExpiredByBlocks(quote.expireBlock);
+        }
+    }
+
+    /// @dev EIP-712 binds the completed quote; storage / OP_RETURN use the incomplete hash when
+    /// escrow is wired (`lpRskAddress = 0`).
+    function _pegOutDepositStorageKey(
+        Quotes.PegOutQuote calldata quote,
+        bool escrowPath
+    ) private view returns (bytes32 quoteHash) {
+        if (!escrowPath) {
+            return _hashPegOutQuote(quote);
+        }
+        Quotes.PegOutQuote memory incomplete = quote;
+        incomplete.lpRskAddress = address(0);
+        quoteHash = _hashPegOutQuote(incomplete);
+        if (_pegOutEscrow.getPegOutState(quoteHash) != IPegOutEscrow.EscrowedPegOutState.CLAIMED) {
+            revert EscrowQuoteNotClaimed(quoteHash);
+        }
     }
 
     /// @notice This function is used to hash a peg out quote
