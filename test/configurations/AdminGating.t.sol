@@ -215,4 +215,134 @@ contract AdminGatingTest is ConfigurationsTestBase {
         );
         config.queueChange(c);
     }
+
+    // ============================================================ bounds changes (FLY-2523)
+
+    // ------------------------------------------------------------------ role gating
+
+    function test_queueBoundsChange_nonAdminReverts() public {
+        IFlyoverConfigurations.PegConfiguration memory min = _wideMin();
+        IFlyoverConfigurations.PegConfiguration memory max = _wideMax();
+        bytes memory err = _unauthorized(stranger);
+        vm.prank(stranger);
+        vm.expectRevert(err);
+        config.queueBoundsChange(min, max);
+    }
+
+    function test_applyBoundsChange_nonAdminReverts() public {
+        _queueWideBounds();
+        vm.warp(block.timestamp + TIMELOCK_DELAY);
+        bytes memory err = _unauthorized(stranger);
+        vm.prank(stranger);
+        vm.expectRevert(err);
+        config.applyBoundsChange();
+    }
+
+    function test_admin_canQueueAndApplyBounds() public {
+        _queueWideBounds();
+        vm.warp(block.timestamp + TIMELOCK_DELAY);
+        vm.prank(owner);
+        config.applyBoundsChange();
+        (IFlyoverConfigurations.PegConfiguration memory min, ) = config
+            .getPegInConfigurationBounds();
+        assertEq(min.fixedFee, WIDE_MIN_FIXED_FEE);
+    }
+
+    /// @notice There is no way to move a bound outside the time lock: no setter exists, so the
+    /// only two selectors that write the bounds namespace are the queue/apply pair.
+    function test_noPlainBoundsSetterExists() public {
+        // A single-step setter would be the obvious name; it must not be routable.
+        (bool ok, ) = address(config).call(
+            abi.encodeWithSignature(
+                "setPegInConfigurationBounds((uint256,uint256,uint256,uint256,(uint256,uint256)[]),"
+                "(uint256,uint256,uint256,uint256,(uint256,uint256)[]))",
+                _wideMin(),
+                _wideMax()
+            )
+        );
+        assertFalse(ok, "no single-step bounds setter may exist");
+    }
+
+    // ------------------------------------------------------ inverted pair, one case per field
+
+    function test_queueBoundsChange_invertedFixedFeeReverts() public {
+        IFlyoverConfigurations.PegConfiguration memory max = _boundsMax();
+        max.fixedFee = BOUND_MIN_FIXED_FEE - 1; // max below min
+        vm.prank(owner);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                FlyoverConfigurations.InvalidBounds.selector,
+                FlyoverConfigurations.Field.FixedFee,
+                BOUND_MIN_FIXED_FEE,
+                BOUND_MIN_FIXED_FEE - 1
+            )
+        );
+        config.queueBoundsChange(_boundsMin(), max);
+    }
+
+    function test_queueBoundsChange_invertedPercentageFeeReverts() public {
+        IFlyoverConfigurations.PegConfiguration memory min = _boundsMin();
+        min.percentageFee = BOUND_MAX_PCT + 1;
+        vm.prank(owner);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                FlyoverConfigurations.InvalidBounds.selector,
+                FlyoverConfigurations.Field.PercentageFee,
+                BOUND_MAX_PCT + 1,
+                BOUND_MAX_PCT
+            )
+        );
+        config.queueBoundsChange(min, _boundsMax());
+    }
+
+    function test_queueBoundsChange_invertedMinAmountReverts() public {
+        IFlyoverConfigurations.PegConfiguration memory min = _boundsMin();
+        min.minAmount = BOUND_MAX_MIN_AMOUNT + 1;
+        vm.prank(owner);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                FlyoverConfigurations.InvalidBounds.selector,
+                FlyoverConfigurations.Field.MinAmount,
+                BOUND_MAX_MIN_AMOUNT + 1,
+                BOUND_MAX_MIN_AMOUNT
+            )
+        );
+        config.queueBoundsChange(min, _boundsMax());
+    }
+
+    function test_queueBoundsChange_invertedMaxAmountReverts() public {
+        IFlyoverConfigurations.PegConfiguration memory min = _boundsMin();
+        min.maxAmount = BOUND_MAX_MAX_AMOUNT + 1;
+        vm.prank(owner);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                FlyoverConfigurations.InvalidBounds.selector,
+                FlyoverConfigurations.Field.MaxAmount,
+                BOUND_MAX_MAX_AMOUNT + 1,
+                BOUND_MAX_MAX_AMOUNT
+            )
+        );
+        config.queueBoundsChange(min, _boundsMax());
+    }
+
+    /// @notice min == max is a degenerate but well-formed pair: it pins the field to one value.
+    function test_queueBoundsChange_equalMinAndMaxAccepted() public {
+        IFlyoverConfigurations.PegConfiguration memory min = _boundsMin();
+        IFlyoverConfigurations.PegConfiguration memory max = _boundsMax();
+        min.fixedFee = SEED_FIXED_FEE;
+        max.fixedFee = SEED_FIXED_FEE;
+
+        vm.prank(owner);
+        config.queueBoundsChange(min, max);
+        vm.warp(block.timestamp + TIMELOCK_DELAY);
+        vm.prank(owner);
+        config.applyBoundsChange();
+
+        (
+            IFlyoverConfigurations.PegConfiguration memory activeMin,
+            IFlyoverConfigurations.PegConfiguration memory activeMax
+        ) = config.getPegInConfigurationBounds();
+        assertEq(activeMin.fixedFee, SEED_FIXED_FEE);
+        assertEq(activeMax.fixedFee, SEED_FIXED_FEE);
+    }
 }
