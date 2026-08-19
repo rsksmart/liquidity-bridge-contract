@@ -30,3 +30,7 @@ broadcast/**
 # solidity-coverage files
 /coverage
 /coverage.json
+
+# release-drift detection artifacts (scripts/check-release-drift.mjs)
+drift-report.md
+merge-status.json
