@@ -517,8 +517,8 @@ contract PegInContract is
         PegInClaim memory claim,
         uint256 released
     ) private {
-        uint256 registrantFeePaid;
-        address registrant;
+        uint256 registrantFeePaid = 0;
+        address registrant = address(0);
         if (!_registrantPaid[rskAddr]) {
             registrant = _pegInAddressRegistry
                 .getRegistration(rskAddr)
