@@ -28,22 +28,14 @@ interface IPegInCommitFirst {
         bool callSuccess
     );
 
-    /// @notice Emitted when a peg-in is settled against the bridge and the released funds
-    /// are distributed
-    /// @dev Closes the peg-in lifecycle opened by PegInRequested. The registry clears the
-    /// registrant slot after the first payout, so registrantFee here is the durable record.
-    /// claimer == address(0) marks the unclaimed slow rail (no PegInRequested was emitted).
-    /// @param pegInId The id of the settled peg-in
-    /// @param claimer The claimer repaid from the claim record; address(0) on the unclaimed
-    /// slow rail, where the whole amount goes to the user
-    /// @param registrant The registrant paid the registration fee; address(0) when no fee
-    /// was paid (already paid on an earlier peg-in, or unclaimed slow rail)
-    /// @param released The amount the bridge released to the contract, in wei
-    /// @param claimerPayout The claimer's payout (fronted advance plus the full service
-    /// fee), in wei; 0 when unclaimed
-    /// @param registrantFee The registrant fee paid, in wei; 0 when none was paid
-    /// @param userPayout The amount forwarded to the destination address (over-limit excess
-    /// or the full slow-rail amount), in wei
+    /// @notice Emitted when resolvePegIn credits balances after a positive bridge return
+    /// @param pegInId The settled peg-in id
+    /// @param claimer The claimer from the claim record
+    /// @param registrant The account credited the registrant fee; address(0) if none
+    /// @param released The amount the bridge released to this contract, in wei
+    /// @param claimerPayout frontedAmount + feeAtClaim - registrantFee, in wei
+    /// @param registrantFee Amount credited to registrant this call, in wei; 0 if none
+    /// @param userPayout 0
     event PegInResolved(
         bytes32 indexed pegInId,
         address indexed claimer,

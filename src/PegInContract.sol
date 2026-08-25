@@ -508,33 +508,36 @@ contract PegInContract is
         }
     }
 
-    /// @dev Credits claimer and registrant balances and emits PegInResolved after a positive bridge return.
+    /// @dev Credits claimerPayout to the claimer. On the first settle for rskAddr, may also
+    /// credit min(registrantFee, feeAtClaim) to the registered registrant and subtract that
+    /// from the claimer. Then marks the peg-in settled and emits PegInResolved.
     function _creditResolvedPegIn(
         bytes32 pegInId,
         address rskAddr,
         PegInClaim memory claim,
         uint256 released
     ) private {
-        uint256 registrantFeeConfig = _configurations
-            .getPegInConfiguration()
-            .registrantFee;
-        uint256 registrantFeePaid = _min(registrantFeeConfig, claim.feeAtClaim);
-        uint256 claimerPayout = claim.frontedAmount +
-            claim.feeAtClaim -
-            registrantFeePaid;
-
-        _increaseBalance(claim.claimer, claimerPayout);
-
-        address registrant = address(0);
+        uint256 registrantFeePaid;
+        address registrant;
         if (!_registrantPaid[rskAddr]) {
             registrant = _pegInAddressRegistry
                 .getRegistration(rskAddr)
                 .registrant;
-            if (registrantFeePaid > 0 && registrant != address(0)) {
+            uint256 feeDue = _min(
+                _configurations.getPegInConfiguration().registrantFee,
+                claim.feeAtClaim
+            );
+            if (feeDue > 0 && registrant != address(0)) {
+                registrantFeePaid = feeDue;
                 _increaseBalance(registrant, registrantFeePaid);
             }
             _registrantPaid[rskAddr] = true;
         }
+
+        uint256 claimerPayout = claim.frontedAmount +
+            claim.feeAtClaim -
+            registrantFeePaid;
+        _increaseBalance(claim.claimer, claimerPayout);
 
         _pegInSettled[pegInId] = true;
 

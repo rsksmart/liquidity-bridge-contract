@@ -25,12 +25,11 @@ contract ResolvePegInTest is ResolvePegInTestBase {
 
     function test_claimer_balance_after_resolve() public {
         bytes32 pegInId = _claimAndFund(rskUser, rawTx, bridgeRelease);
-        uint256 fee = _expectedFee(DEFAULT_AMOUNT);
         uint256 registrantFee = 1e14;
 
         _resolve(claimer, rskUser, rawTx);
 
-        assertEq(_balance(claimer), DEFAULT_AMOUNT - fee + fee - registrantFee);
+        assertEq(_balance(claimer), DEFAULT_AMOUNT - registrantFee);
         assertTrue(_isSettled(pegInId));
     }
 
@@ -45,9 +44,21 @@ contract ResolvePegInTest is ResolvePegInTestBase {
             DEFAULT_AMOUNT,
             DEFAULT_TX_NONCE + 1
         );
-        _claimAndFund(rskUser, rawTx2, bridgeRelease);
+        bytes32 pegInId2 = _claimAndFund(rskUser, rawTx2, bridgeRelease);
+        vm.expectEmit(true, true, true, true);
+        emit IPegInCommitFirst.PegInResolved(
+            pegInId2,
+            claimer,
+            address(0),
+            bridgeRelease,
+            DEFAULT_AMOUNT,
+            0,
+            0
+        );
         _resolve(claimer, rskUser, rawTx2);
         assertEq(_balance(registrant), 1e14);
+        assertEq(_balance(claimer), 2 * DEFAULT_AMOUNT - 1e14);
+        assertEq(_balance(claimer) + _balance(registrant), 2 * DEFAULT_AMOUNT);
     }
 
     function test_second_resolve_reverts_before_credit() public {
@@ -63,13 +74,7 @@ contract ResolvePegInTest is ResolvePegInTestBase {
             )
         );
         pegInContract.resolvePegIn(rskUser, rawTx, hex"00", 100);
-        assertEq(
-            _balance(claimer),
-            DEFAULT_AMOUNT -
-                _expectedFee(DEFAULT_AMOUNT) +
-                _expectedFee(DEFAULT_AMOUNT) -
-                1e14
-        );
+        assertEq(_balance(claimer), DEFAULT_AMOUNT - 1e14);
     }
 
     function test_third_party_caller_same_credits() public {
@@ -138,8 +143,7 @@ contract ResolvePegInTest is ResolvePegInTestBase {
 
     function test_event_fields_match_credits() public {
         bytes32 pegInId = _claimAndFund(rskUser, rawTx, bridgeRelease);
-        uint256 fee = _expectedFee(DEFAULT_AMOUNT);
-        uint256 claimerPayout = DEFAULT_AMOUNT - fee + fee - 1e14;
+        uint256 claimerPayout = DEFAULT_AMOUNT - 1e14;
         vm.expectEmit(true, true, true, true);
         emit IPegInCommitFirst.PegInResolved(
             pegInId,
