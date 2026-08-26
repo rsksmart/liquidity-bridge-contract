@@ -13,15 +13,19 @@ import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol"
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCodes.sol";
 
+/// @title PegInAddressRegistry derivation / fixture / init tests
 contract DerivationTest is PegInRegistryTestBase {
     address internal constant FIXTURE_RSK =
         0x0000000000000000000000000000000000000aBc;
-    /// @dev Per-network BTC placeholders change every byte of the deposit address, not only the version prefix.
+    /// @dev The two payloads no longer share a script hash: the BTC placeholders mixed into the
+    /// derivation are per-network (FLY-2521), so the mainnet address differs from the testnet one in
+    /// every byte, not just the version prefix. Pinned offline; see test/libraries/PegInDerivation.t.sol.
     bytes internal constant FIXTURE_TESTNET_ADDRESS =
         hex"c490a45e9bf80f1a2d9aac68ef224d929bb9b507d8545026ec";
     bytes internal constant FIXTURE_MAINNET_ADDRESS =
         hex"05ed4761212ddb2ff1ac15a2d401a32baeaa4bbabfdb51b9c1";
 
+    // R1 — deterministic derivation
     function test_derive_deterministic_same_rskAddr() public {
         _deploy(false);
         (bytes memory a1, ) = registry.getPegInAddress(FIXTURE_RSK);
@@ -29,6 +33,7 @@ contract DerivationTest is PegInRegistryTestBase {
         assertEq(a1, a2);
     }
 
+    // R2 — distinct addresses
     function test_derive_distinct_rskAddrs() public {
         _deploy(false);
         (bytes memory a, ) = registry.getPegInAddress(address(0x1111));
@@ -36,6 +41,7 @@ contract DerivationTest is PegInRegistryTestBase {
         assertTrue(keccak256(a) != keccak256(b));
     }
 
+    // R3 — network version bytes
     function test_testnet_prefix_0xC4() public {
         _deploy(false);
         (bytes memory addr, ) = registry.getPegInAddress(FIXTURE_RSK);
@@ -50,6 +56,7 @@ contract DerivationTest is PegInRegistryTestBase {
         assertEq(_addressVersionByte(addr), bytes1(0x05));
     }
 
+    // R4 — unset pegInContract
     function test_revert_when_pegInContract_unset() public {
         registry = _deployUnwired(false);
         vm.expectRevert(IPegInAddressRegistry.PegInContractNotSet.selector);
@@ -92,6 +99,7 @@ contract DerivationTest is PegInRegistryTestBase {
         registry.setPegInContract(address(0));
     }
 
+    // R5 — isRegistered
     function test_isRegistered_false_when_unseeded() public {
         _deploy(false);
         assertFalse(registry.isRegistered(FIXTURE_RSK));
@@ -103,6 +111,7 @@ contract DerivationTest is PegInRegistryTestBase {
         assertTrue(registry.isRegistered(FIXTURE_RSK));
     }
 
+    // R6 — getRegistration struct
     function test_getRegistration_returns_struct() public {
         _deploy(false);
         _seedRegistration(FIXTURE_RSK, stranger, uint96(99));
@@ -112,6 +121,7 @@ contract DerivationTest is PegInRegistryTestBase {
         assertEq(reg.registrationBlock, 99);
     }
 
+    // R8 — admin-only setPegInContract
     function test_setPegInContract_admin_only() public {
         _deploy(false);
         address newPegIn = address(0xDEAD);
@@ -132,11 +142,13 @@ contract DerivationTest is PegInRegistryTestBase {
         assertEq(registry.getPegInContract(), newPegIn);
     }
 
+    // R9 — getPegInContract
     function test_getPegInContract_returns_stored() public {
         _deploy(false);
         assertEq(registry.getPegInContract(), PEGIN_CONTRACT);
     }
 
+    // R10 — ERC-7201 namespace
     function test_storage_layout_erc7201() public pure {
         bytes32 expected = keccak256(
             abi.encode(
@@ -149,6 +161,7 @@ contract DerivationTest is PegInRegistryTestBase {
         );
     }
 
+    // R2 bounds — batch cap
     function test_batch_reverts_over_max() public {
         _deploy(false);
         address[] memory addrs = new address[](101);
@@ -198,6 +211,7 @@ contract DerivationTest is PegInRegistryTestBase {
         assertEq(batch[1], single1);
     }
 
+    // R11 — ABI artifacts exist after build (selector smoke)
     function test_abi_provenance_recorded() public {
         _deploy(false);
         assertEq(registry.VERSION(), "1.0.0");
@@ -240,7 +254,11 @@ contract DerivationTest is PegInRegistryTestBase {
         ok; // call is expected to revert via expectRevert
     }
 
-    /// @dev PegInDerivation uses P2SH-P2WSH wrapping, matching PegInContract.validatePegInDepositAddress.
+    // Wrapping pin — PegInDerivation wraps the flyover redeem script exactly the way
+    // PegInContract.validatePegInDepositAddress does: a P2SH commitment to the segwit witness
+    // program (HASH160 of OP_0 <32-byte sha256(redeemScript)>). The two paths still issue
+    // different deposit addresses because they embed different derivation values (registry:
+    // rskAddr mix; quote path: quote-hash mix).
     function test_derivation_wrapping_matches_pegin_contract() public {
         _deploy(false);
         bytes memory powpeg = bridge.getActivePowpegRedeemScript();

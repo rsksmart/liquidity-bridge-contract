@@ -31,6 +31,16 @@ import {Flyover} from "../../src/libraries/Flyover.sol";
 /// which puts a real deposit inside a real transaction and asserts the amount read back is that
 /// output's real value.
 contract RequestPegInRealTransactionsTest is RequestPegInTestBase {
+    /// @dev Real fixture outputs sit below the default test minAmount, so this suite
+    /// lowers the floor to 1 sat.
+    function setUp() public override {
+        super.setUp();
+        configurations.setAmountBounds(
+            Flyover.SAT_TO_WEI_CONVERSION,
+            DEFAULT_MAX_AMOUNT
+        );
+    }
+
     // ---- real transaction 1: mainnet Flyover deposit, 2 inputs, 2 P2SH outputs ----
 
     bytes32 private constant _TXID_2IN =

@@ -15,6 +15,10 @@ contract FlyoverConfigurationsMock is IFlyoverConfigurations {
     PegConfiguration private _config;
     PegConfiguration private _queued;
 
+    /// @notice Peg-out stubs only; real mock wiring lands with peg-out config tests.
+    /// @dev TODO: wire peg-out config storage and implement peg-out configuration methods
+    error PegOutNotImplemented();
+
     /// @notice Sets the fixed and percentage fee components directly
     function setFee(uint256 fixedFee, uint256 percentageFee) external {
         _config.fixedFee = fixedFee;
@@ -84,6 +88,40 @@ contract FlyoverConfigurationsMock is IFlyoverConfigurations {
     /// @inheritdoc IFlyoverConfigurations
     function applyChange() external override {
         _config = _queued;
+    }
+
+    /// @inheritdoc IFlyoverConfigurations
+    function getPegOutConfiguration()
+        external
+        view
+        override
+        returns (PegOutConfiguration memory)
+    {
+        revert PegOutNotImplemented();
+    }
+
+    /// @inheritdoc IFlyoverConfigurations
+    function calculatePegOutFee(
+        uint256
+    ) external view override returns (uint256) {
+        revert PegOutNotImplemented();
+    }
+
+    /// @inheritdoc IFlyoverConfigurations
+    function getRequiredPegOutBtcConfirmations(
+        uint256
+    ) external view override returns (uint256) {
+        revert PegOutNotImplemented();
+    }
+
+    /// @inheritdoc IFlyoverConfigurations
+    function queuePegOutChange(PegOutConfiguration calldata) external override {
+        revert PegOutNotImplemented();
+    }
+
+    /// @inheritdoc IFlyoverConfigurations
+    function applyPegOutChange() external override {
+        revert PegOutNotImplemented();
     }
 }
 /* solhint-enable comprehensive-interface */

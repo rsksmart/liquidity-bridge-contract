@@ -6,8 +6,12 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {FlyoverConfigurations} from "../../src/FlyoverConfigurations.sol";
 import {IFlyoverConfigurations} from "../../src/interfaces/IFlyoverConfigurations.sol";
 
-/// @dev Deploys FlyoverConfigurations behind an ERC1967 proxy with seed config, bounds, and
-/// a non-zero timelock delay. ERC1967 lets the owner call admin functions on the implementation.
+/// @title ConfigurationsTestBase
+/// @notice Shared setup for the FlyoverConfigurations suite (tests the S2.1 / FLY-2459 contract
+/// against the S0-frozen peg-in-only interface). Deploys the contract behind an ERC1967 proxy
+/// with a known seed config, explicit deployment bounds, and a non-zero time-lock delay.
+/// @dev ERC1967 (not Transparent) is used so `owner` can call admin functions directly; a
+/// TransparentUpgradeableProxy would route the admin's calls to the proxy admin, not the impl.
 abstract contract ConfigurationsTestBase is Test {
     // --- deployment params ---
     uint48 internal constant ADMIN_DELAY = 0;
@@ -26,7 +30,7 @@ abstract contract ConfigurationsTestBase is Test {
     uint256 internal constant SEED_REGISTRANT_FEE = 1000 * SAT;
 
     // --- seed bounds, written at deployment ---
-    // fixedFee lower bound is the security floor; no queued change may drop below it.
+    // fixedFee lower bound IS the 2·D security floor; no queued change may drop below it.
     uint256 internal constant BOUND_MIN_FIXED_FEE = 100 * SAT;
     uint256 internal constant BOUND_MAX_FIXED_FEE = 1 ether;
     uint256 internal constant BOUND_MIN_PCT = 0;

@@ -16,10 +16,10 @@ import {Flyover} from "./libraries/Flyover.sol";
 /// are seeded at deployment and are editable by the admin only through the same two-step time
 /// lock ({queueBoundsChange} / {applyBoundsChange}), so widening or tightening them is observable
 /// for a full delay before it can take effect and never needs a contract upgrade.
-/// @dev Implements the frozen {IFlyoverConfigurations} (peg-in only); its function signatures and
-/// structs are the shared ABI every consumer depends on, so they must not be changed here.
-/// Upgradeable, ERC-7201 namespaced storage, deployed behind a TransparentUpgradeableProxy per
-/// repo pattern.
+/// @dev Implements the frozen {IFlyoverConfigurations}. Peg-in is fully wired; peg-out interface
+/// methods stub with {PegOutNotImplemented} until the dedicated config storage lands (keeps this
+/// contract compiling against the frozen ABI). Upgradeable, ERC-7201 namespaced storage, deployed
+/// behind a TransparentUpgradeableProxy per repo pattern.
 /// @author Rootstock Labs
 contract FlyoverConfigurations is
     AccessControlDefaultAdminRulesUpgradeable,
@@ -27,12 +27,6 @@ contract FlyoverConfigurations is
 {
     /// @notice Identifies the scalar field an out-of-bounds revert refers to.
     enum Field { FixedFee, PercentageFee, MinAmount, MaxAmount, RegistrantFee }
-
-    /// @notice Rejects registrantFee values at or above this cap (0.001 ether).
-    uint256 public constant MAX_REGISTRANT_FEE_EXCLUSIVE = 0.001 ether;
-
-    /// @notice LP claim-gas headroom required between fixedFee and registrantFee at queue/apply.
-    uint256 private constant _REGISTRANT_FEE_LP_GAS_CUSHION = 0;
 
     /// @custom:storage-location erc7201:rsk.flyover.FlyoverConfigurations
     struct FlyoverConfigurationsStorage {
@@ -61,6 +55,12 @@ contract FlyoverConfigurations is
 
     /// @notice Percentage fee denominator: 10_000 == 100%.
     uint256 public constant FEE_PERCENTAGE_DENOMINATOR = 10_000;
+
+    /// @notice Rejects registrantFee values at or above this cap (0.001 ether).
+    uint256 public constant MAX_REGISTRANT_FEE_EXCLUSIVE = 0.001 ether;
+
+    /// @notice LP claim-gas headroom required between fixedFee and registrantFee at queue/apply.
+    uint256 private constant _REGISTRANT_FEE_LP_GAS_CUSHION = 0;
 
     // ERC-7201: keccak256(abi.encode(uint256(keccak256("rsk.flyover.FlyoverConfigurations")) - 1)) &
     // ~bytes32(uint256(0xff))
@@ -116,6 +116,9 @@ contract FlyoverConfigurations is
     error RegistrantFeeTooHigh(uint256 registrantFee, uint256 maxExclusive);
     /// @notice Raised when fixedFee cannot cover registrantFee plus the LP gas cushion.
     error InsufficientFixedFeeForRegistrant(uint256 fixedFee, uint256 registrantFee, uint256 cushion);
+    /// @notice Peg-out config storage is not wired yet; interface methods stub until then.
+    /// @dev TODO: wire peg-out config storage and implement peg-out configuration methods
+    error PegOutNotImplemented();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -330,6 +333,41 @@ contract FlyoverConfigurations is
         return _getBounds().timelockDelay;
     }
 
+    /// @inheritdoc IFlyoverConfigurations
+    function getPegOutConfiguration()
+        external
+        view
+        override
+        returns (PegOutConfiguration memory)
+    {
+        revert PegOutNotImplemented();
+    }
+
+    /// @inheritdoc IFlyoverConfigurations
+    function calculatePegOutFee(uint256) external view override returns (uint256) {
+        revert PegOutNotImplemented();
+    }
+
+    /// @inheritdoc IFlyoverConfigurations
+    function getRequiredPegOutBtcConfirmations(uint256)
+        external
+        view
+        override
+        returns (uint256)
+    {
+        revert PegOutNotImplemented();
+    }
+
+    /// @inheritdoc IFlyoverConfigurations
+    function queuePegOutChange(PegOutConfiguration calldata) external override {
+        revert PegOutNotImplemented();
+    }
+
+    /// @inheritdoc IFlyoverConfigurations
+    function applyPegOutChange() external override {
+        revert PegOutNotImplemented();
+    }
+
     /// @dev fee = fixedFee + amount * percentageFee / 10_000, then rounded DOWN to a satoshi
     /// boundary (mirrors `Quotes.checkAgreedAmount`), so on-chain fees agree with the bridge. The
     /// scale is read from {Flyover}, which declares it once; `Quotes.SAT_TO_WEI_CONVERSION` is the
@@ -432,7 +470,7 @@ contract FlyoverConfigurations is
         }
     }
 
-    /// @dev A bounds pair is well-formed when no field inverts, i.e. `min <= max` on all four
+    /// @dev A bounds pair is well-formed when no field inverts, i.e. `min <= max` on all five
     /// scalars. An inverted field admits no value at all, which would wedge every future
     /// configuration change. `confirmationTiers` carries no bound and is not inspected.
     function _validateBoundsPair(PegConfiguration memory min, PegConfiguration memory max)
