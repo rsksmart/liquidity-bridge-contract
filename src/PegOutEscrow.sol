@@ -429,6 +429,8 @@ contract PegOutEscrow is
     /// snapshotted `gasFee` (= config `maxMinerFee`), floors `amount` to a satoshi,
     /// then applies dust-change: residual ≥ PegOutContract.dustThreshold is returned as
     /// `changeRefund`; smaller residual is folded into `callFee` so escrow stays fully attributed.
+    /// TODO: revisit fee economics — whether `quote.gasFee` should stay a full `maxMinerFee`
+    /// snapshot, a smaller reserved miner buffer, or a different split vs `callFee` / principal.
     function _splitValue(
         PegOutEscrowStorage storage $,
         uint256 value,

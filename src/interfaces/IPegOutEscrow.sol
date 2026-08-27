@@ -68,7 +68,7 @@ interface IPegOutEscrow {
     /// `amount = ((msg.value - fixedFee - gasFee) * DEN) / (DEN + percentageFee)`;
     /// then `amount -= amount % SAT_TO_WEI` (satoshi floor);
     /// `callFee = calculatePegOutFee(amount)` (same satoshi-floor fee as configs);
-    /// `gasFee = maxMinerFee`.
+    /// `gasFee = maxMinerFee` (TODO: confirm this snapshot vs other fee-economics options later).
     /// **Overpayment rule:** `required = amount + callFee + gasFee`. If
     /// `msg.value - required` is at least the wired PegOutContract `dustThreshold`,
     /// the excess is refunded to the refund address (legacy `depositPegOut` dust-change
