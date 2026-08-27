@@ -128,14 +128,11 @@ interface IPegOut is IPausable, IERC5267 {
     /// @param amount The amount of the withdrawal
     function withdraw(address payable addr, uint256 amount) external;
 
-    /// @notice This is the function used to pay for a peg out quote. This is the only correct function to execute
-    /// such payment, sending money directly to the contract does not work.
-    /// The user is expected to and is responsible for reviewing all fields of the quote, as they comprehend the terms
-    /// of the service agreed with the LP before paying.
-    /// @dev When PegOutEscrow is wired, only the escrow may call (after claim). Storage is keyed by the
-    /// incomplete-quote hash (`lpRskAddress = 0`); EIP-712 still binds the completed quote (LP set).
-    /// @param quote The quote that is being paid
-    /// @param signature The signature of the quote hash provided by the liquidity provider after the quote acceptance
+    /// @notice Pays a peg-out quote (direct transfer to the contract does not work).
+    /// @dev Only PegOutEscrow calls after
+    /// claim; the completed quote has `lpRskAddress` set.
+    /// @param quote Quote being paid (LP-signed; completed when escrow claims)
+    /// @param signature LP EIP-712 signature over the completed quote
     function depositPegOut(Quotes.PegOutQuote calldata quote, bytes calldata signature) external payable;
 
     /// @notice This function is used by the liquidity provider to recover the funds spent on the peg out service plus
