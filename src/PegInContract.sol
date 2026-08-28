@@ -88,6 +88,10 @@ contract PegInContract is
     IFlyoverConfigurations private _configurations;
     /// @notice Commit-first claims keyed by keccak256(rskAddr ++ btcTxHash)
     mapping(bytes32 => PegInClaim) private _pegInClaims;
+    /// @notice Whether the registrant fee was already paid for a destination address
+    mapping(address => bool) private _registrantPaid;
+    /// @notice Whether a peg-in id was already settled on the claimed path
+    mapping(bytes32 => bool) private _pegInSettled;
 
     /// @notice Emitted when the dust threshold is set
     /// @param oldThreshold The old dust threshold
@@ -115,8 +119,6 @@ contract PegInContract is
     error PegInAddressRegistryNotSet();
     /// @notice Reverts when the FlyoverConfigurations dependency has not been set
     error FlyoverConfigurationsNotSet();
-    /// @notice Reverts resolvePegIn until settlement is implemented
-    error ResolvePegInNotImplemented();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -371,12 +373,23 @@ contract PegInContract is
     /// @inheritdoc IPegInCommitFirst
     function resolvePegIn(
         address rskAddr,
-        bytes32 btcTxHash,
         bytes calldata btcRawTransaction,
         bytes calldata partialMerkleTree,
         uint256 height
-    ) external pure override returns (int256) {
-        revert ResolvePegInNotImplemented();
+    ) external override nonReentrant whenNotHardPaused returns (int256 registerResult) {
+        bytes32 pegInId = _resolvePegInId(rskAddr, btcRawTransaction);
+        PegInClaim memory claim = _requireClaimedUnsettled(pegInId);
+        _requirePegInDepsSet();
+
+        registerResult = _registerCommitFirstBridge(
+            rskAddr, btcRawTransaction, partialMerkleTree, height
+        );
+
+        if (registerResult <= 0) {
+            return registerResult;
+        }
+
+        _creditResolvedPegIn(pegInId, rskAddr, claim, uint256(registerResult));
     }
 
     /// @notice Returns the wired PegInAddressRegistry address
@@ -441,6 +454,58 @@ contract PegInContract is
         return _processedQuotes[quoteHash];
     }
 
+    /// @dev Bridge fast-register with per-network BTC placeholder addresses.
+    function _registerCommitFirstBridge(
+        address rskAddr,
+        bytes calldata btcRawTransaction,
+        bytes calldata partialMerkleTree,
+        uint256 height
+    ) private returns (int256) {
+        return _bridge.registerFastBridgeBtcTransaction(
+            btcRawTransaction,
+            height,
+            partialMerkleTree,
+            PegInDerivation.derivationArgumentsHash(rskAddr),
+            PegInDerivation.getRefundPlaceholderBtcAddress(_mainnet),
+            payable(address(this)),
+            PegInDerivation.getLpPlaceholderBtcAddress(_mainnet),
+            true
+        );
+    }
+
+    /// @dev Credits claimerPayout to the claimer. On the first settle for rskAddr, may also
+    /// credit min(registrantFee, feeAtClaim) to the registered registrant and subtract that
+    /// from the claimer. Then marks the peg-in settled and emits PegInResolved.
+    function _creditResolvedPegIn(
+        bytes32 pegInId,
+        address rskAddr,
+        PegInClaim memory claim,
+        uint256 released
+    ) private {
+        uint256 registrantFeePaid = 0;
+        address registrant = address(0);
+        if (!_registrantPaid[rskAddr]) {
+            registrant = _pegInAddressRegistry.getRegistration(rskAddr).registrant;
+            uint256 feeDue = _min(
+                _configurations.getPegInConfiguration().registrantFee,
+                claim.feeAtClaim
+            );
+            if (feeDue > 0 && registrant != address(0)) {
+                registrantFeePaid = feeDue;
+                _increaseBalance(registrant, registrantFeePaid);
+            }
+            _registrantPaid[rskAddr] = true;
+        }
+
+        uint256 claimerPayout = claim.frontedAmount + claim.feeAtClaim - registrantFeePaid;
+        _increaseBalance(claim.claimer, claimerPayout);
+        _pegInSettled[pegInId] = true;
+
+        emit PegInResolved(
+            pegInId, claim.claimer, registrant, released, claimerPayout, registrantFeePaid, 0
+        );
+    }
+
     /// @notice This function is used to increase the balance of an account
     /// @dev This function must remain private. Any exposure can lead to a loss of funds.
     /// It is responsibility of the caller to ensure that the account is a liquidity provider
@@ -450,6 +515,17 @@ contract PegInContract is
         if (amount > 0) {
             _balances[dest] += amount;
             emit BalanceIncrease(dest, amount);
+        }
+    }
+
+    /// @dev Loads a claimed, not-yet-settled peg-in or reverts.
+    function _requireClaimedUnsettled(bytes32 pegInId) private view returns (PegInClaim memory claim) {
+        if (_pegInSettled[pegInId]) {
+            revert PegInAlreadyProcessed(pegInId);
+        }
+        claim = _pegInClaims[pegInId];
+        if (claim.claimer == address(0)) {
+            revert PegInNotClaimed(pegInId);
         }
     }
 
@@ -842,6 +918,15 @@ contract PegInContract is
         }
 
         return false;
+    }
+
+    /// @dev Derives pegInId from witness-stripped raw tx bytes.
+    function _resolvePegInId(
+        address rskAddr,
+        bytes calldata btcRawTransaction
+    ) private pure returns (bytes32 pegInId) {
+        BtcTransactionReader.requireWitnessStripped(btcRawTransaction);
+        pegInId = keccak256(abi.encodePacked(rskAddr, BtcUtils.hashBtcTx(btcRawTransaction)));
     }
 
     /// @dev Utility function to return the minimum of two uint256 values

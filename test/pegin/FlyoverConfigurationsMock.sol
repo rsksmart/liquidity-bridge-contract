@@ -25,6 +25,11 @@ contract FlyoverConfigurationsMock is IFlyoverConfigurations {
         _config.percentageFee = percentageFee;
     }
 
+    /// @notice Sets the registrant fee directly
+    function setRegistrantFee(uint256 registrantFee) external {
+        _config.registrantFee = registrantFee;
+    }
+
     /// @notice Sets the amount bounds directly
     function setAmountBounds(uint256 minAmount, uint256 maxAmount) external {
         _config.minAmount = minAmount;

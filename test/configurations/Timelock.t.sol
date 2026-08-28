@@ -13,10 +13,10 @@ import {IFlyoverConfigurations} from "../../src/interfaces/IFlyoverConfiguration
 /// (4) a second queue replaces the pending change.
 /// Plus exact-eta success, applying with nothing queued, and event emission.
 contract TimelockTest is ConfigurationsTestBase {
-    /// @dev pending.fixedFee lives at the mutable namespace base + 5 (activePegIn occupies the
-    /// first 5 slots: fixedFee, percentageFee, minAmount, maxAmount, confirmationTiers-length).
+    /// @dev pending.fixedFee lives at the mutable namespace base + 6 (activePegIn occupies the
+    /// first 6 slots: five scalars plus confirmationTiers-length).
     bytes32 private constant _PENDING_FIXED_FEE_SLOT =
-        bytes32(uint256(STORAGE_SLOT) + 5);
+        bytes32(uint256(STORAGE_SLOT) + 6);
 
     function setUp() public {
         _deploy();
@@ -215,11 +215,10 @@ contract TimelockTest is ConfigurationsTestBase {
     // the four cases above for the bounds path, then pin the two rules unique to it: a pair may
     // not invert, and a pair the active configuration falls outside is rejected at apply time.
 
-    /// @dev pendingMin.fixedFee lives at the bounds namespace base + 11 (timelockDelay occupies
-    /// slot 0, then min and max take 5 slots each: fixedFee, percentageFee, minAmount, maxAmount,
-    /// confirmationTiers-length).
+    /// @dev pendingMin.fixedFee lives at the bounds namespace base + 13 (timelockDelay occupies
+    /// slot 0, then min and max take 6 slots each: five scalars plus confirmationTiers-length).
     bytes32 private constant _PENDING_MIN_FIXED_FEE_SLOT =
-        bytes32(uint256(BOUNDS_SLOT) + 11);
+        bytes32(uint256(BOUNDS_SLOT) + 13);
 
     // ------------------------------------------------ case 1: queue then apply after the delay
 
