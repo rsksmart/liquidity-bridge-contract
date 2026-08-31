@@ -49,12 +49,22 @@ contract PegOutEscrow is
         mapping(uint256 => bytes32) requestHashByNonce;
         /// How many requests have been minted; next request uses `++requestCount`.
         uint256 requestCount;
+        /// Per-LP claim-fail count `n` (freeze length uses `RESTRICTION_BASE ** n`).
+        mapping(address => uint256) claimFailCount;
+        /// Per-LP claim gate: `0` ⇒ not frozen; claim reverts while `now < restrictedUntil`.
+        mapping(address => uint256) restrictedUntil;
     }
 
     string public constant VERSION = "1.0.0";
 
     /// @notice Basis-point denominator for `percentageFee` (frozen on {IPegOutEscrow})
     uint256 public constant FEE_PERCENTAGE_DENOMINATOR = 10_000;
+
+    /// @notice Unit for claim-fail freeze duration (`(BASE ** n) * UNIT`)
+    uint256 public constant RESTRICTION_UNIT = 1 days;
+
+    /// @notice Base for claim-fail freeze duration (`(BASE ** n) * UNIT`)
+    uint256 public constant RESTRICTION_BASE = 2;
 
     // ERC-7201: keccak256(abi.encode(uint256(keccak256("rsk.flyover.PegOutEscrow")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant _PEGOUT_ESCROW_STORAGE =
@@ -205,6 +215,10 @@ contract PegOutEscrow is
                 $.collateralManagement.getPegOutCollateral(msg.sender)
             );
         }
+        uint256 until = $.restrictedUntil[msg.sender];
+        if (block.timestamp < until) {
+            revert LpRestricted(msg.sender, until);
+        }
 
         q.lpRskAddress = msg.sender;
         Quotes.PegOutQuote memory signedQuote = q;
@@ -261,6 +275,26 @@ contract PegOutEscrow is
     }
 
     /// @inheritdoc IPegOutEscrow
+    function onClaimFail(address lp) external override {
+        PegOutEscrowStorage storage $ = _getStorage();
+        if (msg.sender != address($.pegOutContract)) {
+            revert OnlyPegOutContract(msg.sender);
+        }
+        uint256 n = ++$.claimFailCount[lp];
+        $.restrictedUntil[lp] = block.timestamp + ((RESTRICTION_BASE ** n) * RESTRICTION_UNIT);
+    }
+
+    /// @inheritdoc IPegOutEscrow
+    function revoke(address lp) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+        _getStorage().restrictedUntil[lp] = type(uint256).max;
+    }
+
+    /// @inheritdoc IPegOutEscrow
+    function unrevoke(address lp) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+        _getStorage().restrictedUntil[lp] = 0;
+    }
+
+    /// @inheritdoc IPegOutEscrow
     function getPegOutState(bytes32 requestHash) external view override returns (EscrowedPegOutState) {
         return _getStorage().state[requestHash];
     }
@@ -291,6 +325,16 @@ contract PegOutEscrow is
     /// @inheritdoc IPegOutEscrow
     function requestIdAt(uint256 nonce) external view override returns (bytes32) {
         return _getStorage().requestHashByNonce[nonce];
+    }
+
+    /// @inheritdoc IPegOutEscrow
+    function claimFailCount(address lp) external view override returns (uint256) {
+        return _getStorage().claimFailCount[lp];
+    }
+
+    /// @inheritdoc IPegOutEscrow
+    function restrictedUntil(address lp) external view override returns (uint256) {
+        return _getStorage().restrictedUntil[lp];
     }
 
     // solhint-disable-next-line comprehensive-interface
