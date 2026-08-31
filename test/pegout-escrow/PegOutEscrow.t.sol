@@ -17,7 +17,8 @@ import {BridgeMock} from "../../src/test-contracts/BridgeMock.sol";
 import {CollateralManagementMock} from "../../src/test-contracts/CollateralManagementMock.sol";
 import {FlyoverConfigurationsMock} from "../pegin/FlyoverConfigurationsMock.sol";
 
-/// @title PegOutEscrow request, cancel, and claimPegOut
+/// @title PegOutEscrow S11.1 state machine + claim gates
+/// @dev Test names map to S11.1 transition / race / B-scenario ids where applicable.
 contract PegOutEscrowTest is Test {
     /// @dev Mirrors impl-only {PegOutEscrow.EscrowPegOutChangePaid} for expectEmit.
     event EscrowPegOutChangePaid(
@@ -144,10 +145,10 @@ contract PegOutEscrowTest is Test {
     }
 
     // -------------------------------------------------------------------------
-    // requestPegOut
+    // T0 — requestPegOut
     // -------------------------------------------------------------------------
 
-    function test_requestPegOut_happyPath_stateQuoteGettersAndEvent() public {
+    function test_T0_Request_NoneToRequested() public {
         (uint256 amount, uint256 callFee, uint256 change) = _expectedSplit(
             DEFAULT_VALUE
         );
@@ -239,13 +240,13 @@ contract PegOutEscrowTest is Test {
         assertEq(escrow.getPegOutQuote(requestHash).rskRefundAddress, user);
     }
 
-    function test_requestPegOut_emptyDestination_reverts() public {
+    function test_B7_Unserviceable_EmptyDestination_StaysNone() public {
         vm.prank(user);
         vm.expectRevert(IPegOutEscrow.InvalidDestination.selector);
         escrow.requestPegOut{value: DEFAULT_VALUE}("", user);
     }
 
-    function test_requestPegOut_amountBelowMin_revertsNotServiceable() public {
+    function test_B7_Unserviceable_AmountBelowMin_StaysNone() public {
         // Tiny payment → principal below MIN_AMOUNT after fee split.
         uint256 tiny = FIXED_FEE + 0.001 ether;
         (uint256 amount, , ) = _expectedSplit(tiny);
@@ -324,10 +325,10 @@ contract PegOutEscrowTest is Test {
     }
 
     // -------------------------------------------------------------------------
-    // cancelPegOut
+    // T1 / B6 — cancelPegOut
     // -------------------------------------------------------------------------
 
-    function test_cancelPegOut_refundsAndTerminates() public {
+    function test_T1_Cancel_RequestedToCancelled() public {
         vm.prank(user);
         bytes32 requestHash = escrow.requestPegOut{value: DEFAULT_VALUE}(
             DEST,
@@ -387,7 +388,7 @@ contract PegOutEscrowTest is Test {
         escrow.cancelPegOut(missing);
     }
 
-    function test_cancelPegOut_twice_reverts() public {
+    function test_Forbidden_CancelTwice_Reverts() public {
         vm.prank(user);
         bytes32 requestHash = escrow.requestPegOut{value: DEFAULT_VALUE}(
             DEST,
@@ -410,10 +411,10 @@ contract PegOutEscrowTest is Test {
     }
 
     // -------------------------------------------------------------------------
-    // claimPegOut
+    // T2 — claimPegOut
     // -------------------------------------------------------------------------
 
-    function test_claimPegOut_happyPath_lpAnchorFundsAndClaimed() public {
+    function test_T2_Claim_RequestedToClaimed() public {
         bytes32 requestHash = _requestDefault();
         Quotes.PegOutQuote memory quote = escrow.getPegOutQuote(requestHash);
         uint256 payout = quote.value + quote.callFee + quote.gasFee;
@@ -441,7 +442,7 @@ contract PegOutEscrowTest is Test {
         assertEq(address(escrow).balance, escrowBefore - payout);
     }
 
-    function test_claimPegOut_secondClaim_revertsInvalidState() public {
+    function test_R4_B1_SecondClaim_RevertsInvalidState() public {
         bytes32 requestHash = _requestDefault();
         Quotes.PegOutQuote memory quote = escrow.getPegOutQuote(requestHash);
         bytes memory signature = _signForLp(lpKey, quote, lp);
@@ -462,7 +463,7 @@ contract PegOutEscrowTest is Test {
         escrow.claimPegOut(requestHash, otherSig);
     }
 
-    function test_claimPegOut_afterCancel_revertsInvalidState() public {
+    function test_R1_CancelVsClaim_CancelFirst_ClaimReverts() public {
         bytes32 requestHash = _requestDefault();
         Quotes.PegOutQuote memory quote = escrow.getPegOutQuote(requestHash);
         bytes memory signature = _signForLp(lpKey, quote, lp);
@@ -482,7 +483,7 @@ contract PegOutEscrowTest is Test {
         escrow.claimPegOut(requestHash, signature);
     }
 
-    function test_claimPegOut_afterRefund_revertsInvalidState() public {
+    function test_Forbidden_ClaimAfterRefunded_Reverts() public {
         bytes32 requestHash = _requestDefault();
         Quotes.PegOutQuote memory quote = escrow.getPegOutQuote(requestHash);
         bytes memory signature = _signForLp(lpKey, quote, lp);
@@ -576,10 +577,10 @@ contract PegOutEscrowTest is Test {
     }
 
     // -------------------------------------------------------------------------
-    // deadline refunds (acceptance)
+    // T3 / T5 / R2 — deadline refunds
     // -------------------------------------------------------------------------
 
-    function test_refundOnNoClaim_beforeDeadline_reverts() public {
+    function test_R2_RefundOnNoClaimWhileWindowOpen_Reverts() public {
         bytes32 requestHash = _requestDefault();
         uint256 depositDateLimit = escrow
             .getPegOutQuote(requestHash)
@@ -608,9 +609,7 @@ contract PegOutEscrowTest is Test {
         pegOut.refundUserPegOut(requestHash);
     }
 
-    function test_refundOnNoClaim_afterDeadline_anyoneRefundsAndAttemptsGlobalSlash()
-        public
-    {
+    function test_T3_B2_RefundOnNoClaim_RequestedToRefunded() public {
         bytes32 requestHash = _requestDefault();
         Quotes.PegOutQuote memory q = escrow.getPegOutQuote(requestHash);
         uint256 payout = q.value + q.callFee + q.gasFee;
@@ -633,7 +632,7 @@ contract PegOutEscrowTest is Test {
         assertEq(user.balance, userBefore + payout);
     }
 
-    function test_cancelPegOut_doesNotCallGlobalSlash() public {
+    function test_B6_Cancel_DoesNotCallGlobalSlash() public {
         collateral.setGlobalSlashReverts(false);
 
         bytes32 requestHash = _requestDefault();
@@ -647,9 +646,7 @@ contract PegOutEscrowTest is Test {
         );
     }
 
-    function test_refundUserPegOut_afterExpire_anyoneRefundsIndividualSlashAndLateReverts()
-        public
-    {
+    function test_T5_B3_RefundUser_ClaimedToRefunded() public {
         bytes32 requestHash = _claimDefault();
         Quotes.PegOutQuote memory q = escrow.getPegOutQuote(requestHash);
         uint256 payout = q.value + q.callFee + q.gasFee;
@@ -687,6 +684,268 @@ contract PegOutEscrowTest is Test {
         );
         vm.prank(other);
         pegOut.refundUserPegOut(requestHash);
+    }
+
+    // -------------------------------------------------------------------------
+    // S11.1 gaps — races, T4, forbidden CLAIMED exits, fee snapshot, B8
+    // -------------------------------------------------------------------------
+
+    function test_R1_CancelVsClaim_ClaimFirst_CancelReverts() public {
+        bytes32 requestHash = _claimDefault();
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOutEscrow.InvalidState.selector,
+                requestHash,
+                IPegOutEscrow.EscrowedPegOutState.REQUESTED,
+                IPegOutEscrow.EscrowedPegOutState.CLAIMED
+            )
+        );
+        vm.prank(user);
+        escrow.cancelPegOut(requestHash);
+    }
+
+    function test_R2_ClaimAtExactDepositDateLimit_Succeeds() public {
+        bytes32 requestHash = _requestDefault();
+        Quotes.PegOutQuote memory quote = escrow.getPegOutQuote(requestHash);
+        bytes memory signature = _signForLp(lpKey, quote, lp);
+
+        vm.warp(uint256(quote.depositDateLimit));
+
+        vm.prank(lp);
+        escrow.claimPegOut(requestHash, signature);
+
+        assertEq(
+            uint256(escrow.getPegOutState(requestHash)),
+            uint256(IPegOutEscrow.EscrowedPegOutState.CLAIMED)
+        );
+    }
+
+    function test_R2_RefundOnNoClaimAtExactLimit_RevertsClaimWindowOpen()
+        public
+    {
+        bytes32 requestHash = _requestDefault();
+        uint256 depositDateLimit = escrow
+            .getPegOutQuote(requestHash)
+            .depositDateLimit;
+
+        vm.warp(depositDateLimit);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOutEscrow.ClaimWindowOpen.selector,
+                depositDateLimit
+            )
+        );
+        vm.prank(other);
+        escrow.refundOnNoClaim(requestHash);
+    }
+
+    function test_R2_ClaimAfterDeadline_RevertsClaimWindowClosed() public {
+        bytes32 requestHash = _requestDefault();
+        Quotes.PegOutQuote memory quote = escrow.getPegOutQuote(requestHash);
+        bytes memory signature = _signForLp(lpKey, quote, lp);
+
+        vm.warp(uint256(quote.depositDateLimit) + 1);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOutEscrow.ClaimWindowClosed.selector,
+                quote.depositDateLimit
+            )
+        );
+        vm.prank(lp);
+        escrow.claimPegOut(requestHash, signature);
+    }
+
+    /// @dev T4 product path (refundPegOut → onSettlement(FULFILLED)) is an S13 gap;
+    /// this asserts the escrow transition via the PegOut-only notify surface.
+    function test_T4_OnSettlement_ClaimedToFulfilled() public {
+        bytes32 requestHash = _claimDefault();
+
+        vm.prank(address(pegOut));
+        escrow.onSettlement(
+            requestHash,
+            IPegOutEscrow.EscrowedPegOutState.FULFILLED
+        );
+
+        assertEq(
+            uint256(escrow.getPegOutState(requestHash)),
+            uint256(IPegOutEscrow.EscrowedPegOutState.FULFILLED)
+        );
+        Quotes.PegOutQuote memory cleared = escrow.getPegOutQuote(requestHash);
+        assertEq(cleared.value, 0);
+        assertEq(cleared.lpRskAddress, address(0));
+    }
+
+    function test_Forbidden_CancelFromClaimed_Reverts() public {
+        bytes32 requestHash = _claimDefault();
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOutEscrow.InvalidState.selector,
+                requestHash,
+                IPegOutEscrow.EscrowedPegOutState.REQUESTED,
+                IPegOutEscrow.EscrowedPegOutState.CLAIMED
+            )
+        );
+        vm.prank(user);
+        escrow.cancelPegOut(requestHash);
+    }
+
+    function test_Forbidden_RefundOnNoClaimFromClaimed_Reverts() public {
+        bytes32 requestHash = _claimDefault();
+        Quotes.PegOutQuote memory q = escrow.getPegOutQuote(requestHash);
+        vm.warp(uint256(q.depositDateLimit) + 1);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOutEscrow.InvalidState.selector,
+                requestHash,
+                IPegOutEscrow.EscrowedPegOutState.REQUESTED,
+                IPegOutEscrow.EscrowedPegOutState.CLAIMED
+            )
+        );
+        vm.prank(other);
+        escrow.refundOnNoClaim(requestHash);
+    }
+
+    function test_Forbidden_OnSettlement_NotClaimed_Reverts() public {
+        bytes32 requestHash = _requestDefault();
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOutEscrow.InvalidState.selector,
+                requestHash,
+                IPegOutEscrow.EscrowedPegOutState.CLAIMED,
+                IPegOutEscrow.EscrowedPegOutState.REQUESTED
+            )
+        );
+        vm.prank(address(pegOut));
+        escrow.onSettlement(
+            requestHash,
+            IPegOutEscrow.EscrowedPegOutState.FULFILLED
+        );
+    }
+
+    /// @dev R3 / B5 — late but valid fulfillment stays FULFILLED (not REFUNDED).
+    function test_R3_B5_LateProof_FulfilledViaOnSettlement() public {
+        bytes32 requestHash = _claimDefault();
+        Quotes.PegOutQuote memory q = escrow.getPegOutQuote(requestHash);
+        // Past call window but before user-refund expiry is the late-delivery window;
+        // escrow notify does not re-check time — settlement race is owned by PegOut.
+        vm.warp(uint256(q.depositDateLimit) + uint256(q.transferTime) + 1);
+
+        vm.prank(address(pegOut));
+        escrow.onSettlement(
+            requestHash,
+            IPegOutEscrow.EscrowedPegOutState.FULFILLED
+        );
+
+        assertEq(
+            uint256(escrow.getPegOutState(requestHash)),
+            uint256(IPegOutEscrow.EscrowedPegOutState.FULFILLED)
+        );
+    }
+
+    function test_R3_UserRefundWins_ThenOnSettlementReverts() public {
+        bytes32 requestHash = _claimDefault();
+        Quotes.PegOutQuote memory q = escrow.getPegOutQuote(requestHash);
+        _warpPastFulfillment(q);
+
+        vm.prank(other);
+        pegOut.refundUserPegOut(requestHash);
+
+        assertEq(
+            uint256(escrow.getPegOutState(requestHash)),
+            uint256(IPegOutEscrow.EscrowedPegOutState.REFUNDED)
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOutEscrow.InvalidState.selector,
+                requestHash,
+                IPegOutEscrow.EscrowedPegOutState.CLAIMED,
+                IPegOutEscrow.EscrowedPegOutState.REFUNDED
+            )
+        );
+        vm.prank(address(pegOut));
+        escrow.onSettlement(
+            requestHash,
+            IPegOutEscrow.EscrowedPegOutState.FULFILLED
+        );
+    }
+
+    function test_FeeSnapshot_ConfigChangeMidFlight_UnchangedEconomics()
+        public
+    {
+        bytes32 requestHash = _requestDefault();
+        Quotes.PegOutQuote memory before = escrow.getPegOutQuote(requestHash);
+
+        IFlyoverConfigurations.ConfirmationTier[]
+            memory tiers = new IFlyoverConfigurations.ConfirmationTier[](1);
+        tiers[0] = IFlyoverConfigurations.ConfirmationTier({
+            maxAmount: type(uint256).max,
+            confirmations: TIER_CONFIRMATIONS
+        });
+        configurations.setPegOutConfiguration(
+            IFlyoverConfigurations.PegOutConfiguration({
+                fixedFee: FIXED_FEE * 5,
+                percentageFee: PERCENTAGE_FEE * 2,
+                minAmount: MIN_AMOUNT,
+                maxAmount: MAX_AMOUNT,
+                confirmationTiers: tiers,
+                penaltyFee: PENALTY_FEE * 3,
+                claimWindow: CLAIM_WINDOW / 2,
+                claimWindowBlocks: CLAIM_WINDOW_BLOCKS,
+                callTime: CALL_TIME,
+                expireTime: EXPIRE_TIME,
+                expireBlocks: EXPIRE_BLOCKS,
+                maxMinerFee: 0.001 ether
+            })
+        );
+
+        Quotes.PegOutQuote memory afterCfg = escrow.getPegOutQuote(requestHash);
+        assertEq(afterCfg.callFee, before.callFee);
+        assertEq(afterCfg.penaltyFee, before.penaltyFee);
+        assertEq(afterCfg.value, before.value);
+        assertEq(afterCfg.depositDateLimit, before.depositDateLimit);
+        assertEq(afterCfg.expireDate, before.expireDate);
+
+        bytes memory signature = _signForLp(lpKey, afterCfg, lp);
+        vm.prank(lp);
+        escrow.claimPegOut(requestHash, signature);
+
+        assertEq(escrow.getPegOutQuote(requestHash).callFee, before.callFee);
+        assertEq(
+            escrow.getPegOutQuote(requestHash).penaltyFee,
+            before.penaltyFee
+        );
+        assertEq(
+            uint256(escrow.getPegOutState(requestHash)),
+            uint256(IPegOutEscrow.EscrowedPegOutState.CLAIMED)
+        );
+    }
+
+    /// @dev B8 is reserved in S11.1; PoC still rejects under-value at validation (no new state).
+    function test_B8_BelowFloor_ReservedPoCGap() public {
+        // Tiny payment cannot clear min after fee split — never leaves NONE (same gate as B7 today).
+        uint256 tiny = FIXED_FEE + 0.001 ether;
+        (uint256 amount, , ) = _expectedSplit(tiny);
+        assertLt(amount, MIN_AMOUNT);
+
+        vm.prank(user);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOutEscrow.NotServiceable.selector,
+                amount,
+                MIN_AMOUNT,
+                MAX_AMOUNT
+            )
+        );
+        escrow.requestPegOut{value: tiny}(DEST, user);
+
+        assertEq(escrow.totalRequests(), 0);
     }
 
     // -------------------------------------------------------------------------

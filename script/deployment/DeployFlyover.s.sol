@@ -10,12 +10,15 @@ import {HelperConfig} from "../HelperConfig.s.sol";
 import {ProxyReader} from "../helpers/ProxyReader.sol";
 
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
+import {FlyoverConfigurations} from "../../src/FlyoverConfigurations.sol";
 import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {PegInAddressRegistry} from "../../src/PegInAddressRegistry.sol";
 import {PegInContract} from "../../src/PegInContract.sol";
 import {PegOutContract} from "../../src/PegOutContract.sol";
+import {PegOutEscrow} from "../../src/PegOutEscrow.sol";
 import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
+import {FlyoverConfigurationsRegtest} from "../../src/libraries/FlyoverConfigurationsRegtest.sol";
 
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
@@ -41,6 +44,12 @@ contract DeployFlyover is Script {
         address pegInAddressRegistryImpl;
         address pegInAddressRegistryProxy;
         address pegInAddressRegistryProxyAdmin;
+        address flyoverConfigurationsImpl;
+        address flyoverConfigurationsProxy;
+        address flyoverConfigurationsProxyAdmin;
+        address pegOutEscrowImpl;
+        address pegOutEscrowProxy;
+        address pegOutEscrowProxyAdmin;
     }
 
     function run() external returns (FlyoverDeployment memory) {
@@ -243,6 +252,68 @@ contract DeployFlyover is Script {
         );
         PegInAddressRegistry(payable(pegInAddressRegistryProxy))
             .setPegInContract(d.pegInProxy);
+
+        _deployConfigurationsAndEscrow(d, defaultAdmin, cfg, opts);
+    }
+
+    /// @dev Separate stack frame avoids "stack too deep" in {_deployAll}.
+    function _deployConfigurationsAndEscrow(
+        FlyoverDeployment memory d,
+        address defaultAdmin,
+        HelperConfig.FlyoverConfig memory cfg,
+        Options memory opts
+    ) private {
+        address configsProxy = Upgrades.deployTransparentProxy(
+            "FlyoverConfigurations.sol",
+            defaultAdmin,
+            abi.encodeCall(
+                FlyoverConfigurations.initialize,
+                (
+                    defaultAdmin,
+                    cfg.adminDelay,
+                    FlyoverConfigurationsRegtest.TIMELOCK_DELAY,
+                    FlyoverConfigurationsRegtest.pegInConfig(),
+                    FlyoverConfigurationsRegtest.pegInMin(),
+                    FlyoverConfigurationsRegtest.pegInMax()
+                )
+            ),
+            opts
+        );
+        d.flyoverConfigurationsProxy = configsProxy;
+        d.flyoverConfigurationsImpl = ProxyReader.readImplementation(
+            vm,
+            configsProxy
+        );
+        d.flyoverConfigurationsProxyAdmin = ProxyReader.readAdmin(
+            vm,
+            configsProxy
+        );
+        FlyoverConfigurations(payable(configsProxy)).initializePegOut(
+            FlyoverConfigurationsRegtest.pegOutConfig(),
+            FlyoverConfigurationsRegtest.pegOutMin(),
+            FlyoverConfigurationsRegtest.pegOutMax()
+        );
+
+        address escrowProxy = Upgrades.deployTransparentProxy(
+            "PegOutEscrow.sol",
+            defaultAdmin,
+            abi.encodeCall(
+                PegOutEscrow.initialize,
+                (
+                    defaultAdmin,
+                    cfg.adminDelay,
+                    IPauseRegistry(d.pauseRegistryProxy),
+                    d.pegOutProxy,
+                    d.collateralManagementProxy,
+                    configsProxy
+                )
+            ),
+            opts
+        );
+        d.pegOutEscrowProxy = escrowProxy;
+        d.pegOutEscrowImpl = ProxyReader.readImplementation(vm, escrowProxy);
+        d.pegOutEscrowProxyAdmin = ProxyReader.readAdmin(vm, escrowProxy);
+        PegOutContract(payable(d.pegOutProxy)).setPegOutEscrow(escrowProxy);
     }
 
     function _setupRoles(FlyoverDeployment memory d) private {
@@ -255,6 +326,7 @@ contract DeployFlyover is Script {
         cm.grantRole(adder, d.flyoverDiscoveryProxy);
         cm.grantRole(slasher, d.pegInProxy);
         cm.grantRole(slasher, d.pegOutProxy);
+        cm.grantRole(slasher, d.pegOutEscrowProxy);
     }
 
     function _log(FlyoverDeployment memory d) private pure {
@@ -285,5 +357,17 @@ contract DeployFlyover is Script {
             "PegInAddressRegistry ProxyAdmin:",
             d.pegInAddressRegistryProxyAdmin
         );
+        console.log("FlyoverConfigurations impl:", d.flyoverConfigurationsImpl);
+        console.log(
+            "FlyoverConfigurations proxy:",
+            d.flyoverConfigurationsProxy
+        );
+        console.log(
+            "FlyoverConfigurations ProxyAdmin:",
+            d.flyoverConfigurationsProxyAdmin
+        );
+        console.log("PegOutEscrow impl:", d.pegOutEscrowImpl);
+        console.log("PegOutEscrow proxy:", d.pegOutEscrowProxy);
+        console.log("PegOutEscrow ProxyAdmin:", d.pegOutEscrowProxyAdmin);
     }
 }
