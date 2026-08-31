@@ -83,6 +83,13 @@ contract ConfigurationTest is CollateralTestBase {
             0,
             "Penalties should be 0"
         );
+
+        // Check global-slash grace window default
+        assertEq(
+            collateralManagement.getGlobalSlashGraceBlocks(),
+            0,
+            "GlobalSlashGraceBlocks should default to 0"
+        );
     }
 
     function test_Initialize_AllowsInitializeOnlyOnce() public {

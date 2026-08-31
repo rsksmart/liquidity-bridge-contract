@@ -136,15 +136,17 @@ interface IPegOut is IPausable, IERC5267 {
     function depositPegOut(Quotes.PegOutQuote calldata quote, bytes calldata signature) external payable;
 
     /// @notice Commit-first path: PegOutEscrow registers a claimed peg-out under the request hash
-    /// @dev Only callable by the wired PegOutEscrow. Quote terms stay on escrow; this contract records
-    /// claim timing / completion and holds the forwarded RBTC.
+    /// @dev Only callable by the wired PegOutEscrow. Loads the escrow-built quote, re-verifies the LP
+    /// signature, stores the same quote-shaped record as {depositPegOut} under requestHash, records
+    /// claim timing, and holds the forwarded RBTC so settlement validation stays on one struct / one path.
     /// @param requestHash Escrow-minted request id
     /// @param signature LP EIP-712 signature over the escrowed quote (with lpRskAddress set)
     function registerClaimedPegOut(bytes32 requestHash, bytes calldata signature) external payable;
 
-    /// @notice This function is used by the liquidity provider to recover the funds spent on the peg out service plus
-    /// their fee for the service. It proves the inclusion of the transaction paying to the user in the Bitcoin network.
-    /// The LP is expected to have reviewed all quote fields when issuing the quote, as they represent the agreed terms.
+    /// @notice Recovers escrowed RBTC plus the LP fee against an SPV proof of the BTC payment.
+    /// @dev Any caller may submit the proof (e.g. a watchtower). Payout always goes to the
+    /// recorded LP (`quote.lpRskAddress`), never to `msg.sender`. Late fulfillment still
+    /// completes but may slash the LP and credit the caller via the existing punisher reward.
     /// @param quoteHash hash of the quote being refunded
     /// @param btcTx the Bitcoin raw transaction without witness data. It must include
     /// the required outputs in this EXACT order
@@ -189,11 +191,9 @@ interface IPegOut is IPausable, IERC5267 {
     /// @param quoteHash the hash of the quote to check
     function isQuoteCompleted(bytes32 quoteHash) external view returns (bool);
 
-    /// @notice This function validates a Bitcoin transaction for a peg out refund without confirmations.
-    /// It allows liquidity providers to verify a transaction will be accepted before broadcasting to Bitcoin.
-    /// This performs the same validations as refundPegOut except for confirmations.
-    /// The LP is responsible for having reviewed all quote fields when issuing the quote, as they represent
-    /// the agreed terms.
+    /// @notice Validates a Bitcoin transaction for a peg-out refund without checking confirmations.
+    /// @dev Same checks as {refundPegOut} except confirmations. Any caller may preflight
+    /// (including a third party); does not move funds.
     /// @param quoteHash hash of the quote being validated
     /// @param btcTx the bitcoin raw transaction without the witness (does not need to be broadcasted yet)
     /// @return quote the PegOutQuote associated with the validated transaction

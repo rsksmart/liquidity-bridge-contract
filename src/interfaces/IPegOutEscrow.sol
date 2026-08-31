@@ -106,6 +106,10 @@ interface IPegOutEscrow {
     /// settlement source of truth alongside the lean {PegOutRequested} event.
     function getPegOutQuote(bytes32 requestHash) external view returns (Quotes.PegOutQuote memory);
 
+    /// @notice Snapshotted `maxMinerFee` from FlyoverConfigurations at {requestPegOut} time
+    /// @dev Used by PegOutContract for the short-delivery floor (B8). Reverts if state is `NONE`.
+    function getMaxMinerFee(bytes32 requestHash) external view returns (uint256);
+
     /// @notice Number of requests ever minted (monotone nonce high-water mark)
     /// @dev With {requestIdAt}, an LPS can rebuild the pending set after missed events.
     function totalRequests() external view returns (uint256);

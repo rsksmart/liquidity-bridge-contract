@@ -5,11 +5,14 @@ import {Test} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {PegOutEscrow} from "../../src/PegOutEscrow.sol";
 import {PegOutContract} from "../../src/PegOutContract.sol";
+import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
+import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {ICollateralManagement} from "../../src/interfaces/ICollateralManagement.sol";
 import {IPegOut} from "../../src/interfaces/IPegOut.sol";
 import {IPegOutEscrow} from "../../src/interfaces/IPegOutEscrow.sol";
 import {IFlyoverConfigurations} from "../../src/interfaces/IFlyoverConfigurations.sol";
+import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
 import {SignatureValidator} from "../../src/libraries/SignatureValidator.sol";
@@ -19,6 +22,7 @@ import {FlyoverConfigurationsMock} from "../pegin/FlyoverConfigurationsMock.sol"
 
 /// @title PegOutEscrow S11.1 state machine + claim gates
 /// @dev Test names map to S11.1 transition / race / B-scenario ids where applicable.
+/// TODO: rename tests that embed user-story ids (e.g. S13.1) once those ids are no longer needed for review.
 contract PegOutEscrowTest is Test {
     /// @dev Mirrors impl-only {PegOutEscrow.EscrowPegOutChangePaid} for expectEmit.
     event EscrowPegOutChangePaid(
@@ -54,6 +58,7 @@ contract PegOutEscrowTest is Test {
     FlyoverConfigurationsMock internal configurations;
     CollateralManagementMock internal collateral;
     PauseRegistry internal pauseRegistry;
+    BridgeMock internal bridge;
 
     address internal owner;
     address internal user;
@@ -62,6 +67,13 @@ contract PegOutEscrowTest is Test {
     uint256 internal lpKey;
     address internal otherLp;
     uint256 internal otherLpKey;
+
+    bytes32 internal constant BLOCK_HEADER_HASH = bytes32(uint256(1));
+    uint256 internal constant PARTIAL_MERKLE_TREE = 0;
+    bytes32[] internal merkleHashes;
+
+    /// @dev Seed config maxMinerFee (snapshotted per request).
+    uint256 internal constant MAX_MINER_FEE = 0.001 ether;
 
     bytes internal constant DEST =
         hex"0014deadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
@@ -76,6 +88,9 @@ contract PegOutEscrowTest is Test {
         vm.deal(other, 100 ether);
         vm.deal(lp, 100 ether);
         vm.deal(otherLp, 100 ether);
+
+        merkleHashes = new bytes32[](1);
+        merkleHashes[0] = bytes32(uint256(1));
 
         PauseRegistry prImpl = new PauseRegistry();
         pauseRegistry = PauseRegistry(
@@ -92,7 +107,7 @@ contract PegOutEscrowTest is Test {
         configurations = new FlyoverConfigurationsMock();
         collateral = new CollateralManagementMock();
 
-        BridgeMock bridge = new BridgeMock();
+        bridge = new BridgeMock();
         PegOutContract pegOutImpl = new PegOutContract();
         pegOut = PegOutContract(
             payable(
@@ -197,6 +212,7 @@ contract PegOutEscrowTest is Test {
         assertEq(q.lbcAddress, address(pegOut));
         assertEq(q.lpRskAddress, address(0));
         assertEq(q.nonce, int64(uint64(nonce)));
+        assertEq(escrow.getMaxMinerFee(requestHash), MAX_MINER_FEE);
         assertEq(q.depositDateLimit, uint32(block.timestamp + CLAIM_WINDOW));
         assertEq(q.transferTime, uint32(CALL_TIME));
         assertEq(
@@ -262,6 +278,32 @@ contract PegOutEscrowTest is Test {
             )
         );
         escrow.requestPegOut{value: tiny}(DEST, user);
+    }
+
+    /// @dev Unserviceable request never enters escrow, so nothing can arm a slash.
+    function test_B7_Unserviceable_DoesNotArmGlobalSlash() public {
+        collateral.setGlobalSlashReverts(false);
+        uint256 requestsBefore = escrow.totalRequests();
+
+        vm.prank(user);
+        vm.expectRevert(IPegOutEscrow.InvalidDestination.selector);
+        escrow.requestPegOut{value: DEFAULT_VALUE}("", user);
+
+        uint256 tiny = FIXED_FEE + 0.001 ether;
+        (uint256 amount, , ) = _expectedSplit(tiny);
+        vm.prank(user);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOutEscrow.NotServiceable.selector,
+                amount,
+                MIN_AMOUNT,
+                MAX_AMOUNT
+            )
+        );
+        escrow.requestPegOut{value: tiny}(DEST, user);
+
+        assertEq(escrow.totalRequests(), requestsBefore);
+        assertEq(collateral.globalSlashCalls(), 0);
     }
 
     function test_requestPegOut_changeAtOrAboveDust_isRefunded() public {
@@ -440,6 +482,39 @@ contract PegOutEscrowTest is Test {
         assertEq(escrow.getPegOutQuote(requestHash).lpRskAddress, lp);
         assertEq(address(pegOut).balance, pegOutBefore + payout);
         assertEq(address(escrow).balance, escrowBefore - payout);
+    }
+
+    /// @notice Claim-fed quote mirrored into PegOutContract passes today's validatePegout.
+    /// TODO: rename off the S13.1 story id once review no longer needs the ticket tag.
+    function test_S13_1_ClaimFedRecord_PassesValidatePegout() public {
+        bytes memory dest = _btcAddressP2pkh();
+        vm.prank(user);
+        bytes32 requestHash = escrow.requestPegOut{value: DEFAULT_VALUE}(
+            dest,
+            user
+        );
+
+        Quotes.PegOutQuote memory quote = escrow.getPegOutQuote(requestHash);
+        bytes memory signature = _signForLp(lpKey, quote, lp);
+        vm.prank(lp);
+        escrow.claimPegOut(requestHash, signature);
+
+        quote = escrow.getPegOutQuote(requestHash);
+        bytes memory btcTx = _generateBtcTx(quote, requestHash);
+
+        vm.prank(lp);
+        Quotes.PegOutQuote memory returned = pegOut.validatePegout(
+            requestHash,
+            btcTx
+        );
+
+        assertEq(returned.lpRskAddress, lp);
+        assertEq(returned.value, quote.value);
+        assertEq(returned.callFee, quote.callFee);
+        assertEq(
+            keccak256(returned.depositAddress),
+            keccak256(quote.depositAddress)
+        );
     }
 
     function test_R4_B1_SecondClaim_RevertsInvalidState() public {
@@ -881,6 +956,8 @@ contract PegOutEscrowTest is Test {
     {
         bytes32 requestHash = _requestDefault();
         Quotes.PegOutQuote memory before = escrow.getPegOutQuote(requestHash);
+        uint256 snapshottedMaxMinerFee = escrow.getMaxMinerFee(requestHash);
+        assertEq(snapshottedMaxMinerFee, MAX_MINER_FEE);
 
         IFlyoverConfigurations.ConfirmationTier[]
             memory tiers = new IFlyoverConfigurations.ConfirmationTier[](1);
@@ -901,7 +978,7 @@ contract PegOutEscrowTest is Test {
                 callTime: CALL_TIME,
                 expireTime: EXPIRE_TIME,
                 expireBlocks: EXPIRE_BLOCKS,
-                maxMinerFee: 0.001 ether
+                maxMinerFee: 0.05 ether
             })
         );
 
@@ -911,6 +988,11 @@ contract PegOutEscrowTest is Test {
         assertEq(afterCfg.value, before.value);
         assertEq(afterCfg.depositDateLimit, before.depositDateLimit);
         assertEq(afterCfg.expireDate, before.expireDate);
+        assertEq(escrow.getMaxMinerFee(requestHash), snapshottedMaxMinerFee);
+        assertEq(
+            configurations.getPegOutConfiguration().maxMinerFee,
+            0.05 ether
+        );
 
         bytes memory signature = _signForLp(lpKey, afterCfg, lp);
         vm.prank(lp);
@@ -921,36 +1003,195 @@ contract PegOutEscrowTest is Test {
             escrow.getPegOutQuote(requestHash).penaltyFee,
             before.penaltyFee
         );
+        assertEq(escrow.getMaxMinerFee(requestHash), snapshottedMaxMinerFee);
         assertEq(
             uint256(escrow.getPegOutState(requestHash)),
             uint256(IPegOutEscrow.EscrowedPegOutState.CLAIMED)
         );
     }
 
-    /// @dev B8 is reserved in S11.1; PoC still rejects under-value at validation (no new state).
-    function test_B8_BelowFloor_ReservedPoCGap() public {
-        // Tiny payment cannot clear min after fee split — never leaves NONE (same gate as B7 today).
-        uint256 tiny = FIXED_FEE + 0.001 ether;
-        (uint256 amount, , ) = _expectedSplit(tiny);
-        assertLt(amount, MIN_AMOUNT);
+    /// @dev B8: delivery at the floor settles with no RBTC top-up.
+    function test_B8_AtFloor_NoTopUp() public {
+        (
+            bytes32 requestHash,
+            Quotes.PegOutQuote memory quote,
+            uint256 floor
+        ) = _claimWithP2pkhDest();
+        uint256 escrowed = quote.value + quote.callFee + quote.gasFee;
 
-        vm.prank(user);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IPegOutEscrow.NotServiceable.selector,
-                amount,
-                MIN_AMOUNT,
-                MAX_AMOUNT
-            )
+        bytes memory btcTx = _generateBtcTxWithAmount(
+            quote,
+            requestHash,
+            floor
         );
-        escrow.requestPegOut{value: tiny}(DEST, user);
+        _setupBridgeConfirmations(quote);
 
-        assertEq(escrow.totalRequests(), 0);
+        uint256 userBefore = user.balance;
+        uint256 lpBefore = lp.balance;
+
+        vm.prank(lp);
+        pegOut.refundPegOut(
+            requestHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
+
+        assertEq(user.balance, userBefore, "no top-up at floor");
+        assertEq(lp.balance, lpBefore + escrowed);
+        assertTrue(pegOut.isQuoteCompleted(requestHash));
+        assertEq(
+            uint256(escrow.getPegOutState(requestHash)),
+            uint256(IPegOutEscrow.EscrowedPegOutState.FULFILLED)
+        );
+    }
+
+    /// @dev B8: delivery above the floor settles with no RBTC top-up.
+    function test_B8_AboveFloor_NoTopUp() public {
+        (
+            bytes32 requestHash,
+            Quotes.PegOutQuote memory quote,
+            uint256 floor
+        ) = _claimWithP2pkhDest();
+        uint256 escrowed = quote.value + quote.callFee + quote.gasFee;
+        uint256 paid = floor + Quotes.SAT_TO_WEI_CONVERSION;
+
+        bytes memory btcTx = _generateBtcTxWithAmount(quote, requestHash, paid);
+        _setupBridgeConfirmations(quote);
+
+        uint256 userBefore = user.balance;
+        uint256 lpBefore = lp.balance;
+
+        vm.prank(lp);
+        pegOut.refundPegOut(
+            requestHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
+
+        assertEq(user.balance, userBefore, "no top-up above floor");
+        assertEq(lp.balance, lpBefore + escrowed);
+        assertTrue(pegOut.isQuoteCompleted(requestHash));
+    }
+
+    /// @dev B8: under-floor delivery tops up user and debits LP by the same shortfall.
+    function test_B8_UnderFloor_TopUpAndDebitLp() public {
+        (
+            bytes32 requestHash,
+            Quotes.PegOutQuote memory quote,
+            uint256 floor
+        ) = _claimWithP2pkhDest();
+        uint256 escrowed = quote.value + quote.callFee + quote.gasFee;
+        uint256 paid = floor - Quotes.SAT_TO_WEI_CONVERSION;
+        uint256 topUp = floor - paid;
+
+        bytes memory btcTx = _generateBtcTxWithAmount(quote, requestHash, paid);
+        _setupBridgeConfirmations(quote);
+
+        uint256 userBefore = user.balance;
+        uint256 lpBefore = lp.balance;
+        uint256 pegOutBefore = address(pegOut).balance;
+
+        vm.prank(lp);
+        pegOut.refundPegOut(
+            requestHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
+
+        assertEq(user.balance, userBefore + topUp);
+        assertEq(lp.balance, lpBefore + escrowed - topUp);
+        assertEq(user.balance - userBefore + lp.balance - lpBefore, escrowed);
+        assertEq(address(pegOut).balance, pegOutBefore - escrowed);
+        assertTrue(pegOut.isQuoteCompleted(requestHash));
+        assertEq(
+            uint256(escrow.getPegOutState(requestHash)),
+            uint256(IPegOutEscrow.EscrowedPegOutState.FULFILLED)
+        );
+    }
+
+    /// @dev B8: live maxMinerFee change after request does not move this peg-out's floor.
+    function test_B8_ConfigChangeAfterRequest_FloorUnchanged() public {
+        bytes memory dest = _btcAddressP2pkh();
+        vm.prank(user);
+        bytes32 requestHash = escrow.requestPegOut{value: DEFAULT_VALUE}(
+            dest,
+            user
+        );
+        Quotes.PegOutQuote memory quote = escrow.getPegOutQuote(requestHash);
+        uint256 snapshotted = escrow.getMaxMinerFee(requestHash);
+        uint256 floorBefore = _floor(quote, snapshotted);
+
+        IFlyoverConfigurations.ConfirmationTier[]
+            memory tiers = new IFlyoverConfigurations.ConfirmationTier[](1);
+        tiers[0] = IFlyoverConfigurations.ConfirmationTier({
+            maxAmount: type(uint256).max,
+            confirmations: TIER_CONFIRMATIONS
+        });
+        configurations.setPegOutConfiguration(
+            IFlyoverConfigurations.PegOutConfiguration({
+                fixedFee: FIXED_FEE,
+                percentageFee: PERCENTAGE_FEE,
+                minAmount: MIN_AMOUNT,
+                maxAmount: MAX_AMOUNT,
+                confirmationTiers: tiers,
+                penaltyFee: PENALTY_FEE,
+                claimWindow: CLAIM_WINDOW,
+                claimWindowBlocks: CLAIM_WINDOW_BLOCKS,
+                callTime: CALL_TIME,
+                expireTime: EXPIRE_TIME,
+                expireBlocks: EXPIRE_BLOCKS,
+                maxMinerFee: MAX_MINER_FEE * 20
+            })
+        );
+
+        assertEq(escrow.getMaxMinerFee(requestHash), snapshotted);
+        assertEq(
+            _floor(quote, escrow.getMaxMinerFee(requestHash)),
+            floorBefore
+        );
+
+        bytes memory signature = _signForLp(lpKey, quote, lp);
+        vm.prank(lp);
+        escrow.claimPegOut(requestHash, signature);
+        quote = escrow.getPegOutQuote(requestHash);
+
+        // Pay just under the snapshotted floor (would be above a higher live-config floor).
+        uint256 paid = floorBefore - Quotes.SAT_TO_WEI_CONVERSION;
+        bytes memory btcTx = _generateBtcTxWithAmount(quote, requestHash, paid);
+        _setupBridgeConfirmations(quote);
+
+        uint256 topUp = floorBefore - paid;
+        uint256 userBefore = user.balance;
+        uint256 lpBefore = lp.balance;
+        uint256 escrowed = quote.value + quote.callFee + quote.gasFee;
+
+        vm.prank(lp);
+        pegOut.refundPegOut(
+            requestHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
+
+        assertEq(user.balance, userBefore + topUp);
+        assertEq(lp.balance, lpBefore + escrowed - topUp);
     }
 
     // -------------------------------------------------------------------------
     // helpers
     // -------------------------------------------------------------------------
+
+    string constant HELPER_SCRIPT_GENERATE_BTC_TX =
+        "script/helpers/generate-btc-tx.ts";
+    string constant HELPER_SCRIPT_GET_BTC_ADDRESS_BYTES =
+        "script/helpers/get-btc-address-bytes.ts";
 
     function _requestDefault() internal returns (bytes32 requestHash) {
         vm.prank(user);
@@ -963,6 +1204,52 @@ contract PegOutEscrowTest is Test {
         bytes memory signature = _signForLp(lpKey, quote, lp);
         vm.prank(lp);
         escrow.claimPegOut(requestHash, signature);
+    }
+
+    function _claimWithP2pkhDest()
+        internal
+        returns (
+            bytes32 requestHash,
+            Quotes.PegOutQuote memory quote,
+            uint256 floor
+        )
+    {
+        bytes memory dest = _btcAddressP2pkh();
+        vm.prank(user);
+        requestHash = escrow.requestPegOut{value: DEFAULT_VALUE}(dest, user);
+        quote = escrow.getPegOutQuote(requestHash);
+        bytes memory signature = _signForLp(lpKey, quote, lp);
+        vm.prank(lp);
+        escrow.claimPegOut(requestHash, signature);
+        quote = escrow.getPegOutQuote(requestHash);
+        floor = _floor(quote, escrow.getMaxMinerFee(requestHash));
+    }
+
+    function _floor(
+        Quotes.PegOutQuote memory quote,
+        uint256 maxMinerFee
+    ) internal pure returns (uint256 floorAmount) {
+        uint256 deductions = quote.callFee + maxMinerFee;
+        floorAmount = quote.value > deductions ? quote.value - deductions : 0;
+        if (
+            floorAmount > Quotes.SAT_TO_WEI_CONVERSION &&
+            (floorAmount % Quotes.SAT_TO_WEI_CONVERSION) != 0
+        ) {
+            floorAmount -= floorAmount % Quotes.SAT_TO_WEI_CONVERSION;
+        }
+    }
+
+    function _setupBridgeConfirmations(
+        Quotes.PegOutQuote memory quote
+    ) internal {
+        bytes memory header = new bytes(80);
+        uint32 ts = uint32(block.timestamp + 100);
+        header[68] = bytes1(uint8(ts));
+        header[69] = bytes1(uint8(ts >> 8));
+        header[70] = bytes1(uint8(ts >> 16));
+        header[71] = bytes1(uint8(ts >> 24));
+        bridge.setHeaderByHash(BLOCK_HEADER_HASH, header);
+        bridge.setConfirmations(int256(uint256(quote.transferConfirmations)));
     }
 
     function _warpPastFulfillment(Quotes.PegOutQuote memory q) internal {
@@ -979,6 +1266,39 @@ contract PegOutEscrowTest is Test {
         bytes32 eip712Hash = pegOut.hashPegOutQuoteEIP712(quote);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, eip712Hash);
         return abi.encodePacked(r, s, v);
+    }
+
+    /// @dev P2PKH address bytes matching generate-btc-tx.ts / LpRefund helpers.
+    function _btcAddressP2pkh() internal returns (bytes memory) {
+        string[] memory inputs = new string[](4);
+        inputs[0] = "npx";
+        inputs[1] = "ts-node";
+        inputs[2] = HELPER_SCRIPT_GET_BTC_ADDRESS_BYTES;
+        inputs[3] = "p2pkh";
+        return vm.ffi(inputs);
+    }
+
+    function _generateBtcTx(
+        Quotes.PegOutQuote memory quote,
+        bytes32 quoteHash
+    ) internal returns (bytes memory) {
+        return _generateBtcTxWithAmount(quote, quoteHash, quote.value);
+    }
+
+    function _generateBtcTxWithAmount(
+        Quotes.PegOutQuote memory quote,
+        bytes32 quoteHash,
+        uint256 amountWei
+    ) internal returns (bytes memory) {
+        string[] memory inputs = new string[](7);
+        inputs[0] = "npx";
+        inputs[1] = "ts-node";
+        inputs[2] = HELPER_SCRIPT_GENERATE_BTC_TX;
+        inputs[3] = vm.toString(quoteHash);
+        inputs[4] = vm.toString(quote.depositAddress);
+        inputs[5] = vm.toString(amountWei);
+        inputs[6] = "p2pkh";
+        return vm.ffi(inputs);
     }
 
     /// @dev `state` mapping is at struct offset 4 under the ERC-7201 root.
@@ -1012,7 +1332,7 @@ contract PegOutEscrowTest is Test {
                 callTime: CALL_TIME,
                 expireTime: EXPIRE_TIME,
                 expireBlocks: EXPIRE_BLOCKS,
-                maxMinerFee: 0.001 ether
+                maxMinerFee: MAX_MINER_FEE
             })
         );
     }
@@ -1065,5 +1385,596 @@ contract PegOutEscrowTest is Test {
                     block.timestamp
                 )
             );
+    }
+}
+
+/// @title CLAIMED timeout individual slash against live CollateralManagement
+/// @dev Complements {PegOutEscrowTest} mock-CM state machine coverage.
+contract PegOutEscrowIndividualSlashTest is Test {
+    uint256 internal constant FIXED_FEE = 0.001 ether;
+    uint256 internal constant PERCENTAGE_FEE = 100;
+    uint256 internal constant MIN_AMOUNT = 0.01 ether;
+    uint256 internal constant MAX_AMOUNT = 50 ether;
+    uint256 internal constant DUST = 0.001 ether;
+    uint256 internal constant CLAIM_WINDOW = 1 hours;
+    uint256 internal constant CLAIM_WINDOW_BLOCKS = 100;
+    uint256 internal constant CALL_TIME = 2 hours;
+    uint256 internal constant EXPIRE_TIME = 1 hours;
+    uint256 internal constant EXPIRE_BLOCKS = 50;
+    uint256 internal constant PENALTY_FEE = 0.01 ether;
+    uint256 internal constant TIER_CONFIRMATIONS = 6;
+    uint256 internal constant BTC_BLOCK_TIME = 3600;
+    uint256 internal constant MAX_MINER_FEE = 0.001 ether;
+    uint256 internal constant DEFAULT_VALUE = 1.012 ether;
+    uint256 internal constant MIN_COLLATERAL = 0.6 ether;
+    uint256 internal constant REWARD_PERCENTAGE = 1000;
+    uint256 internal constant RESIGN_DELAY_BLOCKS = 500;
+    uint48 internal constant ADMIN_DELAY = 30;
+
+    PegOutEscrow internal escrow;
+    PegOutContract internal pegOut;
+    CollateralManagementContract internal collateral;
+    FlyoverDiscovery internal discovery;
+    FlyoverConfigurationsMock internal configurations;
+    PauseRegistry internal pauseRegistry;
+    BridgeMock internal bridge;
+
+    address internal owner;
+    address internal user;
+    address internal other;
+    address internal lp;
+    uint256 internal lpKey;
+    address internal otherLp;
+    uint256 internal otherLpKey;
+
+    bytes32 internal constant BLOCK_HEADER_HASH = bytes32(uint256(1));
+    uint256 internal constant PARTIAL_MERKLE_TREE = 0;
+    bytes32[] internal merkleHashes;
+
+    bytes internal constant DEST =
+        hex"0014deadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+
+    string constant HELPER_SCRIPT_GENERATE_BTC_TX =
+        "script/helpers/generate-btc-tx.ts";
+    string constant HELPER_SCRIPT_GET_BTC_ADDRESS_BYTES =
+        "script/helpers/get-btc-address-bytes.ts";
+
+    function setUp() public {
+        owner = makeAddr("owner");
+        user = makeAddr("user");
+        other = makeAddr("other");
+        (lp, lpKey) = makeAddrAndKey("lp");
+        (otherLp, otherLpKey) = makeAddrAndKey("otherLp");
+        vm.deal(user, 100 ether);
+        vm.deal(other, 100 ether);
+        vm.deal(lp, 100 ether);
+        vm.deal(otherLp, 100 ether);
+        vm.deal(owner, 100 ether);
+
+        merkleHashes = new bytes32[](1);
+        merkleHashes[0] = bytes32(uint256(1));
+
+        PauseRegistry prImpl = new PauseRegistry();
+        pauseRegistry = PauseRegistry(
+            payable(
+                address(
+                    new ERC1967Proxy(
+                        address(prImpl),
+                        abi.encodeCall(prImpl.initialize, (0, owner))
+                    )
+                )
+            )
+        );
+
+        CollateralManagementContract cmImpl = new CollateralManagementContract();
+        collateral = CollateralManagementContract(
+            payable(
+                address(
+                    new ERC1967Proxy(
+                        address(cmImpl),
+                        abi.encodeCall(
+                            cmImpl.initialize,
+                            (
+                                owner,
+                                ADMIN_DELAY,
+                                MIN_COLLATERAL,
+                                RESIGN_DELAY_BLOCKS,
+                                REWARD_PERCENTAGE,
+                                pauseRegistry
+                            )
+                        )
+                    )
+                )
+            )
+        );
+
+        FlyoverDiscovery discoveryImpl = new FlyoverDiscovery();
+        discovery = FlyoverDiscovery(
+            payable(
+                address(
+                    new ERC1967Proxy(
+                        address(discoveryImpl),
+                        abi.encodeCall(
+                            discoveryImpl.initialize,
+                            (
+                                owner,
+                                uint48(5000),
+                                address(collateral),
+                                pauseRegistry
+                            )
+                        )
+                    )
+                )
+            )
+        );
+
+        bytes32 adderRole = collateral.COLLATERAL_ADDER();
+        bytes32 slasherRole = collateral.COLLATERAL_SLASHER();
+
+        configurations = new FlyoverConfigurationsMock();
+
+        bridge = new BridgeMock();
+        PegOutContract pegOutImpl = new PegOutContract();
+        pegOut = PegOutContract(
+            payable(
+                address(
+                    new ERC1967Proxy(
+                        address(pegOutImpl),
+                        abi.encodeCall(
+                            pegOutImpl.initialize,
+                            (
+                                owner,
+                                payable(address(bridge)),
+                                DUST,
+                                address(collateral),
+                                false,
+                                BTC_BLOCK_TIME,
+                                pauseRegistry
+                            )
+                        )
+                    )
+                )
+            )
+        );
+
+        PegOutEscrow escrowImpl = new PegOutEscrow();
+        escrow = PegOutEscrow(
+            payable(
+                address(
+                    new ERC1967Proxy(
+                        address(escrowImpl),
+                        abi.encodeCall(
+                            PegOutEscrow.initialize,
+                            (
+                                owner,
+                                uint48(0),
+                                pauseRegistry,
+                                address(pegOut),
+                                address(collateral),
+                                address(configurations)
+                            )
+                        )
+                    )
+                )
+            )
+        );
+
+        vm.startPrank(owner);
+        collateral.grantRole(adderRole, address(discovery));
+        collateral.setFlyoverDiscovery(address(discovery));
+        pegOut.setPegOutEscrow(address(escrow));
+        collateral.grantRole(slasherRole, address(pegOut));
+        collateral.grantRole(slasherRole, address(escrow));
+        collateral.grantRole(adderRole, owner);
+        vm.stopPrank();
+
+        _seedPegOutConfig();
+        _registerPegOutLp(lp, "Claimer LP", "claimer.lp");
+        _registerPegOutLp(otherLp, "Other LP", "other.lp");
+    }
+
+    /// @dev Cancel (B6) slashes nobody; deadline no-claim refund (T3) slashes globally.
+    function test_B6_Cancel_NoSlash_Vs_T3_DeadlineRefund_GlobalSlash() public {
+        // --- B6: user cancel while REQUESTED ---
+        bytes32 cancelId = _requestDefault();
+        uint256 lpBeforeCancel = collateral.getPegOutCollateral(lp);
+        uint256 otherBeforeCancel = collateral.getPegOutCollateral(otherLp);
+        uint256 penaltiesBeforeCancel = collateral.getPenalties();
+
+        vm.prank(user);
+        escrow.cancelPegOut(cancelId);
+
+        assertEq(
+            uint256(escrow.getPegOutState(cancelId)),
+            uint256(IPegOutEscrow.EscrowedPegOutState.CANCELLED)
+        );
+        assertEq(collateral.getPegOutCollateral(lp), lpBeforeCancel);
+        assertEq(collateral.getPegOutCollateral(otherLp), otherBeforeCancel);
+        assertEq(collateral.getPenalties(), penaltiesBeforeCancel);
+
+        // --- T3: unserved request past claim deadline → global slash ---
+        bytes32 refundId = _requestDefault();
+        Quotes.PegOutQuote memory q = escrow.getPegOutQuote(refundId);
+        uint256 payout = q.value + q.callFee + q.gasFee;
+        uint256 userBefore = user.balance;
+        uint256 lpBefore = collateral.getPegOutCollateral(lp);
+        uint256 otherBefore = collateral.getPegOutCollateral(otherLp);
+        uint256 penaltiesBefore = collateral.getPenalties();
+        uint256 totalPegOut = lpBefore + otherBefore;
+        uint256 expectedLpShare = (q.penaltyFee * lpBefore) / totalPegOut;
+        uint256 expectedOtherShare = q.penaltyFee - expectedLpShare;
+
+        vm.warp(uint256(q.depositDateLimit) + 1);
+
+        vm.prank(other);
+        escrow.refundOnNoClaim(refundId);
+
+        assertEq(
+            uint256(escrow.getPegOutState(refundId)),
+            uint256(IPegOutEscrow.EscrowedPegOutState.REFUNDED)
+        );
+        assertEq(user.balance, userBefore + payout);
+        assertEq(
+            collateral.getPegOutCollateral(lp),
+            lpBefore - expectedLpShare
+        );
+        assertEq(
+            collateral.getPegOutCollateral(otherLp),
+            otherBefore - expectedOtherShare
+        );
+        assertEq(
+            collateral.getPenalties(),
+            penaltiesBefore + expectedLpShare + expectedOtherShare
+        );
+    }
+
+    function test_T5_RefundUser_SlashesOnlyClaimer() public {
+        bytes32 requestHash = _claimDefault();
+        Quotes.PegOutQuote memory q = escrow.getPegOutQuote(requestHash);
+        uint256 payout = q.value + q.callFee + q.gasFee;
+        uint256 userBefore = user.balance;
+        uint256 claimerBefore = collateral.getPegOutCollateral(lp);
+        uint256 otherBefore = collateral.getPegOutCollateral(otherLp);
+        uint256 expectedPenalty = q.penaltyFee < claimerBefore
+            ? q.penaltyFee
+            : claimerBefore;
+        uint256 expectedReward = (expectedPenalty * REWARD_PERCENTAGE) / 10_000;
+
+        _warpPastFulfillment(q);
+
+        vm.expectEmit(true, true, false, true, address(pegOut));
+        emit IPegOut.PegOutUserRefunded(requestHash, user, payout);
+        vm.expectEmit(true, true, true, true, address(collateral));
+        emit ICollateralManagement.Penalized(
+            lp,
+            other,
+            requestHash,
+            Flyover.ProviderType.PegOut,
+            expectedPenalty,
+            expectedReward
+        );
+
+        vm.prank(other);
+        pegOut.refundUserPegOut(requestHash);
+
+        assertEq(user.balance, userBefore + payout);
+        assertEq(
+            collateral.getPegOutCollateral(lp),
+            claimerBefore - expectedPenalty
+        );
+        assertEq(collateral.getPegOutCollateral(otherLp), otherBefore);
+        assertTrue(pegOut.isQuoteCompleted(requestHash));
+        assertEq(
+            uint256(escrow.getPegOutState(requestHash)),
+            uint256(IPegOutEscrow.EscrowedPegOutState.REFUNDED)
+        );
+    }
+
+    function test_R3_LateProof_SlashViaShouldPenalize_TimeoutReverts() public {
+        (
+            bytes32 requestHash,
+            Quotes.PegOutQuote memory quote,
+            uint256 claimTs
+        ) = _claimWithP2pkhDest();
+        uint256 claimerBefore = collateral.getPegOutCollateral(lp);
+        uint256 expectedPenalty = quote.penaltyFee < claimerBefore
+            ? quote.penaltyFee
+            : claimerBefore;
+        uint256 expectedReward = (expectedPenalty * REWARD_PERCENTAGE) / 10_000;
+
+        uint32 lateTime = uint32(
+            claimTs + quote.transferTime + BTC_BLOCK_TIME + 500
+        );
+        // Still inside the user-refund window (before expireDate / expireBlock).
+        vm.warp(claimTs + quote.transferTime + 1);
+        vm.roll(block.number + 1);
+
+        bytes memory btcTx = _generateBtcTx(quote, requestHash);
+        _setupBridgeConfirmations(quote, lateTime);
+
+        vm.expectEmit(true, true, true, true, address(collateral));
+        emit ICollateralManagement.Penalized(
+            lp,
+            lp,
+            requestHash,
+            Flyover.ProviderType.PegOut,
+            expectedPenalty,
+            expectedReward
+        );
+
+        vm.prank(lp);
+        pegOut.refundPegOut(
+            requestHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
+
+        assertEq(
+            uint256(escrow.getPegOutState(requestHash)),
+            uint256(IPegOutEscrow.EscrowedPegOutState.FULFILLED)
+        );
+        assertEq(
+            collateral.getPegOutCollateral(lp),
+            claimerBefore - expectedPenalty
+        );
+
+        _warpPastFulfillment(quote);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOut.QuoteAlreadyCompleted.selector,
+                requestHash
+            )
+        );
+        vm.prank(other);
+        pegOut.refundUserPegOut(requestHash);
+
+        assertEq(
+            collateral.getPegOutCollateral(lp),
+            claimerBefore - expectedPenalty,
+            "timeout must not slash again"
+        );
+    }
+
+    function test_R3_TimeoutWins_ThenRefundPegOutReverts() public {
+        (
+            bytes32 requestHash,
+            Quotes.PegOutQuote memory quote,
+
+        ) = _claimWithP2pkhDest();
+        uint256 claimerBefore = collateral.getPegOutCollateral(lp);
+        uint256 expectedPenalty = quote.penaltyFee < claimerBefore
+            ? quote.penaltyFee
+            : claimerBefore;
+
+        bytes memory btcTx = _generateBtcTx(quote, requestHash);
+        _setupBridgeConfirmations(quote, uint32(block.timestamp + 100));
+
+        _warpPastFulfillment(quote);
+
+        vm.prank(other);
+        pegOut.refundUserPegOut(requestHash);
+
+        assertEq(
+            collateral.getPegOutCollateral(lp),
+            claimerBefore - expectedPenalty
+        );
+        assertEq(
+            uint256(escrow.getPegOutState(requestHash)),
+            uint256(IPegOutEscrow.EscrowedPegOutState.REFUNDED)
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOut.QuoteAlreadyCompleted.selector,
+                requestHash
+            )
+        );
+        vm.prank(lp);
+        pegOut.refundPegOut(
+            requestHash,
+            btcTx,
+            BLOCK_HEADER_HASH,
+            PARTIAL_MERKLE_TREE,
+            merkleHashes
+        );
+
+        assertEq(
+            collateral.getPegOutCollateral(lp),
+            claimerBefore - expectedPenalty,
+            "late proof must not slash again"
+        );
+    }
+
+    function test_T5_PauseOverlap_UsesClaimAnchor() public {
+        // Hard pause entirely before claim must not extend the T5 gate.
+        vm.prank(owner);
+        pauseRegistry.setPauseLevel(
+            IPauseRegistry.PauseLevel.Hard,
+            "pre-claim pause"
+        );
+        vm.roll(block.number + 20);
+        vm.warp(block.timestamp + 30 minutes);
+        vm.prank(owner);
+        pauseRegistry.setPauseLevel(IPauseRegistry.PauseLevel.None, "");
+
+        bytes32 requestHash = _claimDefault();
+        Quotes.PegOutQuote memory q = escrow.getPegOutQuote(requestHash);
+
+        _warpPastFulfillment(q);
+        vm.prank(other);
+        pegOut.refundUserPegOut(requestHash);
+        assertTrue(pegOut.isQuoteCompleted(requestHash));
+
+        // Restore claimer above min so a second claim is allowed.
+        vm.prank(owner);
+        collateral.addPegOutCollateralTo{value: PENALTY_FEE}(lp);
+
+        // Fresh peg-out: pause after claim must extend expiry.
+        bytes32 requestHash2 = _claimDefault();
+        Quotes.PegOutQuote memory q2 = escrow.getPegOutQuote(requestHash2);
+
+        uint256 pauseSeconds = 1 hours;
+        uint256 pauseBlocks = 25;
+        vm.prank(owner);
+        pauseRegistry.setPauseLevel(
+            IPauseRegistry.PauseLevel.Hard,
+            "post-claim pause"
+        );
+        vm.warp(block.timestamp + pauseSeconds);
+        vm.roll(block.number + pauseBlocks);
+        vm.prank(owner);
+        pauseRegistry.setPauseLevel(IPauseRegistry.PauseLevel.None, "");
+
+        // At signed expiry without pause extension: still locked.
+        vm.warp(uint256(q2.expireDate) + 1);
+        vm.roll(uint256(q2.expireBlock) + 1);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOut.QuoteNotExpired.selector,
+                requestHash2
+            )
+        );
+        vm.prank(other);
+        pegOut.refundUserPegOut(requestHash2);
+
+        // Past expiry + post-claim pause overlap: refund + slash succeed.
+        vm.warp(uint256(q2.expireDate) + pauseSeconds + 1);
+        vm.roll(uint256(q2.expireBlock) + pauseBlocks + 1);
+        vm.prank(other);
+        pegOut.refundUserPegOut(requestHash2);
+        assertTrue(pegOut.isQuoteCompleted(requestHash2));
+        assertEq(
+            uint256(escrow.getPegOutState(requestHash2)),
+            uint256(IPegOutEscrow.EscrowedPegOutState.REFUNDED)
+        );
+    }
+
+    function _registerPegOutLp(
+        address provider,
+        string memory name,
+        string memory apiUrl
+    ) internal {
+        vm.prank(provider, provider);
+        discovery.register{value: MIN_COLLATERAL}(
+            name,
+            apiUrl,
+            true,
+            Flyover.ProviderType.PegOut
+        );
+        vm.prank(owner);
+        discovery.approveRegistration(provider);
+    }
+
+    function _requestDefault() internal returns (bytes32 requestHash) {
+        vm.prank(user);
+        requestHash = escrow.requestPegOut{value: DEFAULT_VALUE}(DEST, user);
+    }
+
+    function _claimDefault() internal returns (bytes32 requestHash) {
+        requestHash = _requestDefault();
+        Quotes.PegOutQuote memory quote = escrow.getPegOutQuote(requestHash);
+        bytes memory signature = _signForLp(lpKey, quote, lp);
+        vm.prank(lp);
+        escrow.claimPegOut(requestHash, signature);
+    }
+
+    function _claimWithP2pkhDest()
+        internal
+        returns (
+            bytes32 requestHash,
+            Quotes.PegOutQuote memory quote,
+            uint256 claimTs
+        )
+    {
+        bytes memory dest = _btcAddressP2pkh();
+        vm.prank(user);
+        requestHash = escrow.requestPegOut{value: DEFAULT_VALUE}(dest, user);
+        quote = escrow.getPegOutQuote(requestHash);
+        bytes memory signature = _signForLp(lpKey, quote, lp);
+        vm.prank(lp);
+        escrow.claimPegOut(requestHash, signature);
+        claimTs = block.timestamp;
+        quote = escrow.getPegOutQuote(requestHash);
+    }
+
+    function _warpPastFulfillment(Quotes.PegOutQuote memory q) internal {
+        vm.warp(uint256(q.expireDate) + 1);
+        vm.roll(uint256(q.expireBlock) + 1);
+    }
+
+    function _signForLp(
+        uint256 privateKey,
+        Quotes.PegOutQuote memory quote,
+        address lpAddress
+    ) internal view returns (bytes memory) {
+        quote.lpRskAddress = lpAddress;
+        bytes32 eip712Hash = pegOut.hashPegOutQuoteEIP712(quote);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, eip712Hash);
+        return abi.encodePacked(r, s, v);
+    }
+
+    function _btcAddressP2pkh() internal returns (bytes memory) {
+        string[] memory inputs = new string[](4);
+        inputs[0] = "npx";
+        inputs[1] = "ts-node";
+        inputs[2] = HELPER_SCRIPT_GET_BTC_ADDRESS_BYTES;
+        inputs[3] = "p2pkh";
+        return vm.ffi(inputs);
+    }
+
+    function _generateBtcTx(
+        Quotes.PegOutQuote memory quote,
+        bytes32 quoteHash
+    ) internal returns (bytes memory) {
+        string[] memory inputs = new string[](7);
+        inputs[0] = "npx";
+        inputs[1] = "ts-node";
+        inputs[2] = HELPER_SCRIPT_GENERATE_BTC_TX;
+        inputs[3] = vm.toString(quoteHash);
+        inputs[4] = vm.toString(quote.depositAddress);
+        inputs[5] = vm.toString(quote.value);
+        inputs[6] = "p2pkh";
+        return vm.ffi(inputs);
+    }
+
+    function _setupBridgeConfirmations(
+        Quotes.PegOutQuote memory quote,
+        uint32 headerTimestamp
+    ) internal {
+        bytes memory header = new bytes(80);
+        header[68] = bytes1(uint8(headerTimestamp));
+        header[69] = bytes1(uint8(headerTimestamp >> 8));
+        header[70] = bytes1(uint8(headerTimestamp >> 16));
+        header[71] = bytes1(uint8(headerTimestamp >> 24));
+        bridge.setHeaderByHash(BLOCK_HEADER_HASH, header);
+        bridge.setConfirmations(int256(uint256(quote.transferConfirmations)));
+    }
+
+    function _seedPegOutConfig() internal {
+        IFlyoverConfigurations.ConfirmationTier[]
+            memory tiers = new IFlyoverConfigurations.ConfirmationTier[](1);
+        tiers[0] = IFlyoverConfigurations.ConfirmationTier({
+            maxAmount: type(uint256).max,
+            confirmations: TIER_CONFIRMATIONS
+        });
+
+        configurations.setPegOutConfiguration(
+            IFlyoverConfigurations.PegOutConfiguration({
+                fixedFee: FIXED_FEE,
+                percentageFee: PERCENTAGE_FEE,
+                minAmount: MIN_AMOUNT,
+                maxAmount: MAX_AMOUNT,
+                confirmationTiers: tiers,
+                penaltyFee: PENALTY_FEE,
+                claimWindow: CLAIM_WINDOW,
+                claimWindowBlocks: CLAIM_WINDOW_BLOCKS,
+                callTime: CALL_TIME,
+                expireTime: EXPIRE_TIME,
+                expireBlocks: EXPIRE_BLOCKS,
+                maxMinerFee: MAX_MINER_FEE
+            })
+        );
     }
 }

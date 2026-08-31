@@ -25,6 +25,14 @@ contract PegOutEscrow is
     ReentrancyGuard,
     IPegOutEscrow
 {
+    /// @notice Per-request escrow record: quote-shaped terms plus snapshotted floor inputs.
+    /// @dev `maxMinerFee` is frozen at {requestPegOut} from FlyoverConfigurations so a later
+    /// config change cannot move this peg-out's short-delivery floor (B8 / 10·D).
+    struct EscrowedPegOut {
+        Quotes.PegOutQuote quote;
+        uint256 maxMinerFee;
+    }
+
     /// @custom:storage-location erc7201:rsk.flyover.PegOutEscrow
     struct PegOutEscrowStorage {
         /// Settlement contract (claim forwards funds here; also supplies dustThreshold).
@@ -33,8 +41,8 @@ contract PegOutEscrow is
         ICollateralManagement collateralManagement;
         /// Active peg-out fee, bounds, deadlines, and confirmation tiers.
         IFlyoverConfigurations configurations;
-        /// Quote-shaped terms snapshotted at request (deleted on cancel / terminal states).
-        mapping(bytes32 => Quotes.PegOutQuote) quotes;
+        /// Request envelope snapshotted at request (deleted on cancel / terminal states).
+        mapping(bytes32 => EscrowedPegOut) requests;
         /// Lifecycle per requestHash (`NONE` if never requested).
         mapping(bytes32 => EscrowedPegOutState) state;
         /// requestHash for each 1-based nonce; LPS rebuild after missed events.
@@ -146,8 +154,10 @@ contract PegOutEscrow is
         $.requestHashByNonce[nonce] = requestHash;
 
         uint256 confirmations = $.configurations.getRequiredPegOutBtcConfirmations(amount);
-        $.quotes[requestHash] =
+        EscrowedPegOut storage request = $.requests[requestHash];
+        request.quote =
             _buildQuote($, cfg, refundAddress, destinationAddress, amount, callFee, nonce, confirmations);
+        request.maxMinerFee = cfg.maxMinerFee;
 
         emit PegOutRequested(requestHash, refundAddress, amount, destinationAddress);
 
@@ -161,7 +171,7 @@ contract PegOutEscrow is
     function cancelPegOut(bytes32 requestHash) external override nonReentrant whenNotSoftPaused {
         PegOutEscrowStorage storage $ = _getStorage();
         _requireRequested($, requestHash);
-        Quotes.PegOutQuote memory q = $.quotes[requestHash];
+        Quotes.PegOutQuote memory q = $.requests[requestHash].quote;
         if (msg.sender != q.rskRefundAddress) {
             revert Flyover.InvalidSender(q.rskRefundAddress, msg.sender);
         }
@@ -182,7 +192,7 @@ contract PegOutEscrow is
         PegOutEscrowStorage storage $ = _getStorage();
         _requireRequested($, requestHash);
 
-        Quotes.PegOutQuote storage q = $.quotes[requestHash];
+        Quotes.PegOutQuote storage q = $.requests[requestHash].quote;
         if (block.timestamp > q.depositDateLimit) {
             revert ClaimWindowClosed(q.depositDateLimit);
         }
@@ -215,7 +225,7 @@ contract PegOutEscrow is
     function refundOnNoClaim(bytes32 requestHash) external override nonReentrant whenNotSoftPaused {
         PegOutEscrowStorage storage $ = _getStorage();
         _requireRequested($, requestHash);
-        Quotes.PegOutQuote memory q = $.quotes[requestHash];
+        Quotes.PegOutQuote memory q = $.requests[requestHash].quote;
         // solhint-disable-next-line gas-strict-inequalities
         if (block.timestamp <= q.depositDateLimit) {
             revert ClaimWindowOpen(q.depositDateLimit);
@@ -261,7 +271,16 @@ contract PegOutEscrow is
         if ($.state[requestHash] == EscrowedPegOutState.NONE) {
             revert Flyover.QuoteNotFound(requestHash);
         }
-        return $.quotes[requestHash];
+        return $.requests[requestHash].quote;
+    }
+
+    /// @inheritdoc IPegOutEscrow
+    function getMaxMinerFee(bytes32 requestHash) external view override returns (uint256) {
+        PegOutEscrowStorage storage $ = _getStorage();
+        if ($.state[requestHash] == EscrowedPegOutState.NONE) {
+            revert Flyover.QuoteNotFound(requestHash);
+        }
+        return $.requests[requestHash].maxMinerFee;
     }
 
     /// @inheritdoc IPegOutEscrow
@@ -290,7 +309,7 @@ contract PegOutEscrow is
         EscrowedPegOutState finalState
     ) private {
         $.state[requestHash] = finalState;
-        delete $.quotes[requestHash];
+        delete $.requests[requestHash];
     }
 
     // slither-disable-next-line arbitrary-send-eth,low-level-calls

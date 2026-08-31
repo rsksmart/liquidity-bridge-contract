@@ -54,51 +54,45 @@ contract BtcTransactionParsingFuzzTest is PegOutFuzzTestBase {
         );
     }
 
-    /// @notice Fuzz test: BTC transaction with varying amounts
-    /// @dev Tests that refunds fail when BTC tx amount is less than quote value
-    ///      Contract validates in _validateBtcTxAmount and reverts with Flyover.InsufficientAmount
-    function testFuzz_RefundPegOut_ValidatesTransactionAmount(
+    /// @notice Fuzz test: under-floor BTC delivery tops up and still completes
+    /// @dev Floor = value − callFee − maxMinerFee; legacy deposit leaves maxMinerFee = 0.
+    function testFuzz_RefundPegOut_UnderFloor_TopsUpAndCompletes(
         uint128 quoteValue,
         uint128 btcTxAmount
     ) public {
         quoteValue = uint128(bound(quoteValue, 0.001 ether, 10 ether));
         btcTxAmount = uint128(bound(btcTxAmount, 0.0001 ether, 10 ether));
 
-        // The contract compares satoshi-normalized values, so constrain fuzz inputs
-        // against the same normalized amounts to avoid false revert expectations.
         uint64 satAmount = uint64(btcTxAmount / 1e10);
         uint256 paidAmountWei = uint256(satAmount) * 1e10;
-
-        uint256 requiredAmount = quoteValue;
-        if (quoteValue > 1e10 && (quoteValue % 1e10) != 0) {
-            requiredAmount = quoteValue - (quoteValue % 1e10);
-        }
-
-        vm.assume(paidAmountWei < requiredAmount);
 
         Quotes.PegOutQuote memory quote = createAndDepositFuzzQuote(quoteValue);
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
 
-        // Generate BTC tx with different amount
+        uint256 deductions = quote.callFee; // maxMinerFee unset on legacy deposit
+        uint256 floorAmount = quote.value > deductions
+            ? quote.value - deductions
+            : 0;
+        if (floorAmount > 1e10 && (floorAmount % 1e10) != 0) {
+            floorAmount -= floorAmount % 1e10;
+        }
+
+        vm.assume(paidAmountWei < floorAmount);
+
         bytes memory btcTx = generateBtcTxWithCustomAmount(
             quote,
             quoteHash,
             btcTxAmount
         );
 
-        // Setup bridge
         setupFuzzBridgeMock(quote);
 
-        // expected values follow contract's satoshi conversion/rounding rules
+        uint256 topUp = floorAmount - paidAmountWei;
+        uint256 escrowed = quote.value + quote.callFee + quote.gasFee;
+        uint256 userBefore = quote.rskRefundAddress.balance;
+        uint256 lpBefore = pegOutLp.balance;
 
         vm.prank(pegOutLp);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Flyover.InsufficientAmount.selector,
-                paidAmountWei,
-                requiredAmount
-            )
-        );
         pegOutContract.refundPegOut(
             quoteHash,
             btcTx,
@@ -106,6 +100,10 @@ contract BtcTransactionParsingFuzzTest is PegOutFuzzTestBase {
             PARTIAL_MERKLE_TREE,
             merkleHashes
         );
+
+        assertTrue(pegOutContract.isQuoteCompleted(quoteHash));
+        assertEq(quote.rskRefundAddress.balance, userBefore + topUp);
+        assertEq(pegOutLp.balance, lpBefore + escrowed - topUp);
     }
 
     /// @notice Fuzz test: BTC transaction amount should succeed when >= quote value
