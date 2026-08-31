@@ -98,8 +98,8 @@ contract DepositTest is PegOutTestBase {
         vm.prank(user);
         vm.expectRevert(
             abi.encodeWithSelector(
-                Flyover.ProviderNotRegistered.selector,
-                pegOutLp
+                IPegOut.InsufficientCollateral.selector,
+                collateralManagement.getPegOutCollateral(pegOutLp)
             )
         );
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(

@@ -105,8 +105,11 @@ contract PegOutContract is
         if (escrowPath && msg.sender != address(_pegOutEscrow)) {
             revert OnlyPegOutEscrow(msg.sender);
         }
-        if (!_collateralManagement.isCollateralSufficient(_PEG_TYPE, quote.lpRskAddress)) {
+        if (!_collateralManagement.isRegistered(_PEG_TYPE, quote.lpRskAddress)) {
             revert Flyover.ProviderNotRegistered(quote.lpRskAddress);
+        }
+        if (!_collateralManagement.isCollateralSufficient(_PEG_TYPE, quote.lpRskAddress)) {
+            revert InsufficientCollateral(_collateralManagement.getPegOutCollateral(quote.lpRskAddress));
         }
 
         uint256 requiredAmount = quote.value + quote.callFee + quote.gasFee;
