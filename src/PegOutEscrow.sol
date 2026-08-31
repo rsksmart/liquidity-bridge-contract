@@ -218,11 +218,17 @@ contract PegOutEscrow is
             revert SignatureValidator.IncorrectSignature(msg.sender, eip712Hash, signature);
         }
 
-        // Set CLAIMED before depositPegOut so PegOut's escrow-state check holds.
-        $.state[requestHash] = EscrowedPegOutState.CLAIMED;
+        // Rekey to the completed-quote hash so PegOut's storage key matches escrow after claim.
+        bytes32 quoteHash = $.pegOutContract.hashPegOutQuote(signedQuote);
+        uint256 nonce = uint256(uint64(signedQuote.nonce));
+        delete $.quotes[requestHash];
+        delete $.state[requestHash];
+        $.quotes[quoteHash] = signedQuote;
+        $.state[quoteHash] = EscrowedPegOutState.CLAIMED;
+        $.requestHashByNonce[nonce] = quoteHash;
 
-        uint256 valueToSend = q.value + q.callFee + q.gasFee;
-        emit PegOutClaimed(msg.sender, requestHash);
+        uint256 valueToSend = signedQuote.value + signedQuote.callFee + signedQuote.gasFee;
+        emit PegOutClaimed(msg.sender, quoteHash);
 
         $.pegOutContract.depositPegOut{value: valueToSend}(signedQuote, signature);
     }
@@ -253,18 +259,18 @@ contract PegOutEscrow is
     }
 
     /// @inheritdoc IPegOutEscrow
-    function onSettlement(bytes32 requestHash, EscrowedPegOutState finalState) external override {
+    function onSettlement(bytes32 quoteHash, EscrowedPegOutState finalState) external override {
         PegOutEscrowStorage storage $ = _getStorage();
         if (msg.sender != address($.pegOutContract)) {
             revert OnlyPegOutContract(msg.sender);
         }
-        if ($.state[requestHash] != EscrowedPegOutState.CLAIMED) {
-            revert InvalidState(requestHash, EscrowedPegOutState.CLAIMED, $.state[requestHash]);
+        if ($.state[quoteHash] != EscrowedPegOutState.CLAIMED) {
+            revert InvalidState(quoteHash, EscrowedPegOutState.CLAIMED, $.state[quoteHash]);
         }
         if (finalState != EscrowedPegOutState.FULFILLED && finalState != EscrowedPegOutState.REFUNDED) {
-            revert InvalidState(requestHash, EscrowedPegOutState.FULFILLED, finalState);
+            revert InvalidState(quoteHash, EscrowedPegOutState.FULFILLED, finalState);
         }
-        _terminate($, requestHash, finalState);
+        _terminate($, quoteHash, finalState);
     }
 
     /// @inheritdoc IPegOutEscrow

@@ -98,8 +98,10 @@ interface IPegOutEscrow {
     function refundOnNoClaim(bytes32 requestHash) external;
 
     /// @notice Called by PegOutContract when settlement finishes (`FULFILLED` or `REFUNDED`)
-    /// @dev Escrow does not move funds here; custody already left at claim.
-    function onSettlement(bytes32 requestHash, EscrowedPegOutState finalState) external;
+    /// @dev `quoteHash` is PegOut's storage key = `hashPegOutQuote` of the completed quote.
+    /// After claim, escrow is rekeyed to that same hash, so no id translation is needed.
+    /// Does not move funds; custody left at claim.
+    function onSettlement(bytes32 quoteHash, EscrowedPegOutState finalState) external;
 
     /// @notice Called by PegOutContract on claimed-expired user refund (`refundUserPegOut`).
     /// @dev Increments `claimFailCount` and sets `restrictedUntil` to

@@ -52,14 +52,10 @@ abstract contract PegOutTestBase is Test {
     string constant HELPER_SCRIPT_GENERATE_BTC_TX =
         "script/helpers/generate-btc-tx.ts";
 
-
-    /// @dev Unit tests wire this contract as escrow; incomplete-hash deposit path requires CLAIMED.
-    function getPegOutState(bytes32) external pure returns (IPegOutEscrow.EscrowedPegOutState) {
-        return IPegOutEscrow.EscrowedPegOutState.CLAIMED;
-    }
-
+    /// @dev PegOut notifies the wired escrow on settlement; unit tests use this contract as escrow.
     function onSettlement(bytes32, IPegOutEscrow.EscrowedPegOutState) external {}
 
+    /// @dev PegOut notifies claim-fail on user refund; no-op stub for unit tests.
     function onClaimFail(address) external {}
 
     /// @notice Deploy PegOutContract with all dependencies
@@ -98,6 +94,7 @@ abstract contract PegOutTestBase is Test {
         vm.prank(owner);
         collateralManagement.grantRole(slasherRole, address(pegOutContract));
 
+        // Unit/fuzz tests call depositPegOut as this contract (wired as escrow).
         vm.prank(owner);
         pegOutContract.setPegOutEscrow(address(this));
     }

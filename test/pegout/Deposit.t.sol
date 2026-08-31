@@ -2,6 +2,7 @@
 pragma solidity 0.8.25;
 
 import {PegOutTestBase} from "./PegOutTestBase.sol";
+import {PegOutContract} from "../../src/PegOutContract.sol";
 import {IPegOut} from "../../src/interfaces/IPegOut.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
@@ -105,6 +106,25 @@ contract DepositTest is PegOutTestBase {
         );
     }
 
+    function test_DepositPegOut_RevertsIfCallerIsNotEscrow() public {
+        Quotes.PegOutQuote memory quote = createTestPegOutQuote(
+            1.03 ether,
+            fullLp
+        );
+        bytes memory signature = signQuote(fullLp, quote);
+
+        vm.prank(user);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PegOutContract.OnlyPegOutEscrow.selector,
+                user
+            )
+        );
+        pegOutContract.depositPegOut{value: getTotalValue(quote)}(
+            quote,
+            signature
+        );
+    }
 
     function test_DepositPegOut_RevertsIfRskRefundAddressIsZero() public {
         Quotes.PegOutQuote memory quote = createTestPegOutQuote(
@@ -251,7 +271,7 @@ contract DepositTest is PegOutTestBase {
             1.03 ether,
             pegOutLp
         );
-        bytes32 quoteHash = incompleteQuoteHash(quote);
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
         uint256 totalVal = getTotalValue(quote);
 
@@ -295,7 +315,7 @@ contract DepositTest is PegOutTestBase {
             1.03 ether,
             pegOutLp
         );
-        bytes32 quoteHash = incompleteQuoteHash(quote);
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
         uint256 totalVal = getTotalValue(quote);
 
@@ -324,7 +344,7 @@ contract DepositTest is PegOutTestBase {
         // Pay slightly more but less than dust threshold
         uint256 paidAmount = totalVal + 0.00000009 ether;
 
-        bytes32 quoteHash = incompleteQuoteHash(quote);
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
 
         uint256 userBalanceBefore = user.balance;
@@ -335,6 +355,7 @@ contract DepositTest is PegOutTestBase {
         emit IPegOut.PegOutDeposit(quoteHash, address(this), 0, paidAmount);
         pegOutContract.depositPegOut{value: paidAmount}(quote, signature);
 
+        // Escrow (this contract) pays; sub-dust overpay stays in PegOut (no change to user).
         assertEq(user.balance, userBalanceBefore, "Refund address unchanged");
         assertEq(
             address(this).balance,
@@ -366,7 +387,7 @@ contract DepositTest is PegOutTestBase {
         uint256 paidAmount = totalVal + TEST_DUST_THRESHOLD;
         uint256 changeAmount = paidAmount - totalVal;
 
-        bytes32 quoteHash = incompleteQuoteHash(quote);
+        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
 
         uint256 userBalanceBefore = user.balance;
@@ -378,6 +399,7 @@ contract DepositTest is PegOutTestBase {
         emit IPegOut.PegOutChangePaid(quoteHash, user, changeAmount);
         pegOutContract.depositPegOut{value: paidAmount}(quote, signature);
 
+        // Escrow pays; change is refunded to quote.rskRefundAddress (user).
         assertEq(
             address(this).balance,
             payerBalanceBefore - paidAmount,
@@ -444,15 +466,6 @@ contract DepositTest is PegOutTestBase {
     }
 
     // ============ Helper Functions ============
-
-    function incompleteQuoteHash(
-        Quotes.PegOutQuote memory quote
-    ) internal view returns (bytes32) {
-        Quotes.PegOutQuote memory incomplete = quote;
-        incomplete.lpRskAddress = address(0);
-        return pegOutContract.hashPegOutQuote(incomplete);
-    }
-
 
     function createTestPegOutQuote(
         uint256 value,

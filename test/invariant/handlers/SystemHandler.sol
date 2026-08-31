@@ -21,9 +21,7 @@ contract SystemHandler is HandlerBase {
 
     address public adder;
 
-    function getPegOutState(bytes32) external pure returns (IPegOutEscrow.EscrowedPegOutState) {
-        return IPegOutEscrow.EscrowedPegOutState.CLAIMED;
-    }
+    /// @dev Handler is wired as PegOut escrow for unit-style deposits.
     function onSettlement(bytes32, IPegOutEscrow.EscrowedPegOutState) external {}
     function onClaimFail(address) external {}
 

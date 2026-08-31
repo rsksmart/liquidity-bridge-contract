@@ -83,8 +83,6 @@ contract PegOutContract is
     event PegOutEscrowSet(address indexed oldAddress, address indexed newAddress);
 
     error OnlyPegOutEscrow(address caller);
-    error PegOutEscrowNotSet();
-    error EscrowQuoteNotClaimed(bytes32 quoteHash);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -104,8 +102,6 @@ contract PegOutContract is
         if (msg.sender != address(_pegOutEscrow)) {
             revert OnlyPegOutEscrow(msg.sender);
         }
-        // Deposit only succeeds when escrow is the caller, so use the escrow storage-key path.
-        bool escrowPath = true;
         if (!_collateralManagement.isRegistered(_PEG_TYPE, quote.lpRskAddress)) {
             revert Flyover.ProviderNotRegistered(quote.lpRskAddress);
         }
@@ -124,7 +120,7 @@ contract PegOutContract is
             revert SignatureValidator.IncorrectSignature(quote.lpRskAddress, eip712Hash, signature);
         }
 
-        bytes32 quoteHash = _pegOutDepositStorageKey(quote, escrowPath);
+        bytes32 quoteHash = _hashPegOutQuote(quote);
         _registerPegOutDeposit(quoteHash, quote);
         emit PegOutDeposit(quoteHash, msg.sender, block.timestamp, msg.value);
         _refundPegOutDepositChange(quoteHash, quote.rskRefundAddress, msg.value, requiredAmount);
@@ -334,23 +330,19 @@ contract PegOutContract is
         }
     }
 
-    /// @notice Flip escrow CLAIMED → terminal when settlement finishes on this contract.
-    /// @dev Soft-skips when escrow is unset so legacy depositPegOut refunds still work.
+    /// @notice Notify escrow that settlement finished (`FULFILLED` / `REFUNDED`).
+    /// @dev `quoteHash` is PegOut's storage key (completed-quote hash); escrow is rekeyed to it at claim.
     /// Passes `lp` so refund paths do not re-read escrow quote storage after delete.
     function _notifyEscrowSettlement(
-        bytes32 requestHash,
+        bytes32 quoteHash,
         IPegOutEscrow.EscrowedPegOutState finalState,
         address lp
     ) private {
         if (address(_pegOutEscrow) == address(0)) return;
-        // Soft-skips non-CLAIMED ids (e.g. legacy depositPegOut refunds that never touched escrow).
-        if (_pegOutEscrow.getPegOutState(requestHash) != IPegOutEscrow.EscrowedPegOutState.CLAIMED) {
-            return;
-        }
         if (finalState == IPegOutEscrow.EscrowedPegOutState.REFUNDED) {
             _pegOutEscrow.onClaimFail(lp);
         }
-        _pegOutEscrow.onSettlement(requestHash, finalState);
+        _pegOutEscrow.onSettlement(quoteHash, finalState);
     }
 
     function _registerPegOutDeposit(bytes32 quoteHash, Quotes.PegOutQuote calldata quote) private {
@@ -388,23 +380,6 @@ contract PegOutContract is
         }
         if (quote.expireBlock < block.number) {
             revert QuoteExpiredByBlocks(quote.expireBlock);
-        }
-    }
-
-    /// @dev EIP-712 binds the completed quote; storage / OP_RETURN use the incomplete hash when
-    /// escrow is wired (`lpRskAddress = 0`).
-    function _pegOutDepositStorageKey(
-        Quotes.PegOutQuote calldata quote,
-        bool escrowPath
-    ) private view returns (bytes32 quoteHash) {
-        if (!escrowPath) {
-            return _hashPegOutQuote(quote);
-        }
-        Quotes.PegOutQuote memory incomplete = quote;
-        incomplete.lpRskAddress = address(0);
-        quoteHash = _hashPegOutQuote(incomplete);
-        if (_pegOutEscrow.getPegOutState(quoteHash) != IPegOutEscrow.EscrowedPegOutState.CLAIMED) {
-            revert EscrowQuoteNotClaimed(quoteHash);
         }
     }
 
