@@ -12,6 +12,7 @@ import {IBridge} from "./interfaces/IBridge.sol";
 import {ICollateralManagement, CollateralManagementSet} from "./interfaces/ICollateralManagement.sol";
 import {IPauseRegistry} from "./interfaces/IPauseRegistry.sol";
 import {IPegOut} from "./interfaces/IPegOut.sol";
+import {IPegOutEscrow} from "./interfaces/IPegOutEscrow.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 import {Quotes} from "./libraries/Quotes.sol";
 import {SignatureValidator} from "./libraries/SignatureValidator.sol";
@@ -56,6 +57,7 @@ contract PegOutContract is
 
     IBridge private _bridge;
     ICollateralManagement private _collateralManagement;
+    IPegOutEscrow private _pegOutEscrow;
 
     mapping(bytes32 => Quotes.PegOutQuote) private _pegOutQuotes;
     mapping(bytes32 => PegOutRecord) private _pegOutRegistry;
@@ -76,6 +78,12 @@ contract PegOutContract is
     /// @param oldTime the old Bitcoin block time
     /// @param newTime the new Bitcoin block time
     event BtcBlockTimeSet(uint256 indexed oldTime, uint256 indexed newTime);
+    /// @notice Emitted when the commit-first PegOutEscrow is wired
+    event PegOutEscrowSet(address indexed oldAddress, address indexed newAddress);
+
+    error OnlyPegOutEscrow(address caller);
+    error PegOutEscrowNotSet();
+    error EscrowQuoteNotClaimed(bytes32 requestHash);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -137,6 +145,63 @@ contract PegOutContract is
         if (!sent) {
             revert Flyover.PaymentFailed(quote.rskRefundAddress, change, reason);
         }
+    }
+
+    /// @inheritdoc IPegOut
+    function registerClaimedPegOut(
+        bytes32 requestHash,
+        bytes calldata signature
+    ) external payable override nonReentrant whenNotSoftPaused {
+        if (address(_pegOutEscrow) == address(0)) revert PegOutEscrowNotSet();
+        if (msg.sender != address(_pegOutEscrow)) {
+            revert OnlyPegOutEscrow(msg.sender);
+        }
+        // `depositTimestamp` is not cleared on settle, so the registered check alone would
+        // also block completed ids; keep `completed` first for a precise post-settlement revert.
+        if (_isQuoteCompleted(requestHash)) {
+            revert QuoteAlreadyCompleted(requestHash);
+        }
+        if (_pegOutRegistry[requestHash].depositTimestamp != 0) {
+            revert QuoteAlreadyRegistered(requestHash);
+        }
+
+        Quotes.PegOutQuote memory quote = _requireClaimedEscrowQuote(requestHash);
+        if (!_collateralManagement.isRegistered(_PEG_TYPE, quote.lpRskAddress)) {
+            revert Flyover.ProviderNotRegistered(quote.lpRskAddress);
+        }
+        if (!_collateralManagement.isCollateralSufficient(_PEG_TYPE, quote.lpRskAddress)) {
+            revert InsufficientCollateral(_collateralManagement.getPegOutCollateral(quote.lpRskAddress));
+        }
+        uint256 requiredAmount = quote.value + quote.callFee + quote.gasFee;
+        if (msg.value != requiredAmount) {
+            revert Flyover.InsufficientAmount(msg.value, requiredAmount);
+        }
+        if (quote.depositDateLimit < block.timestamp || quote.expireDate < block.timestamp) {
+            revert QuoteExpiredByTime(quote.depositDateLimit, quote.expireDate);
+        }
+        if (quote.expireBlock < block.number) {
+            revert QuoteExpiredByBlocks(quote.expireBlock);
+        }
+
+        bytes32 eip712Hash = _hashPegOutQuoteEIP712(quote);
+        if (!SignatureValidator.verify(quote.lpRskAddress, eip712Hash, signature)) {
+            revert SignatureValidator.IncorrectSignature(quote.lpRskAddress, eip712Hash, signature);
+        }
+
+        _pegOutRegistry[requestHash].depositTimestamp = block.timestamp;
+        _pegOutRegistry[requestHash].depositBlock = block.number;
+
+        emit PegOutDeposit(requestHash, quote.lpRskAddress, block.timestamp, msg.value);
+    }
+
+    /// @notice Wires the commit-first PegOutEscrow (only that address may call registerClaimedPegOut)
+    // solhint-disable-next-line comprehensive-interface
+    function setPegOutEscrow(address pegOutEscrow_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (pegOutEscrow_ != address(0) && pegOutEscrow_.code.length == 0) {
+            revert Flyover.NoContract(pegOutEscrow_);
+        }
+        emit PegOutEscrowSet(address(_pegOutEscrow), pegOutEscrow_);
+        _pegOutEscrow = IPegOutEscrow(pegOutEscrow_);
     }
 
     /// @notice This function is used to initialize the contract
@@ -331,12 +396,25 @@ contract PegOutContract is
         }
     }
 
+    /// @notice Escrow CLAIMED quote required for {registerClaimedPegOut}.
+    function _requireClaimedEscrowQuote(bytes32 requestHash)
+        private
+        view
+        returns (Quotes.PegOutQuote memory quote)
+    {
+        if (address(_pegOutEscrow) == address(0)) revert PegOutEscrowNotSet();
+        if (_pegOutEscrow.getPegOutState(requestHash) != IPegOutEscrow.EscrowedPegOutState.CLAIMED) {
+            revert EscrowQuoteNotClaimed(requestHash);
+        }
+        quote = _pegOutEscrow.getPegOutQuote(requestHash);
+    }
+
     /// @notice This function is used to hash a peg out quote
     /// @dev The function also validates the quote belongs to this contract
     /// @param quote the peg out quote to hash
     /// @return quoteHash the hash of the peg out quote
     function _hashPegOutQuote(
-        Quotes.PegOutQuote calldata quote
+        Quotes.PegOutQuote memory quote
     ) private view returns (bytes32) {
         _validatePegOutQuote(quote);
         return keccak256(Quotes.encodePegOutQuote(quote));
@@ -346,14 +424,14 @@ contract PegOutContract is
     /// @dev The function also validates the quote belongs to this contract
     /// @param quote the peg out quote to hash
     /// @return quoteHash the hash of the peg out quote
-    function _hashPegOutQuoteEIP712(Quotes.PegOutQuote calldata quote) private view returns (bytes32) {
+    function _hashPegOutQuoteEIP712(Quotes.PegOutQuote memory quote) private view returns (bytes32) {
         _validatePegOutQuote(quote);
         return _hashTypedDataV4(Quotes.hashPegOutQuoteEIP712(quote));
     }
 
     /// @notice This function is used to validate a peg out quote before hashing it
     /// @param quote The peg out quote to validate
-    function _validatePegOutQuote(Quotes.PegOutQuote calldata quote) private view {
+    function _validatePegOutQuote(Quotes.PegOutQuote memory quote) private view {
         if (quote.chainId != block.chainid) {
             revert Flyover.InvalidChainId(block.chainid, quote.chainId);
         }

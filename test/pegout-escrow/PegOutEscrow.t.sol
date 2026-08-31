@@ -4,32 +4,20 @@ pragma solidity 0.8.25;
 import {Test} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {PegOutEscrow} from "../../src/PegOutEscrow.sol";
+import {PegOutContract} from "../../src/PegOutContract.sol";
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
+import {ICollateralManagement} from "../../src/interfaces/ICollateralManagement.sol";
+import {IPegOut} from "../../src/interfaces/IPegOut.sol";
 import {IPegOutEscrow} from "../../src/interfaces/IPegOutEscrow.sol";
 import {IFlyoverConfigurations} from "../../src/interfaces/IFlyoverConfigurations.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
+import {SignatureValidator} from "../../src/libraries/SignatureValidator.sol";
+import {BridgeMock} from "../../src/test-contracts/BridgeMock.sol";
+import {CollateralManagementMock} from "../../src/test-contracts/CollateralManagementMock.sol";
 import {FlyoverConfigurationsMock} from "../pegin/FlyoverConfigurationsMock.sol";
 
-/// @dev Minimal PegOut stand-in: only `dustThreshold` (public getter) is read by escrow.
-contract PegOutDustMock {
-    uint256 public dustThreshold;
-
-    constructor(uint256 dustThreshold_) {
-        dustThreshold = dustThreshold_;
-    }
-
-    function setDustThreshold(uint256 dustThreshold_) external {
-        dustThreshold = dustThreshold_;
-    }
-}
-
-/// @dev Satisfies initialize code.length checks; unused by request/cancel.
-contract CodeStub {
-
-}
-
-/// @title PegOutEscrow request + cancel
+/// @title PegOutEscrow request, cancel, and claimPegOut
 contract PegOutEscrowTest is Test {
     /// @dev Mirrors impl-only {PegOutEscrow.EscrowPegOutChangePaid} for expectEmit.
     event EscrowPegOutChangePaid(
@@ -51,18 +39,28 @@ contract PegOutEscrowTest is Test {
     uint256 internal constant PENALTY_FEE = 0.01 ether;
     uint256 internal constant TIER_CONFIRMATIONS = 6;
     uint256 internal constant BASIS = 10_000;
+    uint256 internal constant BTC_BLOCK_TIME = 3600;
 
     /// @dev msg.value that yields a serviceable principal near 1 ether under the seed config.
     uint256 internal constant DEFAULT_VALUE = 1.012 ether;
 
+    /// @dev ERC-7201 PegOutEscrow storage root (matches PegOutEscrow._PEGOUT_ESCROW_STORAGE).
+    bytes32 internal constant PEGOUT_ESCROW_STORAGE =
+        0xb99c8d82bac3ff4ec6a3e7ff5aa17dda321aa2a152ae7dc22fe007bc5dcb3000;
+
     PegOutEscrow internal escrow;
+    PegOutContract internal pegOut;
     FlyoverConfigurationsMock internal configurations;
-    PegOutDustMock internal pegOut;
+    CollateralManagementMock internal collateral;
     PauseRegistry internal pauseRegistry;
 
     address internal owner;
     address internal user;
     address internal other;
+    address internal lp;
+    uint256 internal lpKey;
+    address internal otherLp;
+    uint256 internal otherLpKey;
 
     bytes internal constant DEST =
         hex"0014deadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
@@ -71,8 +69,12 @@ contract PegOutEscrowTest is Test {
         owner = makeAddr("owner");
         user = makeAddr("user");
         other = makeAddr("other");
+        (lp, lpKey) = makeAddrAndKey("lp");
+        (otherLp, otherLpKey) = makeAddrAndKey("otherLp");
         vm.deal(user, 100 ether);
         vm.deal(other, 100 ether);
+        vm.deal(lp, 100 ether);
+        vm.deal(otherLp, 100 ether);
 
         PauseRegistry prImpl = new PauseRegistry();
         pauseRegistry = PauseRegistry(
@@ -87,8 +89,31 @@ contract PegOutEscrowTest is Test {
         );
 
         configurations = new FlyoverConfigurationsMock();
-        pegOut = new PegOutDustMock(DUST);
-        CodeStub collateral = new CodeStub();
+        collateral = new CollateralManagementMock();
+
+        BridgeMock bridge = new BridgeMock();
+        PegOutContract pegOutImpl = new PegOutContract();
+        pegOut = PegOutContract(
+            payable(
+                address(
+                    new ERC1967Proxy(
+                        address(pegOutImpl),
+                        abi.encodeCall(
+                            pegOutImpl.initialize,
+                            (
+                                owner,
+                                payable(address(bridge)),
+                                DUST,
+                                address(collateral),
+                                false,
+                                BTC_BLOCK_TIME,
+                                pauseRegistry
+                            )
+                        )
+                    )
+                )
+            )
+        );
 
         PegOutEscrow impl = new PegOutEscrow();
         escrow = PegOutEscrow(
@@ -111,6 +136,9 @@ contract PegOutEscrowTest is Test {
                 )
             )
         );
+
+        vm.prank(owner);
+        pegOut.setPegOutEscrow(address(escrow));
 
         _seedPegOutConfig();
     }
@@ -236,6 +264,7 @@ contract PegOutEscrowTest is Test {
     }
 
     function test_requestPegOut_changeAtOrAboveDust_isRefunded() public {
+        vm.prank(owner);
         pegOut.setDustThreshold(1 wei);
 
         // Pick a value whose residual after split is clearly >= 1 wei.
@@ -269,6 +298,7 @@ contract PegOutEscrowTest is Test {
     }
 
     function test_requestPegOut_changeBelowDust_foldedIntoCallFee() public {
+        vm.prank(owner);
         pegOut.setDustThreshold(type(uint256).max);
 
         uint256 value = 2 ether;
@@ -380,13 +410,176 @@ contract PegOutEscrowTest is Test {
     }
 
     // -------------------------------------------------------------------------
+    // claimPegOut
+    // -------------------------------------------------------------------------
+
+    function test_claimPegOut_happyPath_lpAnchorFundsAndClaimed() public {
+        bytes32 requestHash = _requestDefault();
+        Quotes.PegOutQuote memory quote = escrow.getPegOutQuote(requestHash);
+        uint256 payout = quote.value + quote.callFee + quote.gasFee;
+        uint256 pegOutBefore = address(pegOut).balance;
+        uint256 escrowBefore = address(escrow).balance;
+
+        bytes memory signature = _signForLp(lpKey, quote, lp);
+        uint256 claimTs = block.timestamp;
+
+        vm.expectEmit(true, true, false, true, address(escrow));
+        emit IPegOutEscrow.PegOutClaimed(lp, requestHash);
+        // Claim timestamp is readable via PegOutDeposit (no public registry getter).
+        vm.expectEmit(true, true, true, true, address(pegOut));
+        emit IPegOut.PegOutDeposit(requestHash, lp, claimTs, payout);
+
+        vm.prank(lp);
+        escrow.claimPegOut(requestHash, signature);
+
+        assertEq(
+            uint256(escrow.getPegOutState(requestHash)),
+            uint256(IPegOutEscrow.EscrowedPegOutState.CLAIMED)
+        );
+        assertEq(escrow.getPegOutQuote(requestHash).lpRskAddress, lp);
+        assertEq(address(pegOut).balance, pegOutBefore + payout);
+        assertEq(address(escrow).balance, escrowBefore - payout);
+    }
+
+    function test_claimPegOut_secondClaim_revertsInvalidState() public {
+        bytes32 requestHash = _requestDefault();
+        Quotes.PegOutQuote memory quote = escrow.getPegOutQuote(requestHash);
+        bytes memory signature = _signForLp(lpKey, quote, lp);
+
+        vm.prank(lp);
+        escrow.claimPegOut(requestHash, signature);
+
+        bytes memory otherSig = _signForLp(otherLpKey, quote, otherLp);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOutEscrow.InvalidState.selector,
+                requestHash,
+                IPegOutEscrow.EscrowedPegOutState.REQUESTED,
+                IPegOutEscrow.EscrowedPegOutState.CLAIMED
+            )
+        );
+        vm.prank(otherLp);
+        escrow.claimPegOut(requestHash, otherSig);
+    }
+
+    function test_claimPegOut_afterCancel_revertsInvalidState() public {
+        bytes32 requestHash = _requestDefault();
+        Quotes.PegOutQuote memory quote = escrow.getPegOutQuote(requestHash);
+        bytes memory signature = _signForLp(lpKey, quote, lp);
+
+        vm.prank(user);
+        escrow.cancelPegOut(requestHash);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOutEscrow.InvalidState.selector,
+                requestHash,
+                IPegOutEscrow.EscrowedPegOutState.REQUESTED,
+                IPegOutEscrow.EscrowedPegOutState.CANCELLED
+            )
+        );
+        vm.prank(lp);
+        escrow.claimPegOut(requestHash, signature);
+    }
+
+    function test_claimPegOut_afterRefund_revertsInvalidState() public {
+        bytes32 requestHash = _requestDefault();
+        Quotes.PegOutQuote memory quote = escrow.getPegOutQuote(requestHash);
+        bytes memory signature = _signForLp(lpKey, quote, lp);
+
+        _forceEscrowState(
+            requestHash,
+            IPegOutEscrow.EscrowedPegOutState.REFUNDED
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOutEscrow.InvalidState.selector,
+                requestHash,
+                IPegOutEscrow.EscrowedPegOutState.REQUESTED,
+                IPegOutEscrow.EscrowedPegOutState.REFUNDED
+            )
+        );
+        vm.prank(lp);
+        escrow.claimPegOut(requestHash, signature);
+    }
+
+    function test_claimPegOut_notRegistered_reverts() public {
+        bytes32 requestHash = _requestDefault();
+        Quotes.PegOutQuote memory quote = escrow.getPegOutQuote(requestHash);
+        bytes memory signature = _signForLp(lpKey, quote, lp);
+
+        vm.mockCall(
+            address(collateral),
+            abi.encodeCall(
+                ICollateralManagement.isRegistered,
+                (Flyover.ProviderType.PegOut, lp)
+            ),
+            abi.encode(false)
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(Flyover.ProviderNotRegistered.selector, lp)
+        );
+        vm.prank(lp);
+        escrow.claimPegOut(requestHash, signature);
+    }
+
+    function test_claimPegOut_underCollateralized_reverts() public {
+        bytes32 requestHash = _requestDefault();
+        Quotes.PegOutQuote memory quote = escrow.getPegOutQuote(requestHash);
+        bytes memory signature = _signForLp(lpKey, quote, lp);
+
+        uint256 lowCollateral = 0.1 ether;
+        vm.mockCall(
+            address(collateral),
+            abi.encodeCall(
+                ICollateralManagement.isCollateralSufficient,
+                (Flyover.ProviderType.PegOut, lp)
+            ),
+            abi.encode(false)
+        );
+        vm.mockCall(
+            address(collateral),
+            abi.encodeCall(ICollateralManagement.getPegOutCollateral, (lp)),
+            abi.encode(lowCollateral)
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOut.InsufficientCollateral.selector,
+                lowCollateral
+            )
+        );
+        vm.prank(lp);
+        escrow.claimPegOut(requestHash, signature);
+    }
+
+    function test_claimPegOut_badSignature_reverts() public {
+        bytes32 requestHash = _requestDefault();
+        Quotes.PegOutQuote memory quote = escrow.getPegOutQuote(requestHash);
+        bytes memory badSignature = _signForLp(otherLpKey, quote, lp);
+
+        quote.lpRskAddress = lp;
+        bytes32 eip712Hash = pegOut.hashPegOutQuoteEIP712(quote);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                SignatureValidator.IncorrectSignature.selector,
+                lp,
+                eip712Hash,
+                badSignature
+            )
+        );
+        vm.prank(lp);
+        escrow.claimPegOut(requestHash, badSignature);
+    }
+
+    // -------------------------------------------------------------------------
     // stubs
     // -------------------------------------------------------------------------
 
     function test_stubs_revertNotImplemented() public {
-        vm.expectRevert(PegOutEscrow.PegOutPathNotImplemented.selector);
-        escrow.claimPegOut(bytes32(0), "");
-
         vm.expectRevert(PegOutEscrow.PegOutPathNotImplemented.selector);
         escrow.refundOnNoClaim(bytes32(0));
 
@@ -400,6 +593,32 @@ contract PegOutEscrowTest is Test {
     // -------------------------------------------------------------------------
     // helpers
     // -------------------------------------------------------------------------
+
+    function _requestDefault() internal returns (bytes32 requestHash) {
+        vm.prank(user);
+        requestHash = escrow.requestPegOut{value: DEFAULT_VALUE}(DEST, user);
+    }
+
+    function _signForLp(
+        uint256 privateKey,
+        Quotes.PegOutQuote memory quote,
+        address lpAddress
+    ) internal view returns (bytes memory) {
+        quote.lpRskAddress = lpAddress;
+        bytes32 eip712Hash = pegOut.hashPegOutQuoteEIP712(quote);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, eip712Hash);
+        return abi.encodePacked(r, s, v);
+    }
+
+    /// @dev `state` mapping is at struct offset 4 under the ERC-7201 root.
+    function _forceEscrowState(
+        bytes32 requestHash,
+        IPegOutEscrow.EscrowedPegOutState newState
+    ) internal {
+        bytes32 mappingSlot = bytes32(uint256(PEGOUT_ESCROW_STORAGE) + 4);
+        bytes32 loc = keccak256(abi.encode(requestHash, mappingSlot));
+        vm.store(address(escrow), loc, bytes32(uint256(uint8(newState))));
+    }
 
     function _seedPegOutConfig() internal {
         IFlyoverConfigurations.ConfirmationTier[]
