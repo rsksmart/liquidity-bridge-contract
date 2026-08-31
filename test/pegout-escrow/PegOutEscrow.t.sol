@@ -464,12 +464,7 @@ contract PegOutEscrowTest is Test {
         emit IPegOutEscrow.PegOutClaimed(lp, quoteHash);
         // Claim timestamp is readable via PegOutDeposit (no public registry getter).
         vm.expectEmit(true, true, true, true, address(pegOut));
-        emit IPegOut.PegOutDeposit(
-            quoteHash,
-            address(escrow),
-            claimTs,
-            payout
-        );
+        emit IPegOut.PegOutDeposit(quoteHash, address(escrow), claimTs, payout);
 
         vm.prank(lp);
         escrow.claimPegOut(requestHash, signature);
@@ -678,7 +673,9 @@ contract PegOutEscrowTest is Test {
 
     function test_refundUserPegOut_beforeExpire_reverts() public {
         bytes32 requestHash = _claimDefault();
-        bytes32 settlementKey = _settlementKey(escrow.getPegOutQuote(requestHash));
+        bytes32 settlementKey = _settlementKey(
+            escrow.getPegOutQuote(requestHash)
+        );
 
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -759,7 +756,10 @@ contract PegOutEscrowTest is Test {
         );
 
         vm.expectRevert(
-            abi.encodeWithSelector(Flyover.QuoteNotFound.selector, settlementKey)
+            abi.encodeWithSelector(
+                Flyover.QuoteNotFound.selector,
+                settlementKey
+            )
         );
         vm.prank(other);
         pegOut.refundUserPegOut(settlementKey);
@@ -843,7 +843,9 @@ contract PegOutEscrowTest is Test {
     /// this asserts the escrow transition via the PegOut-only notify surface.
     function test_T4_OnSettlement_ClaimedToFulfilled() public {
         bytes32 requestHash = _claimDefault();
-        bytes32 settlementKey = _settlementKey(escrow.getPegOutQuote(requestHash));
+        bytes32 settlementKey = _settlementKey(
+            escrow.getPegOutQuote(requestHash)
+        );
 
         vm.prank(address(pegOut));
         escrow.onSettlement(
@@ -1023,7 +1025,11 @@ contract PegOutEscrowTest is Test {
 
     /// @dev B8: delivery at quote.value settles with no RBTC top-up.
     function test_B8_AtQuoteValue_Settles() public {
-        (bytes32 requestHash, bytes32 settlementKey, Quotes.PegOutQuote memory quote) = _claimWithP2pkhDest();
+        (
+            bytes32 requestHash,
+            bytes32 settlementKey,
+            Quotes.PegOutQuote memory quote
+        ) = _claimWithP2pkhDest();
         uint256 escrowed = quote.value + quote.callFee + quote.gasFee;
 
         bytes memory btcTx = _generateBtcTxWithAmount(
@@ -1056,11 +1062,19 @@ contract PegOutEscrowTest is Test {
 
     /// @dev B8: delivery above quote.value settles with no RBTC top-up.
     function test_B8_AboveQuoteValue_Settles() public {
-        (bytes32 requestHash, bytes32 settlementKey, Quotes.PegOutQuote memory quote) = _claimWithP2pkhDest();
+        (
+            bytes32 requestHash,
+            bytes32 settlementKey,
+            Quotes.PegOutQuote memory quote
+        ) = _claimWithP2pkhDest();
         uint256 escrowed = quote.value + quote.callFee + quote.gasFee;
         uint256 paid = quote.value + Quotes.SAT_TO_WEI_CONVERSION;
 
-        bytes memory btcTx = _generateBtcTxWithAmount(quote, settlementKey, paid);
+        bytes memory btcTx = _generateBtcTxWithAmount(
+            quote,
+            settlementKey,
+            paid
+        );
         _setupBridgeConfirmations(quote);
 
         uint256 userBefore = user.balance;
@@ -1082,12 +1096,20 @@ contract PegOutEscrowTest is Test {
 
     /// @dev B8: under quote.value delivery reverts InsufficientAmount.
     function test_B8_UnderQuoteValue_RevertsInsufficientAmount() public {
-        (bytes32 requestHash, bytes32 settlementKey, Quotes.PegOutQuote memory quote) = _claimWithP2pkhDest();
+        (
+            bytes32 requestHash,
+            bytes32 settlementKey,
+            Quotes.PegOutQuote memory quote
+        ) = _claimWithP2pkhDest();
         uint256 paid = quote.value - Quotes.SAT_TO_WEI_CONVERSION;
         uint256 paidWei = (paid / Quotes.SAT_TO_WEI_CONVERSION) *
             Quotes.SAT_TO_WEI_CONVERSION;
 
-        bytes memory btcTx = _generateBtcTxWithAmount(quote, settlementKey, paid);
+        bytes memory btcTx = _generateBtcTxWithAmount(
+            quote,
+            settlementKey,
+            paid
+        );
         _setupBridgeConfirmations(quote);
 
         vm.prank(lp);
@@ -1243,7 +1265,11 @@ contract PegOutEscrowTest is Test {
     }
 
     function test_T4_Fulfill_DoesNotBump() public {
-        (bytes32 requestHash, bytes32 settlementKey, Quotes.PegOutQuote memory quote) = _claimWithP2pkhDest();
+        (
+            bytes32 requestHash,
+            bytes32 settlementKey,
+            Quotes.PegOutQuote memory quote
+        ) = _claimWithP2pkhDest();
         bytes memory btcTx = _generateBtcTxWithAmount(
             quote,
             settlementKey,
@@ -1359,7 +1385,11 @@ contract PegOutEscrowTest is Test {
     }
 
     function test_T4_RevokeAfterClaim_DoesNotBlockFulfill() public {
-        (bytes32 requestHash, bytes32 settlementKey, Quotes.PegOutQuote memory quote) = _claimWithP2pkhDest();
+        (
+            bytes32 requestHash,
+            bytes32 settlementKey,
+            Quotes.PegOutQuote memory quote
+        ) = _claimWithP2pkhDest();
 
         vm.prank(owner);
         escrow.revoke(lp);
@@ -1496,17 +1526,26 @@ contract PegOutEscrowTest is Test {
         quoteHash = pegOut.hashPegOutQuote(quote);
     }
 
-    function _settlementKey(Quotes.PegOutQuote memory quote) internal view returns (bytes32) {
+    function _settlementKey(
+        Quotes.PegOutQuote memory quote
+    ) internal view returns (bytes32) {
         return pegOut.hashPegOutQuote(quote);
     }
 
     function _claimWithP2pkhDest()
         internal
-        returns (bytes32 requestHash, bytes32 settlementKey, Quotes.PegOutQuote memory quote)
+        returns (
+            bytes32 requestHash,
+            bytes32 settlementKey,
+            Quotes.PegOutQuote memory quote
+        )
     {
         bytes memory dest = _btcAddressP2pkh();
         vm.prank(user);
-        bytes32 incompleteHash = escrow.requestPegOut{value: DEFAULT_VALUE}(dest, user);
+        bytes32 incompleteHash = escrow.requestPegOut{value: DEFAULT_VALUE}(
+            dest,
+            user
+        );
         quote = escrow.getPegOutQuote(incompleteHash);
         bytes memory signature = _signForLp(lpKey, quote, lp);
         vm.prank(lp);
@@ -1985,7 +2024,12 @@ contract PegOutEscrowIndividualSlashTest is Test {
     }
 
     function test_R3_LateProof_SlashViaShouldPenalize_TimeoutReverts() public {
-        (bytes32 requestHash, bytes32 settlementKey, Quotes.PegOutQuote memory quote, uint256 claimTs) = _claimWithP2pkhDest();
+        (
+            bytes32 requestHash,
+            bytes32 settlementKey,
+            Quotes.PegOutQuote memory quote,
+            uint256 claimTs
+        ) = _claimWithP2pkhDest();
         uint256 claimerBefore = collateral.getPegOutCollateral(lp);
         uint256 expectedPenalty = quote.penaltyFee < claimerBefore
             ? quote.penaltyFee
@@ -2032,7 +2076,10 @@ contract PegOutEscrowIndividualSlashTest is Test {
 
         _warpPastFulfillment(quote);
         vm.expectRevert(
-            abi.encodeWithSelector(Flyover.QuoteNotFound.selector, settlementKey)
+            abi.encodeWithSelector(
+                Flyover.QuoteNotFound.selector,
+                settlementKey
+            )
         );
         vm.prank(other);
         pegOut.refundUserPegOut(settlementKey);
@@ -2197,7 +2244,9 @@ contract PegOutEscrowIndividualSlashTest is Test {
         quoteHash = pegOut.hashPegOutQuote(quote);
     }
 
-    function _settlementKey(Quotes.PegOutQuote memory quote) internal view returns (bytes32) {
+    function _settlementKey(
+        Quotes.PegOutQuote memory quote
+    ) internal view returns (bytes32) {
         return pegOut.hashPegOutQuote(quote);
     }
 
@@ -2212,7 +2261,10 @@ contract PegOutEscrowIndividualSlashTest is Test {
     {
         bytes memory dest = _btcAddressP2pkh();
         vm.prank(user);
-        bytes32 incompleteHash = escrow.requestPegOut{value: DEFAULT_VALUE}(dest, user);
+        bytes32 incompleteHash = escrow.requestPegOut{value: DEFAULT_VALUE}(
+            dest,
+            user
+        );
         quote = escrow.getPegOutQuote(incompleteHash);
         bytes memory signature = _signForLp(lpKey, quote, lp);
         vm.prank(lp);

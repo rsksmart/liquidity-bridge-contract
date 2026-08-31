@@ -22,7 +22,11 @@ contract SystemHandler is HandlerBase {
     address public adder;
 
     /// @dev Handler is wired as PegOut escrow for unit-style deposits.
-    function onSettlement(bytes32, IPegOutEscrow.EscrowedPegOutState) external {}
+    function onSettlement(
+        bytes32,
+        IPegOutEscrow.EscrowedPegOutState
+    ) external {}
+
     function onClaimFail(address) external {}
 
     struct ProviderInfo {

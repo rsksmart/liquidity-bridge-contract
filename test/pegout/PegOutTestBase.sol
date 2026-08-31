@@ -53,7 +53,10 @@ abstract contract PegOutTestBase is Test {
         "script/helpers/generate-btc-tx.ts";
 
     /// @dev PegOut notifies the wired escrow on settlement; unit tests use this contract as escrow.
-    function onSettlement(bytes32, IPegOutEscrow.EscrowedPegOutState) external {}
+    function onSettlement(
+        bytes32,
+        IPegOutEscrow.EscrowedPegOutState
+    ) external {}
 
     /// @dev PegOut notifies claim-fail on user refund; no-op stub for unit tests.
     function onClaimFail(address) external {}
