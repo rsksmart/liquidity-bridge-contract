@@ -14,10 +14,8 @@ contract FlyoverConfigurationsMock is IFlyoverConfigurations {
 
     PegConfiguration private _config;
     PegConfiguration private _queued;
-
-    /// @notice Peg-out stubs only; real mock wiring lands with peg-out config tests.
-    /// @dev TODO: wire peg-out config storage and implement peg-out configuration methods
-    error PegOutNotImplemented();
+    PegOutConfiguration private _pegOutConfig;
+    PegOutConfiguration private _pegOutQueued;
 
     /// @notice Sets the fixed and percentage fee components directly
     function setFee(uint256 fixedFee, uint256 percentageFee) external {
@@ -90,38 +88,58 @@ contract FlyoverConfigurationsMock is IFlyoverConfigurations {
         _config = _queued;
     }
 
+    function setPegOutConfiguration(
+        PegOutConfiguration calldata configuration
+    ) external {
+        _pegOutConfig = configuration;
+    }
+
     /// @inheritdoc IFlyoverConfigurations
     function getPegOutConfiguration()
         external
         view
         override
-        returns (PegOutConfiguration memory)
+        returns (PegOutConfiguration memory configuration)
     {
-        revert PegOutNotImplemented();
+        return _pegOutConfig;
     }
 
     /// @inheritdoc IFlyoverConfigurations
     function calculatePegOutFee(
-        uint256
-    ) external view override returns (uint256) {
-        revert PegOutNotImplemented();
+        uint256 amount
+    ) external view override returns (uint256 fee) {
+        return
+            _pegOutConfig.fixedFee +
+            (amount * _pegOutConfig.percentageFee) /
+            _BASIS_POINTS;
     }
 
     /// @inheritdoc IFlyoverConfigurations
     function getRequiredPegOutBtcConfirmations(
-        uint256
-    ) external view override returns (uint256) {
-        revert PegOutNotImplemented();
+        uint256 amount
+    ) external view override returns (uint256 confirmations) {
+        uint256 tierCount = _pegOutConfig.confirmationTiers.length;
+        for (uint256 i = 0; i < tierCount; i++) {
+            if (amount <= _pegOutConfig.confirmationTiers[i].maxAmount) {
+                return _pegOutConfig.confirmationTiers[i].confirmations;
+            }
+        }
+        if (tierCount > 0) {
+            return _pegOutConfig.confirmationTiers[tierCount - 1].confirmations;
+        }
+        return 0;
     }
 
     /// @inheritdoc IFlyoverConfigurations
-    function queuePegOutChange(PegOutConfiguration calldata) external override {
-        revert PegOutNotImplemented();
+    function queuePegOutChange(
+        PegOutConfiguration calldata newConfiguration
+    ) external override {
+        _pegOutQueued = newConfiguration;
     }
 
     /// @inheritdoc IFlyoverConfigurations
     function applyPegOutChange() external override {
-        revert PegOutNotImplemented();
+        _pegOutConfig = _pegOutQueued;
     }
 }
 /* solhint-enable comprehensive-interface */

@@ -16,17 +16,29 @@ import {Flyover} from "./libraries/Flyover.sol";
 /// are seeded at deployment and are editable by the admin only through the same two-step time
 /// lock ({queueBoundsChange} / {applyBoundsChange}), so widening or tightening them is observable
 /// for a full delay before it can take effect and never needs a contract upgrade.
-/// @dev Implements the frozen {IFlyoverConfigurations}. Peg-in is fully wired; peg-out interface
-/// methods stub with {PegOutNotImplemented} until the dedicated config storage lands (keeps this
-/// contract compiling against the frozen ABI). Upgradeable, ERC-7201 namespaced storage, deployed
-/// behind a TransparentUpgradeableProxy per repo pattern.
+/// @dev Implements the frozen {IFlyoverConfigurations}. Peg-out uses a separate ERC-7201 namespace.
+/// Upgradeable, ERC-7201 namespaced storage, deployed behind a TransparentUpgradeableProxy per
+/// repo pattern.
 /// @author Rootstock Labs
 contract FlyoverConfigurations is
     AccessControlDefaultAdminRulesUpgradeable,
     IFlyoverConfigurations
 {
     /// @notice Identifies the scalar field an out-of-bounds revert refers to.
-    enum Field { FixedFee, PercentageFee, MinAmount, MaxAmount, RegistrantFee }
+    enum Field {
+        FixedFee,
+        PercentageFee,
+        MinAmount,
+        MaxAmount,
+        RegistrantFee,
+        PenaltyFee,
+        ClaimWindow,
+        ClaimWindowBlocks,
+        CallTime,
+        ExpireTime,
+        ExpireBlocks,
+        MaxMinerFee
+    }
 
     /// @custom:storage-location erc7201:rsk.flyover.FlyoverConfigurations
     struct FlyoverConfigurationsStorage {
@@ -48,6 +60,17 @@ contract FlyoverConfigurations is
         PegConfiguration pendingMin;
         PegConfiguration pendingMax;
         uint256 pendingEta;
+    }
+
+    /// @custom:storage-location erc7201:rsk.flyover.FlyoverConfigurations.pegOut
+    /// @dev Separate namespace so peg-out never shifts peg-in storage.
+    struct PegOutConfigurationsStorage {
+        PegOutConfiguration active;
+        PegOutConfiguration pending;
+        uint256 pendingEta;
+        PegOutConfiguration minBound;
+        PegOutConfiguration maxBound;
+        bool initialized;
     }
 
     /// @notice The version of the contract
@@ -72,6 +95,11 @@ contract FlyoverConfigurations is
     bytes32 private constant _FLYOVER_CONFIGURATIONS_BOUNDS =
         0x62f8e0a1022a246e45081dab13f708870be3f38423627ed9d784f6bc5369e500;
 
+    // ERC-7201: keccak256(abi.encode(uint256(keccak256("rsk.flyover.FlyoverConfigurations.pegOut")) - 1)) &
+    // ~bytes32(uint256(0xff))
+    bytes32 private constant _FLYOVER_CONFIGURATIONS_PEGOUT =
+        0x15978da28ad46e9b891b8591ece2c0413e91c9a5c9c768c642316e015001be00;
+
     /// @notice Emitted when a configuration change is queued by the admin.
     /// @param newConfiguration The configuration that will activate once the time lock elapses
     /// @param eta The earliest timestamp `applyChange` may activate the queued configuration
@@ -91,6 +119,9 @@ contract FlyoverConfigurations is
     /// @param newMin The now-active lower bounds
     /// @param newMax The now-active upper bounds
     event BoundsChangeApplied(PegConfiguration newMin, PegConfiguration newMax);
+
+    event PegOutChangeQueued(PegOutConfiguration newConfiguration, uint256 eta);
+    event PegOutChangeApplied(PegOutConfiguration newConfiguration);
 
     /// @notice Raised when a scalar field falls outside its active bound.
     error ConfigValueOutOfBounds(Field field, uint256 value, uint256 min, uint256 max);
@@ -112,13 +143,13 @@ contract FlyoverConfigurations is
     error NoQueuedBoundsChange();
     /// @notice Raised when applying bounds that would leave the active configuration outside them.
     error ActiveConfigOutsideNewBounds(Field field, uint256 value, uint256 min, uint256 max);
+    error PegOutAlreadyInitialized();
+    error PegOutNotInitialized();
+    error InvalidPegOutDeadlines();
     /// @notice Raised when registrantFee is at or above {MAX_REGISTRANT_FEE_EXCLUSIVE}.
     error RegistrantFeeTooHigh(uint256 registrantFee, uint256 maxExclusive);
     /// @notice Raised when fixedFee cannot cover registrantFee plus the LP gas cushion.
     error InsufficientFixedFeeForRegistrant(uint256 fixedFee, uint256 registrantFee, uint256 cushion);
-    /// @notice Peg-out config storage is not wired yet; interface methods stub until then.
-    /// @dev TODO: wire peg-out config storage and implement peg-out configuration methods
-    error PegOutNotImplemented();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -164,6 +195,27 @@ contract FlyoverConfigurations is
         // The seed config must itself respect the bounds it will be measured against.
         _validateConfig(pegInConfig);
         _getStorage().activePegIn = pegInConfig;
+    }
+
+    /// @notice One-time peg-out seed; call after {initialize}.
+    /// @dev TODO: consider folding peg-out seed/bounds into {initialize} on a greenfield deploy.
+    /// Kept separate so the existing peg-in initializer ABI, deploy calldata, and tests stay
+    /// unchanged, and so an already-initialized proxy can seed the peg-out ERC-7201 namespace
+    /// without re-running `initialize`.
+    // solhint-disable-next-line comprehensive-interface
+    function initializePegOut(
+        PegOutConfiguration calldata pegOutConfig,
+        PegOutConfiguration calldata pegOutMin,
+        PegOutConfiguration calldata pegOutMax
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        PegOutConfigurationsStorage storage pegOut = _getPegOutStorage();
+        if (pegOut.initialized) revert PegOutAlreadyInitialized();
+
+        pegOut.minBound = pegOutMin;
+        pegOut.maxBound = pegOutMax;
+        _validatePegOutConfig(pegOutConfig);
+        pegOut.active = pegOutConfig;
+        pegOut.initialized = true;
     }
 
     /// @inheritdoc IFlyoverConfigurations
@@ -270,6 +322,41 @@ contract FlyoverConfigurations is
     }
 
     /// @inheritdoc IFlyoverConfigurations
+    function queuePegOutChange(PegOutConfiguration calldata newConfiguration)
+        external
+        override
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        _requirePegOutInitialized();
+        _validatePegOutConfig(newConfiguration);
+        PegOutConfigurationsStorage storage pegOut = _getPegOutStorage();
+        uint256 eta = block.timestamp + _getBounds().timelockDelay;
+        pegOut.pending = newConfiguration;
+        pegOut.pendingEta = eta;
+        emit PegOutChangeQueued(newConfiguration, eta);
+    }
+
+    /// @inheritdoc IFlyoverConfigurations
+    function applyPegOutChange() external override onlyRole(DEFAULT_ADMIN_ROLE) {
+        _requirePegOutInitialized();
+        PegOutConfigurationsStorage storage pegOut = _getPegOutStorage();
+        uint256 eta = pegOut.pendingEta;
+        if (eta == 0) revert NoQueuedChange();
+        if (block.timestamp < eta) revert TimelockNotElapsed(eta, block.timestamp);
+
+        PegOutConfiguration memory pending = pegOut.pending;
+        _validatePegOutConfig(pending);
+
+        pegOut.active = pegOut.pending;
+        delete pegOut.pending;
+        pegOut.pendingEta = 0;
+        emit PegOutChangeApplied(pending);
+    }
+
+    // TODO(nit): drop unused named returns on all view getters below (`configuration`, `fee`,
+    // `confirmations`, `min`/`max`, `pending`/`eta`) — peg-in and peg-out. Names mirror NatSpec
+    // but are unused when the body uses an explicit `return`.
+    /// @inheritdoc IFlyoverConfigurations
     function getPegInConfiguration() external view override returns (PegConfiguration memory configuration) {
         return _getStorage().activePegIn;
     }
@@ -334,38 +421,49 @@ contract FlyoverConfigurations is
     }
 
     /// @inheritdoc IFlyoverConfigurations
-    function getPegOutConfiguration()
+    function getPegOutConfiguration() external view override returns (PegOutConfiguration memory configuration) {
+        _requirePegOutInitialized();
+        return _getPegOutStorage().active;
+    }
+
+    /// @inheritdoc IFlyoverConfigurations
+    function calculatePegOutFee(uint256 amount) external view override returns (uint256 fee) {
+        _requirePegOutInitialized();
+        return _calculatePegOutFee(_getPegOutStorage().active, amount);
+    }
+
+    /// @inheritdoc IFlyoverConfigurations
+    function getRequiredPegOutBtcConfirmations(uint256 amount)
         external
         view
         override
-        returns (PegOutConfiguration memory)
+        returns (uint256 confirmations)
     {
-        revert PegOutNotImplemented();
+        _requirePegOutInitialized();
+        return _requiredPegOutConfirmations(_getPegOutStorage().active, amount);
     }
 
-    /// @inheritdoc IFlyoverConfigurations
-    function calculatePegOutFee(uint256) external view override returns (uint256) {
-        revert PegOutNotImplemented();
-    }
-
-    /// @inheritdoc IFlyoverConfigurations
-    function getRequiredPegOutBtcConfirmations(uint256)
+    /// @notice Immutable peg-out deployment bounds.
+    // solhint-disable-next-line comprehensive-interface
+    function getPegOutConfigurationBounds()
         external
         view
-        override
-        returns (uint256)
+        returns (PegOutConfiguration memory min, PegOutConfiguration memory max)
     {
-        revert PegOutNotImplemented();
+        _requirePegOutInitialized();
+        PegOutConfigurationsStorage storage pegOut = _getPegOutStorage();
+        return (pegOut.minBound, pegOut.maxBound);
     }
 
-    /// @inheritdoc IFlyoverConfigurations
-    function queuePegOutChange(PegOutConfiguration calldata) external override {
-        revert PegOutNotImplemented();
-    }
-
-    /// @inheritdoc IFlyoverConfigurations
-    function applyPegOutChange() external override {
-        revert PegOutNotImplemented();
+    /// @notice Queued peg-out change and eta (`0` if none).
+    // solhint-disable-next-line comprehensive-interface
+    function getPendingPegOutChange()
+        external
+        view
+        returns (PegOutConfiguration memory pending, uint256 eta)
+    {
+        PegOutConfigurationsStorage storage pegOut = _getPegOutStorage();
+        return (pegOut.pending, pegOut.pendingEta);
     }
 
     /// @dev fee = fixedFee + amount * percentageFee / 10_000, then rounded DOWN to a satoshi
@@ -382,10 +480,37 @@ contract FlyoverConfigurations is
         return fee;
     }
 
+    function _calculatePegOutFee(PegOutConfiguration storage config, uint256 amount)
+        private
+        view
+        returns (uint256)
+    {
+        uint256 fee = config.fixedFee + (amount * config.percentageFee) / FEE_PERCENTAGE_DENOMINATOR;
+        if (fee > Flyover.SAT_TO_WEI_CONVERSION && (fee % Flyover.SAT_TO_WEI_CONVERSION) != 0) {
+            fee -= (fee % Flyover.SAT_TO_WEI_CONVERSION);
+        }
+        return fee;
+    }
+
     /// @dev Returns the confirmations of the first tier whose maxAmount covers the amount. If the
     /// amount exceeds every tier, returns the highest (last) tier's confirmations, the most
     /// conservative answer. Tiers are kept strictly ascending, so the first match is the tightest.
     function _requiredConfirmations(PegConfiguration storage config, uint256 amount)
+        private
+        view
+        returns (uint256)
+    {
+        ConfirmationTier[] storage tiers = config.confirmationTiers;
+        uint256 length = tiers.length;
+        for (uint256 i = 0; i < length; ++i) {
+            if (amount <= tiers[i].maxAmount) {
+                return tiers[i].confirmations;
+            }
+        }
+        return tiers[length - 1].confirmations;
+    }
+
+    function _requiredPegOutConfirmations(PegOutConfiguration storage config, uint256 amount)
         private
         view
         returns (uint256)
@@ -505,6 +630,41 @@ contract FlyoverConfigurations is
         }
     }
 
+    function _validatePegOutConfig(PegOutConfiguration memory config) private view {
+        PegOutConfigurationsStorage storage pegOut = _getPegOutStorage();
+        PegOutConfiguration storage minB = pegOut.minBound;
+        PegOutConfiguration storage maxB = pegOut.maxBound;
+
+        _checkBound(Field.FixedFee, config.fixedFee, minB.fixedFee, maxB.fixedFee);
+        _checkBound(Field.PercentageFee, config.percentageFee, minB.percentageFee, maxB.percentageFee);
+        _checkBound(Field.MinAmount, config.minAmount, minB.minAmount, maxB.minAmount);
+        _checkBound(Field.MaxAmount, config.maxAmount, minB.maxAmount, maxB.maxAmount);
+        _checkBound(Field.PenaltyFee, config.penaltyFee, minB.penaltyFee, maxB.penaltyFee);
+        _checkBound(Field.ClaimWindow, config.claimWindow, minB.claimWindow, maxB.claimWindow);
+        _checkBound(
+            Field.ClaimWindowBlocks, config.claimWindowBlocks, minB.claimWindowBlocks, maxB.claimWindowBlocks
+        );
+        _checkBound(Field.CallTime, config.callTime, minB.callTime, maxB.callTime);
+        _checkBound(Field.ExpireTime, config.expireTime, minB.expireTime, maxB.expireTime);
+        _checkBound(Field.ExpireBlocks, config.expireBlocks, minB.expireBlocks, maxB.expireBlocks);
+        _checkBound(Field.MaxMinerFee, config.maxMinerFee, minB.maxMinerFee, maxB.maxMinerFee);
+
+        if (config.percentageFee > FEE_PERCENTAGE_DENOMINATOR) {
+            revert InvalidPercentageFee(config.percentageFee);
+        }
+        if (config.minAmount > config.maxAmount) {
+            revert InvalidAmountLimits(config.minAmount, config.maxAmount);
+        }
+        if (config.claimWindow == 0 || config.callTime == 0 || config.expireTime == 0) {
+            revert InvalidPegOutDeadlines();
+        }
+        _validateTiers(config.confirmationTiers);
+    }
+
+    function _requirePegOutInitialized() private view {
+        if (!_getPegOutStorage().initialized) revert PegOutNotInitialized();
+    }
+
     function _getStorage() private pure returns (FlyoverConfigurationsStorage storage $) {
         assembly {
             $.slot := _FLYOVER_CONFIGURATIONS_STORAGE
@@ -514,6 +674,12 @@ contract FlyoverConfigurations is
     function _getBounds() private pure returns (FlyoverConfigurationsBounds storage $) {
         assembly {
             $.slot := _FLYOVER_CONFIGURATIONS_BOUNDS
+        }
+    }
+
+    function _getPegOutStorage() private pure returns (PegOutConfigurationsStorage storage $) {
+        assembly {
+            $.slot := _FLYOVER_CONFIGURATIONS_PEGOUT
         }
     }
 }
