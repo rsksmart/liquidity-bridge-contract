@@ -309,9 +309,20 @@ contract PegOutContract is
 
     /// @inheritdoc IPegOut
     function refundUserPegOut(bytes32 quoteHash) external nonReentrant whenNotHardPaused override {
-        Quotes.PegOutQuote memory quote = _pegOutQuotes[quoteHash];
-
-        if (quote.lbcAddress == address(0)) revert Flyover.QuoteNotFound(quoteHash);
+        // TODO: after retiring depositPegOut, require escrow (revert PegOutEscrowNotSet) and drop the legacy branch.
+        Quotes.PegOutQuote memory quote;
+        if (address(_pegOutEscrow) == address(0)) {
+            // Legacy depositPegOut: replay after refund surfaces QuoteNotFound (quote body deleted).
+            quote = _pegOutQuotes[quoteHash];
+            if (quote.lbcAddress == address(0)) revert Flyover.QuoteNotFound(quoteHash);
+        } else {
+            // Commit-first: quote body lives on PegOutEscrow while CLAIMED.
+            if (_isQuoteCompleted(quoteHash)) revert QuoteAlreadyCompleted(quoteHash);
+            if (_pegOutEscrow.getPegOutState(quoteHash) != IPegOutEscrow.EscrowedPegOutState.CLAIMED) {
+                revert EscrowQuoteNotClaimed(quoteHash);
+            }
+            quote = _pegOutEscrow.getPegOutQuote(quoteHash);
+        }
 
         uint256 depositTs = _pegOutRegistry[quoteHash].depositTimestamp;
         uint256 depositBlock = _pegOutRegistry[quoteHash].depositBlock;
@@ -331,6 +342,7 @@ contract PegOutContract is
         _pegOutRegistry[quoteHash].completed = true;
 
         emit PegOutUserRefunded(quoteHash, addressToTransfer, valueToTransfer);
+        _notifyEscrowSettlement(quoteHash, IPegOutEscrow.EscrowedPegOutState.REFUNDED);
         _collateralManagement.slashPegOutCollateral(msg.sender, quote, quoteHash);
 
         (bool sent,) = addressToTransfer.call{value: valueToTransfer}("");
@@ -407,6 +419,22 @@ contract PegOutContract is
             revert EscrowQuoteNotClaimed(requestHash);
         }
         quote = _pegOutEscrow.getPegOutQuote(requestHash);
+    }
+
+    /// @notice Flip escrow CLAIMED → terminal when settlement finishes on this contract.
+    /// @dev Soft-skips when escrow is unset so legacy depositPegOut refunds still work.
+    /// TODO: after retiring depositPegOut, require escrow (PegOutEscrowNotSet) and
+    /// CLAIMED (EscrowQuoteNotClaimed) instead of early returns.
+    function _notifyEscrowSettlement(
+        bytes32 requestHash,
+        IPegOutEscrow.EscrowedPegOutState finalState
+    ) private {
+        if (address(_pegOutEscrow) == address(0)) return;
+        // Soft-skips non-CLAIMED ids (e.g. legacy depositPegOut refunds that never touched escrow).
+        if (_pegOutEscrow.getPegOutState(requestHash) != IPegOutEscrow.EscrowedPegOutState.CLAIMED) {
+            return;
+        }
+        _pegOutEscrow.onSettlement(requestHash, finalState);
     }
 
     /// @notice This function is used to hash a peg out quote

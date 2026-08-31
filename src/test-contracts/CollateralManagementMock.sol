@@ -9,6 +9,15 @@ import {Quotes} from "../libraries/Quotes.sol";
 contract CollateralManagementMock is ICollateralManagement {
 
     uint256 private _balance;
+    /// @dev When true, {globalSlash} reverts so callers can exercise skip paths.
+    bool public globalSlashReverts = true;
+    /// @dev Incremented on each successful {globalSlash} call.
+    uint256 public globalSlashCalls;
+    uint256 public lastGlobalSlashTotal;
+
+    function setGlobalSlashReverts(bool reverts_) external {
+        globalSlashReverts = reverts_;
+    }
 
     function addPegInCollateralTo(address) external payable {
         _balance += msg.value;
@@ -32,6 +41,14 @@ contract CollateralManagementMock is ICollateralManagement {
 
     function slashPegOutCollateral(address, Quotes.PegOutQuote calldata, bytes32) external {
         emit Penalized(address(0), address(0), bytes32(0), Flyover.ProviderType.PegOut, 0, 0);
+    }
+
+    function globalSlash(uint256 total) external {
+        if (globalSlashReverts) {
+            revert GlobalSlashNotImplemented();
+        }
+        globalSlashCalls += 1;
+        lastGlobalSlashTotal = total;
     }
 
     function withdrawRewards() external {
