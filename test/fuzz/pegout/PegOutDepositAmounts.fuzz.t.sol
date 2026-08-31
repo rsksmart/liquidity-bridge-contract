@@ -47,7 +47,6 @@ contract PegOutDepositAmountsFuzzTest is PegOutFuzzTestBase {
         );
 
         // Should succeed with exact payment
-        vm.prank(fuzzUser);
         pegOutContract.depositPegOut{value: totalValue}(quote, signature);
 
         assertFalse(
@@ -85,7 +84,6 @@ contract PegOutDepositAmountsFuzzTest is PegOutFuzzTestBase {
             paidAmount
         );
 
-        vm.prank(fuzzUser);
         pegOutContract.depositPegOut{value: paidAmount}(quote, signature);
 
         // Contract should keep the extra (no change paid)
@@ -136,7 +134,6 @@ contract PegOutDepositAmountsFuzzTest is PegOutFuzzTestBase {
             extraAmount
         );
 
-        vm.prank(fuzzUser);
         pegOutContract.depositPegOut{value: paidAmount}(quote, signature);
 
         // User should receive change back

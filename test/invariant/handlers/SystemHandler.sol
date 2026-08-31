@@ -8,6 +8,7 @@ import {CollateralManagementContract} from "../../../src/CollateralManagement.so
 import {FlyoverDiscovery} from "../../../src/FlyoverDiscovery.sol";
 import {Quotes} from "../../../src/libraries/Quotes.sol";
 import {Flyover} from "../../../src/libraries/Flyover.sol";
+import {IPegOutEscrow} from "../../../src/interfaces/IPegOutEscrow.sol";
 
 /// @title System Invariant Handler
 /// @notice Cross-contract handler for full system invariant testing
@@ -19,6 +20,12 @@ contract SystemHandler is HandlerBase {
     address public owner;
 
     address public adder;
+
+    function getPegOutState(bytes32) external pure returns (IPegOutEscrow.EscrowedPegOutState) {
+        return IPegOutEscrow.EscrowedPegOutState.CLAIMED;
+    }
+    function onSettlement(bytes32, IPegOutEscrow.EscrowedPegOutState) external {}
+    function onClaimFail(address) external {}
 
     struct ProviderInfo {
         address addr;
@@ -226,8 +233,7 @@ contract SystemHandler is HandlerBase {
 
     function submitStaged() external {
         uint256 totalValue = _staged.value + _staged.callFee + _staged.gasFee;
-        vm.deal(user, totalValue);
-        vm.prank(user);
+        vm.deal(address(this), totalValue);
         pegOutContract.depositPegOut{value: totalValue}(
             _staged,
             _stagedSignature

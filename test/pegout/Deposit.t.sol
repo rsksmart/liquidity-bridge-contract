@@ -34,7 +34,6 @@ contract DepositTest is PegOutTestBase {
         );
         bytes memory signature = signQuote(notLp, quote);
 
-        vm.prank(user);
         vm.expectRevert(
             abi.encodeWithSelector(
                 Flyover.ProviderNotRegistered.selector,
@@ -54,7 +53,6 @@ contract DepositTest is PegOutTestBase {
         );
         bytes memory signature = signQuote(pegInLp, quote);
 
-        vm.prank(user);
         vm.expectRevert(
             abi.encodeWithSelector(
                 Flyover.ProviderNotRegistered.selector,
@@ -95,7 +93,6 @@ contract DepositTest is PegOutTestBase {
         );
         bytes memory signature = signQuote(pegOutLp, quote);
 
-        vm.prank(user);
         vm.expectRevert(
             abi.encodeWithSelector(
                 IPegOut.InsufficientCollateral.selector,
@@ -108,6 +105,7 @@ contract DepositTest is PegOutTestBase {
         );
     }
 
+
     function test_DepositPegOut_RevertsIfRskRefundAddressIsZero() public {
         Quotes.PegOutQuote memory quote = createTestPegOutQuote(
             1.03 ether,
@@ -115,7 +113,6 @@ contract DepositTest is PegOutTestBase {
         );
         quote.rskRefundAddress = address(0);
 
-        vm.prank(user);
         vm.expectRevert(
             abi.encodeWithSelector(Flyover.InvalidAddress.selector, address(0))
         );
@@ -132,7 +129,6 @@ contract DepositTest is PegOutTestBase {
 
         bytes memory signature = signQuote(fullLp, quote);
 
-        vm.prank(user);
         vm.expectRevert(
             abi.encodeWithSelector(
                 Flyover.InsufficientAmount.selector,
@@ -158,7 +154,6 @@ contract DepositTest is PegOutTestBase {
 
         bytes memory signature = signQuote(fullLp, quote);
 
-        vm.prank(user);
         vm.expectRevert(
             abi.encodeWithSelector(
                 IPegOut.QuoteExpiredByTime.selector,
@@ -187,7 +182,6 @@ contract DepositTest is PegOutTestBase {
 
         bytes memory signature = signQuote(fullLp, quote);
 
-        vm.prank(user);
         vm.expectRevert(
             abi.encodeWithSelector(
                 IPegOut.QuoteExpiredByTime.selector,
@@ -216,7 +210,6 @@ contract DepositTest is PegOutTestBase {
         // Mine blocks to expire the quote
         vm.roll(currentBlock + 4);
 
-        vm.prank(user);
         vm.expectRevert(
             abi.encodeWithSelector(
                 IPegOut.QuoteExpiredByBlocks.selector,
@@ -238,7 +231,6 @@ contract DepositTest is PegOutTestBase {
         bytes32 eip712Hash = pegOutContract.hashPegOutQuoteEIP712(quote);
         bytes memory wrongSignature = signQuote(fullLp, quote);
 
-        vm.prank(user);
         vm.expectRevert(
             abi.encodeWithSelector(
                 SignatureValidator.IncorrectSignature.selector,
@@ -259,12 +251,11 @@ contract DepositTest is PegOutTestBase {
             1.03 ether,
             pegOutLp
         );
-        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+        bytes32 quoteHash = incompleteQuoteHash(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
         uint256 totalVal = getTotalValue(quote);
 
         // Step 1: Deposit the quote
-        vm.prank(user);
         pegOutContract.depositPegOut{value: totalVal}(quote, signature);
 
         // Step 2: LP completes the quote by refunding with BTC proof (mocked)
@@ -290,7 +281,6 @@ contract DepositTest is PegOutTestBase {
         );
 
         // Step 3: Try to deposit the same quote again - should fail as already completed
-        vm.prank(user);
         vm.expectRevert(
             abi.encodeWithSelector(
                 IPegOut.QuoteAlreadyCompleted.selector,
@@ -305,16 +295,14 @@ contract DepositTest is PegOutTestBase {
             1.03 ether,
             pegOutLp
         );
-        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+        bytes32 quoteHash = incompleteQuoteHash(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
         uint256 totalVal = getTotalValue(quote);
 
         // First deposit succeeds
-        vm.prank(user);
         pegOutContract.depositPegOut{value: totalVal}(quote, signature);
 
         // Second deposit should fail - quote already registered
-        vm.prank(user);
         vm.expectRevert(
             abi.encodeWithSelector(
                 IPegOut.QuoteAlreadyRegistered.selector,
@@ -336,22 +324,22 @@ contract DepositTest is PegOutTestBase {
         // Pay slightly more but less than dust threshold
         uint256 paidAmount = totalVal + 0.00000009 ether;
 
-        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+        bytes32 quoteHash = incompleteQuoteHash(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
 
         uint256 userBalanceBefore = user.balance;
+        uint256 payerBalanceBefore = address(this).balance;
         uint256 contractBalanceBefore = address(pegOutContract).balance;
 
-        vm.prank(user);
         vm.expectEmit(true, true, false, false);
-        emit IPegOut.PegOutDeposit(quoteHash, user, 0, paidAmount);
+        emit IPegOut.PegOutDeposit(quoteHash, address(this), 0, paidAmount);
         pegOutContract.depositPegOut{value: paidAmount}(quote, signature);
 
-        // Verify balances (no change paid back due to dust threshold)
+        assertEq(user.balance, userBalanceBefore, "Refund address unchanged");
         assertEq(
-            user.balance,
-            userBalanceBefore - paidAmount,
-            "User should pay full amount"
+            address(this).balance,
+            payerBalanceBefore - paidAmount,
+            "Escrow should pay full amount"
         );
         assertEq(
             address(pegOutContract).balance,
@@ -378,23 +366,27 @@ contract DepositTest is PegOutTestBase {
         uint256 paidAmount = totalVal + TEST_DUST_THRESHOLD;
         uint256 changeAmount = paidAmount - totalVal;
 
-        bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
+        bytes32 quoteHash = incompleteQuoteHash(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
 
         uint256 userBalanceBefore = user.balance;
+        uint256 payerBalanceBefore = address(this).balance;
 
-        vm.prank(user);
         vm.expectEmit(true, false, false, false);
-        emit IPegOut.PegOutDeposit(quoteHash, user, 0, paidAmount);
+        emit IPegOut.PegOutDeposit(quoteHash, address(this), 0, paidAmount);
         vm.expectEmit(true, true, false, true);
         emit IPegOut.PegOutChangePaid(quoteHash, user, changeAmount);
         pegOutContract.depositPegOut{value: paidAmount}(quote, signature);
 
-        // Verify net payment (change was returned)
+        assertEq(
+            address(this).balance,
+            payerBalanceBefore - paidAmount,
+            "Escrow should pay full sent amount"
+        );
         assertEq(
             user.balance,
-            userBalanceBefore - totalVal,
-            "User should pay only total value (change returned)"
+            userBalanceBefore + changeAmount,
+            "Refund address should receive change"
         );
 
         // Verify quote is not yet completed
@@ -423,7 +415,6 @@ contract DepositTest is PegOutTestBase {
         bytes memory signature = signQuote(fullLp, quote);
 
         // Deposit should revert when trying to pay change
-        vm.prank(user);
         vm.expectRevert(); // PaymentFailed error
         pegOutContract.depositPegOut{value: paidAmount}(quote, signature);
     }
@@ -448,12 +439,20 @@ contract DepositTest is PegOutTestBase {
         uint256 paidAmount = totalVal + 0.5 ether;
 
         // Deposit should revert due to reentrancy guard
-        vm.prank(user);
         vm.expectRevert(); // PaymentFailed with ReentrancyGuard error
         pegOutContract.depositPegOut{value: paidAmount}(quote, signature);
     }
 
     // ============ Helper Functions ============
+
+    function incompleteQuoteHash(
+        Quotes.PegOutQuote memory quote
+    ) internal view returns (bytes32) {
+        Quotes.PegOutQuote memory incomplete = quote;
+        incomplete.lpRskAddress = address(0);
+        return pegOutContract.hashPegOutQuote(incomplete);
+    }
+
 
     function createTestPegOutQuote(
         uint256 value,

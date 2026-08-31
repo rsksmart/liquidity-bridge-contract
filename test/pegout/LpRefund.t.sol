@@ -77,7 +77,6 @@ contract LpRefundTest is PegOutTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
 
-        vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
             quote,
             signature
@@ -543,7 +542,6 @@ contract LpRefundTest is PegOutTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
 
-        vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
             quote,
             signature
@@ -590,7 +588,6 @@ contract LpRefundTest is PegOutTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
 
-        vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
             quote,
             signature
@@ -658,7 +655,6 @@ contract LpRefundTest is PegOutTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
 
-        vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
             quote,
             signature
@@ -696,7 +692,6 @@ contract LpRefundTest is PegOutTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
 
-        vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
             quote,
             signature
@@ -734,7 +729,6 @@ contract LpRefundTest is PegOutTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
 
-        vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
             quote,
             signature
@@ -772,7 +766,6 @@ contract LpRefundTest is PegOutTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
 
-        vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
             quote,
             signature
@@ -810,7 +803,6 @@ contract LpRefundTest is PegOutTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
 
-        vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
             quote,
             signature
@@ -1104,7 +1096,6 @@ contract LpRefundTest is PegOutTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
 
-        vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
             quote,
             signature
@@ -1192,7 +1183,6 @@ contract LpRefundTest is PegOutTestBase {
         );
         bytes memory signature = signQuote(pegOutLp, quote);
 
-        vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
             quote,
             signature

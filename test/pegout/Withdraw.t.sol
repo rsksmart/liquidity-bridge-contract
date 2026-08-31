@@ -67,7 +67,6 @@ contract WithdrawTest is PegOutTestBase {
         bytes memory signature = signQuote(fullLp, quote);
         changeReceiver.setFail(true);
 
-        vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
             quote,
             signature
@@ -241,7 +240,6 @@ contract WithdrawTest is PegOutTestBase {
         bytes memory signature = signQuote(fullLp, quote);
         receiver.setFail(true);
 
-        vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
             quote,
             signature

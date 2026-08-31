@@ -59,7 +59,6 @@ contract UserRefundTest is PegOutTestBase {
         bytes memory signature = signQuote(fullLp, quote);
 
         // Deposit the quote
-        vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
             quote,
             signature
@@ -94,7 +93,6 @@ contract UserRefundTest is PegOutTestBase {
         bytes memory signature = signQuote(fullLp, quote);
 
         // Deposit the quote
-        vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
             quote,
             signature
@@ -138,7 +136,6 @@ contract UserRefundTest is PegOutTestBase {
         changeReceiver.setFail(true);
 
         // Deposit the quote
-        vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
             quote,
             signature
@@ -190,7 +187,6 @@ contract UserRefundTest is PegOutTestBase {
         changeReceiver.setPegOut(quote, signature);
 
         // Deposit the quote
-        vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
             quote,
             signature
@@ -238,7 +234,6 @@ contract UserRefundTest is PegOutTestBase {
         bytes memory signature = signQuote(fullLp, quote);
 
         // Deposit the quote
-        vm.prank(user);
         pegOutContract.depositPegOut{value: totalQuoteValue}(quote, signature);
 
         // Get initial balances
@@ -321,7 +316,6 @@ contract UserRefundTest is PegOutTestBase {
         vm.prank(owner);
         pauseRegistry.setPauseLevel(IPauseRegistry.PauseLevel.None, "");
 
-        vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
             quote,
             signature

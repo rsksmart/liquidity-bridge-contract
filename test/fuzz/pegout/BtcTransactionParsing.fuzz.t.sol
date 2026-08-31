@@ -269,7 +269,6 @@ contract BtcTransactionParsingFuzzTest is PegOutFuzzTestBase {
         bytes memory signature = signFuzzQuote(pegOutLp, quote);
 
         // Deposit
-        vm.prank(fuzzUser);
         pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(
             quote,
             signature
@@ -315,7 +314,6 @@ contract BtcTransactionParsingFuzzTest is PegOutFuzzTestBase {
         bytes memory signature = signFuzzQuote(pegOutLp, quote);
 
         // Deposit
-        vm.prank(fuzzUser);
         pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(
             quote,
             signature

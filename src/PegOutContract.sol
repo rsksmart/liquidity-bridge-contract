@@ -101,10 +101,11 @@ contract PegOutContract is
         Quotes.PegOutQuote calldata quote,
         bytes calldata signature
     ) external payable nonReentrant whenNotSoftPaused override {
-        bool escrowPath = address(_pegOutEscrow) != address(0);
-        if (escrowPath && msg.sender != address(_pegOutEscrow)) {
+        if (msg.sender != address(_pegOutEscrow)) {
             revert OnlyPegOutEscrow(msg.sender);
         }
+        // Deposit only succeeds when escrow is the caller, so use the escrow storage-key path.
+        bool escrowPath = true;
         if (!_collateralManagement.isRegistered(_PEG_TYPE, quote.lpRskAddress)) {
             revert Flyover.ProviderNotRegistered(quote.lpRskAddress);
         }
@@ -129,7 +130,7 @@ contract PegOutContract is
         _refundPegOutDepositChange(quoteHash, quote.rskRefundAddress, msg.value, requiredAmount);
     }
 
-    /// @notice Wires the commit-first PegOutEscrow (only that address may call depositPegOut when set)
+    /// @notice Wires the commit-first PegOutEscrow (only that address may call depositPegOut)
     // solhint-disable-next-line comprehensive-interface
     function setPegOutEscrow(address pegOutEscrow_) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (pegOutEscrow_ != address(0) && pegOutEscrow_.code.length == 0) {
