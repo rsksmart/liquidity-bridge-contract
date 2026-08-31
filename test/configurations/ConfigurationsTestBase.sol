@@ -27,6 +27,7 @@ abstract contract ConfigurationsTestBase is Test {
     uint256 internal constant SEED_PCT = 10; // 0.10%
     uint256 internal constant SEED_MIN_AMOUNT = 0.001 ether;
     uint256 internal constant SEED_MAX_AMOUNT = 100 ether;
+    uint256 internal constant SEED_REGISTRANT_FEE = 1000 * SAT;
 
     // --- seed bounds, written at deployment ---
     // fixedFee lower bound IS the 2·D security floor; no queued change may drop below it.
@@ -40,6 +41,8 @@ abstract contract ConfigurationsTestBase is Test {
     uint256 internal constant BOUND_MAX_MIN_AMOUNT = 1 ether;
     uint256 internal constant BOUND_MIN_MAX_AMOUNT = 0;
     uint256 internal constant BOUND_MAX_MAX_AMOUNT = 10_000 ether;
+    uint256 internal constant BOUND_MIN_REGISTRANT_FEE = 0;
+    uint256 internal constant BOUND_MAX_REGISTRANT_FEE = 0.001 ether - 1;
 
     // --- widened bounds, for the bounds-change tests ---
     // Chosen to strictly contain both the current bounds and the seed config, so applying them
@@ -52,6 +55,8 @@ abstract contract ConfigurationsTestBase is Test {
     uint256 internal constant WIDE_MAX_MIN_AMOUNT = 2 ether;
     uint256 internal constant WIDE_MIN_MAX_AMOUNT = 0;
     uint256 internal constant WIDE_MAX_MAX_AMOUNT = 20_000 ether;
+    uint256 internal constant WIDE_MIN_REGISTRANT_FEE = 0;
+    uint256 internal constant WIDE_MAX_REGISTRANT_FEE = 0.001 ether - 1;
 
     // --- peg-out seed / bounds ---
     uint256 internal constant SEED_PENALTY_FEE = 0.01 ether;
@@ -135,6 +140,7 @@ abstract contract ConfigurationsTestBase is Test {
         c.percentageFee = SEED_PCT;
         c.minAmount = SEED_MIN_AMOUNT;
         c.maxAmount = SEED_MAX_AMOUNT;
+        c.registrantFee = SEED_REGISTRANT_FEE;
         c.confirmationTiers = _seedTiers();
     }
 
@@ -168,6 +174,7 @@ abstract contract ConfigurationsTestBase is Test {
         c.percentageFee = BOUND_MIN_PCT;
         c.minAmount = BOUND_MIN_MIN_AMOUNT;
         c.maxAmount = BOUND_MIN_MAX_AMOUNT;
+        c.registrantFee = BOUND_MIN_REGISTRANT_FEE;
         // Tier array is ordering/non-emptiness checked, never min/max bounded; left empty.
         c.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
     }
@@ -181,6 +188,7 @@ abstract contract ConfigurationsTestBase is Test {
         c.percentageFee = BOUND_MAX_PCT;
         c.minAmount = BOUND_MAX_MIN_AMOUNT;
         c.maxAmount = BOUND_MAX_MAX_AMOUNT;
+        c.registrantFee = BOUND_MAX_REGISTRANT_FEE;
         c.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
     }
 
@@ -195,6 +203,7 @@ abstract contract ConfigurationsTestBase is Test {
         c.percentageFee = 20; // 0.20%
         c.minAmount = 0.002 ether;
         c.maxAmount = 200 ether;
+        c.registrantFee = 0;
         c.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](2);
         c.confirmationTiers[0] = IFlyoverConfigurations.ConfirmationTier({
             maxAmount: 2 ether,
@@ -228,6 +237,7 @@ abstract contract ConfigurationsTestBase is Test {
         c.percentageFee = WIDE_MIN_PCT;
         c.minAmount = WIDE_MIN_MIN_AMOUNT;
         c.maxAmount = WIDE_MIN_MAX_AMOUNT;
+        c.registrantFee = WIDE_MIN_REGISTRANT_FEE;
         c.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
     }
 
@@ -241,6 +251,7 @@ abstract contract ConfigurationsTestBase is Test {
         c.percentageFee = WIDE_MAX_PCT;
         c.minAmount = WIDE_MAX_MIN_AMOUNT;
         c.maxAmount = WIDE_MAX_MAX_AMOUNT;
+        c.registrantFee = WIDE_MAX_REGISTRANT_FEE;
         c.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
     }
 

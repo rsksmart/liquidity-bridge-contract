@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 import {ConfigurationsTestBase} from "./ConfigurationsTestBase.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
+import {Flyover} from "../../src/libraries/Flyover.sol";
 
 /// @title FeeTest
 /// @notice calculatePegInFee: floor behavior, satoshi rounding, and hand-computed values.
@@ -25,10 +26,12 @@ contract FeeTest is ConfigurationsTestBase {
         return fee;
     }
 
-    /// @notice The SAT constant used by the suite equals the on-chain conversion constant.
-    function test_satConstant_matchesQuotesLibrary() public view {
+    /// @notice The SAT constant used by the suite equals both on-chain declarations of the scale.
+    /// @dev `Flyover` holds the commit-first declaration and `Quotes` the legacy quote path's own
+    /// copy; the copy stays because that path's ABI is frozen, so this pins them against drift.
+    function test_satConstant_matchesQuotesLibrary() public pure {
         assertEq(SAT, Quotes.SAT_TO_WEI_CONVERSION);
-        assertEq(SAT, config.SAT_TO_WEI_CONVERSION());
+        assertEq(SAT, Flyover.SAT_TO_WEI_CONVERSION);
     }
 
     /// @notice The public fee-percentage denominator getter pins 10_000 (== 100%).

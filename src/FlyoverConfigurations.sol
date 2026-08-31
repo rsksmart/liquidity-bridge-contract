@@ -30,6 +30,7 @@ contract FlyoverConfigurations is
         PercentageFee,
         MinAmount,
         MaxAmount,
+        RegistrantFee,
         PenaltyFee,
         ClaimWindow,
         ClaimWindowBlocks,
@@ -78,9 +79,11 @@ contract FlyoverConfigurations is
     /// @notice Percentage fee denominator: 10_000 == 100%.
     uint256 public constant FEE_PERCENTAGE_DENOMINATOR = 10_000;
 
-    /// @notice 1 satoshi expressed in wei; fees are rounded down to a satoshi boundary so on-chain
-    /// fees agree with the bridge. Mirrors `Quotes.SAT_TO_WEI_CONVERSION`.
-    uint256 public constant SAT_TO_WEI_CONVERSION = 10 ** 10;
+    /// @notice Rejects registrantFee values at or above this cap (0.001 ether).
+    uint256 public constant MAX_REGISTRANT_FEE_EXCLUSIVE = 0.001 ether;
+
+    /// @notice LP claim-gas headroom required between fixedFee and registrantFee at queue/apply.
+    uint256 private constant _REGISTRANT_FEE_LP_GAS_CUSHION = 0;
 
     // ERC-7201: keccak256(abi.encode(uint256(keccak256("rsk.flyover.FlyoverConfigurations")) - 1)) &
     // ~bytes32(uint256(0xff))
@@ -143,6 +146,10 @@ contract FlyoverConfigurations is
     error PegOutAlreadyInitialized();
     error PegOutNotInitialized();
     error InvalidPegOutDeadlines();
+    /// @notice Raised when registrantFee is at or above {MAX_REGISTRANT_FEE_EXCLUSIVE}.
+    error RegistrantFeeTooHigh(uint256 registrantFee, uint256 maxExclusive);
+    /// @notice Raised when fixedFee cannot cover registrantFee plus the LP gas cushion.
+    error InsufficientFixedFeeForRegistrant(uint256 fixedFee, uint256 registrantFee, uint256 cushion);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -460,11 +467,15 @@ contract FlyoverConfigurations is
     }
 
     /// @dev fee = fixedFee + amount * percentageFee / 10_000, then rounded DOWN to a satoshi
-    /// boundary (mirrors `Quotes.checkAgreedAmount`), so on-chain fees agree with the bridge.
+    /// boundary (mirrors `Quotes.checkAgreedAmount`), so on-chain fees agree with the bridge. The
+    /// scale is read from {Flyover}, which declares it once; `Quotes.SAT_TO_WEI_CONVERSION` is the
+    /// legacy quote path's own copy, left alone because that path's ABI is frozen, and
+    /// `test/configurations/Fee.t.sol` asserts the two agree so they cannot drift.
+    /// `PegOutContract` holds a third, private copy.
     function _calculateFee(PegConfiguration storage config, uint256 amount) private view returns (uint256) {
         uint256 fee = config.fixedFee + (amount * config.percentageFee) / FEE_PERCENTAGE_DENOMINATOR;
-        if (fee > SAT_TO_WEI_CONVERSION && (fee % SAT_TO_WEI_CONVERSION) != 0) {
-            fee -= (fee % SAT_TO_WEI_CONVERSION);
+        if (fee > Flyover.SAT_TO_WEI_CONVERSION && (fee % Flyover.SAT_TO_WEI_CONVERSION) != 0) {
+            fee -= (fee % Flyover.SAT_TO_WEI_CONVERSION);
         }
         return fee;
     }
@@ -475,8 +486,8 @@ contract FlyoverConfigurations is
         returns (uint256)
     {
         uint256 fee = config.fixedFee + (amount * config.percentageFee) / FEE_PERCENTAGE_DENOMINATOR;
-        if (fee > SAT_TO_WEI_CONVERSION && (fee % SAT_TO_WEI_CONVERSION) != 0) {
-            fee -= (fee % SAT_TO_WEI_CONVERSION);
+        if (fee > Flyover.SAT_TO_WEI_CONVERSION && (fee % Flyover.SAT_TO_WEI_CONVERSION) != 0) {
+            fee -= (fee % Flyover.SAT_TO_WEI_CONVERSION);
         }
         return fee;
     }
@@ -532,6 +543,21 @@ contract FlyoverConfigurations is
         );
         _checkBound(Field.MinAmount, config.minAmount, minConfigBoundary.minAmount, maxConfigBoundary.minAmount);
         _checkBound(Field.MaxAmount, config.maxAmount, minConfigBoundary.maxAmount, maxConfigBoundary.maxAmount);
+        _checkBound(
+            Field.RegistrantFee,
+            config.registrantFee,
+            minConfigBoundary.registrantFee,
+            maxConfigBoundary.registrantFee
+        );
+
+        if (config.registrantFee >= MAX_REGISTRANT_FEE_EXCLUSIVE) {
+            revert RegistrantFeeTooHigh(config.registrantFee, MAX_REGISTRANT_FEE_EXCLUSIVE);
+        }
+        if (config.fixedFee < config.registrantFee + _REGISTRANT_FEE_LP_GAS_CUSHION) {
+            revert InsufficientFixedFeeForRegistrant(
+                config.fixedFee, config.registrantFee, _REGISTRANT_FEE_LP_GAS_CUSHION
+            );
+        }
 
         if (config.percentageFee > FEE_PERCENTAGE_DENOMINATOR) {
             revert InvalidPercentageFee(config.percentageFee);
@@ -560,6 +586,7 @@ contract FlyoverConfigurations is
         );
         _checkActiveField(Field.MinAmount, active.minAmount, min.minAmount, max.minAmount);
         _checkActiveField(Field.MaxAmount, active.maxAmount, min.maxAmount, max.maxAmount);
+        _checkActiveField(Field.RegistrantFee, active.registrantFee, min.registrantFee, max.registrantFee);
     }
 
     function _checkBound(Field field, uint256 value, uint256 minV, uint256 maxV) private pure {
@@ -568,7 +595,7 @@ contract FlyoverConfigurations is
         }
     }
 
-    /// @dev A bounds pair is well-formed when no field inverts, i.e. `min <= max` on all four
+    /// @dev A bounds pair is well-formed when no field inverts, i.e. `min <= max` on all five
     /// scalars. An inverted field admits no value at all, which would wedge every future
     /// configuration change. `confirmationTiers` carries no bound and is not inspected.
     function _validateBoundsPair(PegConfiguration memory min, PegConfiguration memory max)
@@ -579,6 +606,7 @@ contract FlyoverConfigurations is
         _checkPairOrdered(Field.PercentageFee, min.percentageFee, max.percentageFee);
         _checkPairOrdered(Field.MinAmount, min.minAmount, max.minAmount);
         _checkPairOrdered(Field.MaxAmount, min.maxAmount, max.maxAmount);
+        _checkPairOrdered(Field.RegistrantFee, min.registrantFee, max.registrantFee);
     }
 
     function _checkPairOrdered(Field field, uint256 minV, uint256 maxV) private pure {

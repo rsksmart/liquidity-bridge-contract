@@ -10,6 +10,7 @@ import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {IBridge} from "./interfaces/IBridge.sol";
 import {IPauseRegistry} from "./interfaces/IPauseRegistry.sol";
 import {IPegInAddressRegistry} from "./interfaces/IPegInAddressRegistry.sol";
+import {BtcTransactionReader} from "./libraries/BtcTransactionReader.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 import {PegInDerivation} from "./libraries/PegInDerivation.sol";
 
@@ -121,8 +122,14 @@ contract PegInAddressRegistry is
         address pegInContract = $.pegInContract;
         if (pegInContract == address(0)) revert PegInContractNotSet();
 
-        bytes memory expectedPkScript = _expectedDepositPkScript(rskAddr, pegInContract, $.bridge, $.isMainnet);
-        uint64 depositValue = _matchedDepositValue(btcTxSerialized, expectedPkScript, rskAddr);
+        // Before the bytes are read or hashed: getOutputs reads the same outputs from either
+        // serialization, but hashBtcTx returns a wtxid for the witness form and the confirmation
+        // proof below is against a txid merkle tree. See
+        // {BtcTransactionReader-WitnessSerializedTxNotAccepted}.
+        BtcTransactionReader.requireWitnessStripped(btcTxSerialized);
+
+        bytes memory expectedPkScript = _depositPkScript(rskAddr, pegInContract, $.bridge, $.isMainnet);
+        uint64 depositValue = _requireDepositValue(btcTxSerialized, expectedPkScript, rskAddr);
 
         if (depositValue < MIN_DEPOSIT_SATS) {
             revert DepositBelowMinimum(depositValue, MIN_DEPOSIT_SATS);
@@ -205,35 +212,38 @@ contract PegInAddressRegistry is
     }
 
     /// @notice Derives the on-chain P2SH scriptPubkey for a deposit output match.
+    /// @dev Reads the live powpeg script and hands the composition to
+    /// {PegInDerivation-depositPkScript}. The registry holds no derivation of its own:
+    /// `PegInContract.requestPegIn` matches deposits against that same helper, so the script that
+    /// gates registration is the script that fixes the peg-in amount.
     /// @param isMainnet Whether the derivation targets mainnet or testnet — the BTC placeholders
     /// mixed into the value are per-network, so this must match the flag used at issuance
-    function _expectedDepositPkScript(address rskAddr, address pegInContract, IBridge bridge_, bool isMainnet)
+    function _depositPkScript(address rskAddr, address pegInContract, IBridge bridge_, bool isMainnet)
         private
         view
         returns (bytes memory)
     {
-        bytes memory powpegRedeemScript = bridge_.getActivePowpegRedeemScript();
-        bytes32 derivationValue = PegInDerivation.derivationValue(rskAddr, pegInContract, isMainnet);
-        bytes memory redeemScript = PegInDerivation.flyoverRedeemScript(derivationValue, powpegRedeemScript);
-        bytes20 scriptHash = PegInDerivation.flyoverScriptHash(redeemScript);
-        return PegInDerivation.p2shScriptPubkey(scriptHash);
+        return PegInDerivation.depositPkScript(
+            rskAddr, pegInContract, bridge_.getActivePowpegRedeemScript(), isMainnet
+        );
     }
 
-    /// @notice Returns the satoshi value of the output paying the derived deposit script.
-    function _matchedDepositValue(bytes calldata btcTxSerialized, bytes memory expectedPkScript, address rskAddr)
+    /// @notice Returns the satoshi value of the first output paying the derived deposit script,
+    /// reverting when the transaction has none.
+    /// @dev Thin wrapper over {BtcTransactionReader-findFirstOutputPaying} that turns the library's
+    /// found flag into the registry's own named error. Here the value is only compared against
+    /// MIN_DEPOSIT_SATS, so the library's first-match rule undercounts in the conservative
+    /// direction; `PegInContract` uses the same helper for the peg-in amount, where it does not.
+    function _requireDepositValue(bytes calldata btcTxSerialized, bytes memory pkScript, address rskAddr)
         private
         pure
         returns (uint64 depositValue)
     {
-        BtcUtils.TxRawOutput[] memory outputs = BtcUtils.getOutputs(btcTxSerialized);
-        bytes32 expectedHash = keccak256(expectedPkScript);
-        uint256 outputCount = outputs.length;
-        for (uint256 i = 0; i < outputCount; ++i) {
-            if (keccak256(outputs[i].pkScript) == expectedHash) {
-                return outputs[i].value;
-            }
+        bool found;
+        (depositValue, found) = BtcTransactionReader.findFirstOutputPaying(btcTxSerialized, pkScript);
+        if (!found) {
+            revert DepositOutputNotFound(rskAddr);
         }
-        revert DepositOutputNotFound(rskAddr);
     }
 
     /// @notice Derives the BTC deposit address for an RSK address against a supplied powpeg script.

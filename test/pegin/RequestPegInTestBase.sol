@@ -6,7 +6,10 @@ import {FlyoverConfigurationsMock} from "./FlyoverConfigurationsMock.sol";
 import {PegInContract} from "../../src/PegInContract.sol";
 import {PegInAddressRegistryHarness} from "../pegin-registry/PegInAddressRegistryHarness.sol";
 import {IFlyoverConfigurations} from "../../src/interfaces/IFlyoverConfigurations.sol";
+import {PegInDerivation} from "../../src/libraries/PegInDerivation.sol";
+import {Flyover} from "../../src/libraries/Flyover.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 
 /// @title Base for commit-first requestPegIn tests
 /// @notice Deploys and wires a PegInContract against a real PegInAddressRegistry (seeded through
@@ -34,11 +37,21 @@ abstract contract RequestPegInTestBase is PegInTestBase {
     address internal claimer;
     address internal rskUser;
 
-    bytes32 internal constant DEFAULT_BTC_TX_HASH = keccak256("default-btc-tx");
     uint256 internal constant DEFAULT_AMOUNT = 5 ether;
 
+    /// @dev Varies the deposit transaction's input outpoint, and therefore its txid, without
+    /// touching the output being matched. Tests that need two distinct pegInIds for the same
+    /// destination and amount pass different nonces.
+    uint256 internal constant DEFAULT_TX_NONCE = 1;
+
+    /// @notice The network flag both the PegInContract and the registry are deployed with here.
+    /// @dev Kept as one constant because the two MUST agree: the BTC placeholders mixed into the
+    /// deposit derivation are per-network, so a contract on one flag and a registry on the other
+    /// would issue an address the claim path never matches.
+    bool internal constant IS_MAINNET_DEPLOYMENT = false;
+
     function setUp() public virtual {
-        deployPegInContract();
+        pegInContract = deployPegInContract(IS_MAINNET_DEPLOYMENT);
 
         registry = _deployRegistryHarness();
         configurations = new FlyoverConfigurationsMock();
@@ -67,7 +80,13 @@ abstract contract RequestPegInTestBase is PegInTestBase {
         PegInAddressRegistryHarness implementation = new PegInAddressRegistryHarness();
         bytes memory initData = abi.encodeCall(
             implementation.initialize,
-            (owner, uint48(0), address(bridgeMock), false, pauseRegistry)
+            (
+                owner,
+                uint48(0),
+                address(bridgeMock),
+                IS_MAINNET_DEPLOYMENT,
+                pauseRegistry
+            )
         );
         ERC1967Proxy proxy = new ERC1967Proxy(
             address(implementation),
@@ -78,12 +97,33 @@ abstract contract RequestPegInTestBase is PegInTestBase {
 
     function _applyDefaultConfiguration() internal {
         configurations.setFee(DEFAULT_FIXED_FEE, DEFAULT_PERCENTAGE_FEE);
+        configurations.setRegistrantFee(1e14);
         configurations.setAmountBounds(TEST_MIN_PEGIN, DEFAULT_MAX_AMOUNT);
         IFlyoverConfigurations.ConfirmationTier[]
             memory tiers = new IFlyoverConfigurations.ConfirmationTier[](1);
         tiers[0] = IFlyoverConfigurations.ConfirmationTier({
             maxAmount: type(uint256).max,
             confirmations: DEFAULT_TIER_CONFIRMATIONS
+        });
+        configurations.setConfirmationTiers(tiers);
+    }
+
+    /// @notice Replaces the single flat tier with a low tier up to `lowTierMaxAmount` and a high
+    /// tier above it, so tests can prove the tier is chosen by the amount READ off the deposit.
+    function _applyTwoTierConfiguration(
+        uint256 lowTierMaxAmount,
+        uint256 lowTierConfirmations,
+        uint256 highTierConfirmations
+    ) internal {
+        IFlyoverConfigurations.ConfirmationTier[]
+            memory tiers = new IFlyoverConfigurations.ConfirmationTier[](2);
+        tiers[0] = IFlyoverConfigurations.ConfirmationTier({
+            maxAmount: lowTierMaxAmount,
+            confirmations: lowTierConfirmations
+        });
+        tiers[1] = IFlyoverConfigurations.ConfirmationTier({
+            maxAmount: type(uint256).max,
+            confirmations: highTierConfirmations
         });
         configurations.setConfirmationTiers(tiers);
     }
@@ -100,6 +140,26 @@ abstract contract RequestPegInTestBase is PegInTestBase {
         bytes32 btcTxHash
     ) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(rskAddr, btcTxHash));
+    }
+
+    /// @notice Exposes BtcUtils.hashBtcTx to the memory-held fixtures. The library takes
+    /// calldata, so the tests reach it through an external self-call rather than
+    /// re-implementing the txid.
+    /// @dev Being an external self-call, this CONSUMES a pending vm.prank. Call it (and the
+    /// helpers below that wrap it) before vm.prank, never inside a vm.expectRevert payload that
+    /// follows one, or the call under test runs as the test contract instead of the pranked
+    /// sender and the test silently stops asserting who claimed.
+    function hashTx(bytes calldata btcTx) external pure returns (bytes32) {
+        return BtcUtils.hashBtcTx(btcTx);
+    }
+
+    /// @notice The pegInId a claim of `btcTx` for `rskAddr` will be recorded under. The txid is
+    /// hashed out of the transaction, mirroring what the contract does.
+    function _pegInIdForTx(
+        address rskAddr,
+        bytes memory btcTx
+    ) internal view returns (bytes32) {
+        return _pegInId(rskAddr, this.hashTx(btcTx));
     }
 
     function _claimSlot(bytes32 pegInId) internal pure returns (uint256) {
@@ -156,29 +216,140 @@ abstract contract RequestPegInTestBase is PegInTestBase {
         );
     }
 
+    // ---- deposit-transaction fixtures ----
+    //
+    // requestPegIn no longer takes an amount or a txid: it reads both out of the raw deposit
+    // transaction. So every call site needs a transaction that really pays the address derived
+    // for its destination, built against the SAME inputs the contract derives with — this proxy's
+    // address and the bridge mock's powpeg script. A test that wants a bad claim builds a bad
+    // transaction; it can no longer just pass a bad number.
+
+    /// @notice The P2SH scriptPubkey a deposit for `rskAddr` must pay, derived exactly as
+    /// PegInContract derives it.
+    /// @dev Passes {IS_MAINNET_DEPLOYMENT}, the flag both the contract and the registry were
+    /// deployed with. The BTC placeholders mixed into the derivation are per-network, so deriving
+    /// with the other flag builds a script the contract never matches.
+    function _depositPkScript(
+        address rskAddr
+    ) internal view returns (bytes memory) {
+        return
+            PegInDerivation.depositPkScript(
+                rskAddr,
+                address(pegInContract),
+                bridgeMock.getActivePowpegRedeemScript(),
+                IS_MAINNET_DEPLOYMENT
+            );
+    }
+
+    /// @notice A one-input, one-output raw transaction paying `pkScript` `valueSats` satoshis.
+    /// @param nonce Mixed into the input outpoint so otherwise identical deposits get distinct
+    /// txids, and therefore distinct pegInIds.
+    function _buildTx(
+        bytes memory pkScript,
+        uint64 valueSats,
+        uint256 nonce
+    ) internal pure returns (bytes memory) {
+        bytes memory valueLe = new bytes(8);
+        uint64 v = valueSats;
+        for (uint256 i = 0; i < 8; ++i) {
+            valueLe[i] = bytes1(uint8(v & 0xFF));
+            v >>= 8;
+        }
+        return
+            abi.encodePacked(
+                hex"01000000", // version
+                hex"01", // input count
+                bytes32(nonce), // prevout txid
+                hex"00000000", // prevout index
+                hex"00", // empty scriptSig
+                hex"ffffffff", // sequence
+                hex"01", // output count
+                valueLe,
+                bytes1(uint8(pkScript.length)),
+                pkScript,
+                hex"00000000" // locktime
+            );
+    }
+
+    /// @notice A deposit transaction paying `rskAddr`'s derived address `amount` wei worth of BTC.
+    function _depositTx(
+        address rskAddr,
+        uint256 amount,
+        uint256 nonce
+    ) internal view returns (bytes memory) {
+        return _buildTx(_depositPkScript(rskAddr), _toSats(amount), nonce);
+    }
+
+    function _depositTx(
+        address rskAddr,
+        uint256 amount
+    ) internal view returns (bytes memory) {
+        return _depositTx(rskAddr, amount, DEFAULT_TX_NONCE);
+    }
+
+    /// @notice The default deposit fixture: DEFAULT_AMOUNT paid to rskUser's derived address.
+    function _defaultTx() internal view returns (bytes memory) {
+        return _depositTx(rskUser, DEFAULT_AMOUNT);
+    }
+
+    /// @notice A confirmed transaction that pays no address this protocol derives — the
+    /// "any confirmed txid" an attacker would reach for.
+    function _unrelatedTx() internal pure returns (bytes memory) {
+        // Plain P2PKH to an arbitrary hash160, 1 BTC.
+        bytes memory pkScript = abi.encodePacked(
+            hex"76a914",
+            bytes20(uint160(0xDEADBEEF)),
+            hex"88ac"
+        );
+        return _buildTx(pkScript, 100_000_000, 7);
+    }
+
+    function _toSats(uint256 amountWei) internal pure returns (uint64) {
+        require(
+            amountWei % Flyover.SAT_TO_WEI_CONVERSION == 0,
+            "fixture amount is not a whole number of satoshis"
+        );
+        return uint64(amountWei / Flyover.SAT_TO_WEI_CONVERSION);
+    }
+
     // ---- call helpers ----
 
     function _emptyBranch() internal pure returns (bytes32[] memory) {
         return new bytes32[](0);
     }
 
-    function _requestPegIn(
+    /// @notice Claims `btcTx`, which must already pay the address derived for `rskAddr`.
+    function _requestPegInTx(
         address caller,
         address rskAddr,
-        uint256 amount,
-        bytes32 btcTxHash,
+        bytes memory btcTx,
         uint256 value
     ) internal returns (bytes32) {
         vm.prank(caller);
         return
             pegInContract.requestPegIn{value: value}(
                 rskAddr,
-                amount,
-                btcTxHash,
+                btcTx,
                 "",
                 bytes32(0),
                 0,
                 _emptyBranch()
+            );
+    }
+
+    /// @notice Builds the deposit fixture for `amount` and claims it.
+    function _requestPegIn(
+        address caller,
+        address rskAddr,
+        uint256 amount,
+        uint256 value
+    ) internal returns (bytes32) {
+        return
+            _requestPegInTx(
+                caller,
+                rskAddr,
+                _depositTx(rskAddr, amount),
+                value
             );
     }
 
