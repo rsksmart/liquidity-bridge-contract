@@ -24,13 +24,9 @@ interface IPegOutEscrow {
     /// @notice Emitted when a user escrows RBTC for a peg-out (the sole commitment)
     /// @dev Fee / deadline / confirmation snapshots live on the stored quote
     /// ({getPegOutQuote}); this event is the LPS discovery signal only.
-    /// @param requestHash Escrow-minted request id (mapping key, LPS watch topic, BTC
-    /// OP_RETURN payload). **Id preimage (frozen):**
-    /// `requestHash = keccak256(abi.encode(chainId, address(this), nonce, msg.sender,
-    /// refundTo, keccak256(destinationAddress), amount, callFee, block.timestamp))`
-    /// where `nonce` is a per-escrow sequence (`++requestCount`). Two identical user
-    /// requests therefore yield distinct ids. Named `requestHash` (not `quoteHash`) so it
-    /// is not mistaken for `keccak256(encodePegOutQuote)`.
+    /// @param requestHash Stable request id = `hashPegOutQuote` of the incomplete quote
+    /// (`lpRskAddress = 0`). Same encoding as PegOutContract / OP_RETURN. Distinct requests
+    /// stay distinct via `nonce` on the quote.
     /// @param refundAddress Who may cancel and who receives refunds
     /// @param amount BTC-equivalent principal in wei after the fee split
     /// @param destinationAddress User BTC payout script / address bytes
@@ -64,23 +60,24 @@ interface IPegOutEscrow {
     error OnlyPegOutContract(address caller);
     error LpRestricted(address lp, uint256 restrictedUntil);
 
-    /// @notice User commits RBTC. Splits `msg.value` into `amount` + `callFee` from
+    /// @notice User commits RBTC. Splits `msg.value` into `amount` + `callFee` + `gasFee` from
     /// FlyoverConfigurations, stores a quote-shaped record, emits {PegOutRequested}.
-    /// @dev **Amount / fee split (frozen):** `requestPegOut` takes no explicit `amount`.
-    /// For active config `fixedFee` and `percentageFee` (basis points over
-    /// `FEE_PERCENTAGE_DENOMINATOR` = 10_000):
-    /// `amount = ((msg.value - fixedFee) * DEN) / (DEN + percentageFee)`;
+    /// @dev **Amount / fee split:** `requestPegOut` takes no explicit `amount`. For active
+    /// config `fixedFee`, `percentageFee` (basis points over `FEE_PERCENTAGE_DENOMINATOR` =
+    /// 10_000), and `maxMinerFee` snapshotted into `quote.gasFee`:
+    /// `amount = ((msg.value - fixedFee - gasFee) * DEN) / (DEN + percentageFee)`;
     /// then `amount -= amount % SAT_TO_WEI` (satoshi floor);
-    /// `callFee = calculatePegOutFee(amount)` (same satoshi-floor fee as configs).
-    /// **Overpayment rule (frozen):** `required = amount + callFee`. If
+    /// `callFee = calculatePegOutFee(amount)` (same satoshi-floor fee as configs);
+    /// `gasFee = maxMinerFee` (TODO: confirm this snapshot vs other fee-economics options later).
+    /// **Overpayment rule:** `required = amount + callFee + gasFee`. If
     /// `msg.value - required` is at least the wired PegOutContract `dustThreshold`,
     /// the excess is refunded to the refund address (legacy `depositPegOut` dust-change
     /// semantics). Otherwise the residual is absorbed into `callFee` so escrow balance
-    /// stays attributed. `msg.value` must exceed `fixedFee` and the derived `amount`
-    /// must lie in `[minAmount, maxAmount]` or the call reverts.
+    /// stays attributed. `msg.value` must exceed `fixedFee + gasFee` and the derived
+    /// `amount` must lie in `[minAmount, maxAmount]` or the call reverts.
     /// @param destinationAddress User BTC payout script / address bytes
-    /// @param refundAddress Who may cancel and who receives refunds; address(0) → msg.sender
-    /// @return requestHash The id under the frozen preimage above
+    /// @param refundAddress Who may cancel and who receives refunds; must be non-zero
+    /// @return requestHash `hashPegOutQuote` of the incomplete quote (`lpRskAddress = 0`)
     function requestPegOut(
         bytes calldata destinationAddress,
         address refundAddress
@@ -92,7 +89,8 @@ interface IPegOutEscrow {
 
     /// @notice Registered LP claims the peg-out and moves funds into PegOutContract.
     /// @dev Hard commitment: no release/unclaim path. Caller must pass EIP-712 over the
-    /// reconstructed quote with `lpRskAddress = msg.sender`.
+    /// reconstructed quote with `lpRskAddress = msg.sender`. Forwards to
+    /// {IPegOut.depositPegOut} with the completed quote.
     function claimPegOut(bytes32 requestHash, bytes calldata signature) external;
 
     /// @notice Permissionless refund after `depositDateLimit` if nobody claimed.
@@ -100,8 +98,10 @@ interface IPegOutEscrow {
     function refundOnNoClaim(bytes32 requestHash) external;
 
     /// @notice Called by PegOutContract when settlement finishes (`FULFILLED` or `REFUNDED`)
-    /// @dev Escrow does not move funds here; custody already left at claim.
-    function onSettlement(bytes32 requestHash, EscrowedPegOutState finalState) external;
+    /// @dev `quoteHash` is PegOut's storage key = `hashPegOutQuote` of the completed quote.
+    /// After claim, escrow is rekeyed to that same hash, so no id translation is needed.
+    /// Does not move funds; custody left at claim.
+    function onSettlement(bytes32 quoteHash, EscrowedPegOutState finalState) external;
 
     /// @notice Called by PegOutContract on claimed-expired user refund (`refundUserPegOut`).
     /// @dev Increments `claimFailCount` and sets `restrictedUntil` to
@@ -122,10 +122,6 @@ interface IPegOutEscrow {
     /// @dev Reverts if state is `NONE`. Fee/deadline/confirmation fields are the LPS and
     /// settlement source of truth alongside the lean {PegOutRequested} event.
     function getPegOutQuote(bytes32 requestHash) external view returns (Quotes.PegOutQuote memory);
-
-    /// @notice Snapshotted `maxMinerFee` from FlyoverConfigurations at {requestPegOut} time
-    /// @dev Used by PegOutContract for the short-delivery floor (B8). Reverts if state is `NONE`.
-    function getMaxMinerFee(bytes32 requestHash) external view returns (uint256);
 
     /// @notice Number of requests ever minted (monotone nonce high-water mark)
     /// @dev With {requestIdAt}, an LPS can rebuild the pending set after missed events.

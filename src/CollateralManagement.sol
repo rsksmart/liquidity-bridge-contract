@@ -438,6 +438,8 @@ contract CollateralManagementContract is
 
     /// @notice Takes `min(total, sum)` from eligible LPs proportional to peg-out collateral.
     /// @dev Last LP receives the remainder, capped at their collateral, so rounding dust stays in the split.
+    /// TODO: Confirm whether global slash should stay proportional to collateral
+    /// or move to an equal/fixed split
     /// @param total Requested slash amount
     /// @param lps Eligible provider addresses
     /// @param amounts Peg-out collateral of each eligible provider

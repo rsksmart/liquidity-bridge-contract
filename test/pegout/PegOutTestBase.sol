@@ -10,6 +10,7 @@ import {BridgeMock} from "../../src/test-contracts/BridgeMock.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
+import {IPegOutEscrow} from "../../src/interfaces/IPegOutEscrow.sol";
 
 /// @title Base contract for PegOut tests
 /// @notice Provides shared deployment and setup logic for PegOut tests
@@ -51,6 +52,15 @@ abstract contract PegOutTestBase is Test {
     string constant HELPER_SCRIPT_GENERATE_BTC_TX =
         "script/helpers/generate-btc-tx.ts";
 
+    /// @dev PegOut notifies the wired escrow on settlement; unit tests use this contract as escrow.
+    function onSettlement(
+        bytes32,
+        IPegOutEscrow.EscrowedPegOutState
+    ) external {}
+
+    /// @dev PegOut notifies claim-fail on user refund; no-op stub for unit tests.
+    function onClaimFail(address) external {}
+
     /// @notice Deploy PegOutContract with all dependencies
     function deployPegOutContract() internal {
         owner = makeAddr("owner");
@@ -86,6 +96,10 @@ abstract contract PegOutTestBase is Test {
 
         vm.prank(owner);
         collateralManagement.grantRole(slasherRole, address(pegOutContract));
+
+        // Unit/fuzz tests call depositPegOut as this contract (wired as escrow).
+        vm.prank(owner);
+        pegOutContract.setPegOutEscrow(address(this));
     }
 
     function deployCollateralManagement() internal {

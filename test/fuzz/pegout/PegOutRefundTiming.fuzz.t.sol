@@ -40,7 +40,6 @@ contract PegOutRefundTimingFuzzTest is PegOutFuzzTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signFuzzQuote(pegOutLp, quote);
 
-        vm.prank(fuzzUser);
         pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(
             quote,
             signature
@@ -106,7 +105,6 @@ contract PegOutRefundTimingFuzzTest is PegOutFuzzTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signFuzzQuote(pegOutLp, quote);
 
-        vm.prank(fuzzUser);
         pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(
             quote,
             signature
@@ -152,7 +150,6 @@ contract PegOutRefundTimingFuzzTest is PegOutFuzzTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signFuzzQuote(pegOutLp, quote);
 
-        vm.prank(fuzzUser);
         pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(
             quote,
             signature
