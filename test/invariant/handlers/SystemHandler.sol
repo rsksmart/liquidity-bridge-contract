@@ -27,8 +27,6 @@ contract SystemHandler is HandlerBase {
         IPegOutEscrow.EscrowedPegOutState
     ) external {}
 
-    function onClaimFail(address) external {}
-
     struct ProviderInfo {
         address addr;
         uint256 privateKey;

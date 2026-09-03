@@ -270,17 +270,10 @@ contract PegOutEscrow is
         if (finalState != EscrowedPegOutState.FULFILLED && finalState != EscrowedPegOutState.REFUNDED) {
             revert InvalidState(quoteHash, EscrowedPegOutState.FULFILLED, finalState);
         }
-        _terminate($, quoteHash, finalState);
-    }
-
-    /// @inheritdoc IPegOutEscrow
-    function onClaimFail(address lp) external override {
-        PegOutEscrowStorage storage $ = _getStorage();
-        if (msg.sender != address($.pegOutContract)) {
-            revert OnlyPegOutContract(msg.sender);
+        if (finalState == EscrowedPegOutState.REFUNDED) {
+            _applyClaimFail($, $.quotes[quoteHash].lpRskAddress);
         }
-        uint256 n = ++$.claimFailCount[lp];
-        $.restrictedUntil[lp] = block.timestamp + ((RESTRICTION_BASE ** n) * RESTRICTION_UNIT);
+        _terminate($, quoteHash, finalState);
     }
 
     /// @inheritdoc IPegOutEscrow
@@ -376,6 +369,12 @@ contract PegOutEscrow is
     ) private {
         $.state[requestHash] = finalState;
         delete $.quotes[requestHash];
+    }
+
+    /// @notice Bump claim-fail count and set timed freeze for `lp`.
+    function _applyClaimFail(PegOutEscrowStorage storage $, address lp) private {
+        uint256 n = ++$.claimFailCount[lp];
+        $.restrictedUntil[lp] = block.timestamp + ((RESTRICTION_BASE ** n) * RESTRICTION_UNIT);
     }
 
     // slither-disable-next-line arbitrary-send-eth,low-level-calls
