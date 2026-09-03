@@ -33,3 +33,13 @@ broadcast/**
 
 # Generated gas comparison output
 gas_comparison.csv
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+
+# mewt (mutation testing)
+mewt.sqlite
+mutation-status.json
+*.sarif
