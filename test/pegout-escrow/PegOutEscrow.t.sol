@@ -1063,7 +1063,7 @@ contract PegOutEscrowTest is Test {
     /// @dev B8: delivery above quote.value settles with no RBTC top-up.
     function test_B8_AboveQuoteValue_Settles() public {
         (
-            bytes32 requestHash,
+            ,
             bytes32 settlementKey,
             Quotes.PegOutQuote memory quote
         ) = _claimWithP2pkhDest();
@@ -1097,7 +1097,7 @@ contract PegOutEscrowTest is Test {
     /// @dev B8: under quote.value delivery reverts InsufficientAmount.
     function test_B8_UnderQuoteValue_RevertsInsufficientAmount() public {
         (
-            bytes32 requestHash,
+            ,
             bytes32 settlementKey,
             Quotes.PegOutQuote memory quote
         ) = _claimWithP2pkhDest();
@@ -1266,7 +1266,7 @@ contract PegOutEscrowTest is Test {
 
     function test_T4_Fulfill_DoesNotBump() public {
         (
-            bytes32 requestHash,
+            ,
             bytes32 settlementKey,
             Quotes.PegOutQuote memory quote
         ) = _claimWithP2pkhDest();
@@ -1378,7 +1378,7 @@ contract PegOutEscrowTest is Test {
             uint256(escrow.getPegOutState(requestHash)),
             uint256(IPegOutEscrow.EscrowedPegOutState.REFUNDED)
         );
-        // onClaimFail overwrites indefinite ban with finite freeze.
+        // Escrow applies claim-fail freeze internally on REFUNDED settlement.
         assertEq(escrow.claimFailCount(lp), 1);
         assertTrue(escrow.restrictedUntil(lp) < type(uint256).max);
         assertTrue(escrow.restrictedUntil(lp) > block.timestamp - 1);
@@ -1490,7 +1490,12 @@ contract PegOutEscrowTest is Test {
         escrow.unrevoke(lp);
     }
 
-    function test_OnClaimFail_NonPegOut_Reverts() public {
+    function test_OnSettlement_NonPegOut_Reverts() public {
+        bytes32 requestHash = _claimDefault();
+        bytes32 settlementKey = _settlementKey(
+            escrow.getPegOutQuote(requestHash)
+        );
+
         vm.expectRevert(
             abi.encodeWithSelector(
                 IPegOutEscrow.OnlyPegOutContract.selector,
@@ -1498,7 +1503,10 @@ contract PegOutEscrowTest is Test {
             )
         );
         vm.prank(other);
-        escrow.onClaimFail(lp);
+        escrow.onSettlement(
+            settlementKey,
+            IPegOutEscrow.EscrowedPegOutState.FULFILLED
+        );
     }
 
     // -------------------------------------------------------------------------
