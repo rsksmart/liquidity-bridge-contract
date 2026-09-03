@@ -223,7 +223,7 @@ contract PegOutContract is
         delete _pegOutQuotes[quoteHash];
         _pegOutRegistry[quoteHash].completed = true;
         emit PegOutRefunded(quoteHash);
-        _notifyEscrowSettlement(quoteHash, IPegOutEscrow.EscrowedPegOutState.FULFILLED, quote.lpRskAddress);
+        _notifyEscrowSettlement(quoteHash, IPegOutEscrow.EscrowedPegOutState.FULFILLED);
 
         if (_shouldPenalize(quote, quoteHash, btcBlockHeaderHash)) {
             uint256 collateral = _collateralManagement.getPegOutCollateral(quote.lpRskAddress);
@@ -258,13 +258,12 @@ contract PegOutContract is
 
         uint256 valueToTransfer = quote.value + quote.callFee + quote.gasFee;
         address addressToTransfer = quote.rskRefundAddress;
-        address lp = quote.lpRskAddress;
 
         delete _pegOutQuotes[quoteHash];
         _pegOutRegistry[quoteHash].completed = true;
 
         emit PegOutUserRefunded(quoteHash, addressToTransfer, valueToTransfer);
-        _notifyEscrowSettlement(quoteHash, IPegOutEscrow.EscrowedPegOutState.REFUNDED, lp);
+        _notifyEscrowSettlement(quoteHash, IPegOutEscrow.EscrowedPegOutState.REFUNDED);
         _collateralManagement.slashPegOutCollateral(msg.sender, quote, quoteHash);
 
         (bool sent,) = addressToTransfer.call{value: valueToTransfer}("");
@@ -332,16 +331,11 @@ contract PegOutContract is
 
     /// @notice Notify escrow that settlement finished (`FULFILLED` / `REFUNDED`).
     /// @dev `quoteHash` is PegOut's storage key (completed-quote hash); escrow is rekeyed to it at claim.
-    /// Passes `lp` so refund paths do not re-read escrow quote storage after delete.
     function _notifyEscrowSettlement(
         bytes32 quoteHash,
-        IPegOutEscrow.EscrowedPegOutState finalState,
-        address lp
+        IPegOutEscrow.EscrowedPegOutState finalState
     ) private {
         if (address(_pegOutEscrow) == address(0)) return;
-        if (finalState == IPegOutEscrow.EscrowedPegOutState.REFUNDED) {
-            _pegOutEscrow.onClaimFail(lp);
-        }
         _pegOutEscrow.onSettlement(quoteHash, finalState);
     }
 
