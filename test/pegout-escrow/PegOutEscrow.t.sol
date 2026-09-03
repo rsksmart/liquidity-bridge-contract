@@ -710,6 +710,35 @@ contract PegOutEscrowTest is Test {
         assertEq(user.balance, userBefore + payout);
     }
 
+    /// @dev Misconfigured CM (address(0)) must not trap escrowed user RBTC; slash is skipped.
+    function test_T3_RefundOnNoClaim_UnsetCM_RefundsAndSkipsSlash() public {
+        bytes32 requestHash = _requestDefault();
+        Quotes.PegOutQuote memory q = escrow.getPegOutQuote(requestHash);
+        uint256 payout = q.value + q.callFee + q.gasFee;
+        uint256 userBefore = user.balance;
+
+        // Setter rejects address(0); simulate misconfig / upgrade storage by zeroing the slot.
+        // collateralManagement is at struct offset 1 under the ERC-7201 root.
+        bytes32 cmSlot = bytes32(uint256(PEGOUT_ESCROW_STORAGE) + 1);
+        vm.store(address(escrow), cmSlot, bytes32(0));
+
+        vm.warp(uint256(q.depositDateLimit) + 1);
+
+        vm.expectEmit(true, true, false, true, address(escrow));
+        emit IPegOutEscrow.PegOutRefundedOnNoClaim(requestHash, user, payout);
+        vm.expectEmit(true, false, false, true, address(escrow));
+        emit IPegOutEscrow.GlobalSlashSkipped(requestHash);
+
+        vm.prank(other);
+        escrow.refundOnNoClaim(requestHash);
+
+        assertEq(
+            uint256(escrow.getPegOutState(requestHash)),
+            uint256(IPegOutEscrow.EscrowedPegOutState.REFUNDED)
+        );
+        assertEq(user.balance, userBefore + payout);
+    }
+
     function test_B6_Cancel_DoesNotCallGlobalSlash() public {
         collateral.setGlobalSlashReverts(false);
 
