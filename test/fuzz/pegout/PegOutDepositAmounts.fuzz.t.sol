@@ -41,7 +41,7 @@ contract PegOutDepositAmountsFuzzTest is PegOutFuzzTestBase {
         vm.expectEmit(true, true, true, true);
         emit IPegOut.PegOutDeposit(
             quoteHash,
-            fuzzUser,
+            address(this),
             block.timestamp,
             totalValue
         );
@@ -79,7 +79,7 @@ contract PegOutDepositAmountsFuzzTest is PegOutFuzzTestBase {
         vm.expectEmit(true, true, true, true);
         emit IPegOut.PegOutDeposit(
             quoteHash,
-            fuzzUser,
+            address(this),
             block.timestamp,
             paidAmount
         );
@@ -121,7 +121,7 @@ contract PegOutDepositAmountsFuzzTest is PegOutFuzzTestBase {
         vm.expectEmit(true, true, true, true);
         emit IPegOut.PegOutDeposit(
             quoteHash,
-            fuzzUser,
+            address(this),
             block.timestamp,
             paidAmount
         );
@@ -139,8 +139,8 @@ contract PegOutDepositAmountsFuzzTest is PegOutFuzzTestBase {
         // User should receive change back
         assertEq(
             fuzzUser.balance,
-            userBalanceBefore - totalValue,
-            "User should only pay totalValue (change returned)"
+            userBalanceBefore + extraAmount,
+            "Refund address should receive change"
         );
     }
 }
