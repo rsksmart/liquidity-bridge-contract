@@ -16,7 +16,9 @@ import {IPauseRegistry} from "./interfaces/IPauseRegistry.sol";
 import {IPegIn} from "./interfaces/IPegIn.sol";
 import {IPegInAddressRegistry} from "./interfaces/IPegInAddressRegistry.sol";
 import {IPegInCommitFirst} from "./interfaces/IPegInCommitFirst.sol";
+import {BtcTransactionReader} from "./libraries/BtcTransactionReader.sol";
 import {Flyover} from "./libraries/Flyover.sol";
+import {PegInDerivation} from "./libraries/PegInDerivation.sol";
 import {Quotes} from "./libraries/Quotes.sol";
 import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 
@@ -86,6 +88,10 @@ contract PegInContract is
     IFlyoverConfigurations private _configurations;
     /// @notice Commit-first claims keyed by keccak256(rskAddr ++ btcTxHash)
     mapping(bytes32 => PegInClaim) private _pegInClaims;
+    /// @notice Whether the registrant fee was already paid for a destination address
+    mapping(address => bool) private _registrantPaid;
+    /// @notice Whether a peg-in id was already settled on the claimed path
+    mapping(bytes32 => bool) private _pegInSettled;
 
     /// @notice Emitted when the dust threshold is set
     /// @param oldThreshold The old dust threshold
@@ -113,8 +119,6 @@ contract PegInContract is
     error PegInAddressRegistryNotSet();
     /// @notice Reverts when the FlyoverConfigurations dependency has not been set
     error FlyoverConfigurationsNotSet();
-    /// @notice Reverts resolvePegIn until settlement is implemented
-    error ResolvePegInNotImplemented();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -327,13 +331,16 @@ contract PegInContract is
     /// @inheritdoc IPegInCommitFirst
     function requestPegIn(
         address rskAddr,
-        uint256 amount,
-        bytes32 btcTxHash,
+        bytes calldata btcTxSerialized,
         bytes calldata opReturn,
         bytes32 btcBlockHash,
         uint256 merkleBranchPath,
         bytes32[] calldata merkleBranchHashes
     ) external payable nonReentrant whenNotHardPaused override returns (bytes32 pegInId) {
+        // Before the hash, never after: hashBtcTx would return a wtxid for the witness form, and
+        // pegInId is derived from it. See {BtcTransactionReader-WitnessSerializedTxNotAccepted}.
+        BtcTransactionReader.requireWitnessStripped(btcTxSerialized);
+        bytes32 btcTxHash = BtcUtils.hashBtcTx(btcTxSerialized);
         pegInId = keccak256(abi.encodePacked(rskAddr, btcTxHash));
         if (_pegInClaims[pegInId].claimer != address(0)) {
             revert PegInAlreadyProcessed(pegInId);
@@ -342,6 +349,11 @@ contract PegInContract is
         _requirePegInDepsSet();
         if (!_pegInAddressRegistry.isRegistered(rskAddr)) {
             revert AddressNotRegistered(rskAddr);
+        }
+        uint256 amount = _readPegInAmount(rskAddr, btcTxSerialized, btcTxHash);
+        uint256 minAmount = _configurations.getPegInConfiguration().minAmount;
+        if (amount < minAmount) {
+            revert PegInBelowMinimum(amount, minAmount);
         }
         _requirePegInConfirmations(amount, btcTxHash, btcBlockHash, merkleBranchPath, merkleBranchHashes);
 
@@ -361,12 +373,23 @@ contract PegInContract is
     /// @inheritdoc IPegInCommitFirst
     function resolvePegIn(
         address rskAddr,
-        bytes32 btcTxHash,
         bytes calldata btcRawTransaction,
         bytes calldata partialMerkleTree,
         uint256 height
-    ) external pure override returns (int256) {
-        revert ResolvePegInNotImplemented();
+    ) external override nonReentrant whenNotHardPaused returns (int256 registerResult) {
+        bytes32 pegInId = _resolvePegInId(rskAddr, btcRawTransaction);
+        PegInClaim memory claim = _requireClaimedUnsettled(pegInId);
+        _requirePegInDepsSet();
+
+        registerResult = _registerCommitFirstBridge(
+            rskAddr, btcRawTransaction, partialMerkleTree, height
+        );
+
+        if (registerResult <= 0) {
+            return registerResult;
+        }
+
+        _creditResolvedPegIn(pegInId, rskAddr, claim, uint256(registerResult));
     }
 
     /// @notice Returns the wired PegInAddressRegistry address
@@ -431,6 +454,58 @@ contract PegInContract is
         return _processedQuotes[quoteHash];
     }
 
+    /// @dev Bridge fast-register with per-network BTC placeholder addresses.
+    function _registerCommitFirstBridge(
+        address rskAddr,
+        bytes calldata btcRawTransaction,
+        bytes calldata partialMerkleTree,
+        uint256 height
+    ) private returns (int256) {
+        return _bridge.registerFastBridgeBtcTransaction(
+            btcRawTransaction,
+            height,
+            partialMerkleTree,
+            PegInDerivation.derivationArgumentsHash(rskAddr),
+            PegInDerivation.getRefundPlaceholderBtcAddress(_mainnet),
+            payable(address(this)),
+            PegInDerivation.getLpPlaceholderBtcAddress(_mainnet),
+            true
+        );
+    }
+
+    /// @dev Credits claimerPayout to the claimer. On the first settle for rskAddr, may also
+    /// credit min(registrantFee, feeAtClaim) to the registered registrant and subtract that
+    /// from the claimer. Then marks the peg-in settled and emits PegInResolved.
+    function _creditResolvedPegIn(
+        bytes32 pegInId,
+        address rskAddr,
+        PegInClaim memory claim,
+        uint256 released
+    ) private {
+        uint256 registrantFeePaid = 0;
+        address registrant = address(0);
+        if (!_registrantPaid[rskAddr]) {
+            registrant = _pegInAddressRegistry.getRegistration(rskAddr).registrant;
+            uint256 feeDue = _min(
+                _configurations.getPegInConfiguration().registrantFee,
+                claim.feeAtClaim
+            );
+            if (feeDue > 0 && registrant != address(0)) {
+                registrantFeePaid = feeDue;
+                _increaseBalance(registrant, registrantFeePaid);
+            }
+            _registrantPaid[rskAddr] = true;
+        }
+
+        uint256 claimerPayout = claim.frontedAmount + claim.feeAtClaim - registrantFeePaid;
+        _increaseBalance(claim.claimer, claimerPayout);
+        _pegInSettled[pegInId] = true;
+
+        emit PegInResolved(
+            pegInId, claim.claimer, registrant, released, claimerPayout, registrantFeePaid, 0
+        );
+    }
+
     /// @notice This function is used to increase the balance of an account
     /// @dev This function must remain private. Any exposure can lead to a loss of funds.
     /// It is responsibility of the caller to ensure that the account is a liquidity provider
@@ -443,10 +518,61 @@ contract PegInContract is
         }
     }
 
+    /// @dev Loads a claimed, not-yet-settled peg-in or reverts.
+    function _requireClaimedUnsettled(bytes32 pegInId) private view returns (PegInClaim memory claim) {
+        if (_pegInSettled[pegInId]) {
+            revert PegInAlreadyProcessed(pegInId);
+        }
+        claim = _pegInClaims[pegInId];
+        if (claim.claimer == address(0)) {
+            revert PegInNotClaimed(pegInId);
+        }
+    }
+
     /// @notice Reverts unless commit-first registry and configurations are wired
     function _requirePegInDepsSet() private view {
         if (address(_pegInAddressRegistry) == address(0)) revert PegInAddressRegistryNotSet();
         if (address(_configurations) == address(0)) revert FlyoverConfigurationsNotSet();
+    }
+
+    /// @notice Reads the peg-in amount out of the deposit transaction
+    /// @dev Two different operations, and only the first is a derivation: the deposit
+    /// scriptPubkey for rskAddr is DERIVED (a formula over this proxy's address and the live
+    /// powpeg script), and the amount is then READ from the FIRST output paying that script.
+    /// Both go through the same helpers the registry uses at registration —
+    /// {PegInDerivation-depositPkScript} for the script, {BtcTransactionReader} for the lookup. See
+    /// {BtcTransactionReader-findFirstOutputPaying} for why first-match and not the sum, and why
+    /// that is the open question here rather than in the registry.
+    /// The derivation inputs come from state and the matched output from the SPV-proven bytes,
+    /// so there is no argument a caller can move to change the answer.
+    ///
+    /// The powpeg script is read fresh from the bridge on every call, so a federation change
+    /// rotates the expected script here exactly as it rotates the issued address. In-flight
+    /// deposits to a pre-rotation address stop matching, which is the drain-then-rotate cost
+    /// PegInDerivation documents, not a new failure mode.
+    ///
+    /// The network flag comes from this contract's own `_mainnet`, set at initialization. It must
+    /// agree with the flag the registry was initialized with: the BTC placeholders mixed into the
+    /// derivation are per-network, so a disagreement derives a script no deposit pays and every
+    /// claim reverts DepositOutputNotFound.
+    /// @param rskAddr The RSK destination address of the peg-in
+    /// @param btcTxSerialized The witness-stripped raw deposit transaction
+    /// @param btcTxHash The txid hashed from btcTxSerialized, for the revert reason
+    /// @return The gross peg-in amount in wei
+    function _readPegInAmount(address rskAddr, bytes calldata btcTxSerialized, bytes32 btcTxHash)
+        private
+        view
+        returns (uint256)
+    {
+        bytes memory pkScript = PegInDerivation.depositPkScript(
+            rskAddr, address(this), _bridge.getActivePowpegRedeemScript(), _mainnet
+        );
+        (uint64 depositSats, bool found) =
+            BtcTransactionReader.findFirstOutputPaying(btcTxSerialized, pkScript);
+        if (!found) {
+            revert DepositOutputNotFound(rskAddr, btcTxHash);
+        }
+        return uint256(depositSats) * Flyover.SAT_TO_WEI_CONVERSION;
     }
 
     /// @notice Reverts unless Bridge confirmations meet the configured tier for amount
@@ -792,6 +918,15 @@ contract PegInContract is
         }
 
         return false;
+    }
+
+    /// @dev Derives pegInId from witness-stripped raw tx bytes.
+    function _resolvePegInId(
+        address rskAddr,
+        bytes calldata btcRawTransaction
+    ) private pure returns (bytes32 pegInId) {
+        BtcTransactionReader.requireWitnessStripped(btcRawTransaction);
+        pegInId = keccak256(abi.encodePacked(rskAddr, BtcUtils.hashBtcTx(btcRawTransaction)));
     }
 
     /// @dev Utility function to return the minimum of two uint256 values

@@ -29,12 +29,15 @@ interface IFlyoverConfigurations {
     /// 10,000
     /// @param minAmount The minimum peg-in amount, in wei
     /// @param maxAmount The maximum peg-in amount, in wei
+    /// @param registrantFee The fee paid to the registrant on the first claimed peg-in per
+    /// destination address, in wei; read at settlement from live config and clamped to feeAtClaim
     /// @param confirmationTiers The confirmation tiers, strictly ascending by maxAmount
     struct PegConfiguration {
         uint256 fixedFee;
         uint256 percentageFee;
         uint256 minAmount;
         uint256 maxAmount;
+        uint256 registrantFee;
         ConfirmationTier[] confirmationTiers;
     }
 

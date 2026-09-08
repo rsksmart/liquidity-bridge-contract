@@ -2,6 +2,14 @@
 pragma solidity 0.8.25;
 
 library Flyover {
+    /// @notice 1 satoshi expressed in wei — the scale every BTC amount crosses when it becomes an
+    /// RBTC amount.
+    /// @dev The single declaration of the scale for the commit-first path: {PegInContract} converts
+    /// a deposit with it, {FlyoverConfigurations} rounds fees to it. It lives in a library, and not
+    /// on the contract that owns the amount policy, because Solidity cannot reference a contract's
+    /// public constant by type name — doing so needs an external call.
+    uint256 internal constant SAT_TO_WEI_CONVERSION = 10 ** 10;
+
     enum ProviderType { PegIn, PegOut, Both }
 
     struct LiquidityProvider {

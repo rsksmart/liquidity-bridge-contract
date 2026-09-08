@@ -10,6 +10,14 @@ contract BridgeMock is IBridge {
     mapping(uint256 => bytes) private _headers;
     mapping (bytes32 => bytes) private _headersByHash;
     int private _confirmations;
+    /// @dev Per-hash confirmations, so a test can prove WHICH hash was proven. A real merkle
+    /// proof only confirms the txid it was built for; the blanket _confirmations value cannot
+    /// express that, and hides any mismatch between the hash a caller derives and the hash it
+    /// proves.
+    mapping(bytes32 => int) private _confirmationsByTxHash;
+    /// @dev Set by setConfirmationsFor. While false the mock keeps its original blanket
+    /// behaviour, so existing tests are unaffected.
+    bool private _perTxHashConfirmations;
     int private _registerError;
 
     error SendFailed();
@@ -48,6 +56,15 @@ contract BridgeMock is IBridge {
         _confirmations = confirmations;
     }
 
+    /// @notice Confirms one specific transaction hash, as a merkle proof does.
+    /// @dev Use instead of setConfirmations when a test needs to prove WHICH hash the caller
+    /// asked the bridge about. Seeding any hash switches this mock into per-hash mode, so
+    /// unseeded hashes report no confirmations rather than falling back to the blanket value.
+    function setConfirmationsFor(bytes32 btcTxHash, int confirmations) external {
+        _confirmationsByTxHash[btcTxHash] = confirmations;
+        _perTxHashConfirmations = true;
+    }
+
     // solhint-disable-next-line no-empty-blocks
     function registerBtcTransaction ( bytes calldata atx, int256 height, bytes calldata pmt ) external override {}
     function addSignature ( bytes calldata pubkey, bytes[] calldata signatures, bytes calldata txhash )
@@ -71,8 +88,13 @@ contract BridgeMock is IBridge {
         return _headersByHash[blockHash];
     }
 
-    function getBtcTransactionConfirmations ( bytes32 , bytes32, uint256 , bytes32[] calldata  )
-        external view override returns (int256) { return _confirmations; }
+    function getBtcTransactionConfirmations ( bytes32 btcTxHash, bytes32, uint256 , bytes32[] calldata  )
+        external view override returns (int256) {
+        if (_perTxHashConfirmations) {
+            return _confirmationsByTxHash[btcTxHash];
+        }
+        return _confirmations;
+    }
 
     function getActivePowpegRedeemScript() external pure returns (bytes memory) {
         bytes memory part1 = hex"522102cd53fc53a07f211641a677d250f6de99caf620e8e77071e811a28b3bcddf0be1210362634ab5";
