@@ -453,6 +453,9 @@ contract PegOutContract is
         if (_pegOutEscrow.getPegOutState(requestHash) != IPegOutEscrow.EscrowedPegOutState.CLAIMED) {
             return;
         }
+        if (finalState == IPegOutEscrow.EscrowedPegOutState.REFUNDED) {
+            _pegOutEscrow.onClaimFail(_pegOutEscrow.getPegOutQuote(requestHash).lpRskAddress);
+        }
         _pegOutEscrow.onSettlement(requestHash, finalState);
     }
 
