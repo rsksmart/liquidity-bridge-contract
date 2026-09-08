@@ -41,13 +41,12 @@ contract PegOutDepositAmountsFuzzTest is PegOutFuzzTestBase {
         vm.expectEmit(true, true, true, true);
         emit IPegOut.PegOutDeposit(
             quoteHash,
-            fuzzUser,
+            address(this),
             block.timestamp,
             totalValue
         );
 
         // Should succeed with exact payment
-        vm.prank(fuzzUser);
         pegOutContract.depositPegOut{value: totalValue}(quote, signature);
 
         assertFalse(
@@ -80,12 +79,11 @@ contract PegOutDepositAmountsFuzzTest is PegOutFuzzTestBase {
         vm.expectEmit(true, true, true, true);
         emit IPegOut.PegOutDeposit(
             quoteHash,
-            fuzzUser,
+            address(this),
             block.timestamp,
             paidAmount
         );
 
-        vm.prank(fuzzUser);
         pegOutContract.depositPegOut{value: paidAmount}(quote, signature);
 
         // Contract should keep the extra (no change paid)
@@ -123,7 +121,7 @@ contract PegOutDepositAmountsFuzzTest is PegOutFuzzTestBase {
         vm.expectEmit(true, true, true, true);
         emit IPegOut.PegOutDeposit(
             quoteHash,
-            fuzzUser,
+            address(this),
             block.timestamp,
             paidAmount
         );
@@ -136,14 +134,13 @@ contract PegOutDepositAmountsFuzzTest is PegOutFuzzTestBase {
             extraAmount
         );
 
-        vm.prank(fuzzUser);
         pegOutContract.depositPegOut{value: paidAmount}(quote, signature);
 
         // User should receive change back
         assertEq(
             fuzzUser.balance,
-            userBalanceBefore - totalValue,
-            "User should only pay totalValue (change returned)"
+            userBalanceBefore + extraAmount,
+            "Refund address should receive change"
         );
     }
 }

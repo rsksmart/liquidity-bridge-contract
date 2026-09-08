@@ -29,6 +29,9 @@ contract PegOutInvariantTest is PegOutTestBase {
             user
         );
 
+        vm.prank(owner);
+        pegOutContract.setPegOutEscrow(address(handler));
+
         handler.addLP(pegOutLp, pegOutLpKey, Flyover.ProviderType.PegOut);
         handler.addLP(fullLp, fullLpKey, Flyover.ProviderType.Both);
 

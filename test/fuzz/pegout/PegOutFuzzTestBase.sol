@@ -228,7 +228,6 @@ abstract contract PegOutFuzzTestBase is PegOutTestBase {
         Quotes.PegOutQuote memory quote = createFuzzTestQuote(value);
         bytes memory signature = signFuzzQuote(pegOutLp, quote);
 
-        vm.prank(fuzzUser);
         pegOutContract.depositPegOut{value: getTotalQuoteValue(quote)}(
             quote,
             signature

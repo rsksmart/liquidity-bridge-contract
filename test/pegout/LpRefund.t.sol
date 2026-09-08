@@ -77,7 +77,6 @@ contract LpRefundTest is PegOutTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
 
-        vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
             quote,
             signature
@@ -363,14 +362,13 @@ contract LpRefundTest is PegOutTestBase {
         );
     }
 
-    function test_RefundPegOut_UnderFloor_TopsUpUserAndDebitsLp() public {
+    function test_RefundPegOut_UnderValue_RevertsInsufficientAmount() public {
         Quotes.PegOutQuote memory quote = createAndDepositQuote();
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        uint256 escrowed = quote.value + quote.callFee + quote.gasFee;
-        // Legacy path: maxMinerFee unset (0) → floor = value − callFee
-        uint256 floor = quote.value - quote.callFee;
-        uint256 paid = 0.9 ether;
-        uint256 topUp = floor - paid;
+        uint256 requiredValue = quote.value;
+        uint256 paid = requiredValue - Quotes.SAT_TO_WEI_CONVERSION;
+        uint256 paidWei = (paid / Quotes.SAT_TO_WEI_CONVERSION) *
+            Quotes.SAT_TO_WEI_CONVERSION;
 
         Quotes.PegOutQuote memory lowQuote = quote;
         lowQuote.value = paid;
@@ -384,10 +382,14 @@ contract LpRefundTest is PegOutTestBase {
             int256(uint256(quote.transferConfirmations))
         );
 
-        uint256 userBefore = quote.rskRefundAddress.balance;
-        uint256 lpBefore = pegOutLp.balance;
-
         vm.prank(pegOutLp);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Flyover.InsufficientAmount.selector,
+                paidWei,
+                requiredValue
+            )
+        );
         pegOutContract.refundPegOut(
             quoteHash,
             btcTx,
@@ -395,10 +397,6 @@ contract LpRefundTest is PegOutTestBase {
             PARTIAL_MERKLE_TREE,
             merkleHashes
         );
-
-        assertEq(quote.rskRefundAddress.balance, userBefore + topUp);
-        assertEq(pegOutLp.balance, lpBefore + escrowed - topUp);
-        assertTrue(pegOutContract.isQuoteCompleted(quoteHash));
     }
 
     function test_RefundPegOut_RevertsIfBtcTxNotDirectedToUserAddress() public {
@@ -544,7 +542,6 @@ contract LpRefundTest is PegOutTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
 
-        vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
             quote,
             signature
@@ -591,7 +588,6 @@ contract LpRefundTest is PegOutTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
 
-        vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
             quote,
             signature
@@ -659,7 +655,6 @@ contract LpRefundTest is PegOutTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
 
-        vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
             quote,
             signature
@@ -697,7 +692,6 @@ contract LpRefundTest is PegOutTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
 
-        vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
             quote,
             signature
@@ -735,7 +729,6 @@ contract LpRefundTest is PegOutTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
 
-        vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
             quote,
             signature
@@ -773,7 +766,6 @@ contract LpRefundTest is PegOutTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
 
-        vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
             quote,
             signature
@@ -811,7 +803,6 @@ contract LpRefundTest is PegOutTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
 
-        vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
             quote,
             signature
@@ -961,22 +952,27 @@ contract LpRefundTest is PegOutTestBase {
         pegOutContract.validatePegout(quoteHash, btcTx);
     }
 
-    function test_ValidatePegout_AcceptsUnderFloorAmount() public {
+    function test_ValidatePegout_RevertsUnderValue() public {
         Quotes.PegOutQuote memory quote = createAndDepositQuote();
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
-        uint256 storedValue = quote.value;
+        uint256 requiredValue = quote.value;
+        uint256 paid = requiredValue - Quotes.SAT_TO_WEI_CONVERSION;
+        uint256 paidWei = (paid / Quotes.SAT_TO_WEI_CONVERSION) *
+            Quotes.SAT_TO_WEI_CONVERSION;
 
-        // Under floor is accepted at validation; refundPegOut performs the top-up.
         Quotes.PegOutQuote memory lowQuote = quote;
-        lowQuote.value = 0.9 ether;
+        lowQuote.value = paid;
         bytes memory btcTx = generateBtcTx(lowQuote, quoteHash);
 
         vm.prank(pegOutLp);
-        Quotes.PegOutQuote memory returned = pegOutContract.validatePegout(
-            quoteHash,
-            btcTx
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Flyover.InsufficientAmount.selector,
+                paidWei,
+                requiredValue
+            )
         );
-        assertEq(returned.value, storedValue);
+        pegOutContract.validatePegout(quoteHash, btcTx);
     }
 
     function test_ValidatePegout_RevertsIfBtcTxNotDirectedToUserAddress()
@@ -1100,7 +1096,6 @@ contract LpRefundTest is PegOutTestBase {
         bytes32 quoteHash = pegOutContract.hashPegOutQuote(quote);
         bytes memory signature = signQuote(pegOutLp, quote);
 
-        vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
             quote,
             signature
@@ -1188,7 +1183,6 @@ contract LpRefundTest is PegOutTestBase {
         );
         bytes memory signature = signQuote(pegOutLp, quote);
 
-        vm.prank(user);
         pegOutContract.depositPegOut{value: getTotalValue(quote)}(
             quote,
             signature

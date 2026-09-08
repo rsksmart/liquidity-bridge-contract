@@ -70,7 +70,6 @@ contract FlyoverConfigurations is
         uint256 pendingEta;
         PegOutConfiguration minBound;
         PegOutConfiguration maxBound;
-        bool initialized;
     }
 
     /// @notice The version of the contract
@@ -143,7 +142,6 @@ contract FlyoverConfigurations is
     error NoQueuedBoundsChange();
     /// @notice Raised when applying bounds that would leave the active configuration outside them.
     error ActiveConfigOutsideNewBounds(Field field, uint256 value, uint256 min, uint256 max);
-    error PegOutAlreadyInitialized();
     error PegOutNotInitialized();
     error InvalidPegOutDeadlines();
     /// @notice Raised when registrantFee is at or above {MAX_REGISTRANT_FEE_EXCLUSIVE}.
@@ -198,24 +196,22 @@ contract FlyoverConfigurations is
     }
 
     /// @notice One-time peg-out seed; call after {initialize}.
-    /// @dev TODO: consider folding peg-out seed/bounds into {initialize} on a greenfield deploy.
-    /// Kept separate so the existing peg-in initializer ABI, deploy calldata, and tests stay
-    /// unchanged, and so an already-initialized proxy can seed the peg-out ERC-7201 namespace
-    /// without re-running `initialize`.
+    /// @dev Uses OZ `reinitializer(2)` so a second call reverts. Kept separate from {initialize}
+    /// so the peg-in initializer ABI, deploy calldata, and tests stay unchanged, and so an
+    /// already-initialized proxy can seed the peg-out ERC-7201 namespace without re-running
+    /// `initialize`.
     // solhint-disable-next-line comprehensive-interface
     function initializePegOut(
         PegOutConfiguration calldata pegOutConfig,
         PegOutConfiguration calldata pegOutMin,
         PegOutConfiguration calldata pegOutMax
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) external reinitializer(2) onlyRole(DEFAULT_ADMIN_ROLE) {
         PegOutConfigurationsStorage storage pegOut = _getPegOutStorage();
-        if (pegOut.initialized) revert PegOutAlreadyInitialized();
 
         pegOut.minBound = pegOutMin;
         pegOut.maxBound = pegOutMax;
         _validatePegOutConfig(pegOutConfig);
         pegOut.active = pegOutConfig;
-        pegOut.initialized = true;
     }
 
     /// @inheritdoc IFlyoverConfigurations
@@ -363,7 +359,8 @@ contract FlyoverConfigurations is
 
     /// @inheritdoc IFlyoverConfigurations
     function calculatePegInFee(uint256 amount) external view override returns (uint256 fee) {
-        return _calculateFee(_getStorage().activePegIn, amount);
+        PegConfiguration storage config = _getStorage().activePegIn;
+        return _calculateFee(config.fixedFee, config.percentageFee, amount);
     }
 
     /// @inheritdoc IFlyoverConfigurations
@@ -373,7 +370,7 @@ contract FlyoverConfigurations is
         override
         returns (uint256 confirmations)
     {
-        return _requiredConfirmations(_getStorage().activePegIn, amount);
+        return _requiredConfirmations(_getStorage().activePegIn.confirmationTiers, amount);
     }
 
     /// @notice Returns the active bounds every queued configuration change is validated against.
@@ -429,7 +426,8 @@ contract FlyoverConfigurations is
     /// @inheritdoc IFlyoverConfigurations
     function calculatePegOutFee(uint256 amount) external view override returns (uint256 fee) {
         _requirePegOutInitialized();
-        return _calculatePegOutFee(_getPegOutStorage().active, amount);
+        PegOutConfiguration storage config = _getPegOutStorage().active;
+        return _calculateFee(config.fixedFee, config.percentageFee, amount);
     }
 
     /// @inheritdoc IFlyoverConfigurations
@@ -440,7 +438,7 @@ contract FlyoverConfigurations is
         returns (uint256 confirmations)
     {
         _requirePegOutInitialized();
-        return _requiredPegOutConfirmations(_getPegOutStorage().active, amount);
+        return _requiredConfirmations(_getPegOutStorage().active.confirmationTiers, amount);
     }
 
     /// @notice Immutable peg-out deployment bounds.
@@ -466,58 +464,18 @@ contract FlyoverConfigurations is
         return (pegOut.pending, pegOut.pendingEta);
     }
 
-    /// @dev fee = fixedFee + amount * percentageFee / 10_000, then rounded DOWN to a satoshi
-    /// boundary (mirrors `Quotes.checkAgreedAmount`), so on-chain fees agree with the bridge. The
-    /// scale is read from {Flyover}, which declares it once; `Quotes.SAT_TO_WEI_CONVERSION` is the
-    /// legacy quote path's own copy, left alone because that path's ABI is frozen, and
-    /// `test/configurations/Fee.t.sol` asserts the two agree so they cannot drift.
-    /// `PegOutContract` holds a third, private copy.
-    function _calculateFee(PegConfiguration storage config, uint256 amount) private view returns (uint256) {
-        uint256 fee = config.fixedFee + (amount * config.percentageFee) / FEE_PERCENTAGE_DENOMINATOR;
-        if (fee > Flyover.SAT_TO_WEI_CONVERSION && (fee % Flyover.SAT_TO_WEI_CONVERSION) != 0) {
-            fee -= (fee % Flyover.SAT_TO_WEI_CONVERSION);
-        }
-        return fee;
-    }
-
-    function _calculatePegOutFee(PegOutConfiguration storage config, uint256 amount)
-        private
-        view
-        returns (uint256)
-    {
-        uint256 fee = config.fixedFee + (amount * config.percentageFee) / FEE_PERCENTAGE_DENOMINATOR;
-        if (fee > Flyover.SAT_TO_WEI_CONVERSION && (fee % Flyover.SAT_TO_WEI_CONVERSION) != 0) {
-            fee -= (fee % Flyover.SAT_TO_WEI_CONVERSION);
-        }
-        return fee;
-    }
-
     /// @dev Returns the confirmations of the first tier whose maxAmount covers the amount. If the
     /// amount exceeds every tier, returns the highest (last) tier's confirmations, the most
     /// conservative answer. Tiers are kept strictly ascending, so the first match is the tightest.
-    function _requiredConfirmations(PegConfiguration storage config, uint256 amount)
+    function _requiredConfirmations(ConfirmationTier[] storage tiers, uint256 amount)
         private
         view
         returns (uint256)
     {
-        ConfirmationTier[] storage tiers = config.confirmationTiers;
         uint256 length = tiers.length;
         for (uint256 i = 0; i < length; ++i) {
-            if (amount <= tiers[i].maxAmount) {
-                return tiers[i].confirmations;
-            }
-        }
-        return tiers[length - 1].confirmations;
-    }
-
-    function _requiredPegOutConfirmations(PegOutConfiguration storage config, uint256 amount)
-        private
-        view
-        returns (uint256)
-    {
-        ConfirmationTier[] storage tiers = config.confirmationTiers;
-        uint256 length = tiers.length;
-        for (uint256 i = 0; i < length; ++i) {
+            // Inclusive tier bound: amount in (prev.max, this.max].
+            // solhint-disable-next-line gas-strict-inequalities
             if (amount <= tiers[i].maxAmount) {
                 return tiers[i].confirmations;
             }
@@ -589,6 +547,60 @@ contract FlyoverConfigurations is
         _checkActiveField(Field.RegistrantFee, active.registrantFee, min.registrantFee, max.registrantFee);
     }
 
+    function _validatePegOutConfig(PegOutConfiguration memory config) private view {
+        PegOutConfigurationsStorage storage pegOut = _getPegOutStorage();
+        PegOutConfiguration storage minB = pegOut.minBound;
+        PegOutConfiguration storage maxB = pegOut.maxBound;
+
+        _checkBound(Field.FixedFee, config.fixedFee, minB.fixedFee, maxB.fixedFee);
+        _checkBound(Field.PercentageFee, config.percentageFee, minB.percentageFee, maxB.percentageFee);
+        _checkBound(Field.MinAmount, config.minAmount, minB.minAmount, maxB.minAmount);
+        _checkBound(Field.MaxAmount, config.maxAmount, minB.maxAmount, maxB.maxAmount);
+        _checkBound(Field.PenaltyFee, config.penaltyFee, minB.penaltyFee, maxB.penaltyFee);
+        _checkBound(Field.ClaimWindow, config.claimWindow, minB.claimWindow, maxB.claimWindow);
+        _checkBound(
+            Field.ClaimWindowBlocks, config.claimWindowBlocks, minB.claimWindowBlocks, maxB.claimWindowBlocks
+        );
+        _checkBound(Field.CallTime, config.callTime, minB.callTime, maxB.callTime);
+        _checkBound(Field.ExpireTime, config.expireTime, minB.expireTime, maxB.expireTime);
+        _checkBound(Field.ExpireBlocks, config.expireBlocks, minB.expireBlocks, maxB.expireBlocks);
+        _checkBound(Field.MaxMinerFee, config.maxMinerFee, minB.maxMinerFee, maxB.maxMinerFee);
+
+        if (config.percentageFee > FEE_PERCENTAGE_DENOMINATOR) {
+            revert InvalidPercentageFee(config.percentageFee);
+        }
+        if (config.minAmount > config.maxAmount) {
+            revert InvalidAmountLimits(config.minAmount, config.maxAmount);
+        }
+        if (config.claimWindow == 0 || config.callTime == 0 || config.expireTime == 0) {
+            revert InvalidPegOutDeadlines();
+        }
+        _validateTiers(config.confirmationTiers);
+    }
+
+    function _requirePegOutInitialized() private view {
+        // solhint-disable-next-line gas-strict-inequalities
+        if (_getInitializedVersion() < 2) revert PegOutNotInitialized();
+    }
+
+    /// @dev fee = fixedFee + amount * percentageFee / 10_000, then rounded DOWN to a satoshi
+    /// boundary (mirrors `Quotes.checkAgreedAmount`), so on-chain fees agree with the bridge. The
+    /// scale is read from {Flyover}, which declares it once; `Quotes.SAT_TO_WEI_CONVERSION` is the
+    /// legacy quote path's own copy, left alone because that path's ABI is frozen, and
+    /// `test/configurations/Fee.t.sol` asserts the two agree so they cannot drift.
+    /// `PegOutContract` holds a third, private copy.
+    function _calculateFee(uint256 fixedFee, uint256 percentageFee, uint256 amount)
+        private
+        pure
+        returns (uint256)
+    {
+        uint256 fee = fixedFee + (amount * percentageFee) / FEE_PERCENTAGE_DENOMINATOR;
+        if (fee > Flyover.SAT_TO_WEI_CONVERSION && (fee % Flyover.SAT_TO_WEI_CONVERSION) != 0) {
+            fee -= (fee % Flyover.SAT_TO_WEI_CONVERSION);
+        }
+        return fee;
+    }
+
     function _checkBound(Field field, uint256 value, uint256 minV, uint256 maxV) private pure {
         if (value < minV || value > maxV) {
             revert ConfigValueOutOfBounds(field, value, minV, maxV);
@@ -626,43 +638,10 @@ contract FlyoverConfigurations is
         uint256 length = tiers.length;
         if (length == 0) revert EmptyTiers();
         for (uint256 i = 1; i < length; ++i) {
+            // Strictly ascending maxAmount (equal or lower is invalid).
+            // solhint-disable-next-line gas-strict-inequalities
             if (tiers[i].maxAmount <= tiers[i - 1].maxAmount) revert TiersNotAscending();
         }
-    }
-
-    function _validatePegOutConfig(PegOutConfiguration memory config) private view {
-        PegOutConfigurationsStorage storage pegOut = _getPegOutStorage();
-        PegOutConfiguration storage minB = pegOut.minBound;
-        PegOutConfiguration storage maxB = pegOut.maxBound;
-
-        _checkBound(Field.FixedFee, config.fixedFee, minB.fixedFee, maxB.fixedFee);
-        _checkBound(Field.PercentageFee, config.percentageFee, minB.percentageFee, maxB.percentageFee);
-        _checkBound(Field.MinAmount, config.minAmount, minB.minAmount, maxB.minAmount);
-        _checkBound(Field.MaxAmount, config.maxAmount, minB.maxAmount, maxB.maxAmount);
-        _checkBound(Field.PenaltyFee, config.penaltyFee, minB.penaltyFee, maxB.penaltyFee);
-        _checkBound(Field.ClaimWindow, config.claimWindow, minB.claimWindow, maxB.claimWindow);
-        _checkBound(
-            Field.ClaimWindowBlocks, config.claimWindowBlocks, minB.claimWindowBlocks, maxB.claimWindowBlocks
-        );
-        _checkBound(Field.CallTime, config.callTime, minB.callTime, maxB.callTime);
-        _checkBound(Field.ExpireTime, config.expireTime, minB.expireTime, maxB.expireTime);
-        _checkBound(Field.ExpireBlocks, config.expireBlocks, minB.expireBlocks, maxB.expireBlocks);
-        _checkBound(Field.MaxMinerFee, config.maxMinerFee, minB.maxMinerFee, maxB.maxMinerFee);
-
-        if (config.percentageFee > FEE_PERCENTAGE_DENOMINATOR) {
-            revert InvalidPercentageFee(config.percentageFee);
-        }
-        if (config.minAmount > config.maxAmount) {
-            revert InvalidAmountLimits(config.minAmount, config.maxAmount);
-        }
-        if (config.claimWindow == 0 || config.callTime == 0 || config.expireTime == 0) {
-            revert InvalidPegOutDeadlines();
-        }
-        _validateTiers(config.confirmationTiers);
-    }
-
-    function _requirePegOutInitialized() private view {
-        if (!_getPegOutStorage().initialized) revert PegOutNotInitialized();
     }
 
     function _getStorage() private pure returns (FlyoverConfigurationsStorage storage $) {

@@ -16,6 +16,8 @@ contract MultiPegOutTest is PegOutTestBase {
         initBtcMocks();
         user = makeAddr("user");
         multiPayer = new MultiPegOutPayer(payable(address(pegOutContract)));
+        vm.prank(owner);
+        pegOutContract.setPegOutEscrow(address(multiPayer));
         vm.deal(address(multiPayer), 100 ether);
     }
 

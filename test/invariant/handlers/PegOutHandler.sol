@@ -7,6 +7,7 @@ import {CollateralManagementContract} from "../../../src/CollateralManagement.so
 import {FlyoverDiscovery} from "../../../src/FlyoverDiscovery.sol";
 import {Quotes} from "../../../src/libraries/Quotes.sol";
 import {Flyover} from "../../../src/libraries/Flyover.sol";
+import {IPegOutEscrow} from "../../../src/interfaces/IPegOutEscrow.sol";
 
 /// @title PegOut Invariant Handler
 /// @notice Provides fuzzable handler functions for PegOutContract invariant testing
@@ -16,6 +17,14 @@ contract PegOutHandler is HandlerBase {
     FlyoverDiscovery public discovery;
 
     address public user;
+
+    /// @dev Handler is wired as PegOut escrow for unit-style deposits.
+    function onSettlement(
+        bytes32,
+        IPegOutEscrow.EscrowedPegOutState
+    ) external {}
+
+    function onClaimFail(address) external {}
 
     struct LPInfo {
         address addr;
@@ -111,8 +120,7 @@ contract PegOutHandler is HandlerBase {
     function submitStaged() external {
         uint256 totalValue = _staged.value + _staged.callFee + _staged.gasFee;
         uint256 paidAmount = totalValue + _stagedOverpay;
-        vm.deal(user, paidAmount);
-        vm.prank(user);
+        vm.deal(address(this), paidAmount);
         pegOutContract.depositPegOut{value: paidAmount}(
             _staged,
             _stagedSignature

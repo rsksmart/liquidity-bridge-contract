@@ -68,6 +68,9 @@ contract SystemInvariantTest is Test {
             punisher
         );
 
+        vm.prank(owner);
+        pegOutContract.setPegOutEscrow(address(handler));
+
         targetContract(address(handler));
 
         bytes4[] memory selectors = new bytes4[](14);
