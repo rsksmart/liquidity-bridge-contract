@@ -47,7 +47,8 @@ interface IPegOutEscrow {
     /// @notice Emitted when nobody claimed by the claim deadline and the user is refunded
     event PegOutRefundedOnNoClaim(bytes32 indexed requestHash, address indexed refundAddress, uint256 amount);
 
-    /// @notice Emitted when {refundOnNoClaim}'s global slash attempt reverts (user still refunded)
+    /// @notice Emitted when {refundOnNoClaim} does not run global slash (user still refunded).
+    /// @dev Emitted when Collateral Management is unset (no call) or when the slash attempt reverts.
     event GlobalSlashSkipped(bytes32 indexed requestHash);
 
     error InvalidDestination();
