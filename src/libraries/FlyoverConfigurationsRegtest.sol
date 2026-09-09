@@ -4,11 +4,11 @@ pragma solidity 0.8.25;
 import {IFlyoverConfigurations} from "../interfaces/IFlyoverConfigurations.sol";
 
 /// @title FlyoverConfigurationsRegtest
-/// @notice Provisional regtest values for {FlyoverConfigurations}: the seed peg-in configuration,
-/// the seed bounds, and the time-lock delay. Shipped with the contract so the deploy wiring can
-/// consume them without hardcoding numbers in a script. The bounds seeded here are the starting
-/// pair, not a permanent one: the admin can move them later through the contract's time-locked
-/// bounds change.
+/// @notice Provisional regtest values for {FlyoverConfigurations}: the seed peg-in and peg-out
+/// configurations, the seed bounds, and the time-lock delay. Shipped with the contract so the
+/// deploy wiring can consume them without hardcoding numbers in a script. The bounds seeded here
+/// are the starting pair, not a permanent one: the admin can move them later through the
+/// contract's time-locked bounds change.
 /// @dev EVERY value here is provisional and calibrated only for regtest; none are production
 /// values. The fixed-fee floor is a SECURITY parameter, not just pricing: if it drops below
 /// worst-case RSK gas during congestion, an attacker can make minimum-amount peg-ins no LP will

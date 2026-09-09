@@ -101,33 +101,54 @@ abstract contract ConfigurationsTestBase is Test {
 
     function _deploy() internal {
         FlyoverConfigurations impl = new FlyoverConfigurations();
-        bytes memory initData = abi.encodeCall(
-            FlyoverConfigurations.initialize,
-            (
-                owner,
-                ADMIN_DELAY,
-                TIMELOCK_DELAY,
-                _seedConfig(),
-                _boundsMin(),
-                _boundsMax()
-            )
+        ERC1967Proxy proxy = new ERC1967Proxy(
+            address(impl),
+            _initializeCall(_seedConfig(), _boundsMin(), _boundsMax())
         );
-        ERC1967Proxy proxy = new ERC1967Proxy(address(impl), initData);
         config = FlyoverConfigurations(payable(address(proxy)));
     }
 
-    function _deployWithPegOut() internal {
-        _deploy();
-        _initPegOut();
+    /// @notice Proxy-constructor calldata for {FlyoverConfigurations-initialize} with the given
+    /// peg-in seed and the suite's default peg-out seed.
+    function _initializeCall(
+        IFlyoverConfigurations.PegConfiguration memory pegInConfig,
+        IFlyoverConfigurations.PegConfiguration memory pegInMin,
+        IFlyoverConfigurations.PegConfiguration memory pegInMax
+    ) internal view returns (bytes memory) {
+        return
+            _initializeCall(
+                pegInConfig,
+                pegInMin,
+                pegInMax,
+                _seedPegOutConfig(),
+                _pegOutBoundsMin(),
+                _pegOutBoundsMax()
+            );
     }
 
-    function _initPegOut() internal {
-        vm.prank(owner);
-        config.initializePegOut(
-            _seedPegOutConfig(),
-            _pegOutBoundsMin(),
-            _pegOutBoundsMax()
-        );
+    function _initializeCall(
+        IFlyoverConfigurations.PegConfiguration memory pegInConfig,
+        IFlyoverConfigurations.PegConfiguration memory pegInMin,
+        IFlyoverConfigurations.PegConfiguration memory pegInMax,
+        IFlyoverConfigurations.PegOutConfiguration memory pegOutConfig,
+        IFlyoverConfigurations.PegOutConfiguration memory pegOutMin,
+        IFlyoverConfigurations.PegOutConfiguration memory pegOutMax
+    ) internal view returns (bytes memory) {
+        return
+            abi.encodeCall(
+                FlyoverConfigurations.initialize,
+                (
+                    owner,
+                    ADMIN_DELAY,
+                    TIMELOCK_DELAY,
+                    pegInConfig,
+                    pegInMin,
+                    pegInMax,
+                    pegOutConfig,
+                    pegOutMin,
+                    pegOutMax
+                )
+            );
     }
 
     /// @notice The seed peg-in configuration written at initialize time.

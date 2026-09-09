@@ -9,7 +9,7 @@ import {IFlyoverConfigurations} from "../../src/interfaces/IFlyoverConfiguration
 /// @notice AC coverage for peg-out FlyoverConfigurations: fee, tiers, queue/apply, snapshot.
 contract PegOutConfigurationsTest is ConfigurationsTestBase {
     function setUp() public {
-        _deployWithPegOut();
+        _deploy();
     }
 
     function _expectedFee(
