@@ -278,7 +278,10 @@ contract RegisterTest is PegInRegistryTestBase {
     // W14
     function test_abi_selector_diff_has_provenance() public {
         _deploy(false);
-        assertEq(registry.getMinDepositSats(), uint256(bridge.getMinimumLockTxValue()));
+        assertEq(
+            registry.getMinDepositSats(),
+            uint256(bridge.getMinimumLockTxValue())
+        );
         assertEq(registry.MIN_CONFIRMATIONS(), 1);
         assertEq(address(registry.pauseRegistry()), address(pauseRegistry));
         assertTrue(pauseRegistry.hasRole(pauseRegistry.PAUSER_ROLE(), owner));
