@@ -115,7 +115,7 @@ contract RegisterTest is PegInRegistryTestBase {
     // W5, W15
     function test_revert_when_below_floor() public {
         _deploy(false);
-        uint64 below = uint64(registry.MIN_DEPOSIT_SATS() - 1);
+        uint64 below = uint64(registry.getMinDepositSats() - 1);
         bytes memory txBytes = _buildDepositTx(
             _depositPkScript(FIXTURE_RSK),
             below
@@ -124,7 +124,7 @@ contract RegisterTest is PegInRegistryTestBase {
             abi.encodeWithSelector(
                 IPegInAddressRegistry.DepositBelowMinimum.selector,
                 below,
-                registry.MIN_DEPOSIT_SATS()
+                registry.getMinDepositSats()
             )
         );
         registry.registerAddress(
@@ -138,7 +138,7 @@ contract RegisterTest is PegInRegistryTestBase {
 
     function test_pass_at_floor_boundary() public {
         _deploy(false);
-        uint64 atFloor = uint64(registry.MIN_DEPOSIT_SATS());
+        uint64 atFloor = uint64(registry.getMinDepositSats());
         _register(FIXTURE_RSK, atFloor, stranger);
         assertTrue(registry.isRegistered(FIXTURE_RSK));
     }
@@ -207,7 +207,7 @@ contract RegisterTest is PegInRegistryTestBase {
     function test_atomicity_no_partial_write() public {
         _deploy(false);
         bytes32 rootBefore = registry.getRegistrationRoot();
-        uint64 below = uint64(registry.MIN_DEPOSIT_SATS() - 1);
+        uint64 below = uint64(registry.getMinDepositSats() - 1);
         bytes memory txBytes = _buildDepositTx(
             _depositPkScript(FIXTURE_RSK),
             below
@@ -216,7 +216,7 @@ contract RegisterTest is PegInRegistryTestBase {
             abi.encodeWithSelector(
                 IPegInAddressRegistry.DepositBelowMinimum.selector,
                 below,
-                registry.MIN_DEPOSIT_SATS()
+                registry.getMinDepositSats()
             )
         );
         registry.registerAddress(
@@ -278,7 +278,7 @@ contract RegisterTest is PegInRegistryTestBase {
     // W14
     function test_abi_selector_diff_has_provenance() public {
         _deploy(false);
-        assertEq(registry.MIN_DEPOSIT_SATS(), 546);
+        assertEq(registry.getMinDepositSats(), uint256(bridge.getMinimumLockTxValue()));
         assertEq(registry.MIN_CONFIRMATIONS(), 1);
         assertEq(address(registry.pauseRegistry()), address(pauseRegistry));
         assertTrue(pauseRegistry.hasRole(pauseRegistry.PAUSER_ROLE(), owner));

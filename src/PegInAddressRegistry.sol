@@ -38,9 +38,6 @@ contract PegInAddressRegistry is
     /// @notice The version of the contract
     string public constant VERSION = "1.0.0";
 
-    /// @notice Minimum deposit output value (satoshis) required to register an address.
-    uint256 public constant MIN_DEPOSIT_SATS = 546;
-
     /// @notice Minimum BTC confirmations required for a deposit proof to gate registration.
     /// @dev Named so the floor can be raised without hunting magic numbers.
     int256 public constant MIN_CONFIRMATIONS = 1;
@@ -131,8 +128,11 @@ contract PegInAddressRegistry is
         bytes memory expectedPkScript = _depositPkScript(rskAddr, pegInContract, $.bridge, $.isMainnet);
         uint64 depositValue = _requireDepositValue(btcTxSerialized, expectedPkScript, rskAddr);
 
-        if (depositValue < MIN_DEPOSIT_SATS) {
-            revert DepositBelowMinimum(depositValue, MIN_DEPOSIT_SATS);
+        {
+            uint256 minDepositSats = _minDepositSats();
+            if (depositValue < minDepositSats) {
+                revert DepositBelowMinimum(depositValue, minDepositSats);
+            }
         }
 
         bytes32 btcTxHash = BtcUtils.hashBtcTx(btcTxSerialized);
@@ -199,6 +199,11 @@ contract PegInAddressRegistry is
         return _getStorage().registrations[addr];
     }
 
+    /// @inheritdoc IPegInAddressRegistry
+    function getMinDepositSats() external view override returns (uint256) {
+        return _minDepositSats();
+    }
+
     /// @notice Returns the bridge the registry derives against
     // solhint-disable-next-line comprehensive-interface
     function getBridge() external view returns (IBridge) {
@@ -232,7 +237,7 @@ contract PegInAddressRegistry is
     /// reverting when the transaction has none.
     /// @dev Thin wrapper over {BtcTransactionReader-findFirstOutputPaying} that turns the library's
     /// found flag into the registry's own named error. Here the value is only compared against
-    /// MIN_DEPOSIT_SATS, so the library's first-match rule undercounts in the conservative
+    /// the bridge minimum, so the library's first-match rule undercounts in the conservative
     /// direction; `PegInContract` uses the same helper for the peg-in amount, where it does not.
     function _requireDepositValue(bytes calldata btcTxSerialized, bytes memory pkScript, address rskAddr)
         private
@@ -263,6 +268,17 @@ contract PegInAddressRegistry is
         bytes memory redeemScript = PegInDerivation.flyoverRedeemScript(derivationValue, powpegRedeemScript);
         bytes20 scriptHash = PegInDerivation.flyoverScriptHash(redeemScript);
         return PegInDerivation.depositAddressPayload(scriptHash, isMainnet);
+    }
+
+    /// @notice Reads the live bridge minimum lock value in satoshis.
+    /// @dev Calls {IBridge-getMinimumLockTxValue}.
+    /// @return The minimum registrable deposit, in satoshis
+    function _minDepositSats() internal view returns (uint256) {
+        int256 value = _getStorage().bridge.getMinimumLockTxValue();
+        if (value < 0) {
+            revert InvalidBridgeMinimum(value);
+        }
+        return uint256(value);
     }
 
     function _getStorage() internal pure returns (PegInAddressRegistryStorage storage $) {
