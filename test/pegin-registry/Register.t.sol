@@ -143,6 +143,46 @@ contract RegisterTest is PegInRegistryTestBase {
         assertTrue(registry.isRegistered(FIXTURE_RSK));
     }
 
+    function test_floor_tracks_live_bridge_minimum() public {
+        _deploy(false);
+        uint64 raised = 1000;
+        bridge.setMinimumLockTxValue(int256(uint256(raised)));
+        uint64 below = raised - 1;
+        bytes memory txBytes = _buildDepositTx(
+            _depositPkScript(FIXTURE_RSK),
+            below
+        );
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegInAddressRegistry.DepositBelowMinimum.selector,
+                below,
+                uint256(raised)
+            )
+        );
+        registry.registerAddress(
+            FIXTURE_RSK,
+            txBytes,
+            BLOCK_HASH,
+            MERKLE_PATH,
+            _emptyHashes()
+        );
+        _register(FIXTURE_RSK, raised, stranger);
+        assertTrue(registry.isRegistered(FIXTURE_RSK));
+    }
+
+    function test_revert_when_negative_bridge_minimum() public {
+        _deploy(false);
+        int256 negative = -1;
+        bridge.setMinimumLockTxValue(negative);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegInAddressRegistry.InvalidBridgeMinimum.selector,
+                negative
+            )
+        );
+        registry.getMinDepositSats();
+    }
+
     // W6
     function test_address_rederived_not_trusted() public {
         _deploy(false);
