@@ -150,11 +150,7 @@ contract CollateralManagementContract is
         _rewardPercentage = rewardPercentage;
     }
 
-    /// @notice Backfills peg-out registration blocks for listed LPs that already have peg-out
-    /// collateral but no recorded block (pre-upgrade providers).
-    /// @dev One-shot via `reinitializer(2)`. Skips PegIn-only LPs, zero peg-out collateral, and
-    /// addresses that already have a registration block. Requires {setFlyoverDiscovery} first.
-    /// Greenfield with no such LPs is a no-op. Admin-only.
+    /// @notice Backfills `_pegOutRegistrationBlock` for listed LPs with peg-out collateral but no recorded block.
     // solhint-disable-next-line comprehensive-interface
     function initializePegOutRegistrationBlocks()
         external
