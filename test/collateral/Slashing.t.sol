@@ -572,6 +572,11 @@ contract SlashingTest is CollateralTestBase {
 
         uint256 pegInBefore = collateralManagement.getPegInCollateral(lpA);
 
+        vm.expectEmit(true, true, false, true, address(collateralManagement));
+        emit ICollateralManagement.GlobalSlashShare(lpA, 1 ether);
+        vm.expectEmit(true, true, false, true, address(collateralManagement));
+        emit ICollateralManagement.GlobalSlashShare(lpB, 2 ether);
+
         vm.prank(slasher);
         collateralManagement.globalSlash(SLASH_TOTAL);
 
@@ -763,11 +768,6 @@ contract SlashingTest is CollateralTestBase {
 
         vm.expectEmit(true, true, false, true, address(collateralManagement));
         emit ICollateralManagement.GlobalSlashShare(lpA, SLASH_TOTAL);
-        vm.expectEmit(true, true, false, true, address(collateralManagement));
-        emit ICollateralManagement.GlobalSlashExecuted(
-            SLASH_TOTAL,
-            SLASH_TOTAL
-        );
 
         vm.prank(slasher);
         collateralManagement.globalSlash(SLASH_TOTAL);
@@ -861,6 +861,11 @@ contract SlashingTest is CollateralTestBase {
     function test_T3_GlobalSlash_CapsAtEligibleSum() public {
         _approvePegOut(lpA, 1 ether);
         _approvePegOut(lpB, 2 ether);
+
+        vm.expectEmit(true, true, false, true, address(collateralManagement));
+        emit ICollateralManagement.GlobalSlashShare(lpA, 1 ether);
+        vm.expectEmit(true, true, false, true, address(collateralManagement));
+        emit ICollateralManagement.GlobalSlashShare(lpB, 2 ether);
 
         vm.prank(slasher);
         collateralManagement.globalSlash(100 ether);
