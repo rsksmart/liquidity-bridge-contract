@@ -236,6 +236,7 @@ contract DeployFlyover is Script {
                     cfg.adminDelay,
                     cfg.bridge,
                     cfg.mainnet,
+                    address(0),
                     IPauseRegistry(pauseRegistryProxy)
                 )
             ),
@@ -293,6 +294,8 @@ contract DeployFlyover is Script {
             FlyoverConfigurationsRegtest.pegOutMin(),
             FlyoverConfigurationsRegtest.pegOutMax()
         );
+        PegInAddressRegistry(payable(d.pegInAddressRegistryProxy))
+            .setFlyoverConfigurations(configsProxy);
 
         address escrowProxy = Upgrades.deployTransparentProxy(
             "PegOutEscrow.sol",

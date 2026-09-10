@@ -81,6 +81,7 @@ contract DerivationTest is PegInRegistryTestBase {
                 ADMIN_DELAY,
                 address(0),
                 false,
+                address(0),
                 IPauseRegistry(address(pauseRegistry))
             )
         );
@@ -233,6 +234,7 @@ contract DerivationTest is PegInRegistryTestBase {
             ADMIN_DELAY,
             address(bridge),
             false,
+            address(0),
             IPauseRegistry(address(pauseRegistry))
         );
     }

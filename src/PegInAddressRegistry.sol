@@ -8,6 +8,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {IBridge} from "./interfaces/IBridge.sol";
+import {IFlyoverConfigurations} from "./interfaces/IFlyoverConfigurations.sol";
 import {IPauseRegistry} from "./interfaces/IPauseRegistry.sol";
 import {IPegInAddressRegistry} from "./interfaces/IPegInAddressRegistry.sol";
 import {BtcTransactionReader} from "./libraries/BtcTransactionReader.sol";
@@ -29,6 +30,7 @@ contract PegInAddressRegistry is
     /// @custom:storage-location erc7201:rsk.flyover.PegInAddressRegistry
     struct PegInAddressRegistryStorage {
         IBridge bridge;
+        IFlyoverConfigurations configurations;
         bool isMainnet;
         bytes32 registrationRoot;
         mapping(address => Registration) registrations;
@@ -56,6 +58,11 @@ contract PegInAddressRegistry is
     /// @notice Emitted when the PegInContract mixed into the derivation is set.
     event PegInContractSet(address indexed oldPegInContract, address indexed newPegInContract);
 
+    /// @notice Emitted when the FlyoverConfigurations contract is set.
+    event FlyoverConfigurationsSet(
+        address indexed oldConfigurations, address indexed newConfigurations
+    );
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -72,6 +79,7 @@ contract PegInAddressRegistry is
     /// @param initialDelay The initial delay for changes in the default admin role
     /// @param bridge The address of the Rootstock bridge
     /// @param isMainnet Whether the derived addresses target mainnet or testnet
+    /// @param configurations The FlyoverConfigurations contract. Zero leaves it unset.
     /// @param pauseRegistry_ The central PauseRegistry for pause state
     // solhint-disable-next-line comprehensive-interface
     function initialize(
@@ -79,6 +87,7 @@ contract PegInAddressRegistry is
         uint48 initialDelay,
         address bridge,
         bool isMainnet,
+        address configurations,
         IPauseRegistry pauseRegistry_
     ) external initializer {
         if (bridge == address(0)) revert Flyover.NoContract(bridge);
@@ -88,6 +97,9 @@ contract PegInAddressRegistry is
         PegInAddressRegistryStorage storage $ = _getStorage();
         $.bridge = IBridge(payable(bridge));
         $.isMainnet = isMainnet;
+        if (configurations != address(0)) {
+            _setConfigurations($, configurations);
+        }
     }
 
     /// @notice Sets the PegInContract mixed into the deposit-address derivation.
@@ -100,6 +112,17 @@ contract PegInAddressRegistry is
         PegInAddressRegistryStorage storage $ = _getStorage();
         emit PegInContractSet($.pegInContract, pegInContract);
         $.pegInContract = pegInContract;
+    }
+
+    /// @notice Sets the FlyoverConfigurations contract
+    /// @param configurations The FlyoverConfigurations contract address
+    // solhint-disable-next-line comprehensive-interface
+    function setFlyoverConfigurations(address configurations)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+        nonReentrant
+    {
+        _setConfigurations(_getStorage(), configurations);
     }
 
     /// @inheritdoc IPegInAddressRegistry
@@ -216,6 +239,12 @@ contract PegInAddressRegistry is
         return _getStorage().pegInContract;
     }
 
+    /// @notice Returns the FlyoverConfigurations contract (zero if unset).
+    // solhint-disable-next-line comprehensive-interface
+    function getFlyoverConfigurations() external view returns (IFlyoverConfigurations) {
+        return _getStorage().configurations;
+    }
+
     /// @notice Derives the on-chain P2SH scriptPubkey for a deposit output match.
     /// @dev Reads the live powpeg script and hands the composition to
     /// {PegInDerivation-depositPkScript}. The registry holds no derivation of its own:
@@ -237,7 +266,7 @@ contract PegInAddressRegistry is
     /// reverting when the transaction has none.
     /// @dev Thin wrapper over {BtcTransactionReader-findFirstOutputPaying} that turns the library's
     /// found flag into the registry's own named error. Here the value is only compared against
-    /// the bridge minimum, so the library's first-match rule undercounts in the conservative
+    /// the protocol minimum, so the library's first-match rule undercounts in the conservative
     /// direction; `PegInContract` uses the same helper for the peg-in amount, where it does not.
     function _requireDepositValue(bytes calldata btcTxSerialized, bytes memory pkScript, address rskAddr)
         private
@@ -270,15 +299,35 @@ contract PegInAddressRegistry is
         return PegInDerivation.depositAddressPayload(scriptHash, isMainnet);
     }
 
-    /// @notice Reads the live bridge minimum lock value in satoshis.
-    /// @dev Calls {IBridge-getMinimumLockTxValue}.
+    /// @notice Stores a FlyoverConfigurations contract after checking it has code.
+    function _setConfigurations(PegInAddressRegistryStorage storage $, address configurations) private {
+        if (configurations.code.length == 0) {
+            revert Flyover.NoContract(configurations);
+        }
+        emit FlyoverConfigurationsSet(address($.configurations), configurations);
+        $.configurations = IFlyoverConfigurations(configurations);
+    }
+
+    /// @notice Returns the protocol registration minimum deposit in satoshis.
+    /// @dev Reads {IFlyoverConfigurations} minAmount (wei), converts to satoshis, and
+    /// requires that value to be greater than the bridge minimum.
     /// @return The minimum registrable deposit, in satoshis
     function _minDepositSats() internal view returns (uint256) {
-        int256 value = _getStorage().bridge.getMinimumLockTxValue();
-        if (value < 0) {
-            revert InvalidBridgeMinimum(value);
+        PegInAddressRegistryStorage storage $ = _getStorage();
+        if (address($.configurations) == address(0)) {
+            revert ConfigurationsNotSet();
         }
-        return uint256(value);
+        uint256 protocolMinSats =
+            $.configurations.getPegInConfiguration().minAmount / Flyover.SAT_TO_WEI_CONVERSION;
+        int256 bridgeMin = $.bridge.getMinimumLockTxValue();
+        if (bridgeMin < 0) {
+            revert InvalidBridgeMinimum(bridgeMin);
+        }
+        uint256 bridgeMinSats = uint256(bridgeMin);
+        if (protocolMinSats <= bridgeMinSats) {
+            revert ConfigMinNotAboveBridge(protocolMinSats, bridgeMinSats);
+        }
+        return protocolMinSats;
     }
 
     function _getStorage() internal pure returns (PegInAddressRegistryStorage storage $) {

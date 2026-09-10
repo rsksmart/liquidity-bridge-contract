@@ -85,6 +85,14 @@ interface IPegInAddressRegistry {
     /// @param value The value returned by the bridge
     error InvalidBridgeMinimum(int256 value);
 
+    /// @notice Raised when configurations are not set
+    error ConfigurationsNotSet();
+
+    /// @notice Reverts when the protocol minimum deposit is not greater than the bridge minimum
+    /// @param protocolMinSats The FlyoverConfigurations minAmount, in satoshis
+    /// @param bridgeMinSats The bridge minimum value, in satoshis
+    error ConfigMinNotAboveBridge(uint256 protocolMinSats, uint256 bridgeMinSats);
+
     /// @notice Derives the deterministic BTC deposit address for an RSK destination address
     /// @dev The address is a prediction of what the bridge recomputes at settlement, byte for
     /// byte: it depends only on the RSK address, fixed protocol constants, and the active
@@ -130,8 +138,10 @@ interface IPegInAddressRegistry {
     function getRegistrationRoot() external view returns (bytes32 registrationRoot);
 
     /// @notice Returns the minimum deposit (satoshis) required to register an address
-    /// @dev Calls {IBridge-getMinimumLockTxValue} on each call.
-    /// @return minDepositSats The live bridge minimum deposit value, in satoshis
+    /// @dev Reads {IFlyoverConfigurations-getPegInConfiguration} minAmount, compares with
+    /// {IBridge-getMinimumLockTxValue} and reverts if the protocol minimum is not greater than the 
+    /// bridge minimum.
+    /// @return minDepositSats The live protocol minimum deposit, in satoshis
     function getMinDepositSats() external view returns (uint256 minDepositSats);
 
     /// @notice Registers an RSK destination address by proving a confirmed BTC deposit pays
