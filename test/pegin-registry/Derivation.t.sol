@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import {PegInRegistryTestBase} from "./PegInRegistryTestBase.sol";
 import {PegInAddressRegistry} from "../../src/PegInAddressRegistry.sol";
 import {PegInAddressRegistryHarness} from "./PegInAddressRegistryHarness.sol";
+import {RegistryConfigurationsMock} from "./RegistryConfigurationsMock.sol";
 import {IPegInAddressRegistry} from "../../src/interfaces/IPegInAddressRegistry.sol";
 import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
@@ -81,6 +82,7 @@ contract DerivationTest is PegInRegistryTestBase {
                 ADMIN_DELAY,
                 address(0),
                 false,
+                address(0),
                 IPauseRegistry(address(pauseRegistry))
             )
         );
@@ -146,6 +148,59 @@ contract DerivationTest is PegInRegistryTestBase {
     function test_getPegInContract_returns_stored() public {
         _deploy(false);
         assertEq(registry.getPegInContract(), PEGIN_CONTRACT);
+    }
+
+    function test_setFlyoverConfigurations_reverts_when_zero() public {
+        _deploy(false);
+        vm.prank(owner);
+        vm.expectRevert(
+            abi.encodeWithSelector(Flyover.NoContract.selector, address(0))
+        );
+        registry.setFlyoverConfigurations(address(0));
+    }
+
+    function test_setFlyoverConfigurations_reverts_when_eoa() public {
+        _deploy(false);
+        address eoa = address(0xDEAD);
+        vm.prank(owner);
+        vm.expectRevert(
+            abi.encodeWithSelector(Flyover.NoContract.selector, eoa)
+        );
+        registry.setFlyoverConfigurations(eoa);
+    }
+
+    function test_setFlyoverConfigurations_admin_only() public {
+        _deploy(false);
+        RegistryConfigurationsMock newConfigs = new RegistryConfigurationsMock();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                stranger,
+                registry.DEFAULT_ADMIN_ROLE()
+            )
+        );
+        vm.prank(stranger);
+        registry.setFlyoverConfigurations(address(newConfigs));
+
+        vm.expectEmit(true, true, true, true);
+        emit PegInAddressRegistry.FlyoverConfigurationsSet(
+            address(configurations),
+            address(newConfigs)
+        );
+        vm.prank(owner);
+        registry.setFlyoverConfigurations(address(newConfigs));
+        assertEq(
+            address(registry.getFlyoverConfigurations()),
+            address(newConfigs)
+        );
+    }
+
+    function test_getFlyoverConfigurations_returns_stored() public {
+        _deploy(false);
+        assertEq(
+            address(registry.getFlyoverConfigurations()),
+            address(configurations)
+        );
     }
 
     // R10 — ERC-7201 namespace
@@ -233,6 +288,7 @@ contract DerivationTest is PegInRegistryTestBase {
             ADMIN_DELAY,
             address(bridge),
             false,
+            address(0),
             IPauseRegistry(address(pauseRegistry))
         );
     }
