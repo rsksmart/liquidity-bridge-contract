@@ -245,6 +245,43 @@ contract PegInAddressRegistry is
         return _getStorage().configurations;
     }
 
+    /// @notice Returns the protocol registration minimum deposit in satoshis.
+    /// @dev Reads {IFlyoverConfigurations} minAmount (wei), converts to satoshis, and
+    /// reverts if that value is lower than the bridge minimum. Equal floors are valid.
+    /// @return The minimum registrable deposit, in satoshis
+    function _minDepositSats() internal view returns (uint256) {
+        PegInAddressRegistryStorage storage $ = _getStorage();
+        if (address($.configurations) == address(0)) {
+            revert ConfigurationsNotSet();
+        }
+        uint256 protocolMinSats =
+            $.configurations.getPegInConfiguration().minAmount / Flyover.SAT_TO_WEI_CONVERSION;
+        int256 bridgeMin = $.bridge.getMinimumLockTxValue();
+        if (bridgeMin < 0) {
+            revert InvalidBridgeMinimum(bridgeMin);
+        }
+        uint256 bridgeMinSats = uint256(bridgeMin);
+        if (protocolMinSats < bridgeMinSats) {
+            revert ConfigMinBelowBridge(protocolMinSats, bridgeMinSats);
+        }
+        return protocolMinSats;
+    }
+
+    function _getStorage() internal pure returns (PegInAddressRegistryStorage storage $) {
+        assembly {
+            $.slot := _PEGIN_ADDRESS_REGISTRY_STORAGE
+        }
+    }
+
+    /// @notice Stores a FlyoverConfigurations contract after checking it has code.
+    function _setConfigurations(PegInAddressRegistryStorage storage $, address configurations) private {
+        if (configurations.code.length == 0) {
+            revert Flyover.NoContract(configurations);
+        }
+        emit FlyoverConfigurationsSet(address($.configurations), configurations);
+        $.configurations = IFlyoverConfigurations(configurations);
+    }
+
     /// @notice Derives the on-chain P2SH scriptPubkey for a deposit output match.
     /// @dev Reads the live powpeg script and hands the composition to
     /// {PegInDerivation-depositPkScript}. The registry holds no derivation of its own:
@@ -297,42 +334,5 @@ contract PegInAddressRegistry is
         bytes memory redeemScript = PegInDerivation.flyoverRedeemScript(derivationValue, powpegRedeemScript);
         bytes20 scriptHash = PegInDerivation.flyoverScriptHash(redeemScript);
         return PegInDerivation.depositAddressPayload(scriptHash, isMainnet);
-    }
-
-    /// @notice Stores a FlyoverConfigurations contract after checking it has code.
-    function _setConfigurations(PegInAddressRegistryStorage storage $, address configurations) private {
-        if (configurations.code.length == 0) {
-            revert Flyover.NoContract(configurations);
-        }
-        emit FlyoverConfigurationsSet(address($.configurations), configurations);
-        $.configurations = IFlyoverConfigurations(configurations);
-    }
-
-    /// @notice Returns the protocol registration minimum deposit in satoshis.
-    /// @dev Reads {IFlyoverConfigurations} minAmount (wei), converts to satoshis, and
-    /// reverts if that value is lower than the bridge minimum. Equal floors are valid.
-    /// @return The minimum registrable deposit, in satoshis
-    function _minDepositSats() internal view returns (uint256) {
-        PegInAddressRegistryStorage storage $ = _getStorage();
-        if (address($.configurations) == address(0)) {
-            revert ConfigurationsNotSet();
-        }
-        uint256 protocolMinSats =
-            $.configurations.getPegInConfiguration().minAmount / Flyover.SAT_TO_WEI_CONVERSION;
-        int256 bridgeMin = $.bridge.getMinimumLockTxValue();
-        if (bridgeMin < 0) {
-            revert InvalidBridgeMinimum(bridgeMin);
-        }
-        uint256 bridgeMinSats = uint256(bridgeMin);
-        if (protocolMinSats < bridgeMinSats) {
-            revert ConfigMinBelowBridge(protocolMinSats, bridgeMinSats);
-        }
-        return protocolMinSats;
-    }
-
-    function _getStorage() internal pure returns (PegInAddressRegistryStorage storage $) {
-        assembly {
-            $.slot := _PEGIN_ADDRESS_REGISTRY_STORAGE
-        }
     }
 }
