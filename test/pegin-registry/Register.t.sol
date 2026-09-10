@@ -241,7 +241,7 @@ contract RegisterTest is PegInRegistryTestBase {
         assertEq(registry.getMinDepositSats(), bridgeMinSats);
     }
 
-    function test_revert_register_when_config_min_not_above_bridge() public {
+    function test_revert_register_when_config_min_below_bridge() public {
         _deploy(false);
         uint256 bridgeMinSats = uint256(bridge.getMinimumLockTxValue());
         configurations.setMinAmount(
@@ -253,7 +253,7 @@ contract RegisterTest is PegInRegistryTestBase {
         );
         vm.expectRevert(
             abi.encodeWithSelector(
-                IPegInAddressRegistry.ConfigMinNotAboveBridge.selector,
+                IPegInAddressRegistry.ConfigMinBelowBridge.selector,
                 bridgeMinSats - 1,
                 bridgeMinSats
             )

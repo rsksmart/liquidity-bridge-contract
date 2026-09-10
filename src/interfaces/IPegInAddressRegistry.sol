@@ -91,7 +91,7 @@ interface IPegInAddressRegistry {
     /// @notice Reverts when the protocol minimum deposit is lower than the bridge minimum
     /// @param protocolMinSats The FlyoverConfigurations minAmount, in satoshis
     /// @param bridgeMinSats The bridge minimum value, in satoshis
-    error ConfigMinNotAboveBridge(uint256 protocolMinSats, uint256 bridgeMinSats);
+    error ConfigMinBelowBridge(uint256 protocolMinSats, uint256 bridgeMinSats);
 
     /// @notice Derives the deterministic BTC deposit address for an RSK destination address
     /// @dev The address is a prediction of what the bridge recomputes at settlement, byte for

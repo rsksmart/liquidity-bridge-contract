@@ -325,7 +325,7 @@ contract PegInAddressRegistry is
         }
         uint256 bridgeMinSats = uint256(bridgeMin);
         if (protocolMinSats < bridgeMinSats) {
-            revert ConfigMinNotAboveBridge(protocolMinSats, bridgeMinSats);
+            revert ConfigMinBelowBridge(protocolMinSats, bridgeMinSats);
         }
         return protocolMinSats;
     }
