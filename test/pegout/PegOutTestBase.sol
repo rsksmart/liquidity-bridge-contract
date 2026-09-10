@@ -53,13 +53,19 @@ abstract contract PegOutTestBase is Test {
         "script/helpers/generate-btc-tx.ts";
 
     /// @dev PegOut notifies the wired escrow on settlement; unit tests use this contract as escrow.
-    function onSettlement(
-        bytes32,
-        IPegOutEscrow.EscrowedPegOutState
-    ) external {}
+    /// Records the last notify so fulfill / user-refund paths can assert id + outcome only.
+    bytes32 public lastSettlementId;
+    IPegOutEscrow.EscrowedPegOutState public lastSettlementOutcome;
+    uint256 public settlementNotifyCount;
 
-    /// @dev PegOut notifies claim-fail on user refund; no-op stub for unit tests.
-    function onClaimFail(address) external {}
+    function onSettlement(
+        bytes32 quoteHash,
+        IPegOutEscrow.EscrowedPegOutState finalState
+    ) external {
+        lastSettlementId = quoteHash;
+        lastSettlementOutcome = finalState;
+        settlementNotifyCount += 1;
+    }
 
     /// @notice Deploy PegOutContract with all dependencies
     function deployPegOutContract() internal {
