@@ -143,7 +143,7 @@ contract RegisterTest is PegInRegistryTestBase {
         assertTrue(registry.isRegistered(FIXTURE_RSK));
     }
 
-    function test_floor_tracks_live_bridge_minimum() public {
+    function test_floor_tracks_live_config_minimum() public {
         _deploy(false);
         uint64 raised = 1000;
         configurations.setMinAmount(
@@ -170,6 +170,29 @@ contract RegisterTest is PegInRegistryTestBase {
         );
         _register(FIXTURE_RSK, raised, stranger);
         assertTrue(registry.isRegistered(FIXTURE_RSK));
+    }
+
+    function test_production_seed_min_equals_bridge_floor() public {
+        _deploy(false);
+        uint256 bridgeMinSats = 500_000;
+        bridge.setMinimumLockTxValue(int256(bridgeMinSats));
+        configurations.setMinAmount(0.005 ether);
+
+        assertEq(registry.getMinDepositSats(), bridgeMinSats);
+
+        _register(FIXTURE_RSK, uint64(bridgeMinSats), stranger);
+        assertTrue(registry.isRegistered(FIXTURE_RSK));
+    }
+
+    function test_floor_stays_on_config_when_bridge_rises_below_it() public {
+        _deploy(false);
+        uint64 configMinSats = 1000;
+        configurations.setMinAmount(
+            uint256(configMinSats) * Flyover.SAT_TO_WEI_CONVERSION
+        );
+        bridge.setMinimumLockTxValue(500);
+
+        assertEq(registry.getMinDepositSats(), uint256(configMinSats));
     }
 
     function test_revert_when_negative_bridge_minimum() public {
@@ -209,22 +232,13 @@ contract RegisterTest is PegInRegistryTestBase {
         );
     }
 
-    function test_revert_getMinDepositSats_when_config_min_not_above_bridge()
-        public
-    {
+    function test_getMinDepositSats_when_config_min_equals_bridge() public {
         _deploy(false);
         uint256 bridgeMinSats = uint256(bridge.getMinimumLockTxValue());
         configurations.setMinAmount(
             bridgeMinSats * Flyover.SAT_TO_WEI_CONVERSION
         );
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IPegInAddressRegistry.ConfigMinNotAboveBridge.selector,
-                bridgeMinSats,
-                bridgeMinSats
-            )
-        );
-        registry.getMinDepositSats();
+        assertEq(registry.getMinDepositSats(), bridgeMinSats);
     }
 
     function test_revert_register_when_config_min_not_above_bridge() public {

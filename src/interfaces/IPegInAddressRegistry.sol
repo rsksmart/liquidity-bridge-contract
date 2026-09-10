@@ -88,7 +88,7 @@ interface IPegInAddressRegistry {
     /// @notice Raised when configurations are not set
     error ConfigurationsNotSet();
 
-    /// @notice Reverts when the protocol minimum deposit is not greater than the bridge minimum
+    /// @notice Reverts when the protocol minimum deposit is lower than the bridge minimum
     /// @param protocolMinSats The FlyoverConfigurations minAmount, in satoshis
     /// @param bridgeMinSats The bridge minimum value, in satoshis
     error ConfigMinNotAboveBridge(uint256 protocolMinSats, uint256 bridgeMinSats);
@@ -139,8 +139,8 @@ interface IPegInAddressRegistry {
 
     /// @notice Returns the minimum deposit (satoshis) required to register an address
     /// @dev Reads {IFlyoverConfigurations-getPegInConfiguration} minAmount, compares with
-    /// {IBridge-getMinimumLockTxValue} and reverts if the protocol minimum is not greater than the 
-    /// bridge minimum.
+    /// {IBridge-getMinimumLockTxValue} and reverts if the protocol minimum is lower than the
+    /// bridge minimum. Equal floors are valid.
     /// @return minDepositSats The live protocol minimum deposit, in satoshis
     function getMinDepositSats() external view returns (uint256 minDepositSats);
 

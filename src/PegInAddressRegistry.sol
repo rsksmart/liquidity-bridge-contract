@@ -310,7 +310,7 @@ contract PegInAddressRegistry is
 
     /// @notice Returns the protocol registration minimum deposit in satoshis.
     /// @dev Reads {IFlyoverConfigurations} minAmount (wei), converts to satoshis, and
-    /// requires that value to be greater than the bridge minimum.
+    /// reverts if that value is lower than the bridge minimum. Equal floors are valid.
     /// @return The minimum registrable deposit, in satoshis
     function _minDepositSats() internal view returns (uint256) {
         PegInAddressRegistryStorage storage $ = _getStorage();
@@ -324,7 +324,7 @@ contract PegInAddressRegistry is
             revert InvalidBridgeMinimum(bridgeMin);
         }
         uint256 bridgeMinSats = uint256(bridgeMin);
-        if (protocolMinSats <= bridgeMinSats) {
+        if (protocolMinSats < bridgeMinSats) {
             revert ConfigMinNotAboveBridge(protocolMinSats, bridgeMinSats);
         }
         return protocolMinSats;
