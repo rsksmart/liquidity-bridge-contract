@@ -26,6 +26,12 @@ PEGIN_QUOTE_FILE ?=
 PEGIN_SIGNATURE ?=
 PEGIN_TXID ?=
 
+# Mutation testing defaults
+BASE_REF ?= origin/master
+# Optional comma-separated mutation slugs, e.g. MUTATIONS=ER,CR,IF,IT,NR,RDV,RCI
+MUTATIONS ?=
+MEWT_FLAGS = $(if $(MUTATIONS),--mutations $(MUTATIONS))
+
 # Flyover library addresses are read from addresses.json at build time
 
 # Environment file
@@ -221,6 +227,15 @@ help:
 	@echo "  test-fuzz-pegout      - Run pegout fuzz tests"
 	@echo "  test-fuzz-libraries   - Run libraries fuzz tests"
 	@echo ""
+	@echo "Mutation Testing (mewt):"
+	@echo "  mutate-install    - Install mewt (trailofbits mutation testing tool)"
+	@echo "  mutate-scope      - Show the mutation allowlist and check it for drift"
+	@echo "  mutate-changed    - Mutate contracts changed against BASE_REF"
+	@echo "  mutate-file       - Mutate a single contract (FILE=...)"
+	@echo "  mutate-status     - Campaign overview with per-contract breakdown"
+	@echo "  mutate-results    - Show surviving mutants"
+	@echo "  mutate-clean      - Drop stale targets from the mewt database"
+	@echo ""
 	@echo "Deployment examples:"
 	@echo "  make deploy-libraries-broadcast NETWORK=rskTestnet      # Deploy libs, then update addresses.json"
 	@echo "  make deploy-flyover-fork NETWORK=rskTestnet             # Deploy full Flyover (libraries from addresses.json)"
@@ -279,6 +294,13 @@ help:
 	@echo "  make test-flyover                             # Run all Flyover system tests"
 	@echo "  make test-file FILE=test/tasks/HashQuote.t.sol  # Run specific test file"
 	@echo "  make test-func FUNC=test_HashPeginQuote       # Run specific test function"
+	@echo ""
+	@echo "Mutation testing examples:"
+	@echo "  make mutate-install                           # Install mewt"
+	@echo "  make mutate-scope                             # Inspect the mutation allowlist"
+	@echo "  make mutate-changed BASE_REF=origin/master    # Mutate changed contracts"
+	@echo "  make mutate-file FILE=src/PauseRegistry.sol   # Mutate one contract"
+	@echo "  make mutate-changed MUTATIONS=ER,CR,IF,IT,NR,RDV,RCI  # Faster high/medium-only pass"
 
 # =============================================================================
 # FLYOVER DEPLOYMENT SCRIPTS
@@ -1013,6 +1035,93 @@ test-fuzz-pegout:
 test-fuzz-libraries:
 	@echo "Running libraries fuzz tests..."
 	forge test --match-path "test/fuzz/libraries/*.sol" -vv
+
+# =============================================================================
+# MUTATION TESTING (mewt)
+# =============================================================================
+# Scope is the [[per_target]] allowlist in mewt.toml. Contracts outside it are
+# never mutated; script/mutation/check-scope.sh guards against drift.
+
+# Install mewt (same installer the CI workflow uses)
+.PHONY: mutate-install
+mutate-install:
+	@echo "Installing mewt..."
+	curl --proto '=https' --tlsv1.2 -LsSf https://github.com/trailofbits/mewt/releases/latest/download/mewt-installer.sh | sh
+	@echo ""
+	@mewt_bin="$$(command -v mewt || echo "$$HOME/.local/bin/mewt")"; \
+	if [ ! -x "$$mewt_bin" ]; then \
+		echo "Error: mewt was not found after installation."; \
+		exit 1; \
+	fi; \
+	echo "Installed: $$mewt_bin"; \
+	"$$mewt_bin" --version; \
+	if ! command -v mewt >/dev/null; then \
+		echo ""; \
+		echo "Note: $$(dirname "$$mewt_bin") is not on your PATH."; \
+		echo "Add it so the other mutate-* targets work:"; \
+		echo "  export PATH=\"$$(dirname "$$mewt_bin"):\$$PATH\""; \
+	fi
+
+# Show the mutation scope and check it against the contracts on disk
+.PHONY: mutate-scope
+mutate-scope:
+	@echo "Mutation allowlist:"
+	@python3 script/mutation/scope.py allowlist | sed 's/^/  /'
+	@echo ""
+	@./script/mutation/check-scope.sh
+
+# Mutate the contracts changed against BASE_REF
+.PHONY: mutate-changed
+mutate-changed:
+	@if ! git diff --quiet || ! git diff --cached --quiet; then \
+		echo "Error: working tree is dirty."; \
+		echo "mewt rewrites contracts in place, so commit or stash first."; \
+		exit 1; \
+	fi
+	@echo "Resolving contracts changed against $(BASE_REF)..."
+	@targets=$$(./script/mutation/changed-contracts.sh $(BASE_REF)); \
+	if [ -z "$$targets" ]; then \
+		echo "No contracts in mutation scope changed."; \
+		exit 0; \
+	fi; \
+	echo "Mutating:"; echo "$$targets" | sed 's/^/  /'; \
+	mewt run $(MEWT_FLAGS) $$targets
+
+# Mutate a single contract
+.PHONY: mutate-file
+mutate-file:
+	@if [ -z "$(FILE)" ]; then \
+		echo "Error: FILE is required"; \
+		echo "Usage: make mutate-file FILE=src/PegInContract.sol"; \
+		exit 1; \
+	fi
+	@if [ -z "$$(echo '$(FILE)' | python3 script/mutation/scope.py filter 2>/dev/null)" ]; then \
+		echo "Error: $(FILE) is not in the mutation allowlist."; \
+		echo "Run 'make mutate-scope' to see the eligible contracts."; \
+		exit 1; \
+	fi
+	@if ! git diff --quiet || ! git diff --cached --quiet; then \
+		echo "Error: working tree is dirty."; \
+		echo "mewt rewrites contracts in place, so commit or stash first."; \
+		exit 1; \
+	fi
+	@echo "Mutating $(FILE)..."
+	mewt run $(MEWT_FLAGS) $(FILE)
+
+# Campaign overview with per-contract breakdown
+.PHONY: mutate-status
+mutate-status:
+	@mewt status
+
+# Show surviving mutants
+.PHONY: mutate-results
+mutate-results:
+	@mewt results
+
+# Drop stale targets from the mewt database
+.PHONY: mutate-clean
+mutate-clean:
+	@mewt clean
 
 # Clean build artifacts
 .PHONY: clean
