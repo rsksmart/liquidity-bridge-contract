@@ -161,6 +161,7 @@ contract PegOutEscrow is
             nonce,
             confirmations
         );
+        emit PegOutRequested(requestHash, refundAddress, amount, destinationAddress);
 
         if (changeRefund > 0) {
             emit EscrowPegOutChangePaid(requestHash, refundAddress, changeRefund);
@@ -367,8 +368,6 @@ contract PegOutEscrow is
         $.state[requestHash] = EscrowedPegOutState.REQUESTED;
         $.requestHashByNonce[nonce] = requestHash;
         $.quotes[requestHash] = quote;
-
-        emit PegOutRequested(requestHash, refundAddress, amount, destinationAddress);
     }
 
     function _terminate(
