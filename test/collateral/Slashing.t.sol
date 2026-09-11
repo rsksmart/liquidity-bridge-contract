@@ -559,6 +559,18 @@ contract SlashingTest is CollateralTestBase {
         discovery.approveRegistration(lp);
     }
 
+    function _approveBoth(address lp, uint256 amount) internal {
+        vm.prank(lp, lp);
+        discovery.register{value: amount}(
+            "LP",
+            "http://localhost/api",
+            true,
+            Flyover.ProviderType.Both
+        );
+        vm.prank(owner);
+        discovery.approveRegistration(lp);
+    }
+
     function _topUpPegOut(address lp, uint256 amount) internal {
         vm.prank(adder);
         collateralManagement.addPegOutCollateralTo{value: amount}(lp);
@@ -752,6 +764,69 @@ contract SlashingTest is CollateralTestBase {
             COLLATERAL_A - SLASH_TOTAL,
             "zero registration block must not grant infinite grace"
         );
+    }
+
+    function test_T3_GlobalSlash_BackfillSetsBlockForAlreadyRegistered()
+        public
+    {
+        _approvePegOut(lpA, COLLATERAL_A);
+        _approveBoth(lpB, COLLATERAL_B);
+        _approvePegIn(pegInOnly, COLLATERAL_A);
+
+        assertGt(collateralManagement.getPegOutRegistrationBlock(lpA), 0);
+        assertGt(collateralManagement.getPegOutRegistrationBlock(lpB), 0);
+        assertEq(collateralManagement.getPegOutRegistrationBlock(pegInOnly), 0);
+
+        stdstore
+            .target(address(collateralManagement))
+            .sig("getPegOutRegistrationBlock(address)")
+            .with_key(lpA)
+            .checked_write(uint256(0));
+        stdstore
+            .target(address(collateralManagement))
+            .sig("getPegOutRegistrationBlock(address)")
+            .with_key(lpB)
+            .checked_write(uint256(0));
+
+        uint256 backfillBlock = block.number;
+        vm.prank(owner);
+        collateralManagement.initializePegOutRegistrationBlocks();
+
+        assertEq(
+            collateralManagement.getPegOutRegistrationBlock(lpA),
+            backfillBlock
+        );
+        assertEq(
+            collateralManagement.getPegOutRegistrationBlock(lpB),
+            backfillBlock
+        );
+        assertEq(collateralManagement.getPegOutRegistrationBlock(pegInOnly), 0);
+    }
+
+    function test_T3_GlobalSlash_BackfillPutsGrandfatheredLpInGraceWindow()
+        public
+    {
+        uint256 grace = 1_000;
+        vm.prank(owner);
+        collateralManagement.setGlobalSlashGraceBlocks(grace);
+
+        _approvePegOut(lpA, COLLATERAL_A);
+        stdstore
+            .target(address(collateralManagement))
+            .sig("getPegOutRegistrationBlock(address)")
+            .with_key(lpA)
+            .checked_write(uint256(0));
+
+        vm.prank(owner);
+        collateralManagement.initializePegOutRegistrationBlocks();
+
+        vm.prank(slasher);
+        vm.expectRevert(
+            ICollateralManagement.GlobalSlashNoEligibleProviders.selector
+        );
+        collateralManagement.globalSlash(SLASH_TOTAL);
+
+        assertEq(collateralManagement.getPegOutCollateral(lpA), COLLATERAL_A);
     }
 
     function test_T3_GlobalSlash_DestinationIsPenalties() public {

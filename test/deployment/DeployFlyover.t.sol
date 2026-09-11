@@ -335,6 +335,7 @@ contract DeployFlyoverTest is Test {
             address(pegOutContract)
         );
         collateralManagement.setFlyoverDiscovery(address(discovery));
+        collateralManagement.initializePegOutRegistrationBlocks();
         // Escrow slash role is granted inside _deployPegOutEscrow.
 
         // Verify FlyoverDiscovery has COLLATERAL_ADDER

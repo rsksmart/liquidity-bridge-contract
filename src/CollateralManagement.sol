@@ -150,6 +150,26 @@ contract CollateralManagementContract is
         _rewardPercentage = rewardPercentage;
     }
 
+    /// @notice Backfills `_pegOutRegistrationBlock` for listed LPs with peg-out collateral but no recorded block.
+    // solhint-disable-next-line comprehensive-interface
+    function initializePegOutRegistrationBlocks()
+        external
+        reinitializer(2)
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        if (address(_flyoverDiscovery) == address(0)) revert FlyoverDiscoveryNotSet();
+
+        Flyover.LiquidityProvider[] memory providers = _flyoverDiscovery.getProviders();
+        uint256 length = providers.length;
+        uint256 registrationBlock = block.number;
+        for (uint256 i; i < length; ++i) {
+            if (providers[i].providerType == Flyover.ProviderType.PegIn) continue;
+            address lp = providers[i].providerAddress;
+            if (_pegOutCollateral[lp] == 0 || _pegOutRegistrationBlock[lp] != 0) continue;
+            _pegOutRegistrationBlock[lp] = registrationBlock;
+        }
+    }
+
     /// @notice Sets the minimum collateral required for a liquidity provider **per operation**
     /// @param minCollateral The new minimum collateral
     // solhint-disable-next-line comprehensive-interface
