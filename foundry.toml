@@ -11,6 +11,9 @@ via_ir = false
 ffi = true
 ast = true
 build_info = true
+# Local script gas cap. This value is set so that 8x Upgrades.deployTransparentProxy
+# can run without MemoryOOG. See https://github.com/OpenZeppelin/openzeppelin-foundry-upgrades/issues/92
+block_gas_limit = 2000000000
 extra_output = ["storageLayout"]
 fs_permissions = [
     { access = "read", path = "./" },
