@@ -282,7 +282,10 @@ contract PegOutEscrow is
             revert OnlyPegOutContract(msg.sender);
         }
         uint256 n = ++$.claimFailCount[lp];
-        $.restrictedUntil[lp] = block.timestamp + ((RESTRICTION_BASE ** n) * RESTRICTION_UNIT);
+        // Admin revoke (`type(uint256).max`) takes precedence over timed freezes.
+        if ($.restrictedUntil[lp] != type(uint256).max) {
+            $.restrictedUntil[lp] = block.timestamp + ((RESTRICTION_BASE ** n) * RESTRICTION_UNIT);
+        }
     }
 
     /// @inheritdoc IPegOutEscrow
