@@ -115,7 +115,7 @@ contract RegisterTest is PegInRegistryTestBase {
     // W5, W15
     function test_revert_when_below_floor() public {
         _deploy(false);
-        uint64 below = uint64(registry.MIN_DEPOSIT_SATS() - 1);
+        uint64 below = uint64(registry.getMinDepositSats() - 1);
         bytes memory txBytes = _buildDepositTx(
             _depositPkScript(FIXTURE_RSK),
             below
@@ -124,7 +124,7 @@ contract RegisterTest is PegInRegistryTestBase {
             abi.encodeWithSelector(
                 IPegInAddressRegistry.DepositBelowMinimum.selector,
                 below,
-                registry.MIN_DEPOSIT_SATS()
+                registry.getMinDepositSats()
             )
         );
         registry.registerAddress(
@@ -138,9 +138,133 @@ contract RegisterTest is PegInRegistryTestBase {
 
     function test_pass_at_floor_boundary() public {
         _deploy(false);
-        uint64 atFloor = uint64(registry.MIN_DEPOSIT_SATS());
+        uint64 atFloor = uint64(registry.getMinDepositSats());
         _register(FIXTURE_RSK, atFloor, stranger);
         assertTrue(registry.isRegistered(FIXTURE_RSK));
+    }
+
+    function test_floor_tracks_live_config_minimum() public {
+        _deploy(false);
+        uint64 raised = 1000;
+        configurations.setMinAmount(
+            uint256(raised) * Flyover.SAT_TO_WEI_CONVERSION
+        );
+        uint64 below = raised - 1;
+        bytes memory txBytes = _buildDepositTx(
+            _depositPkScript(FIXTURE_RSK),
+            below
+        );
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegInAddressRegistry.DepositBelowMinimum.selector,
+                below,
+                uint256(raised)
+            )
+        );
+        registry.registerAddress(
+            FIXTURE_RSK,
+            txBytes,
+            BLOCK_HASH,
+            MERKLE_PATH,
+            _emptyHashes()
+        );
+        _register(FIXTURE_RSK, raised, stranger);
+        assertTrue(registry.isRegistered(FIXTURE_RSK));
+    }
+
+    function test_production_seed_min_equals_bridge_floor() public {
+        _deploy(false);
+        uint256 bridgeMinSats = 500_000;
+        bridge.setMinimumLockTxValue(int256(bridgeMinSats));
+        configurations.setMinAmount(0.005 ether);
+
+        assertEq(registry.getMinDepositSats(), bridgeMinSats);
+
+        _register(FIXTURE_RSK, uint64(bridgeMinSats), stranger);
+        assertTrue(registry.isRegistered(FIXTURE_RSK));
+    }
+
+    function test_floor_stays_on_config_when_bridge_rises_below_it() public {
+        _deploy(false);
+        uint64 configMinSats = 1000;
+        configurations.setMinAmount(
+            uint256(configMinSats) * Flyover.SAT_TO_WEI_CONVERSION
+        );
+        bridge.setMinimumLockTxValue(500);
+
+        assertEq(registry.getMinDepositSats(), uint256(configMinSats));
+    }
+
+    function test_revert_when_negative_bridge_minimum() public {
+        _deploy(false);
+        int256 negative = -1;
+        bridge.setMinimumLockTxValue(negative);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegInAddressRegistry.InvalidBridgeMinimum.selector,
+                negative
+            )
+        );
+        registry.getMinDepositSats();
+    }
+
+    function test_revert_getMinDepositSats_when_configurations_unset() public {
+        registry = _deployUnwired(false);
+        vm.expectRevert(IPegInAddressRegistry.ConfigurationsNotSet.selector);
+        registry.getMinDepositSats();
+    }
+
+    function test_revert_register_when_configurations_unset() public {
+        registry = _deployUnwired(false);
+        vm.prank(owner);
+        registry.setPegInContract(PEGIN_CONTRACT);
+        bytes memory txBytes = _buildDepositTx(
+            _depositPkScript(FIXTURE_RSK),
+            10_000
+        );
+        vm.expectRevert(IPegInAddressRegistry.ConfigurationsNotSet.selector);
+        registry.registerAddress(
+            FIXTURE_RSK,
+            txBytes,
+            BLOCK_HASH,
+            MERKLE_PATH,
+            _emptyHashes()
+        );
+    }
+
+    function test_getMinDepositSats_when_config_min_equals_bridge() public {
+        _deploy(false);
+        uint256 bridgeMinSats = uint256(bridge.getMinimumLockTxValue());
+        configurations.setMinAmount(
+            bridgeMinSats * Flyover.SAT_TO_WEI_CONVERSION
+        );
+        assertEq(registry.getMinDepositSats(), bridgeMinSats);
+    }
+
+    function test_revert_register_when_config_min_below_bridge() public {
+        _deploy(false);
+        uint256 bridgeMinSats = uint256(bridge.getMinimumLockTxValue());
+        configurations.setMinAmount(
+            (bridgeMinSats - 1) * Flyover.SAT_TO_WEI_CONVERSION
+        );
+        bytes memory txBytes = _buildDepositTx(
+            _depositPkScript(FIXTURE_RSK),
+            10_000
+        );
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegInAddressRegistry.ConfigMinBelowBridge.selector,
+                bridgeMinSats - 1,
+                bridgeMinSats
+            )
+        );
+        registry.registerAddress(
+            FIXTURE_RSK,
+            txBytes,
+            BLOCK_HASH,
+            MERKLE_PATH,
+            _emptyHashes()
+        );
     }
 
     // W6
@@ -207,7 +331,7 @@ contract RegisterTest is PegInRegistryTestBase {
     function test_atomicity_no_partial_write() public {
         _deploy(false);
         bytes32 rootBefore = registry.getRegistrationRoot();
-        uint64 below = uint64(registry.MIN_DEPOSIT_SATS() - 1);
+        uint64 below = uint64(registry.getMinDepositSats() - 1);
         bytes memory txBytes = _buildDepositTx(
             _depositPkScript(FIXTURE_RSK),
             below
@@ -216,7 +340,7 @@ contract RegisterTest is PegInRegistryTestBase {
             abi.encodeWithSelector(
                 IPegInAddressRegistry.DepositBelowMinimum.selector,
                 below,
-                registry.MIN_DEPOSIT_SATS()
+                registry.getMinDepositSats()
             )
         );
         registry.registerAddress(
@@ -278,7 +402,11 @@ contract RegisterTest is PegInRegistryTestBase {
     // W14
     function test_abi_selector_diff_has_provenance() public {
         _deploy(false);
-        assertEq(registry.MIN_DEPOSIT_SATS(), 546);
+        assertEq(
+            registry.getMinDepositSats(),
+            configurations.getPegInConfiguration().minAmount /
+                Flyover.SAT_TO_WEI_CONVERSION
+        );
         assertEq(registry.MIN_CONFIRMATIONS(), 1);
         assertEq(address(registry.pauseRegistry()), address(pauseRegistry));
         assertTrue(pauseRegistry.hasRole(pauseRegistry.PAUSER_ROLE(), owner));

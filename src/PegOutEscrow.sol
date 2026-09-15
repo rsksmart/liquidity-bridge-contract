@@ -242,18 +242,20 @@ contract PegOutEscrow is
         if (block.timestamp <= q.depositDateLimit) {
             revert ClaimWindowOpen(q.depositDateLimit);
         }
-        if (address($.collateralManagement) == address(0)) revert CollateralManagementNotSet();
 
         uint256 payout = q.value + q.callFee + q.gasFee;
         _terminate($, requestHash, EscrowedPegOutState.REFUNDED);
         emit PegOutRefundedOnNoClaim(requestHash, q.rskRefundAddress, payout);
 
-        // If globalSlash reverts (stub / missing role / no eligible LPs), user still refunded.
-        // solhint-disable-next-line no-empty-blocks
-        try $.collateralManagement.globalSlash(q.penaltyFee) {}
-        catch {
-            emit GlobalSlashSkipped(requestHash);
+        // Slash is best-effort. Unset CM or a reverting globalSlash must not block the user refund.
+        bool skipped = true;
+        if (address($.collateralManagement) != address(0)) {
+            try $.collateralManagement.globalSlash(q.penaltyFee) {
+                skipped = false;
+            } // solhint-disable-next-line no-empty-blocks
+            catch {}
         }
+        if (skipped) emit GlobalSlashSkipped(requestHash);
 
         _payout(q.rskRefundAddress, payout);
     }
@@ -280,7 +282,10 @@ contract PegOutEscrow is
             revert OnlyPegOutContract(msg.sender);
         }
         uint256 n = ++$.claimFailCount[lp];
-        $.restrictedUntil[lp] = block.timestamp + ((RESTRICTION_BASE ** n) * RESTRICTION_UNIT);
+        // Admin revoke (`type(uint256).max`) takes precedence over timed freezes.
+        if ($.restrictedUntil[lp] != type(uint256).max) {
+            $.restrictedUntil[lp] = block.timestamp + ((RESTRICTION_BASE ** n) * RESTRICTION_UNIT);
+        }
     }
 
     /// @inheritdoc IPegOutEscrow

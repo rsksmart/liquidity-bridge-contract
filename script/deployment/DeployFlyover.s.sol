@@ -236,6 +236,7 @@ contract DeployFlyover is Script {
                     cfg.adminDelay,
                     cfg.bridge,
                     cfg.mainnet,
+                    address(0),
                     IPauseRegistry(pauseRegistryProxy)
                 )
             ),
@@ -291,6 +292,8 @@ contract DeployFlyover is Script {
             vm,
             configsProxy
         );
+        PegInAddressRegistry(payable(d.pegInAddressRegistryProxy))
+            .setFlyoverConfigurations(configsProxy);
 
         address escrowProxy = Upgrades.deployTransparentProxy(
             "PegOutEscrow.sol",
@@ -326,6 +329,7 @@ contract DeployFlyover is Script {
         cm.grantRole(slasher, d.pegOutProxy);
         cm.grantRole(slasher, d.pegOutEscrowProxy);
         cm.setFlyoverDiscovery(d.flyoverDiscoveryProxy);
+        cm.initializePegOutRegistrationBlocks();
     }
 
     function _log(FlyoverDeployment memory d) private pure {

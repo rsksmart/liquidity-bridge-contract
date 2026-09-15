@@ -85,6 +85,7 @@ abstract contract RequestPegInTestBase is PegInTestBase {
                 uint48(0),
                 address(bridgeMock),
                 IS_MAINNET_DEPLOYMENT,
+                address(0),
                 pauseRegistry
             )
         );

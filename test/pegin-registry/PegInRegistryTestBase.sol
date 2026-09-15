@@ -6,6 +6,8 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {PegInAddressRegistry} from "../../src/PegInAddressRegistry.sol";
 import {PegInAddressRegistryHarness} from "./PegInAddressRegistryHarness.sol";
 import {RegistryBridgeMock} from "./RegistryBridgeMock.sol";
+import {RegistryConfigurationsMock} from "./RegistryConfigurationsMock.sol";
+import {Flyover} from "../../src/libraries/Flyover.sol";
 import {PegInDerivation} from "../../src/libraries/PegInDerivation.sol";
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
@@ -27,6 +29,7 @@ abstract contract PegInRegistryTestBase is Test {
 
     PegInAddressRegistryHarness internal registry;
     RegistryBridgeMock internal bridge;
+    RegistryConfigurationsMock internal configurations;
     PauseRegistry internal pauseRegistry;
 
     /// @notice The network flag {registry} was deployed with — true when deployed as mainnet. The
@@ -48,6 +51,9 @@ abstract contract PegInRegistryTestBase is Test {
     function _deploy(bool isMainnet) internal {
         isMainnetDeployment = isMainnet;
         bridge = new RegistryBridgeMock();
+        // Protocol floor must be greater than the mock bridge min (2).
+        configurations = new RegistryConfigurationsMock();
+        configurations.setMinAmount(3 * Flyover.SAT_TO_WEI_CONVERSION);
         _deployPauseRegistry();
         PegInAddressRegistryHarness impl = new PegInAddressRegistryHarness();
         bytes memory initData = abi.encodeCall(
@@ -57,6 +63,7 @@ abstract contract PegInRegistryTestBase is Test {
                 ADMIN_DELAY,
                 address(bridge),
                 isMainnet,
+                address(configurations),
                 IPauseRegistry(address(pauseRegistry))
             )
         );
@@ -79,6 +86,7 @@ abstract contract PegInRegistryTestBase is Test {
                 ADMIN_DELAY,
                 address(bridge),
                 isMainnet,
+                address(0),
                 IPauseRegistry(address(pauseRegistry))
             )
         );
