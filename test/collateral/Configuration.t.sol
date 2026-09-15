@@ -3,12 +3,17 @@ pragma solidity 0.8.25;
 
 import {CollateralTestBase} from "./CollateralTestBase.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
+import {FlyoverDiscovery} from "../../src/FlyoverDiscovery.sol";
 import {ICollateralManagement} from "../../src/interfaces/ICollateralManagement.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
+import {StdStorage, stdStorage} from "forge-std/StdStorage.sol";
 
 contract ConfigurationTest is CollateralTestBase {
+    using stdStorage for StdStorage;
+
+    FlyoverDiscovery public discovery;
     address public notOwner;
 
     function setUp() public {
@@ -399,5 +404,141 @@ contract ConfigurationTest is CollateralTestBase {
         vm.prank(owner);
         collateralManagement.setMinCollateral(1);
         assertEq(collateralManagement.getMinCollateral(), 1);
+    }
+
+    // ============ initializePegOutRegistrationBlocks ============
+
+    function _deployAndWireDiscovery() internal {
+        FlyoverDiscovery impl = new FlyoverDiscovery();
+        ERC1967Proxy proxy = new ERC1967Proxy(
+            address(impl),
+            abi.encodeCall(
+                FlyoverDiscovery.initialize,
+                (
+                    owner,
+                    TEST_DEFAULT_ADMIN_DELAY,
+                    address(collateralManagement),
+                    pauseRegistry
+                )
+            )
+        );
+        discovery = FlyoverDiscovery(address(proxy));
+
+        vm.startPrank(owner);
+        collateralManagement.grantRole(
+            collateralManagement.COLLATERAL_ADDER(),
+            address(discovery)
+        );
+        collateralManagement.setFlyoverDiscovery(address(discovery));
+        vm.stopPrank();
+    }
+
+    function _approvePegOut(address lp, uint256 amount) internal {
+        vm.deal(lp, amount);
+        vm.prank(lp, lp);
+        discovery.register{value: amount}(
+            "LP",
+            "http://localhost/api",
+            true,
+            Flyover.ProviderType.PegOut
+        );
+        vm.prank(owner);
+        discovery.approveRegistration(lp);
+    }
+
+    function test_InitializePegOutRegistrationBlocks_RevertsWhenDiscoveryUnset()
+        public
+    {
+        vm.prank(owner);
+        vm.expectRevert(
+            CollateralManagementContract.FlyoverDiscoveryNotSet.selector
+        );
+        collateralManagement.initializePegOutRegistrationBlocks();
+    }
+
+    function test_InitializePegOutRegistrationBlocks_OnlyAllowsOwner() public {
+        bytes32 defaultAdminRole = collateralManagement.DEFAULT_ADMIN_ROLE();
+
+        vm.prank(notOwner);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                notOwner,
+                defaultAdminRole
+            )
+        );
+        collateralManagement.initializePegOutRegistrationBlocks();
+    }
+
+    function test_InitializePegOutRegistrationBlocks_EmptyProviderSetSucceeds()
+        public
+    {
+        _deployAndWireDiscovery();
+        vm.prank(owner);
+        collateralManagement.initializePegOutRegistrationBlocks();
+    }
+
+    function test_InitializePegOutRegistrationBlocks_AllowsInitializeOnlyOnce()
+        public
+    {
+        _deployAndWireDiscovery();
+        vm.prank(owner);
+        collateralManagement.initializePegOutRegistrationBlocks();
+
+        vm.prank(owner);
+        vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
+        collateralManagement.initializePegOutRegistrationBlocks();
+    }
+
+    function test_InitializePegOutRegistrationBlocks_DoesNotOverwriteExistingBlocks()
+        public
+    {
+        _deployAndWireDiscovery();
+        address lp = makeAddr("pegOutLpBackfill");
+        _approvePegOut(lp, BASE_COLLATERAL);
+        uint256 original = collateralManagement.getPegOutRegistrationBlock(lp);
+        assertGt(original, 0);
+
+        vm.roll(block.number + 50);
+        vm.prank(owner);
+        collateralManagement.initializePegOutRegistrationBlocks();
+
+        assertEq(
+            collateralManagement.getPegOutRegistrationBlock(lp),
+            original,
+            "live-path registration block must be kept"
+        );
+    }
+
+    function test_InitializePegOutRegistrationBlocks_OnlyWritesZeroedBlocks()
+        public
+    {
+        _deployAndWireDiscovery();
+        address kept = makeAddr("keptRegBlock");
+        address zeroed = makeAddr("zeroedRegBlock");
+
+        vm.roll(10);
+        _approvePegOut(kept, BASE_COLLATERAL);
+        uint256 keptBlock = collateralManagement.getPegOutRegistrationBlock(
+            kept
+        );
+
+        vm.roll(11);
+        _approvePegOut(zeroed, BASE_COLLATERAL);
+        stdstore
+            .target(address(collateralManagement))
+            .sig("getPegOutRegistrationBlock(address)")
+            .with_key(zeroed)
+            .checked_write(uint256(0));
+
+        vm.roll(20);
+        vm.prank(owner);
+        collateralManagement.initializePegOutRegistrationBlocks();
+
+        assertEq(
+            collateralManagement.getPegOutRegistrationBlock(kept),
+            keptBlock
+        );
+        assertEq(collateralManagement.getPegOutRegistrationBlock(zeroed), 20);
     }
 }
