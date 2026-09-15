@@ -105,9 +105,9 @@ interface IPegOutEscrow {
     function onSettlement(bytes32 quoteHash, EscrowedPegOutState finalState) external;
 
     /// @notice Called by PegOutContract on claimed-expired user refund (`refundUserPegOut`).
-    /// @dev Increments `claimFailCount` and sets `restrictedUntil` to
-    /// `now + (RESTRICTION_BASE ** n) * RESTRICTION_UNIT`. Always overwrites `restrictedUntil`
-    /// (including after admin revoke). Only PegOutContract may call.
+    /// @dev Increments `claimFailCount` always. Sets `restrictedUntil` to
+    /// `now + (RESTRICTION_BASE ** n) * RESTRICTION_UNIT` only when the LP is not
+    /// already admin-revoked (`restrictedUntil != type(uint256).max`). Only PegOutContract may call.
     function onClaimFail(address lp) external;
 
     /// @notice Admin indefinite ban: `restrictedUntil = type(uint256).max`. Does not change fail count.

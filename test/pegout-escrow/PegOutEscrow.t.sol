@@ -1412,10 +1412,22 @@ contract PegOutEscrowTest is Test {
             uint256(escrow.getPegOutState(requestHash)),
             uint256(IPegOutEscrow.EscrowedPegOutState.REFUNDED)
         );
-        // onClaimFail overwrites indefinite ban with finite freeze.
+        // Admin revoke takes precedence: fail count bumps, ban stays permanent.
         assertEq(escrow.claimFailCount(lp), 1);
-        assertTrue(escrow.restrictedUntil(lp) < type(uint256).max);
-        assertTrue(escrow.restrictedUntil(lp) > block.timestamp - 1);
+        assertEq(escrow.restrictedUntil(lp), type(uint256).max);
+
+        bytes32 id2 = _requestDefault();
+        Quotes.PegOutQuote memory quote2 = escrow.getPegOutQuote(id2);
+        bytes memory signature = _signForLp(lpKey, quote2, lp);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOutEscrow.LpRestricted.selector,
+                lp,
+                type(uint256).max
+            )
+        );
+        vm.prank(lp);
+        escrow.claimPegOut(id2, signature);
     }
 
     function test_T4_RevokeAfterClaim_DoesNotBlockFulfill() public {
