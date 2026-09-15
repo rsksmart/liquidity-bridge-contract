@@ -83,42 +83,30 @@ contract DiscoveryStatusFuzzTest is DiscoveryFuzzTestBase {
 
     // ============ Listing Filter Tests ============
 
-    /// @notice Fuzz test: Disabled providers are not listed
-    function testFuzz_SetProviderStatus_DisabledProvidersNotListed(
+    /// @notice Fuzz test: Disabled providers stay listed when collateral is sufficient
+    function testFuzz_SetProviderStatus_DisabledProvidersStayListed(
         uint256 providerIdToDisable
     ) public {
         providerIdToDisable = bound(providerIdToDisable, 1, 3);
-
-        // Get initial provider count
-        Flyover.LiquidityProvider[] memory initialProviders = discovery
-            .getProviders();
-        uint256 initialCount = initialProviders.length;
-        assertEq(initialCount, 3, "Should start with 3 providers");
-
-        // Disable one provider
-        address providerAddress;
-        if (providerIdToDisable == 1) providerAddress = pegInLp;
-        else if (providerIdToDisable == 2) providerAddress = pegOutLp;
-        else providerAddress = fullLp;
+        address providerAddress = providerIdToDisable == 1
+            ? pegInLp
+            : providerIdToDisable == 2
+            ? pegOutLp
+            : fullLp;
 
         vm.prank(providerAddress);
         discovery.setProviderStatus(providerIdToDisable, false);
 
-        // Check listing
         Flyover.LiquidityProvider[] memory providers = discovery.getProviders();
-        assertEq(
-            providers.length,
-            2,
-            "Should have 2 providers after disabling one"
-        );
-
-        // Verify the disabled provider is not in the list
-        for (uint256 i = 0; i < providers.length; i++) {
-            assertTrue(
-                providers[i].id != providerIdToDisable,
-                "Disabled provider should not be in list"
-            );
+        assertEq(providers.length, 3);
+        bool found;
+        for (uint256 i; i < providers.length; ++i) {
+            if (providers[i].id == providerIdToDisable) {
+                found = true;
+                assertFalse(providers[i].status);
+            }
         }
+        assertTrue(found);
     }
 
     /// @notice Fuzz test: Re-enabled providers appear in listing
@@ -136,25 +124,12 @@ contract DiscoveryStatusFuzzTest is DiscoveryFuzzTestBase {
         vm.prank(providerAddress);
         discovery.setProviderStatus(providerIdToToggle, false);
 
-        Flyover.LiquidityProvider[] memory afterDisable = discovery
-            .getProviders();
-        assertEq(
-            afterDisable.length,
-            2,
-            "Should have 2 providers after disable"
-        );
+        assertEq(discovery.getProviders().length, 3);
 
         // Re-enable
         vm.prank(providerAddress);
         discovery.setProviderStatus(providerIdToToggle, true);
-
-        Flyover.LiquidityProvider[] memory afterEnable = discovery
-            .getProviders();
-        assertEq(
-            afterEnable.length,
-            3,
-            "Should have 3 providers after re-enable"
-        );
+        assertEq(discovery.getProviders().length, 3);
     }
 
     // ============ Event Emission Tests ============

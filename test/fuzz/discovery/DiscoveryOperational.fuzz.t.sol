@@ -131,11 +131,11 @@ contract DiscoveryOperationalFuzzTest is DiscoveryFuzzTestBase {
 
     // ============ getProviders Tests ============
 
-    /// @notice Fuzz test: getProviders excludes disabled providers
-    function testFuzz_GetProviders_ExcludesDisabled(uint8 disableCount) public {
+    /// @notice Fuzz test: getProviders still lists disabled providers with sufficient collateral
+    function testFuzz_GetProviders_IncludesDisabledIfSufficient(
+        uint8 disableCount
+    ) public {
         disableCount = uint8(bound(disableCount, 0, 3));
-
-        // Disable specified number of providers
         if (disableCount >= 1) {
             vm.prank(pegInLp);
             discovery.setProviderStatus(1, false);
@@ -148,13 +148,7 @@ contract DiscoveryOperationalFuzzTest is DiscoveryFuzzTestBase {
             vm.prank(fullLp);
             discovery.setProviderStatus(3, false);
         }
-
-        Flyover.LiquidityProvider[] memory providers = discovery.getProviders();
-        assertEq(
-            providers.length,
-            3 - disableCount,
-            "Provider count should decrease"
-        );
+        assertEq(discovery.getProviders().length, 3);
     }
 
     // ============ getProvidersId Tests ============
