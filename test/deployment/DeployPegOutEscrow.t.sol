@@ -98,15 +98,13 @@ contract DeployPegOutEscrowTest is Test {
                         FlyoverConfigurationsRegtest.TIMELOCK_DELAY,
                         FlyoverConfigurationsRegtest.pegInConfig(),
                         FlyoverConfigurationsRegtest.pegInMin(),
-                        FlyoverConfigurationsRegtest.pegInMax()
+                        FlyoverConfigurationsRegtest.pegInMax(),
+                        FlyoverConfigurationsRegtest.pegOutConfig(),
+                        FlyoverConfigurationsRegtest.pegOutMin(),
+                        FlyoverConfigurationsRegtest.pegOutMax()
                     )
                 )
             )
-        );
-        FlyoverConfigurations(payable(configurationsProxy)).initializePegOut(
-            FlyoverConfigurationsRegtest.pegOutConfig(),
-            FlyoverConfigurationsRegtest.pegOutMin(),
-            FlyoverConfigurationsRegtest.pegOutMax()
         );
     }
 

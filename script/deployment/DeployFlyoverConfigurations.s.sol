@@ -59,16 +59,13 @@ contract DeployFlyoverConfigurations is Script {
                     FlyoverConfigurationsRegtest.TIMELOCK_DELAY,
                     FlyoverConfigurationsRegtest.pegInConfig(),
                     FlyoverConfigurationsRegtest.pegInMin(),
-                    FlyoverConfigurationsRegtest.pegInMax()
+                    FlyoverConfigurationsRegtest.pegInMax(),
+                    FlyoverConfigurationsRegtest.pegOutConfig(),
+                    FlyoverConfigurationsRegtest.pegOutMin(),
+                    FlyoverConfigurationsRegtest.pegOutMax()
                 )
             ),
             opts
-        );
-
-        FlyoverConfigurations(payable(proxy)).initializePegOut(
-            FlyoverConfigurationsRegtest.pegOutConfig(),
-            FlyoverConfigurationsRegtest.pegOutMin(),
-            FlyoverConfigurationsRegtest.pegOutMax()
         );
 
         result.proxy = proxy;
