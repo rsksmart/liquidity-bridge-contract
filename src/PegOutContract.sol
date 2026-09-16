@@ -121,9 +121,14 @@ contract PegOutContract is
         }
 
         bytes32 quoteHash = _hashPegOutQuote(quote);
-        _registerPegOutDeposit(quoteHash, quote);
+        _requirePegOutDepositAvailable(quoteHash);
+        _storePegOutDeposit(quoteHash, quote);
         emit PegOutDeposit(quoteHash, msg.sender, block.timestamp, msg.value);
-        _refundPegOutDepositChange(quoteHash, quote.rskRefundAddress, msg.value, requiredAmount);
+        uint256 change = _pegOutDepositChange(msg.value, requiredAmount);
+        if (change > 0) {
+            emit PegOutChangePaid(quoteHash, quote.rskRefundAddress, change);
+            _payPegOutDepositChange(quote.rskRefundAddress, change);
+        }
     }
 
     /// @notice Wires the commit-first PegOutEscrow (only that address may call depositPegOut)
@@ -345,32 +350,33 @@ contract PegOutContract is
         _pegOutEscrow.onSettlement(quoteHash, finalState);
     }
 
-    function _registerPegOutDeposit(bytes32 quoteHash, Quotes.PegOutQuote calldata quote) private {
+    function _storePegOutDeposit(bytes32 quoteHash, Quotes.PegOutQuote calldata quote) private {
+        _pegOutQuotes[quoteHash] = quote;
+        _pegOutRegistry[quoteHash].depositTimestamp = block.timestamp;
+        _pegOutRegistry[quoteHash].depositBlock = block.number;
+    }
+
+    function _payPegOutDepositChange(address refundAddress, uint256 change) private {
+        (bool sent, bytes memory reason) = refundAddress.call{value: change}("");
+        if (!sent) {
+            revert Flyover.PaymentFailed(refundAddress, change, reason);
+        }
+    }
+
+    function _requirePegOutDepositAvailable(bytes32 quoteHash) private view {
         if (_isQuoteCompleted(quoteHash)) {
             revert QuoteAlreadyCompleted(quoteHash);
         }
         if (_pegOutQuotes[quoteHash].lbcAddress != address(0)) {
             revert QuoteAlreadyRegistered(quoteHash);
         }
-        _pegOutQuotes[quoteHash] = quote;
-        _pegOutRegistry[quoteHash].depositTimestamp = block.timestamp;
-        _pegOutRegistry[quoteHash].depositBlock = block.number;
     }
 
-    function _refundPegOutDepositChange(
-        bytes32 quoteHash,
-        address refundAddress,
-        uint256 paid,
-        uint256 requiredAmount
-    ) private {
-        if (dustThreshold > paid - requiredAmount) {
-            return;
-        }
-        uint256 change = paid - requiredAmount;
-        emit PegOutChangePaid(quoteHash, refundAddress, change);
-        (bool sent, bytes memory reason) = refundAddress.call{value: change}("");
-        if (!sent) {
-            revert Flyover.PaymentFailed(refundAddress, change, reason);
+    /// @dev Returns `0` when residual is below dust (same `>` as legacy: `change == dust` refunds).
+    function _pegOutDepositChange(uint256 paid, uint256 requiredAmount) private view returns (uint256 change) {
+        change = paid - requiredAmount;
+        if (dustThreshold > change) {
+            return 0;
         }
     }
 
