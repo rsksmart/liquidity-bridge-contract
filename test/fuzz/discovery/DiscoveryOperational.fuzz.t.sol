@@ -131,7 +131,7 @@ contract DiscoveryOperationalFuzzTest is DiscoveryFuzzTestBase {
 
     // ============ getProviders Tests ============
 
-    /// @notice Fuzz test: getProviders excludes disabled providers
+    /// @notice Fuzz test: getProviders excludes disabled providers once the deactivation window passed
     function testFuzz_GetProviders_ExcludesDisabled(uint8 disableCount) public {
         disableCount = uint8(bound(disableCount, 0, 3));
 
@@ -149,11 +149,33 @@ contract DiscoveryOperationalFuzzTest is DiscoveryFuzzTestBase {
             discovery.setProviderStatus(3, false);
         }
 
+        assertEq(
+            discovery.getProviders().length,
+            3,
+            "Disabled providers stay listed inside the window"
+        );
+
+        vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS);
         Flyover.LiquidityProvider[] memory providers = discovery.getProviders();
         assertEq(
             providers.length,
             3 - disableCount,
             "Provider count should decrease"
+        );
+    }
+
+    /// @notice Fuzz test: a disabled provider is listed iff fewer than resignDelay blocks elapsed
+    function testFuzz_GetProviders_DisabledListedOnlyInsideWindow(
+        uint256 rollBy
+    ) public {
+        rollBy = bound(rollBy, 0, 2 * TEST_RESIGN_DELAY_BLOCKS);
+        vm.prank(pegOutLp);
+        discovery.setProviderStatus(2, false);
+
+        vm.roll(block.number + rollBy);
+        assertEq(
+            discovery.getProviders().length,
+            rollBy < TEST_RESIGN_DELAY_BLOCKS ? 3 : 2
         );
     }
 

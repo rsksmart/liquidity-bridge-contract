@@ -11,7 +11,9 @@ contract ListingFilterTest is DiscoveryTestBase {
 
     // ============ Listing filters tests ============
 
-    function test_GetProviders_ListsOnlyEnabledProviders() public {
+    function test_GetProviders_ListsOnlyEnabledProvidersAfterDeactivationWindow()
+        public
+    {
         setupProviders();
 
         // Initially all 3 providers should be listed
@@ -25,11 +27,100 @@ contract ListingFilterTest is DiscoveryTestBase {
         vm.prank(pegOutLp);
         discovery.setProviderStatus(2, false);
 
+        // Still listed (status false) while inside the deactivation window
+        providers = discovery.getProviders();
+        assertEq(providers.length, 3, "Disabled LP listed inside window");
+        assertFalse(
+            providers[1].status,
+            "Listed LP 2 must report status false"
+        );
+
         // Now only 2 providers should be listed
+        vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS);
         providers = discovery.getProviders();
         assertEq(providers.length, 2, "Should have 2 enabled providers");
         assertEq(providers[0].id, 1, "Provider 1 ID");
         assertEq(providers[1].id, 3, "Provider 3 ID");
+    }
+
+    /// @notice A deactivated LP stays listed until `deactivationBlock + resignDelay`, exclusive
+    function test_GetProviders_DeactivatedListedUntilWindowEnds() public {
+        setupProviders();
+        vm.prank(pegOutLp);
+        discovery.setProviderStatus(2, false);
+        uint256 deactivatedAt = block.number;
+
+        vm.roll(deactivatedAt + TEST_RESIGN_DELAY_BLOCKS - 1);
+        assertEq(discovery.getProviders().length, 3, "Listed at window - 1");
+
+        vm.roll(deactivatedAt + TEST_RESIGN_DELAY_BLOCKS);
+        assertEq(discovery.getProviders().length, 2, "Dropped at window");
+    }
+
+    /// @notice Re-enabling clears the clock; a later deactivation starts a new window
+    function test_GetProviders_ReenableClearsDeactivationClock() public {
+        setupProviders();
+        vm.prank(pegOutLp);
+        discovery.setProviderStatus(2, false);
+        vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS);
+        assertEq(discovery.getProviders().length, 2);
+
+        vm.prank(pegOutLp);
+        discovery.setProviderStatus(2, true);
+        assertEq(discovery.getProviders().length, 3);
+
+        vm.roll(block.number + 10);
+        vm.prank(pegOutLp);
+        discovery.setProviderStatus(2, false);
+        vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS - 1);
+        assertEq(
+            discovery.getProviders().length,
+            3,
+            "New window from second deactivation"
+        );
+    }
+
+    /// @notice Repeating status=false does not refresh the deactivation clock
+    function test_GetProviders_RepeatedDeactivationDoesNotRefreshClock()
+        public
+    {
+        setupProviders();
+        vm.prank(pegOutLp);
+        discovery.setProviderStatus(2, false);
+        uint256 deactivatedAt = block.number;
+
+        vm.roll(deactivatedAt + TEST_RESIGN_DELAY_BLOCKS - 1);
+        vm.prank(pegOutLp);
+        discovery.setProviderStatus(2, false);
+
+        vm.roll(deactivatedAt + TEST_RESIGN_DELAY_BLOCKS);
+        assertEq(discovery.getProviders().length, 2);
+    }
+
+    /// @notice An LP registered with status=false has no deactivation block and is not listed
+    function test_GetProviders_RegisteredInactiveIsNotListed() public {
+        address lp = makeAddr("inactiveLp");
+        vm.deal(lp, 10 ether);
+        vm.prank(lp, lp);
+        discovery.register{value: MIN_COLLATERAL}(
+            "Inactive",
+            "lp.com",
+            false,
+            Flyover.ProviderType.PegOut
+        );
+        vm.prank(owner);
+        discovery.approveRegistration(lp);
+        assertEq(discovery.getProviders().length, 0);
+    }
+
+    /// @notice Admin deactivation starts the same clock as self-deactivation
+    function test_GetProviders_AdminDeactivationStartsClock() public {
+        setupProviders();
+        vm.prank(owner);
+        discovery.setProviderStatus(2, false);
+        assertEq(discovery.getProviders().length, 3);
+        vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS);
+        assertEq(discovery.getProviders().length, 2);
     }
 
     /// @notice getProviders lists only LPs whose collateral meets the current minimum (not only > 0)
