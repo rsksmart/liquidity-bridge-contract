@@ -4,11 +4,11 @@ pragma solidity 0.8.25;
 import {IFlyoverConfigurations} from "../interfaces/IFlyoverConfigurations.sol";
 
 /// @title FlyoverConfigurationsRegtest
-/// @notice Provisional regtest values for {FlyoverConfigurations}: the seed peg-in configuration,
-/// the seed bounds, and the time-lock delay. Shipped with the contract so the deploy wiring can
-/// consume them without hardcoding numbers in a script. The bounds seeded here are the starting
-/// pair, not a permanent one: the admin can move them later through the contract's time-locked
-/// bounds change.
+/// @notice Provisional regtest values for {FlyoverConfigurations}: the seed peg-in and peg-out
+/// configurations, the seed bounds, and the time-lock delay. Shipped with the contract so the
+/// deploy wiring can consume them without hardcoding numbers in a script. The bounds seeded here
+/// are the starting pair, not a permanent one: the admin can move them later through the
+/// contract's time-locked bounds change.
 /// @dev EVERY value here is provisional and calibrated only for regtest; none are production
 /// values. The fixed-fee floor is a SECURITY parameter, not just pricing: if it drops below
 /// worst-case RSK gas during congestion, an attacker can make minimum-amount peg-ins no LP will
@@ -28,6 +28,7 @@ library FlyoverConfigurationsRegtest {
         config.percentageFee = 10; // pricing: 0.10% (10 / 10_000)
         config.minAmount = 0.005 ether; // amount limit: Flyover peg-in floor
         config.maxAmount = 10 ether; // amount limit: Flyover peg-in ceiling
+        config.registrantFee = 1e14; // first-peg-in registrant payout (0.0001 RBTC)
         config.confirmationTiers = _tiers();
     }
 
@@ -41,6 +42,7 @@ library FlyoverConfigurationsRegtest {
         bound.percentageFee = 0; // percentage may be zeroed
         bound.minAmount = 0.001 ether; // lowest permissible Flyover floor
         bound.maxAmount = 0.01 ether; // lowest permissible Flyover ceiling
+        bound.registrantFee = 0;
         // Tiers are validated for ordering/non-emptiness only, never min/max-bounded.
         bound.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
     }
@@ -53,6 +55,7 @@ library FlyoverConfigurationsRegtest {
         bound.percentageFee = 1_000; // 10% max (1_000 / 10_000)
         bound.minAmount = 1 ether; // highest permissible Flyover floor
         bound.maxAmount = 1_000 ether; // highest permissible Flyover ceiling
+        bound.registrantFee = 0.001 ether - 1;
         bound.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
     }
 

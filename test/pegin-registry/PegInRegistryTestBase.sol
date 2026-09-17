@@ -6,6 +6,8 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {PegInAddressRegistry} from "../../src/PegInAddressRegistry.sol";
 import {PegInAddressRegistryHarness} from "./PegInAddressRegistryHarness.sol";
 import {RegistryBridgeMock} from "./RegistryBridgeMock.sol";
+import {RegistryConfigurationsMock} from "./RegistryConfigurationsMock.sol";
+import {Flyover} from "../../src/libraries/Flyover.sol";
 import {PegInDerivation} from "../../src/libraries/PegInDerivation.sol";
 import {PauseRegistry} from "../../src/PauseRegistry.sol";
 import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
@@ -27,6 +29,7 @@ abstract contract PegInRegistryTestBase is Test {
 
     PegInAddressRegistryHarness internal registry;
     RegistryBridgeMock internal bridge;
+    RegistryConfigurationsMock internal configurations;
     PauseRegistry internal pauseRegistry;
 
     /// @notice The network flag {registry} was deployed with — true when deployed as mainnet. The
@@ -48,6 +51,9 @@ abstract contract PegInRegistryTestBase is Test {
     function _deploy(bool isMainnet) internal {
         isMainnetDeployment = isMainnet;
         bridge = new RegistryBridgeMock();
+        // Protocol floor must be greater than the mock bridge min (2).
+        configurations = new RegistryConfigurationsMock();
+        configurations.setMinAmount(3 * Flyover.SAT_TO_WEI_CONVERSION);
         _deployPauseRegistry();
         PegInAddressRegistryHarness impl = new PegInAddressRegistryHarness();
         bytes memory initData = abi.encodeCall(
@@ -57,6 +63,7 @@ abstract contract PegInRegistryTestBase is Test {
                 ADMIN_DELAY,
                 address(bridge),
                 isMainnet,
+                address(configurations),
                 IPauseRegistry(address(pauseRegistry))
             )
         );
@@ -79,6 +86,7 @@ abstract contract PegInRegistryTestBase is Test {
                 ADMIN_DELAY,
                 address(bridge),
                 isMainnet,
+                address(0),
                 IPauseRegistry(address(pauseRegistry))
             )
         );
@@ -141,6 +149,38 @@ abstract contract PegInRegistryTestBase is Test {
                 valueLe,
                 bytes1(uint8(pkScript.length)),
                 pkScript,
+                hex"00000000"
+            );
+    }
+
+    /// @notice The BIP144 (witness-included) serialization of the same one-output deposit.
+    /// @dev Identical to {_buildDepositTx} except for the 00 01 marker+flag after the version and a
+    /// one-item witness stack before the locktime. getOutputs reads the same output from both, so
+    /// only the serialization differs — which is exactly what the registry must reject.
+    function _buildWitnessDepositTx(
+        bytes memory pkScript,
+        uint64 value
+    ) internal pure returns (bytes memory) {
+        bytes memory valueLe = new bytes(8);
+        uint64 v = value;
+        for (uint256 i = 0; i < 8; ++i) {
+            valueLe[i] = bytes1(uint8(v & 0xFF));
+            v >>= 8;
+        }
+        return
+            abi.encodePacked(
+                hex"01000000",
+                hex"0001", // segwit marker + flag
+                hex"01",
+                bytes32(uint256(1)),
+                hex"00000000",
+                hex"00",
+                hex"ffffffff",
+                hex"01",
+                valueLe,
+                bytes1(uint8(pkScript.length)),
+                pkScript,
+                hex"0102ab", // witness: 1 item, 2 bytes
                 hex"00000000"
             );
     }

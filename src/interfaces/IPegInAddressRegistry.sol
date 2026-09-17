@@ -69,9 +69,6 @@ interface IPegInAddressRegistry {
 
     /// @notice Reverts registerAddress when the deposit output paying the derived address is
     /// below the minimum registrable amount
-    /// @dev The economic spam gate: without a floor, a 546-sat dust output satisfies the
-    /// deposit check and bloats every LPS watch list at dust prices. The floor makes
-    /// "registration costs real BTC" literal. Walkthrough anchor: step 8.
     /// @param value The deposit output value found, in satoshis
     /// @param minimum The minimum registrable deposit, in satoshis
     error DepositBelowMinimum(uint256 value, uint256 minimum);
@@ -83,6 +80,18 @@ interface IPegInAddressRegistry {
     /// @param requested The number of addresses requested
     /// @param max The maximum allowed batch size
     error BatchTooLarge(uint256 requested, uint256 max);
+
+    /// @notice Reverts when the bridge reports a negative minimum deposit value
+    /// @param value The value returned by the bridge
+    error InvalidBridgeMinimum(int256 value);
+
+    /// @notice Raised when configurations are not set
+    error ConfigurationsNotSet();
+
+    /// @notice Reverts when the protocol minimum deposit is lower than the bridge minimum
+    /// @param protocolMinSats The FlyoverConfigurations minAmount, in satoshis
+    /// @param bridgeMinSats The bridge minimum value, in satoshis
+    error ConfigMinBelowBridge(uint256 protocolMinSats, uint256 bridgeMinSats);
 
     /// @notice Derives the deterministic BTC deposit address for an RSK destination address
     /// @dev The address is a prediction of what the bridge recomputes at settlement, byte for
@@ -127,6 +136,13 @@ interface IPegInAddressRegistry {
     /// anchors: step 9, decision D6.
     /// @return registrationRoot The current accumulator root
     function getRegistrationRoot() external view returns (bytes32 registrationRoot);
+
+    /// @notice Returns the minimum deposit (satoshis) required to register an address
+    /// @dev Reads {IFlyoverConfigurations-getPegInConfiguration} minAmount, compares with
+    /// {IBridge-getMinimumLockTxValue} and reverts if the protocol minimum is lower than the
+    /// bridge minimum. Equal floors are valid.
+    /// @return minDepositSats The live protocol minimum deposit, in satoshis
+    function getMinDepositSats() external view returns (uint256 minDepositSats);
 
     /// @notice Registers an RSK destination address by proving a confirmed BTC deposit pays
     /// its derived deposit address

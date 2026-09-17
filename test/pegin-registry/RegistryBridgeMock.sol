@@ -9,6 +9,7 @@ import {IBridge} from "../../src/interfaces/IBridge.sol";
 contract RegistryBridgeMock is IBridge {
     bytes private _redeemScript;
     int256 private _confirmations = 6;
+    int256 private _minimumLockTxValue = 2;
     uint256 public mutatingBridgeCallCount;
 
     bool private _hasExpectedProof;
@@ -43,6 +44,10 @@ contract RegistryBridgeMock is IBridge {
 
     function setConfirmations(int256 confirmations) external {
         _confirmations = confirmations;
+    }
+
+    function setMinimumLockTxValue(int256 minimumLockTxValue) external {
+        _minimumLockTxValue = minimumLockTxValue;
     }
 
     /// @notice Programs the exact RSKIP122 identity that must match for confirmations to apply.
@@ -395,8 +400,8 @@ contract RegistryBridgeMock is IBridge {
         return 0;
     }
 
-    function getMinimumLockTxValue() external pure override returns (int256) {
-        return 2;
+    function getMinimumLockTxValue() external view override returns (int256) {
+        return _minimumLockTxValue;
     }
 
     function getBtcTransactionConfirmations(

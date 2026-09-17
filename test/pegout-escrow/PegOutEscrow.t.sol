@@ -710,6 +710,40 @@ contract PegOutEscrowTest is Test {
         assertEq(user.balance, userBefore + payout);
     }
 
+    /// @dev Misconfigured CM (address(0)) must not trap escrowed user RBTC; slash is skipped.
+    /// Slash is enabled first so a missed storage write would succeed slash and fail this test.
+    function test_T3_RefundOnNoClaim_UnsetCM_RefundsAndSkipsSlash() public {
+        collateral.setGlobalSlashReverts(false);
+
+        bytes32 requestHash = _requestDefault();
+        Quotes.PegOutQuote memory q = escrow.getPegOutQuote(requestHash);
+        uint256 payout = q.value + q.callFee + q.gasFee;
+        uint256 userBefore = user.balance;
+
+        // Setter rejects address(0); simulate misconfig / upgrade storage by zeroing the slot.
+        // collateralManagement is at struct offset 1 under the ERC-7201 root.
+        bytes32 cmSlot = bytes32(uint256(PEGOUT_ESCROW_STORAGE) + 1);
+        vm.store(address(escrow), cmSlot, bytes32(0));
+        assertEq(vm.load(address(escrow), cmSlot), bytes32(0));
+
+        vm.warp(uint256(q.depositDateLimit) + 1);
+
+        vm.expectEmit(true, true, false, true, address(escrow));
+        emit IPegOutEscrow.PegOutRefundedOnNoClaim(requestHash, user, payout);
+        vm.expectEmit(true, false, false, true, address(escrow));
+        emit IPegOutEscrow.GlobalSlashSkipped(requestHash);
+
+        vm.prank(other);
+        escrow.refundOnNoClaim(requestHash);
+
+        assertEq(
+            uint256(escrow.getPegOutState(requestHash)),
+            uint256(IPegOutEscrow.EscrowedPegOutState.REFUNDED)
+        );
+        assertEq(user.balance, userBefore + payout);
+        assertEq(collateral.globalSlashCalls(), 0);
+    }
+
     function test_B6_Cancel_DoesNotCallGlobalSlash() public {
         collateral.setGlobalSlashReverts(false);
 
@@ -1063,7 +1097,7 @@ contract PegOutEscrowTest is Test {
     /// @dev B8: delivery above quote.value settles with no RBTC top-up.
     function test_B8_AboveQuoteValue_Settles() public {
         (
-            ,
+            bytes32 requestHash,
             bytes32 settlementKey,
             Quotes.PegOutQuote memory quote
         ) = _claimWithP2pkhDest();
@@ -1097,7 +1131,7 @@ contract PegOutEscrowTest is Test {
     /// @dev B8: under quote.value delivery reverts InsufficientAmount.
     function test_B8_UnderQuoteValue_RevertsInsufficientAmount() public {
         (
-            ,
+            bytes32 requestHash,
             bytes32 settlementKey,
             Quotes.PegOutQuote memory quote
         ) = _claimWithP2pkhDest();
@@ -1266,7 +1300,7 @@ contract PegOutEscrowTest is Test {
 
     function test_T4_Fulfill_DoesNotBump() public {
         (
-            ,
+            bytes32 requestHash,
             bytes32 settlementKey,
             Quotes.PegOutQuote memory quote
         ) = _claimWithP2pkhDest();
@@ -1378,10 +1412,22 @@ contract PegOutEscrowTest is Test {
             uint256(escrow.getPegOutState(requestHash)),
             uint256(IPegOutEscrow.EscrowedPegOutState.REFUNDED)
         );
-        // Escrow applies claim-fail freeze internally on REFUNDED settlement.
+        // Admin revoke takes precedence: fail count bumps, ban stays permanent.
         assertEq(escrow.claimFailCount(lp), 1);
-        assertTrue(escrow.restrictedUntil(lp) < type(uint256).max);
-        assertTrue(escrow.restrictedUntil(lp) > block.timestamp - 1);
+        assertEq(escrow.restrictedUntil(lp), type(uint256).max);
+
+        bytes32 id2 = _requestDefault();
+        Quotes.PegOutQuote memory quote2 = escrow.getPegOutQuote(id2);
+        bytes memory signature = _signForLp(lpKey, quote2, lp);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegOutEscrow.LpRestricted.selector,
+                lp,
+                type(uint256).max
+            )
+        );
+        vm.prank(lp);
+        escrow.claimPegOut(id2, signature);
     }
 
     function test_T4_RevokeAfterClaim_DoesNotBlockFulfill() public {
@@ -1490,12 +1536,7 @@ contract PegOutEscrowTest is Test {
         escrow.unrevoke(lp);
     }
 
-    function test_OnSettlement_NonPegOut_Reverts() public {
-        bytes32 requestHash = _claimDefault();
-        bytes32 settlementKey = _settlementKey(
-            escrow.getPegOutQuote(requestHash)
-        );
-
+    function test_OnClaimFail_NonPegOut_Reverts() public {
         vm.expectRevert(
             abi.encodeWithSelector(
                 IPegOutEscrow.OnlyPegOutContract.selector,
@@ -1503,10 +1544,7 @@ contract PegOutEscrowTest is Test {
             )
         );
         vm.prank(other);
-        escrow.onSettlement(
-            settlementKey,
-            IPegOutEscrow.EscrowedPegOutState.FULFILLED
-        );
+        escrow.onClaimFail(lp);
     }
 
     // -------------------------------------------------------------------------

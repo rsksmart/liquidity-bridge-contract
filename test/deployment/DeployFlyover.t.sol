@@ -213,17 +213,15 @@ contract DeployFlyoverTest is Test {
                         FlyoverConfigurationsRegtest.TIMELOCK_DELAY,
                         FlyoverConfigurationsRegtest.pegInConfig(),
                         FlyoverConfigurationsRegtest.pegInMin(),
-                        FlyoverConfigurationsRegtest.pegInMax()
+                        FlyoverConfigurationsRegtest.pegInMax(),
+                        FlyoverConfigurationsRegtest.pegOutConfig(),
+                        FlyoverConfigurationsRegtest.pegOutMin(),
+                        FlyoverConfigurationsRegtest.pegOutMax()
                     )
                 )
             )
         );
         flyoverConfigurations = FlyoverConfigurations(payable(proxy));
-        flyoverConfigurations.initializePegOut(
-            FlyoverConfigurationsRegtest.pegOutConfig(),
-            FlyoverConfigurationsRegtest.pegOutMin(),
-            FlyoverConfigurationsRegtest.pegOutMax()
-        );
     }
 
     function _deployPegOutEscrow(
@@ -335,6 +333,7 @@ contract DeployFlyoverTest is Test {
             address(pegOutContract)
         );
         collateralManagement.setFlyoverDiscovery(address(discovery));
+        collateralManagement.initializePegOutRegistrationBlocks();
         // Escrow slash role is granted inside _deployPegOutEscrow.
 
         // Verify FlyoverDiscovery has COLLATERAL_ADDER
