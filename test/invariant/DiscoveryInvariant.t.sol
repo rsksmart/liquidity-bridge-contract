@@ -50,15 +50,24 @@ contract DiscoveryInvariantTest is DiscoveryTestBase {
         );
     }
 
-    /// @notice Every provider returned by getProviders() must be registered and have status enabled
+    /// @notice Every provider returned by getProviders() must be registered and either have status
+    /// enabled or be inside its deactivation window
     function invariant_GetProvidersConsistency() public view {
         Flyover.LiquidityProvider[] memory listed = discovery.getProviders();
 
         for (uint256 i = 0; i < listed.length; i++) {
-            assertTrue(
-                listed[i].status,
-                "INVARIANT VIOLATED: Listed provider has status false"
-            );
+            if (!listed[i].status) {
+                uint256 deactivatedAt = handler.ghost_deactivationBlock(
+                    listed[i].id
+                );
+                assertTrue(
+                    deactivatedAt != 0 &&
+                        block.number <
+                        deactivatedAt +
+                            collateralManagement.getResignDelayInBlocks(),
+                    "INVARIANT VIOLATED: Inactive provider listed outside deactivation window"
+                );
+            }
 
             assertTrue(
                 collateralManagement.isRegistered(

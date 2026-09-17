@@ -24,6 +24,8 @@ contract DiscoveryHandler is HandlerBase {
 
     uint256 public ghost_totalRegistered;
     uint256 public ghost_lastProviderId;
+    /// @dev providerId => block of the last true->false status change (0 when active)
+    mapping(uint256 => uint256) public ghost_deactivationBlock;
 
     constructor(
         FlyoverDiscovery discovery_,
@@ -90,6 +92,11 @@ contract DiscoveryHandler is HandlerBase {
 
         vm.prank(info.addr);
         try discovery.setProviderStatus(info.providerId, status) {
+            if (status) {
+                delete ghost_deactivationBlock[info.providerId];
+            } else if (info.statusSet) {
+                ghost_deactivationBlock[info.providerId] = block.number;
+            }
             info.statusSet = status;
         } catch {}
     }
