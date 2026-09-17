@@ -24,8 +24,6 @@ contract PegOutHandler is HandlerBase {
         IPegOutEscrow.EscrowedPegOutState
     ) external {}
 
-    function onClaimFail(address) external {}
-
     struct LPInfo {
         address addr;
         uint256 privateKey;

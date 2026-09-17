@@ -273,20 +273,10 @@ contract PegOutEscrow is
         if (finalState != EscrowedPegOutState.FULFILLED && finalState != EscrowedPegOutState.REFUNDED) {
             revert InvalidState(quoteHash, EscrowedPegOutState.FULFILLED, finalState);
         }
+        if (finalState == EscrowedPegOutState.REFUNDED) {
+            _applyClaimFail($, $.quotes[quoteHash].lpRskAddress);
+        }
         _terminate($, quoteHash, finalState);
-    }
-
-    /// @inheritdoc IPegOutEscrow
-    function onClaimFail(address lp) external override {
-        PegOutEscrowStorage storage $ = _getStorage();
-        if (msg.sender != address($.pegOutContract)) {
-            revert OnlyPegOutContract(msg.sender);
-        }
-        uint256 n = ++$.claimFailCount[lp];
-        // Admin revoke (`type(uint256).max`) takes precedence over timed freezes.
-        if ($.restrictedUntil[lp] != type(uint256).max) {
-            $.restrictedUntil[lp] = block.timestamp + ((RESTRICTION_BASE ** n) * RESTRICTION_UNIT);
-        }
     }
 
     /// @inheritdoc IPegOutEscrow
@@ -380,6 +370,15 @@ contract PegOutEscrow is
     ) private {
         $.state[requestHash] = finalState;
         delete $.quotes[requestHash];
+    }
+
+    /// @notice Bump claim-fail count and set timed freeze for `lp`.
+    /// @dev Admin revoke (`type(uint256).max`) takes precedence over timed freezes.
+    function _applyClaimFail(PegOutEscrowStorage storage $, address lp) private {
+        uint256 n = ++$.claimFailCount[lp];
+        if ($.restrictedUntil[lp] != type(uint256).max) {
+            $.restrictedUntil[lp] = block.timestamp + ((RESTRICTION_BASE ** n) * RESTRICTION_UNIT);
+        }
     }
 
     // slither-disable-next-line arbitrary-send-eth,low-level-calls
