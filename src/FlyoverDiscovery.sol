@@ -46,6 +46,12 @@ contract FlyoverDiscovery is
     mapping(address => PendingRegistration) private _pendingRegistrations;
     mapping(address => RegistrationState) private _registrationStates;
 
+    // v3.0.0
+    /// @dev providerId => block at which `status` last flipped from true to false (0 = none recorded).
+    /// Keeps a recently deactivated LP in {getProviders} (and thus the global-slash set) for the
+    /// resignation delay, so deactivating cannot be used to dodge a pending global slash.
+    mapping(uint256 => uint256) private _deactivationBlock;
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -153,7 +159,13 @@ contract FlyoverDiscovery is
         if (msg.sender != defaultAdmin() && msg.sender != _liquidityProviders[providerId].providerAddress) {
             revert NotAuthorized(msg.sender);
         }
-        _liquidityProviders[providerId].status = status;
+        Flyover.LiquidityProvider storage lp = _liquidityProviders[providerId];
+        if (status) {
+            delete _deactivationBlock[providerId];
+        } else if (lp.status) {
+            _deactivationBlock[providerId] = block.number;
+        }
+        lp.status = status;
         emit IFlyoverDiscovery.ProviderStatusSet(providerId, status);
     }
 
@@ -173,9 +185,10 @@ contract FlyoverDiscovery is
     /// @inheritdoc IFlyoverDiscovery
     function getProviders() external view returns (Flyover.LiquidityProvider[] memory) {
         uint count = 0;
+        uint256 deactivationWindow = _collateralManagement.getResignDelayInBlocks();
         Flyover.LiquidityProvider storage lp;
         for (uint i = 1; i < lastProviderId + 1; ++i) {
-            if (_shouldBeListed(_liquidityProviders[i])) {
+            if (_shouldBeListed(_liquidityProviders[i], deactivationWindow)) {
                 ++count;
             }
         }
@@ -183,7 +196,7 @@ contract FlyoverDiscovery is
         count = 0;
         for (uint i = 1; i < lastProviderId + 1; ++i) {
             lp = _liquidityProviders[i];
-            if (_shouldBeListed(lp)) {
+            if (_shouldBeListed(lp, deactivationWindow)) {
                 providersToReturn[count] = lp;
                 ++count;
             }
@@ -266,11 +279,20 @@ contract FlyoverDiscovery is
     }
 
     /// @notice Checks if a liquidity provider should be listed in the public provider list
-    /// @dev A provider is listed if it is registered, has the min collateral, and has status enabled
+    /// @dev A provider is listed if it is registered and has the min collateral, and either has status
+    /// enabled or was deactivated less than `deactivationWindow` blocks ago. A deactivated LP with no
+    /// recorded deactivation block (e.g. disabled before this rule existed) is not listed.
     /// @param lp The liquidity provider storage reference
+    /// @param deactivationWindow Blocks a deactivated LP stays listed (CollateralManagement resign delay)
     /// @return True if the provider should be listed, false otherwise
-    function _shouldBeListed(Flyover.LiquidityProvider storage lp) private view returns(bool){
-        return _collateralManagement.isCollateralSufficient(lp.providerType, lp.providerAddress) && lp.status;
+    function _shouldBeListed(
+        Flyover.LiquidityProvider storage lp,
+        uint256 deactivationWindow
+    ) private view returns(bool){
+        if (!_collateralManagement.isCollateralSufficient(lp.providerType, lp.providerAddress)) return false;
+        if (lp.status) return true;
+        uint256 deactivatedAt = _deactivationBlock[lp.id];
+        return deactivatedAt != 0 && block.number < deactivatedAt + deactivationWindow;
     }
 
     /// @notice Validates registration parameters and requirements

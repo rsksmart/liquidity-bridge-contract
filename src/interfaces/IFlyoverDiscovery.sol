@@ -81,7 +81,8 @@ interface IFlyoverDiscovery is IPausable {
     function setProviderStatus(uint providerId, bool status) external;
 
     /// @notice Lists LPs that should be visible to users
-    /// @dev A provider is listed if it has sufficient collateral for at least one side and `status` is true
+    /// @dev A provider is listed if it has sufficient collateral and is not resigned, and either `status`
+    /// is true or it was deactivated less than CollateralManagement `getResignDelayInBlocks()` blocks ago.
     /// @return providersToReturn Array of LP records to display
     function getProviders() external view returns (Flyover.LiquidityProvider[] memory);
 
