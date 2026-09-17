@@ -50,22 +50,22 @@ contract DiscoveryInvariantTest is DiscoveryTestBase {
         );
     }
 
-    /// @notice Every provider returned by getProviders() must be collateral-sufficient
+    /// @notice Every provider returned by getProviders() must be registered and have status enabled
     function invariant_GetProvidersConsistency() public view {
         Flyover.LiquidityProvider[] memory listed = discovery.getProviders();
 
         for (uint256 i = 0; i < listed.length; i++) {
             assertTrue(
-                collateralManagement.isCollateralSufficient(
-                    listed[i].providerType,
-                    listed[i].providerAddress
-                )
+                listed[i].status,
+                "INVARIANT VIOLATED: Listed provider has status false"
             );
+
             assertTrue(
                 collateralManagement.isRegistered(
                     listed[i].providerType,
                     listed[i].providerAddress
-                )
+                ),
+                "INVARIANT VIOLATED: Listed provider not registered in CollateralManagement"
             );
         }
     }

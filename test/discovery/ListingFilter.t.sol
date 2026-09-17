@@ -11,14 +11,25 @@ contract ListingFilterTest is DiscoveryTestBase {
 
     // ============ Listing filters tests ============
 
-    function test_GetProviders_ListsInactiveIfSufficient() public {
+    function test_GetProviders_ListsOnlyEnabledProviders() public {
         setupProviders();
+
+        // Initially all 3 providers should be listed
+        Flyover.LiquidityProvider[] memory providers = discovery.getProviders();
+        assertEq(providers.length, 3, "Should have 3 providers");
+        assertEq(providers[0].id, 1, "Provider 1 ID");
+        assertEq(providers[1].id, 2, "Provider 2 ID");
+        assertEq(providers[2].id, 3, "Provider 3 ID");
+
+        // Disable provider with id 2
         vm.prank(pegOutLp);
         discovery.setProviderStatus(2, false);
 
-        Flyover.LiquidityProvider[] memory providers = discovery.getProviders();
-        assertEq(providers.length, 3);
-        assertFalse(providers[1].status);
+        // Now only 2 providers should be listed
+        providers = discovery.getProviders();
+        assertEq(providers.length, 2, "Should have 2 enabled providers");
+        assertEq(providers[0].id, 1, "Provider 1 ID");
+        assertEq(providers[1].id, 3, "Provider 3 ID");
     }
 
     /// @notice getProviders lists only LPs whose collateral meets the current minimum (not only > 0)

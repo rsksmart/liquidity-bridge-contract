@@ -893,22 +893,49 @@ contract FlyoverDiscoveryIntegrationTest is Test {
 
         // Get final provider list
         providers = discovery.getProviders();
-        assertEq(providers.length, 5);
-        assertEq(providers[0].id, 1);
-        assertEq(providers[1].id, 2);
-        assertFalse(providers[1].status);
-        assertEq(providers[2].id, 3);
-        assertEq(providers[3].id, 6);
-        assertFalse(providers[3].status);
-        assertEq(providers[4].id, 7);
+
+        // Should only list: LP1, LP3, LP7 (enabled + not resigned)
+        assertEq(providers.length, 3, "Should only list 3 active providers");
+        assertEq(providers[0].id, 1, "First provider should be LP1");
+        assertEq(providers[1].id, 3, "Second provider should be LP3");
+        assertEq(providers[2].id, 7, "Third provider should be LP7");
+
+        // Verify expected providers are in the list
+        assertEq(providers[0].providerAddress, lp1, "LP1 address should match");
+        assertEq(providers[0].name, "LP1", "LP1 name should match");
+        assertTrue(providers[0].status, "LP1 should be enabled");
+
+        assertEq(providers[1].providerAddress, lp3, "LP3 address should match");
+        assertEq(providers[1].name, "LP3", "LP3 name should match");
+        assertTrue(providers[1].status, "LP3 should be enabled");
+
+        assertEq(providers[2].providerAddress, lp7, "LP7 address should match");
+        assertEq(providers[2].name, "LP7", "LP7 name should match");
+        assertTrue(providers[2].status, "LP7 should be enabled");
+
+        // Verify LP2, LP4, LP5, LP6, LP8 are NOT in the list
+        bool foundLp2 = false;
+        bool foundLp4 = false;
+        bool foundLp5 = false;
+        bool foundLp6 = false;
+        bool foundLp8 = false;
 
         for (uint i = 0; i < providers.length; i++) {
-            assertTrue(
-                providers[i].id != 4 &&
-                    providers[i].id != 5 &&
-                    providers[i].id != 8
-            );
+            if (providers[i].id == 2) foundLp2 = true;
+            if (providers[i].id == 4) foundLp4 = true;
+            if (providers[i].id == 5) foundLp5 = true;
+            if (providers[i].id == 6) foundLp6 = true;
+            if (providers[i].id == 8) foundLp8 = true;
         }
+
+        assertFalse(foundLp2, "LP2 should not be in listing (disabled)");
+        assertFalse(
+            foundLp4,
+            "LP4 should not be in listing (resigned and disabled)"
+        );
+        assertFalse(foundLp5, "LP5 should not be in listing (resigned)");
+        assertFalse(foundLp6, "LP6 should not be in listing (disabled)");
+        assertFalse(foundLp8, "LP8 should not be in listing (resigned)");
 
         // But all providers still exist and can be queried
         Flyover.LiquidityProvider memory provider2 = discovery.getProvider(lp2);
