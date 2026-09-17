@@ -101,14 +101,9 @@ interface IPegOutEscrow {
     /// @notice Called by PegOutContract when settlement finishes (`FULFILLED` or `REFUNDED`)
     /// @dev `quoteHash` is PegOut's storage key = `hashPegOutQuote` of the completed quote.
     /// After claim, escrow is rekeyed to that same hash, so no id translation is needed.
-    /// Does not move funds; custody left at claim.
+    /// Does not move funds; custody left at claim. On `REFUNDED`, increments the LP's `claimFailCount`
+    /// and sets a timed freeze unless the LP is already admin-revoked (`restrictedUntil == type(uint256).max`).
     function onSettlement(bytes32 quoteHash, EscrowedPegOutState finalState) external;
-
-    /// @notice Called by PegOutContract on claimed-expired user refund (`refundUserPegOut`).
-    /// @dev Increments `claimFailCount` and sets `restrictedUntil` to
-    /// `now + (RESTRICTION_BASE ** n) * RESTRICTION_UNIT`. Always overwrites `restrictedUntil`
-    /// (including after admin revoke). Only PegOutContract may call.
-    function onClaimFail(address lp) external;
 
     /// @notice Admin indefinite ban: `restrictedUntil = type(uint256).max`. Does not change fail count.
     function revoke(address lp) external;

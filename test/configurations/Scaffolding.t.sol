@@ -23,7 +23,10 @@ contract ScaffoldingTest is ConfigurationsTestBase {
             TIMELOCK_DELAY,
             _seedConfig(),
             _boundsMin(),
-            _boundsMax()
+            _boundsMax(),
+            _seedPegOutConfig(),
+            _pegOutBoundsMin(),
+            _pegOutBoundsMax()
         );
     }
 
@@ -42,16 +45,10 @@ contract ScaffoldingTest is ConfigurationsTestBase {
         IFlyoverConfigurations.PegConfiguration memory badSeed = _seedConfig();
         badSeed.fixedFee = BOUND_MIN_FIXED_FEE - 1; // below the 2·D floor
 
-        bytes memory initData = abi.encodeCall(
-            FlyoverConfigurations.initialize,
-            (
-                owner,
-                ADMIN_DELAY,
-                TIMELOCK_DELAY,
-                badSeed,
-                _boundsMin(),
-                _boundsMax()
-            )
+        bytes memory initData = _initializeCall(
+            badSeed,
+            _boundsMin(),
+            _boundsMax()
         );
 
         vm.expectRevert(
@@ -73,16 +70,10 @@ contract ScaffoldingTest is ConfigurationsTestBase {
         IFlyoverConfigurations.PegConfiguration memory badMax = _boundsMax();
         badMax.fixedFee = BOUND_MIN_FIXED_FEE - 1;
 
-        bytes memory initData = abi.encodeCall(
-            FlyoverConfigurations.initialize,
-            (
-                owner,
-                ADMIN_DELAY,
-                TIMELOCK_DELAY,
-                _seedConfig(),
-                _boundsMin(),
-                badMax
-            )
+        bytes memory initData = _initializeCall(
+            _seedConfig(),
+            _boundsMin(),
+            badMax
         );
 
         vm.expectRevert(
@@ -91,6 +82,46 @@ contract ScaffoldingTest is ConfigurationsTestBase {
                 FlyoverConfigurations.Field.FixedFee,
                 BOUND_MIN_FIXED_FEE,
                 BOUND_MIN_FIXED_FEE - 1
+            )
+        );
+        new ERC1967Proxy(address(impl), initData);
+    }
+
+    /// @notice Peg-in and peg-out are both live after the single initialize call.
+    function test_initialize_seedsPegOut() public view {
+        IFlyoverConfigurations.PegOutConfiguration memory active = config
+            .getPegOutConfiguration();
+        assertEq(active.fixedFee, SEED_FIXED_FEE);
+        assertEq(active.penaltyFee, SEED_PENALTY_FEE);
+        assertEq(active.claimWindow, SEED_CLAIM_WINDOW);
+        (IFlyoverConfigurations.PegOutConfiguration memory minB, ) = config
+            .getPegOutConfigurationBounds();
+        assertEq(minB.penaltyFee, BOUND_MIN_PENALTY_FEE);
+    }
+
+    /// @notice A peg-out seed outside the deployment bounds is rejected from the proxy constructor.
+    function test_initialize_pegOutSeedOutOfBounds_reverts() public {
+        FlyoverConfigurations impl = new FlyoverConfigurations();
+        IFlyoverConfigurations.PegOutConfiguration
+            memory badSeed = _seedPegOutConfig();
+        badSeed.penaltyFee = BOUND_MIN_PENALTY_FEE - 1;
+
+        bytes memory initData = _initializeCall(
+            _seedConfig(),
+            _boundsMin(),
+            _boundsMax(),
+            badSeed,
+            _pegOutBoundsMin(),
+            _pegOutBoundsMax()
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                FlyoverConfigurations.ConfigValueOutOfBounds.selector,
+                FlyoverConfigurations.Field.PenaltyFee,
+                BOUND_MIN_PENALTY_FEE - 1,
+                BOUND_MIN_PENALTY_FEE,
+                BOUND_MAX_PENALTY_FEE
             )
         );
         new ERC1967Proxy(address(impl), initData);
