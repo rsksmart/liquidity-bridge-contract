@@ -11,9 +11,16 @@ RUN apt-get update -y && \
     apt-get install -y -qq --no-install-recommends jq make curl && \
     apt-get clean && \
     curl -L https://foundry.paradigm.xyz | bash && \
-    /root/.foundry/bin/foundryup && \
-    cp -r /root/.foundry /home/node/.foundry && \
-    chown -R node:node /home/node/.foundry
+    /root/.foundry/bin/foundryup --install v1.7.1 && \
+    cp -a /root/.foundry /home/node/.foundry && \
+    for link in /home/node/.foundry/bin/*; do \
+      if [ -L "$link" ]; then \
+        target="$(readlink "$link")"; \
+        ln -sfn "/home/node/.foundry${target#/root/.foundry}" "$link"; \
+      fi; \
+    done && \
+    chown -R node:node /home/node/.foundry && \
+    chmod -R a+rx /home/node/.foundry
 
 USER node
 

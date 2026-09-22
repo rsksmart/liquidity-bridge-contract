@@ -294,6 +294,10 @@ contract DeployFlyover is Script {
         );
         PegInAddressRegistry(payable(d.pegInAddressRegistryProxy))
             .setFlyoverConfigurations(configsProxy);
+        PegInContract(payable(d.pegInProxy)).setPegInDependencies(
+            d.pegInAddressRegistryProxy,
+            configsProxy
+        );
 
         address escrowProxy = Upgrades.deployTransparentProxy(
             "PegOutEscrow.sol",
