@@ -464,7 +464,10 @@ contract RegisterTest is PegInRegistryTestBase {
         );
         assertTrue(registry.isRegistered(FIXTURE_RSK));
         assertEq(registry.getRegistrant(FIXTURE_RSK), stranger);
-        assertEq(registry.getRegistrationBlock(FIXTURE_RSK), uint96(block.number));
+        assertEq(
+            registry.getRegistrationBlock(FIXTURE_RSK),
+            uint96(block.number)
+        );
         assertEq(registry.getRegistrationRoot(), expectedRoot);
     }
 
