@@ -484,7 +484,6 @@ contract CollateralManagementContract is
             emit GlobalSlashShare(lps[i], share);
         }
         _penalties += distributed;
-        emit GlobalSlashExecuted(total, distributed);
     }
 
     /// @notice Listed PegOut/Both LPs outside the grace window, with their peg-out collateral.

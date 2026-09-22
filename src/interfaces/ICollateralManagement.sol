@@ -55,12 +55,6 @@ interface ICollateralManagement is IPausable {
         uint256 reward
     );
 
-    /// @notice Emitted when a proportional global slash completes
-    /// @dev Destination of slashed funds is protocol {getPenalties}; no punisher reward.
-    /// @param requested The `total` argument passed by the caller
-    /// @param distributed The amount actually taken from eligible peg-out collateral
-    event GlobalSlashExecuted(uint256 indexed requested, uint256 indexed distributed);
-
     /// @notice Emitted for each eligible LP whose peg-out collateral was reduced by a global slash
     /// @param liquidityProvider The LP that was slashed
     /// @param amount The peg-out collateral taken from this LP
