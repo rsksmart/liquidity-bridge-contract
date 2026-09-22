@@ -891,7 +891,12 @@ contract FlyoverDiscoveryIntegrationTest is Test {
         vm.prank(lp8);
         collateralManagement.resign();
 
-        // Get final provider list
+        // Disabled LP2/LP6 stay listed during the deactivation window
+        providers = discovery.getProviders();
+        assertEq(providers.length, 5, "Disabled LPs listed inside window");
+
+        // Get final provider list after the deactivation window
+        vm.roll(block.number + RESIGN_DELAY_BLOCKS);
         providers = discovery.getProviders();
 
         // Should only list: LP1, LP3, LP7 (enabled + not resigned)

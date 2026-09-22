@@ -83,7 +83,7 @@ contract DiscoveryStatusFuzzTest is DiscoveryFuzzTestBase {
 
     // ============ Listing Filter Tests ============
 
-    /// @notice Fuzz test: Disabled providers are not listed
+    /// @notice Fuzz test: Disabled providers are not listed once the deactivation window passed
     function testFuzz_SetProviderStatus_DisabledProvidersNotListed(
         uint256 providerIdToDisable
     ) public {
@@ -104,7 +104,10 @@ contract DiscoveryStatusFuzzTest is DiscoveryFuzzTestBase {
         vm.prank(providerAddress);
         discovery.setProviderStatus(providerIdToDisable, false);
 
+        assertEq(discovery.getProviders().length, 3, "Listed inside window");
+
         // Check listing
+        vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS);
         Flyover.LiquidityProvider[] memory providers = discovery.getProviders();
         assertEq(
             providers.length,
@@ -135,6 +138,7 @@ contract DiscoveryStatusFuzzTest is DiscoveryFuzzTestBase {
         // Disable
         vm.prank(providerAddress);
         discovery.setProviderStatus(providerIdToToggle, false);
+        vm.roll(block.number + TEST_RESIGN_DELAY_BLOCKS);
 
         Flyover.LiquidityProvider[] memory afterDisable = discovery
             .getProviders();

@@ -2035,6 +2035,69 @@ contract PegOutEscrowIndividualSlashTest is Test {
         );
     }
 
+    /// @dev LP deactivating right before the no-claim refund cannot escape the global slash.
+    function test_T3_DeadlineRefund_DeactivatedLpInsideWindow_StillSlashed()
+        public
+    {
+        bytes32 refundId = _requestDefault();
+        Quotes.PegOutQuote memory q = escrow.getPegOutQuote(refundId);
+        uint256 payout = q.value + q.callFee + q.gasFee;
+        uint256 userBefore = user.balance;
+        uint256 lpBefore = collateral.getPegOutCollateral(lp);
+        uint256 otherBefore = collateral.getPegOutCollateral(otherLp);
+        uint256 expectedLpShare = (q.penaltyFee * lpBefore) /
+            (lpBefore + otherBefore);
+
+        vm.warp(uint256(q.depositDateLimit) + 1);
+        uint256 otherLpId = discovery.getProvider(otherLp).id;
+        vm.prank(otherLp);
+        discovery.setProviderStatus(otherLpId, false);
+
+        vm.prank(other);
+        escrow.refundOnNoClaim(refundId);
+
+        assertEq(user.balance, userBefore + payout);
+        assertEq(
+            collateral.getPegOutCollateral(lp),
+            lpBefore - expectedLpShare
+        );
+        assertEq(
+            collateral.getPegOutCollateral(otherLp),
+            otherBefore - (q.penaltyFee - expectedLpShare),
+            "deactivated LP inside window must be slashed"
+        );
+    }
+
+    /// @dev LPs deactivated for longer than the window are skipped; user is still refunded.
+    function test_T3_DeadlineRefund_AllLpsInactivePastWindow_SkipsSlashRefundsUser()
+        public
+    {
+        bytes32 refundId = _requestDefault();
+        Quotes.PegOutQuote memory q = escrow.getPegOutQuote(refundId);
+        uint256 payout = q.value + q.callFee + q.gasFee;
+        uint256 userBefore = user.balance;
+        uint256 lpBefore = collateral.getPegOutCollateral(lp);
+        uint256 otherBefore = collateral.getPegOutCollateral(otherLp);
+
+        uint256 lpId = discovery.getProvider(lp).id;
+        vm.prank(lp);
+        discovery.setProviderStatus(lpId, false);
+        uint256 otherLpId = discovery.getProvider(otherLp).id;
+        vm.prank(otherLp);
+        discovery.setProviderStatus(otherLpId, false);
+        vm.roll(block.number + RESIGN_DELAY_BLOCKS);
+        vm.warp(uint256(q.depositDateLimit) + 1);
+
+        vm.expectEmit(true, false, false, false, address(escrow));
+        emit IPegOutEscrow.GlobalSlashSkipped(refundId);
+        vm.prank(other);
+        escrow.refundOnNoClaim(refundId);
+
+        assertEq(user.balance, userBefore + payout);
+        assertEq(collateral.getPegOutCollateral(lp), lpBefore);
+        assertEq(collateral.getPegOutCollateral(otherLp), otherBefore);
+    }
+
     function test_T5_RefundUser_SlashesOnlyClaimer() public {
         bytes32 requestHash = _claimDefault();
         Quotes.PegOutQuote memory q = escrow.getPegOutQuote(requestHash);

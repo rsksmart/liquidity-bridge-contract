@@ -1017,4 +1017,276 @@ contract SlashingTest is CollateralTestBase {
         );
         assertEq(secondReg, block.number);
     }
+
+    // ============ globalSlash: inactive (status=false) LPs ============
+
+    function _deactivate(address lp) internal returns (uint256 deactivatedAt) {
+        uint256 id = discovery.getProvider(lp).id;
+        vm.prank(lp);
+        discovery.setProviderStatus(id, false);
+        return block.number;
+    }
+
+    function _activate(address lp) internal {
+        uint256 id = discovery.getProvider(lp).id;
+        vm.prank(lp);
+        discovery.setProviderStatus(id, true);
+    }
+
+    function _assertProportionalAB() internal view {
+        assertEq(
+            collateralManagement.getPegOutCollateral(lpA),
+            COLLATERAL_A - 1 ether,
+            "lpA pays 1/3"
+        );
+        assertEq(
+            collateralManagement.getPegOutCollateral(lpB),
+            COLLATERAL_B - 2 ether,
+            "lpB pays 2/3"
+        );
+    }
+
+    function _assertOnlyASlashed() internal view {
+        assertEq(
+            collateralManagement.getPegOutCollateral(lpA),
+            COLLATERAL_A - SLASH_TOTAL,
+            "lpA pays the full slash"
+        );
+        assertEq(
+            collateralManagement.getPegOutCollateral(lpB),
+            COLLATERAL_B,
+            "lpB must be skipped"
+        );
+    }
+
+    function test_T3_GlobalSlash_InactiveInsideWindow_StillSlashed() public {
+        _approvePegOut(lpA, COLLATERAL_A);
+        _approvePegOut(lpB, COLLATERAL_B);
+        _deactivate(lpB);
+
+        assertTrue(
+            collateralManagement.isRegistered(Flyover.ProviderType.PegOut, lpB)
+        );
+        assertFalse(
+            discovery.isOperational(Flyover.ProviderType.PegOut, lpB),
+            "inactive LP cannot operate"
+        );
+
+        vm.prank(slasher);
+        collateralManagement.globalSlash(SLASH_TOTAL);
+
+        _assertProportionalAB();
+    }
+
+    function test_T3_GlobalSlash_InactiveAtWindowMinusOne_Slashed() public {
+        _approvePegOut(lpA, COLLATERAL_A);
+        _approvePegOut(lpB, COLLATERAL_B);
+        uint256 deactivatedAt = _deactivate(lpB);
+
+        vm.roll(deactivatedAt + TEST_RESIGN_DELAY_BLOCKS - 1);
+        vm.prank(slasher);
+        collateralManagement.globalSlash(SLASH_TOTAL);
+
+        _assertProportionalAB();
+    }
+
+    function test_T3_GlobalSlash_InactiveAtWindow_Skipped() public {
+        _approvePegOut(lpA, COLLATERAL_A);
+        _approvePegOut(lpB, COLLATERAL_B);
+        uint256 deactivatedAt = _deactivate(lpB);
+
+        vm.roll(deactivatedAt + TEST_RESIGN_DELAY_BLOCKS);
+        vm.prank(slasher);
+        collateralManagement.globalSlash(SLASH_TOTAL);
+
+        _assertOnlyASlashed();
+        assertTrue(
+            collateralManagement.isRegistered(Flyover.ProviderType.PegOut, lpB),
+            "skipped LP is still registered with collateral posted"
+        );
+    }
+
+    function test_T3_GlobalSlash_OnlyInactivePastWindow_Reverts() public {
+        _approvePegOut(lpB, COLLATERAL_B);
+        uint256 deactivatedAt = _deactivate(lpB);
+        vm.roll(deactivatedAt + TEST_RESIGN_DELAY_BLOCKS);
+
+        vm.prank(slasher);
+        vm.expectRevert(
+            ICollateralManagement.GlobalSlashNoEligibleProviders.selector
+        );
+        collateralManagement.globalSlash(SLASH_TOTAL);
+
+        assertEq(collateralManagement.getPegOutCollateral(lpB), COLLATERAL_B);
+    }
+
+    function test_T3_GlobalSlash_InactiveBoth_PegInUntouched() public {
+        _approvePegOut(lpA, COLLATERAL_A);
+        _approveBoth(lpB, COLLATERAL_B * 2);
+        uint256 pegInBefore = collateralManagement.getPegInCollateral(lpB);
+        _deactivate(lpB);
+
+        vm.prank(slasher);
+        collateralManagement.globalSlash(SLASH_TOTAL);
+
+        _assertProportionalAB();
+        assertEq(
+            collateralManagement.getPegInCollateral(lpB),
+            pegInBefore,
+            "peg-in collateral must be untouched"
+        );
+    }
+
+    function test_T3_GlobalSlash_FalseThenTrue_EligibleImmediately() public {
+        _approvePegOut(lpA, COLLATERAL_A);
+        _approvePegOut(lpB, COLLATERAL_B);
+        uint256 regB = collateralManagement.getPegOutRegistrationBlock(lpB);
+
+        uint256 deactivatedAt = _deactivate(lpB);
+        vm.roll(deactivatedAt + TEST_RESIGN_DELAY_BLOCKS);
+        _activate(lpB);
+
+        vm.prank(slasher);
+        collateralManagement.globalSlash(SLASH_TOTAL);
+
+        _assertProportionalAB();
+        assertEq(
+            collateralManagement.getPegOutRegistrationBlock(lpB),
+            regB,
+            "status toggles must not touch the registration block"
+        );
+    }
+
+    function test_T3_GlobalSlash_FalseTrueFalse_ClockRestarts() public {
+        _approvePegOut(lpA, COLLATERAL_A);
+        _approvePegOut(lpB, COLLATERAL_B);
+
+        uint256 firstDeactivation = _deactivate(lpB);
+        vm.roll(firstDeactivation + 10);
+        _activate(lpB);
+        _deactivate(lpB);
+
+        // Past the first window, inside the second one.
+        vm.roll(firstDeactivation + TEST_RESIGN_DELAY_BLOCKS);
+        vm.prank(slasher);
+        collateralManagement.globalSlash(SLASH_TOTAL);
+
+        _assertProportionalAB();
+    }
+
+    function test_T3_GlobalSlash_FalseFalse_DoesNotRefreshClock() public {
+        _approvePegOut(lpA, COLLATERAL_A);
+        _approvePegOut(lpB, COLLATERAL_B);
+
+        uint256 deactivatedAt = _deactivate(lpB);
+        vm.roll(deactivatedAt + TEST_RESIGN_DELAY_BLOCKS - 1);
+        _deactivate(lpB);
+
+        vm.roll(deactivatedAt + TEST_RESIGN_DELAY_BLOCKS);
+        vm.prank(slasher);
+        collateralManagement.globalSlash(SLASH_TOTAL);
+
+        _assertOnlyASlashed();
+    }
+
+    function test_T3_GlobalSlash_AdminDeactivation_StartsClock() public {
+        _approvePegOut(lpA, COLLATERAL_A);
+        _approvePegOut(lpB, COLLATERAL_B);
+
+        uint256 idB = discovery.getProvider(lpB).id;
+        vm.prank(owner);
+        discovery.setProviderStatus(idB, false);
+        uint256 deactivatedAt = block.number;
+
+        vm.roll(deactivatedAt + TEST_RESIGN_DELAY_BLOCKS);
+        vm.prank(slasher);
+        collateralManagement.globalSlash(SLASH_TOTAL);
+
+        _assertOnlyASlashed();
+    }
+
+    function test_T3_GlobalSlash_ResignedVsInactive() public {
+        address lpC = makeAddr("lpC");
+        vm.deal(lpC, 100 ether);
+        _approvePegOut(lpA, COLLATERAL_A);
+        _approvePegOut(lpB, COLLATERAL_B);
+        _approvePegOut(lpC, COLLATERAL_B);
+
+        _deactivate(lpB);
+        vm.prank(lpC);
+        collateralManagement.resign();
+
+        assertTrue(
+            collateralManagement.isRegistered(Flyover.ProviderType.PegOut, lpB),
+            "inactive LP stays registered"
+        );
+        assertFalse(
+            collateralManagement.isRegistered(Flyover.ProviderType.PegOut, lpC),
+            "resigned LP is not registered"
+        );
+
+        // Same block: inactive LP is slashed, resigned LP is skipped immediately.
+        vm.prank(slasher);
+        collateralManagement.globalSlash(SLASH_TOTAL);
+
+        _assertProportionalAB();
+        assertEq(
+            collateralManagement.getPegOutCollateral(lpC),
+            COLLATERAL_B,
+            "resigned LP must be skipped"
+        );
+    }
+
+    function test_T3_GlobalSlash_InactiveInsideRegistrationGrace_StillSkipped()
+        public
+    {
+        uint256 grace = TEST_RESIGN_DELAY_BLOCKS * 2;
+        vm.prank(owner);
+        collateralManagement.setGlobalSlashGraceBlocks(grace);
+
+        _approvePegOut(lpA, COLLATERAL_A);
+        vm.roll(block.number + grace);
+        _approvePegOut(lpB, COLLATERAL_B);
+        uint256 regB = collateralManagement.getPegOutRegistrationBlock(lpB);
+
+        _deactivate(lpB);
+        vm.roll(block.number + 1);
+        _topUpPegOut(lpB, 1 ether);
+        assertEq(
+            collateralManagement.getPegOutRegistrationBlock(lpB),
+            regB,
+            "top-up must not refresh grace"
+        );
+
+        vm.prank(slasher);
+        collateralManagement.globalSlash(SLASH_TOTAL);
+
+        assertEq(
+            collateralManagement.getPegOutCollateral(lpA),
+            COLLATERAL_A - SLASH_TOTAL
+        );
+        assertEq(
+            collateralManagement.getPegOutCollateral(lpB),
+            COLLATERAL_B + 1 ether,
+            "LP inside registration grace is skipped even while inactive"
+        );
+    }
+
+    function test_T3_GlobalSlash_InactiveDirectCall_Reverts() public {
+        _approvePegOut(lpB, COLLATERAL_B);
+        _deactivate(lpB);
+        bytes32 slasherRole = collateralManagement.COLLATERAL_SLASHER();
+
+        vm.prank(lpB);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                lpB,
+                slasherRole
+            )
+        );
+        collateralManagement.globalSlash(SLASH_TOTAL);
+
+        assertEq(collateralManagement.getPegOutCollateral(lpB), COLLATERAL_B);
+    }
 }

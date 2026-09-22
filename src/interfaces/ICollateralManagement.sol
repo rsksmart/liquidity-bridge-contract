@@ -150,10 +150,13 @@ interface ICollateralManagement is IPausable {
         bytes32 quoteHash
     ) external;
 
-    /// @notice Slashes `total` proportionally across registered peg-out LPs past the
+    /// @notice Slashes `total` proportionally across listed peg-out LPs past the
     /// grace window.
     /// @dev Requires the COLLATERAL_SLASHER role. The provider set is
-    /// {IFlyoverDiscovery-getProviders}. Only PegOut / Both types are slashed. Peg-in
+    /// {IFlyoverDiscovery-getProviders}: LPs with sufficient collateral, not resigned, and either
+    /// active or deactivated (`status == false`) less than {getResignDelayInBlocks} blocks ago.
+    /// Deactivating therefore does not escape a slash inside that window; after it the LP is skipped.
+    /// Only PegOut / Both types are slashed. Peg-in
     /// collateral and peg-in-only LPs are untouched. LPs still inside the post-registration
     /// grace window are skipped. 100% of the taken amount is credited to protocol
     /// {getPenalties}; there is no punisher reward. Callers that must not block a user
