@@ -485,7 +485,7 @@ contract PegInContract is
         uint256 registrantFeePaid = 0;
         address registrant = address(0);
         if (!_registrantPaid[rskAddr]) {
-            registrant = _pegInAddressRegistry.getRegistration(rskAddr).registrant;
+            registrant = _pegInAddressRegistry.getRegistrant(rskAddr);
             uint256 feeDue = _min(
                 _configurations.getPegInConfiguration().registrantFee,
                 claim.feeAtClaim
