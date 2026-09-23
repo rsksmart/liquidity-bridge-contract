@@ -81,10 +81,6 @@ interface IPegInAddressRegistry {
     /// @param max The maximum allowed batch size
     error BatchTooLarge(uint256 requested, uint256 max);
 
-    /// @notice Reverts when the bridge reports a negative minimum deposit value
-    /// @param value The value returned by the bridge
-    error InvalidBridgeMinimum(int256 value);
-
     /// @notice Raised when configurations are not set
     error ConfigurationsNotSet();
 
@@ -137,11 +133,10 @@ interface IPegInAddressRegistry {
     /// @return registrationRoot The current accumulator root
     function getRegistrationRoot() external view returns (bytes32 registrationRoot);
 
-    /// @notice Returns the minimum deposit (satoshis) required to register an address
-    /// @dev Reads {IFlyoverConfigurations-getPegInConfiguration} minAmount, compares with
-    /// {IBridge-getMinimumLockTxValue} and reverts if the protocol minimum is lower than the
-    /// bridge minimum. Equal floors are valid.
-    /// @return minDepositSats The live protocol minimum deposit, in satoshis
+    /// @notice Returns the minimum deposit in satoshis required to register an address.
+    /// @dev Reads the FlyoverConfigurations minimum and compares it with the stored bridge
+    /// minimum. The call reverts when the protocol minimum is lower. Equal floors are valid.
+    /// @return minDepositSats The protocol minimum deposit, in satoshis.
     function getMinDepositSats() external view returns (uint256 minDepositSats);
 
     /// @notice Registers an RSK destination address by proving a confirmed BTC deposit pays

@@ -52,6 +52,9 @@ contract DeployFlyover is Script {
         address pegOutEscrowProxyAdmin;
     }
 
+    /// @notice The bridge peg-in floor in satoshis after RSKIP219.
+    uint256 public constant BRIDGE_MIN_DEPOSIT_SATS = 500_000;
+
     function run() external returns (FlyoverDeployment memory) {
         HelperConfig helper = new HelperConfig();
         HelperConfig.FlyoverConfig memory cfg = helper.getFlyoverConfig();
@@ -237,7 +240,8 @@ contract DeployFlyover is Script {
                     cfg.bridge,
                     cfg.mainnet,
                     address(0),
-                    IPauseRegistry(pauseRegistryProxy)
+                    IPauseRegistry(pauseRegistryProxy),
+                    BRIDGE_MIN_DEPOSIT_SATS
                 )
             ),
             opts

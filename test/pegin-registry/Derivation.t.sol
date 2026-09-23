@@ -83,7 +83,8 @@ contract DerivationTest is PegInRegistryTestBase {
                 address(0),
                 false,
                 address(0),
-                IPauseRegistry(address(pauseRegistry))
+                IPauseRegistry(address(pauseRegistry)),
+                MIN_DEPOSIT_SATS
             )
         );
         vm.expectRevert(
@@ -289,7 +290,8 @@ contract DerivationTest is PegInRegistryTestBase {
             address(bridge),
             false,
             address(0),
-            IPauseRegistry(address(pauseRegistry))
+            IPauseRegistry(address(pauseRegistry)),
+            MIN_DEPOSIT_SATS
         );
     }
 
