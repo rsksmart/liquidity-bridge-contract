@@ -132,9 +132,10 @@ contract PegInAddressRegistry is
         _setConfigurations(_getStorage(), configurations);
     }
 
-    /// @notice Sets the minimum deposit in satoshis.
-    /// @param minDepositSats The new minimum deposit in satoshis.
-    /// @dev Only the default admin can call this function.
+    /// @notice Sets the bridge minimum deposit in satoshis.
+    /// @param minDepositSats The new bridge minimum deposit in satoshis.
+    /// @dev Only the default admin can call this function. Registration still uses the
+    /// protocol minimum when that minimum is at least this value.
     // solhint-disable-next-line comprehensive-interface
     function setMinDepositSats(uint256 minDepositSats) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         PegInAddressRegistryStorage storage $ = _getStorage();
@@ -168,8 +169,11 @@ contract PegInAddressRegistry is
         bytes memory expectedPkScript = _depositPkScript(rskAddr, pegInContract, $.bridge, $.isMainnet);
         uint64 depositValue = _requireDepositValue(btcTxSerialized, expectedPkScript, rskAddr);
 
-        if (depositValue < $.minDepositSats) {
-            revert DepositBelowMinimum(depositValue, $.minDepositSats);
+        {
+            uint256 minDepositSats = _minDepositSats();
+            if (depositValue < minDepositSats) {
+                revert DepositBelowMinimum(depositValue, minDepositSats);
+            }
         }
 
         bytes32 btcTxHash = BtcUtils.hashBtcTx(btcTxSerialized);
@@ -238,7 +242,7 @@ contract PegInAddressRegistry is
 
     /// @inheritdoc IPegInAddressRegistry
     function getMinDepositSats() external view override returns (uint256) {
-        return _getStorage().minDepositSats;
+        return _minDepositSats();
     }
 
     /// @notice Returns the bridge the registry derives against
@@ -257,6 +261,24 @@ contract PegInAddressRegistry is
     // solhint-disable-next-line comprehensive-interface
     function getFlyoverConfigurations() external view returns (IFlyoverConfigurations) {
         return _getStorage().configurations;
+    }
+
+    /// @notice Returns the protocol registration minimum in satoshis.
+    /// @dev Reads the FlyoverConfigurations minimum and compares it with the stored bridge
+    /// minimum. The call reverts when the protocol minimum is lower. Equal floors are valid.
+    /// @return The protocol minimum deposit, in satoshis
+    function _minDepositSats() internal view returns (uint256) {
+        PegInAddressRegistryStorage storage $ = _getStorage();
+        if (address($.configurations) == address(0)) {
+            revert ConfigurationsNotSet();
+        }
+        uint256 protocolMinSats =
+            $.configurations.getPegInConfiguration().minAmount / Flyover.SAT_TO_WEI_CONVERSION;
+        uint256 bridgeMinSats = $.minDepositSats;
+        if (protocolMinSats < bridgeMinSats) {
+            revert ConfigMinBelowBridge(protocolMinSats, bridgeMinSats);
+        }
+        return protocolMinSats;
     }
 
     function _getStorage() internal pure returns (PegInAddressRegistryStorage storage $) {

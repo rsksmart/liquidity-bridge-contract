@@ -86,7 +86,8 @@ abstract contract RequestPegInTestBase is PegInTestBase {
                 address(bridgeMock),
                 IS_MAINNET_DEPLOYMENT,
                 address(0),
-                pauseRegistry
+                pauseRegistry,
+                2
             )
         );
         ERC1967Proxy proxy = new ERC1967Proxy(

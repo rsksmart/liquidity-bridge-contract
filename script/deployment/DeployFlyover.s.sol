@@ -53,7 +53,7 @@ contract DeployFlyover is Script {
     }
 
     /// @notice The bridge peg-in floor in satoshis after RSKIP219.
-    uint256 internal constant BRIDGE_MIN_DEPOSIT_SATS = 500_000;
+    uint256 public constant BRIDGE_MIN_DEPOSIT_SATS = 500_000;
 
     function run() external returns (FlyoverDeployment memory) {
         HelperConfig helper = new HelperConfig();
