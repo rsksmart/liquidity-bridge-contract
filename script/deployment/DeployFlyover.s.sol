@@ -54,6 +54,7 @@ contract DeployFlyover is Script {
 
     function run() external returns (FlyoverDeployment memory) {
         HelperConfig helper = new HelperConfig();
+        helper.requireLocalFlyoverConfigurationSeeds();
         HelperConfig.FlyoverConfig memory cfg = helper.getFlyoverConfig();
 
         uint256 deployerKey = helper.getDeployerPrivateKey();
@@ -267,6 +268,7 @@ contract DeployFlyover is Script {
         address configsProxy = Upgrades.deployTransparentProxy(
             "FlyoverConfigurations.sol",
             defaultAdmin,
+            // Seeds below are FlyoverConfigurationsRegtest. run() refuses chain 30/31.
             abi.encodeCall(
                 FlyoverConfigurations.initialize,
                 (

@@ -47,6 +47,10 @@ contract HelperConfig is Script {
         address timelockAdmin;
     }
 
+    /// @notice FlyoverConfigurationsRegtest seeds are local/regtest only.
+    /// RSK mainnet is 30. RSK testnet is 31.
+    error FlyoverConfigurationsRegtestForbiddenOnLiveNetwork(uint256 chainId);
+
     NetworkConfig private cachedConfig;
     FlyoverConfig private cachedFlyoverConfig;
 
@@ -404,6 +408,15 @@ contract HelperConfig is Script {
                 });
         }
         revert("DIFF_NETWORK must be mainnet|testnet");
+    }
+
+    /// @notice Revert when a deploy script would seed FlyoverConfigurationsRegtest
+    /// on RSK mainnet or testnet. Tests may still call deployForTesting on a fork.
+    function requireLocalFlyoverConfigurationSeeds() public view {
+        uint256 chainId = block.chainid;
+        if (chainId == 30 || chainId == 31) {
+            revert FlyoverConfigurationsRegtestForbiddenOnLiveNetwork(chainId);
+        }
     }
 
     function getOptions() public pure returns (Options memory) {

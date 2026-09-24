@@ -23,11 +23,13 @@ contract DeployFlyoverConfigurations is Script {
 
     function run() external returns (DeploymentResult memory result) {
         HelperConfig helper = new HelperConfig();
+        helper.requireLocalFlyoverConfigurationSeeds();
         HelperConfig.FlyoverConfig memory cfg = helper.getFlyoverConfig();
         uint256 deployerKey = helper.getDeployerPrivateKey();
         address deployer = vm.rememberKey(deployerKey);
 
         vm.startBroadcast(deployerKey);
+        // _deploy seeds FlyoverConfigurationsRegtest. run() already refused chain 30/31.
         result = _deploy(deployer, cfg.adminDelay, helper.getOptions());
         vm.stopBroadcast();
 
