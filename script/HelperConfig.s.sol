@@ -3,6 +3,8 @@ pragma solidity 0.8.25;
 
 import {Script} from "lib/forge-std/src/Script.sol";
 import {BridgeMock} from "../src/test-contracts/BridgeMock.sol";
+import {IFlyoverConfigurations} from "../src/interfaces/IFlyoverConfigurations.sol";
+import {FlyoverConfigurationsRegtest} from "../src/libraries/FlyoverConfigurationsRegtest.sol";
 import {Options} from "openzeppelin-foundry-upgrades/Options.sol";
 
 contract HelperConfig is Script {
@@ -47,9 +49,16 @@ contract HelperConfig is Script {
         address timelockAdmin;
     }
 
-    /// @notice FlyoverConfigurationsRegtest seeds are local/regtest only.
-    /// RSK mainnet is 30. RSK testnet is 31.
-    error FlyoverConfigurationsRegtestForbiddenOnLiveNetwork(uint256 chainId);
+    /// @notice Values written into FlyoverConfigurations.initialize.
+    struct FlyoverConfigurationSeeds {
+        uint256 timelockDelay;
+        IFlyoverConfigurations.PegConfiguration pegInConfig;
+        IFlyoverConfigurations.PegConfiguration pegInMin;
+        IFlyoverConfigurations.PegConfiguration pegInMax;
+        IFlyoverConfigurations.PegOutConfiguration pegOutConfig;
+        IFlyoverConfigurations.PegOutConfiguration pegOutMin;
+        IFlyoverConfigurations.PegOutConfiguration pegOutMax;
+    }
 
     NetworkConfig private cachedConfig;
     FlyoverConfig private cachedFlyoverConfig;
@@ -410,13 +419,18 @@ contract HelperConfig is Script {
         revert("DIFF_NETWORK must be mainnet|testnet");
     }
 
-    /// @notice Revert when a deploy script would seed FlyoverConfigurationsRegtest
-    /// on RSK mainnet or testnet. Tests may still call deployForTesting on a fork.
-    function requireLocalFlyoverConfigurationSeeds() public view {
-        uint256 chainId = block.chainid;
-        if (chainId == 30 || chainId == 31) {
-            revert FlyoverConfigurationsRegtestForbiddenOnLiveNetwork(chainId);
-        }
+    function getRegtestFlyoverConfigurationSeeds()
+        public
+        pure
+        returns (FlyoverConfigurationSeeds memory seeds)
+    {
+        seeds.timelockDelay = FlyoverConfigurationsRegtest.TIMELOCK_DELAY;
+        seeds.pegInConfig = FlyoverConfigurationsRegtest.pegInConfig();
+        seeds.pegInMin = FlyoverConfigurationsRegtest.pegInMin();
+        seeds.pegInMax = FlyoverConfigurationsRegtest.pegInMax();
+        seeds.pegOutConfig = FlyoverConfigurationsRegtest.pegOutConfig();
+        seeds.pegOutMin = FlyoverConfigurationsRegtest.pegOutMin();
+        seeds.pegOutMax = FlyoverConfigurationsRegtest.pegOutMax();
     }
 
     function getOptions() public pure returns (Options memory) {

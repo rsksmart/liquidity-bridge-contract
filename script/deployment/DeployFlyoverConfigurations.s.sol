@@ -10,10 +10,8 @@ import {HelperConfig} from "../HelperConfig.s.sol";
 import {ProxyReader} from "../helpers/ProxyReader.sol";
 
 import {FlyoverConfigurations} from "../../src/FlyoverConfigurations.sol";
-import {FlyoverConfigurationsRegtest} from "../../src/libraries/FlyoverConfigurationsRegtest.sol";
 
 /// @title DeployFlyoverConfigurations
-/// @notice Deploys FlyoverConfigurations with provisional regtest seed values (S12.1).
 contract DeployFlyoverConfigurations is Script {
     struct DeploymentResult {
         address implementation;
@@ -21,16 +19,16 @@ contract DeployFlyoverConfigurations is Script {
         address admin;
     }
 
-    function run() external returns (DeploymentResult memory result) {
+    function run(
+        HelperConfig.FlyoverConfigurationSeeds memory seeds
+    ) external returns (DeploymentResult memory result) {
         HelperConfig helper = new HelperConfig();
-        helper.requireLocalFlyoverConfigurationSeeds();
         HelperConfig.FlyoverConfig memory cfg = helper.getFlyoverConfig();
         uint256 deployerKey = helper.getDeployerPrivateKey();
         address deployer = vm.rememberKey(deployerKey);
 
         vm.startBroadcast(deployerKey);
-        // _deploy seeds FlyoverConfigurationsRegtest. run() already refused chain 30/31.
-        result = _deploy(deployer, cfg.adminDelay, helper.getOptions());
+        result = _deploy(deployer, cfg.adminDelay, helper.getOptions(), seeds);
         vm.stopBroadcast();
 
         _log(result);
@@ -42,13 +40,20 @@ contract DeployFlyoverConfigurations is Script {
         uint48 adminDelay,
         Options memory opts
     ) external returns (DeploymentResult memory) {
-        return _deploy(defaultAdmin, adminDelay, opts);
+        return
+            _deploy(
+                defaultAdmin,
+                adminDelay,
+                opts,
+                new HelperConfig().getRegtestFlyoverConfigurationSeeds()
+            );
     }
 
     function _deploy(
         address defaultAdmin,
         uint48 adminDelay,
-        Options memory opts
+        Options memory opts,
+        HelperConfig.FlyoverConfigurationSeeds memory seeds
     ) private returns (DeploymentResult memory result) {
         address proxy = Upgrades.deployTransparentProxy(
             "FlyoverConfigurations.sol",
@@ -58,13 +63,13 @@ contract DeployFlyoverConfigurations is Script {
                 (
                     defaultAdmin,
                     adminDelay,
-                    FlyoverConfigurationsRegtest.TIMELOCK_DELAY,
-                    FlyoverConfigurationsRegtest.pegInConfig(),
-                    FlyoverConfigurationsRegtest.pegInMin(),
-                    FlyoverConfigurationsRegtest.pegInMax(),
-                    FlyoverConfigurationsRegtest.pegOutConfig(),
-                    FlyoverConfigurationsRegtest.pegOutMin(),
-                    FlyoverConfigurationsRegtest.pegOutMax()
+                    seeds.timelockDelay,
+                    seeds.pegInConfig,
+                    seeds.pegInMin,
+                    seeds.pegInMax,
+                    seeds.pegOutConfig,
+                    seeds.pegOutMin,
+                    seeds.pegOutMax
                 )
             ),
             opts
