@@ -67,6 +67,16 @@ abstract contract RequestPegInTestBase is PegInTestBase {
         rskUser = makeAddr("rskUser");
         vm.deal(claimer, 100 ether);
 
+        vm.prank(claimer, claimer);
+        discovery.register{value: MIN_COLLATERAL}(
+            "Commit First Claimer",
+            "claimer.com",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+        vm.prank(owner);
+        discovery.approveRegistration(claimer);
+
         registry.harness_seedRegistration(rskUser, makeAddr("registrant"), 1);
         bridgeMock.setConfirmations(int256(DEFAULT_TIER_CONFIRMATIONS));
     }

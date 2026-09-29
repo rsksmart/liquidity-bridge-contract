@@ -97,7 +97,6 @@ interface IPegInCommitFirst {
     error InsufficientConfirmations(uint256 have, uint256 required);
 
     /// @notice Reverts requestPegIn when msg.value does not equal the amount minus the fee
-    /// @dev The credential is capital: there is no LP-only gate and no signature.
     /// @param expected The required msg.value (amount minus fee), in wei
     /// @param actual The msg.value sent, in wei
     error IncorrectFronting(uint256 expected, uint256 actual);
@@ -114,8 +113,7 @@ interface IPegInCommitFirst {
     /// the claimer, the fronted amount, and the fee at claim time, because the configuration
     /// can change before settlement pays the claimer back (~17 hours later). The opReturn
     /// argument is accepted and ignored this sprint (plain transfers only; contract-call
-    /// delivery lands in sprint 2). Check order: witness strip → already processed → deps →
-    /// unregistered → deposit output → below minimum → confirmations → fronting.
+    /// delivery lands in sprint 2).
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param btcTxSerialized The witness-stripped raw BTC deposit transaction
     /// @param opReturn The OP_RETURN payload of the deposit, if any (ignored this sprint)
