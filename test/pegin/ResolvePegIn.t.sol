@@ -169,6 +169,20 @@ contract ResolvePegInTest is ResolvePegInTestBase {
         pegInContract.resolvePegIn(rskUser, rawTx, hex"00", 100);
     }
 
+    function test_soft_pause_allows_resolve() public {
+        bytes32 pegInId = _claimAndFund(rskUser, rawTx, bridgeRelease);
+        vm.prank(owner);
+        pauseRegistry.setPauseLevel(
+            IPauseRegistry.PauseLevel.Soft,
+            "resolve soft pause"
+        );
+
+        _resolve(claimer, rskUser, rawTx);
+
+        assertTrue(_isSettled(pegInId));
+        assertEq(_balance(claimer), DEFAULT_AMOUNT - 1e14);
+    }
+
     function test_bridge_args_use_placeholder_getters() public pure {
         assertEq(
             PegInDerivation.getRefundPlaceholderBtcAddress(false).length,
