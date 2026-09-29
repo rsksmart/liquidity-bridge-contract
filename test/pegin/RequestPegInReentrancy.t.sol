@@ -59,7 +59,6 @@ contract RequestPegInReentrancyTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: net}(
             address(receiver),
             outerTx,
-            "",
             bytes32(0),
             0,
             _emptyBranch()

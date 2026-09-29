@@ -21,7 +21,7 @@ contract RequestPegInReenterReceiver {
     receive() external payable {
         if (_attack) {
             _attack = false;
-            _pegIn.requestPegIn(address(this), _reenterBtcTx, "", bytes32(0), 0, new bytes32[](0));
+            _pegIn.requestPegIn(address(this), _reenterBtcTx, bytes32(0), 0, new bytes32[](0));
         }
     }
 

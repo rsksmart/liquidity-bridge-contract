@@ -112,13 +112,11 @@ interface IPegInCommitFirst {
     /// Payable: msg.value must equal the amount read from the deposit minus the fee. The claim
     /// record stores
     /// the claimer, the fronted amount, and the fee at claim time, because the configuration
-    /// can change before settlement pays the claimer back (~17 hours later). The opReturn
-    /// argument is accepted and ignored this sprint (plain transfers only; contract-call
-    /// delivery lands in sprint 2). Check order: witness strip → already processed → deps →
-    /// unregistered → deposit output → below minimum → confirmations → fronting.
+    /// can change before settlement pays the claimer back (~17 hours later). Check order:
+    /// witness strip → already processed → deps → unregistered → deposit output → below
+    /// minimum → confirmations → fronting.
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param btcTxSerialized The witness-stripped raw BTC deposit transaction
-    /// @param opReturn The OP_RETURN payload of the deposit, if any (ignored this sprint)
     /// @param btcBlockHash The hash of the Bitcoin block containing the deposit
     /// @param merkleBranchPath The path bitmap of the merkle branch proving inclusion
     /// @param merkleBranchHashes The hashes of the merkle branch proving inclusion
@@ -128,7 +126,6 @@ interface IPegInCommitFirst {
     function requestPegIn(
         address rskAddr,
         bytes calldata btcTxSerialized,
-        bytes calldata opReturn,
         bytes32 btcBlockHash,
         uint256 merkleBranchPath,
         bytes32[] calldata merkleBranchHashes
