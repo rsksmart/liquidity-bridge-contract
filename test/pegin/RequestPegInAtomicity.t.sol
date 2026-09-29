@@ -26,7 +26,6 @@ contract RequestPegInAtomicityTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: 1 ether}(
             unregistered,
             btcTx,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
@@ -58,7 +57,6 @@ contract RequestPegInAtomicityTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: 1 wei}(
             rskUser,
             unrelated,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
@@ -91,7 +89,6 @@ contract RequestPegInAtomicityTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: sentValue}(
             rskUser,
             btcTx,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
@@ -123,7 +120,6 @@ contract RequestPegInAtomicityTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: 1 ether}(
             rskUser,
             btcTx,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
@@ -155,7 +151,6 @@ contract RequestPegInAtomicityTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: wrongValue}(
             rskUser,
             btcTx,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
@@ -187,7 +182,6 @@ contract RequestPegInAtomicityTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: net}(
             rskUser,
             btcTx,
-            "",
             bytes32(0),
             0,
             _emptyBranch()

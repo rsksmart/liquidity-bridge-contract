@@ -122,7 +122,6 @@ contract BridgeMockBlindSpotTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: net}(
             rskUser,
             witness,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
@@ -170,7 +169,6 @@ contract BridgeMockBlindSpotTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: net}(
             rskUser,
             witness,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
@@ -207,7 +205,6 @@ contract BridgeMockBlindSpotTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: net}(
             rskUser,
             hex"0100000001",
-            "",
             bytes32(0),
             0,
             _emptyBranch()
@@ -267,7 +264,6 @@ contract BridgeMockBlindSpotTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: net}(
             rskUser,
             btcTx,
-            "",
             bytes32(0),
             0,
             _emptyBranch()

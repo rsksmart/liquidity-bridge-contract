@@ -67,7 +67,6 @@ contract RequestPegInFeeEdgesTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: sentValue}(
             rskUser,
             btcTx,
-            "",
             bytes32(0),
             0,
             _emptyBranch()

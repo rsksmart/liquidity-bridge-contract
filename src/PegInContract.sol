@@ -332,7 +332,6 @@ contract PegInContract is
     function requestPegIn(
         address rskAddr,
         bytes calldata btcTxSerialized,
-        bytes calldata opReturn,
         bytes32 btcBlockHash,
         uint256 merkleBranchPath,
         bytes32[] calldata merkleBranchHashes
