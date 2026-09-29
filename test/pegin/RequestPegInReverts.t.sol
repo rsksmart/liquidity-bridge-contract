@@ -34,7 +34,6 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: net}(
             rskUser,
             btcTx,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
@@ -55,7 +54,6 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         unwired.requestPegIn{value: 1 ether}(
             rskUser,
             btcTx,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
@@ -73,7 +71,6 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         unwired.requestPegIn{value: 1 ether}(
             rskUser,
             btcTx,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
@@ -98,7 +95,6 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: 1 ether}(
             unregistered,
             btcTx,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
@@ -128,7 +124,6 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: 1 wei}(
             rskUser,
             unrelated,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
@@ -157,7 +152,6 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: 1 wei}(
             rskUser,
             othersDeposit,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
@@ -187,7 +181,6 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: 1 wei}(
             rskUser,
             dustClaimTx,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
@@ -217,7 +210,6 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: 1 ether}(
             rskUser,
             btcTx,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
@@ -247,7 +239,6 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: 1 ether}(
             rskUser,
             btcTx,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
@@ -270,7 +261,6 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: 1 ether}(
             rskUser,
             btcTx,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
@@ -295,7 +285,6 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: 1 ether}(
             rskUser,
             btcTx,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
@@ -320,7 +309,6 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: 1 ether}(
             rskUser,
             btcTx,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
@@ -356,7 +344,7 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         );
         pegInContract.requestPegIn{
             value: largeAmount - _expectedFee(largeAmount)
-        }(rskUser, largeTx, "", bytes32(0), 0, _emptyBranch());
+        }(rskUser, largeTx, bytes32(0), 0, _emptyBranch());
 
         // The same depth serves a deposit that really is small.
         _requestPegIn(
@@ -400,7 +388,6 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: wrongValue}(
             rskUser,
             btcTx,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
@@ -424,7 +411,6 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: wrongValue}(
             rskUser,
             btcTx,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
@@ -449,7 +435,6 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: 1 wei}(
             rskUser,
             btcTx,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
@@ -478,7 +463,6 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: net + 123}(
             rskUser,
             btcTx,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
@@ -505,7 +489,6 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: net}(
             rskUser,
             btcTx,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
@@ -530,7 +513,6 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         unwired.requestPegIn{value: 1 ether}(
             rskUser,
             btcTx,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
@@ -555,7 +537,6 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: 1 wei}(
             rskUser,
             unrelated,
-            "",
             bytes32(0),
             0,
             _emptyBranch()

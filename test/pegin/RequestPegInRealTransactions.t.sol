@@ -237,7 +237,6 @@ contract RequestPegInRealTransactionsTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: 1 wei}(
             rskUser,
             realTx,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
