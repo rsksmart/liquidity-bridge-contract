@@ -7,8 +7,8 @@ import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 
 /// @title requestPegIn atomicity and pause-regression tests
-/// @notice Any failed check leaves no claim written and no funds delivered, and a hard pause
-/// blocks the claim entirely.
+/// @notice Any failed check leaves no claim written and no funds delivered. A soft pause
+/// and a hard pause both block the claim.
 contract RequestPegInAtomicityTest is RequestPegInTestBase {
     function test_failedCheck_isAtomic_unregistered() public {
         address unregistered = makeAddr("unregisteredAtomic");
@@ -195,6 +195,34 @@ contract RequestPegInAtomicityTest is RequestPegInTestBase {
 
         _assertNoClaim(pegInId);
         assertEq(rskUser.balance, userBefore, "no delivery when hard paused");
+    }
+
+    function test_revert_whenSoftPaused() public {
+        vm.prank(owner);
+        pauseRegistry.setPauseLevel(
+            IPauseRegistry.PauseLevel.Soft,
+            "Soft pause regression"
+        );
+
+        uint256 amount = DEFAULT_AMOUNT;
+        uint256 net = amount - _expectedFee(amount);
+        bytes memory btcTx = _defaultTx();
+        bytes32 pegInId = _pegInIdForTx(rskUser, btcTx);
+        uint256 userBefore = rskUser.balance;
+
+        vm.prank(claimer);
+        vm.expectRevert(Flyover.EnforcedPause.selector);
+        pegInContract.requestPegIn{value: net}(
+            rskUser,
+            btcTx,
+            "",
+            bytes32(0),
+            0,
+            _emptyBranch()
+        );
+
+        _assertNoClaim(pegInId);
+        assertEq(rskUser.balance, userBefore, "no delivery when soft paused");
     }
 
     function _assertNoClaim(bytes32 pegInId) internal view {
