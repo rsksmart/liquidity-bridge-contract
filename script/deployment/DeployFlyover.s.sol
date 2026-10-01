@@ -264,6 +264,8 @@ contract DeployFlyover is Script {
         HelperConfig.FlyoverConfig memory cfg,
         Options memory opts
     ) private {
+        // TODO: seeds FlyoverConfigurationsRegtest on every chain. Add reviewed
+        // per-network seeds before any testnet/mainnet deploy.
         address configsProxy = Upgrades.deployTransparentProxy(
             "FlyoverConfigurations.sol",
             defaultAdmin,

@@ -48,6 +48,8 @@ contract DeployFlyoverConfigurations is Script {
         uint48 adminDelay,
         Options memory opts
     ) private returns (DeploymentResult memory result) {
+        // TODO: seeds FlyoverConfigurationsRegtest on every chain. Add reviewed
+        // per-network seeds before any testnet/mainnet deploy.
         address proxy = Upgrades.deployTransparentProxy(
             "FlyoverConfigurations.sol",
             defaultAdmin,
