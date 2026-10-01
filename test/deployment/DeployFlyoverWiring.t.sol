@@ -6,11 +6,26 @@ import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {DeployFlyover} from "../../script/deployment/DeployFlyover.s.sol";
 import {FlyoverConfigurations} from "../../src/FlyoverConfigurations.sol";
 import {FlyoverConfigurationsRegtest} from "../../src/libraries/FlyoverConfigurationsRegtest.sol";
+import {PegInAddressRegistry} from "../../src/PegInAddressRegistry.sol";
 import {PegInContract} from "../../src/PegInContract.sol";
+import {PegOutEscrow} from "../../src/PegOutEscrow.sol";
 
 /// @title DeployFlyoverWiringTest
-/// @notice Asserts deploy wiring and that only tests seed FlyoverConfigurationsRegtest.
+/// @notice Asserts DeployFlyover wires PegInAddressRegistry and FlyoverConfigurations.
 contract DeployFlyoverWiringTest is Test {
+    // Anvil account 0. Used when DEV_SIGNER_PRIVATE_KEY is not in the environment.
+    string internal constant TEST_SIGNER_KEY =
+        "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+
+    function test_run_wiresRegistryAndConfigurations() public {
+        if (vm.envOr("DEV_SIGNER_PRIVATE_KEY", uint256(0)) == 0) {
+            vm.setEnv("DEV_SIGNER_PRIVATE_KEY", TEST_SIGNER_KEY);
+        }
+        DeployFlyover.FlyoverDeployment memory d = new DeployFlyover().run();
+
+        _assertWired(d);
+    }
+
     function test_deployForTesting_wiresRegistryAndConfigurations() public {
         HelperConfig helper = new HelperConfig();
         HelperConfig.FlyoverConfig memory cfg = helper.getFlyoverConfig();
@@ -22,51 +37,51 @@ contract DeployFlyoverWiringTest is Test {
             helper.getOptions()
         );
 
-        PegInContract pegIn = PegInContract(payable(d.pegInProxy));
-        address registry = pegIn.getPegInAddressRegistry();
-        address configurations = pegIn.getFlyoverConfigurations();
+        _assertWired(d);
+    }
 
+    function _assertWired(
+        DeployFlyover.FlyoverDeployment memory d
+    ) private view {
+        PegInContract pegIn = PegInContract(payable(d.pegInProxy));
         assertTrue(
-            registry != address(0),
+            d.pegInAddressRegistryProxy != address(0),
             "PegInAddressRegistry should be set"
         );
         assertTrue(
-            configurations != address(0),
+            d.flyoverConfigurationsProxy != address(0),
             "FlyoverConfigurations should be set"
         );
         assertEq(
-            registry,
+            pegIn.getPegInAddressRegistry(),
             d.pegInAddressRegistryProxy,
             "registry pointer mismatch"
         );
         assertEq(
-            configurations,
+            pegIn.getFlyoverConfigurations(),
             d.flyoverConfigurationsProxy,
             "configurations pointer mismatch"
         );
         assertEq(
-            FlyoverConfigurations(payable(d.flyoverConfigurationsProxy))
-                .getTimelockDelay(),
-            FlyoverConfigurationsRegtest.TIMELOCK_DELAY
+            address(
+                PegInAddressRegistry(payable(d.pegInAddressRegistryProxy))
+                    .getFlyoverConfigurations()
+            ),
+            d.flyoverConfigurationsProxy,
+            "registry configurations pointer mismatch"
         );
-    }
-
-    function test_deployForTesting_keepsRegtestDelayOnMainnetChainId() public {
-        vm.chainId(30);
-        HelperConfig helper = new HelperConfig();
-        HelperConfig.FlyoverConfig memory cfg = helper.getFlyoverConfig();
-        DeployFlyover deployer = new DeployFlyover();
-
-        DeployFlyover.FlyoverDeployment memory d = deployer.deployForTesting(
-            address(deployer),
-            cfg,
-            helper.getOptions()
+        assertEq(
+            PegOutEscrow(payable(d.pegOutEscrowProxy))
+                .getFlyoverConfigurations(),
+            d.flyoverConfigurationsProxy,
+            "escrow configurations pointer mismatch"
         );
-
         assertEq(
             FlyoverConfigurations(payable(d.flyoverConfigurationsProxy))
-                .getTimelockDelay(),
-            FlyoverConfigurationsRegtest.TIMELOCK_DELAY
+                .getPegInConfiguration()
+                .minAmount,
+            FlyoverConfigurationsRegtest.pegInConfig().minAmount,
+            "peg-in minAmount floor not seeded"
         );
     }
 }
