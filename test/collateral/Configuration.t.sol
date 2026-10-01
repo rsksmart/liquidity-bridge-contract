@@ -446,14 +446,19 @@ contract ConfigurationTest is CollateralTestBase {
         discovery.approveRegistration(lp);
     }
 
-    function test_InitializePegOutRegistrationBlocks_RevertsWhenDiscoveryUnset()
+    function test_InitializePegOutRegistrationBlocks_DoesNotRequireDiscovery()
         public
     {
         vm.prank(owner);
-        vm.expectRevert(
-            CollateralManagementContract.FlyoverDiscoveryNotSet.selector
-        );
         collateralManagement.initializePegOutRegistrationBlocks();
+
+        assertEq(
+            collateralManagement.getPegOutRegistrationBlock(
+                makeAddr("noCollateral")
+            ),
+            0,
+            "an address without peg-out collateral has no registration block"
+        );
     }
 
     function test_InitializePegOutRegistrationBlocks_OnlyAllowsOwner() public {
