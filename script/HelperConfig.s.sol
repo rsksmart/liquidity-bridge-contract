@@ -3,8 +3,6 @@ pragma solidity 0.8.25;
 
 import {Script} from "lib/forge-std/src/Script.sol";
 import {BridgeMock} from "../src/test-contracts/BridgeMock.sol";
-import {IFlyoverConfigurations} from "../src/interfaces/IFlyoverConfigurations.sol";
-import {FlyoverConfigurationsRegtest} from "../src/libraries/FlyoverConfigurationsRegtest.sol";
 import {Options} from "openzeppelin-foundry-upgrades/Options.sol";
 
 contract HelperConfig is Script {
@@ -47,17 +45,6 @@ contract HelperConfig is Script {
         address timelockProposer;
         address timelockExecutor;
         address timelockAdmin;
-    }
-
-    /// @notice Values written into FlyoverConfigurations.initialize.
-    struct FlyoverConfigurationSeeds {
-        uint256 timelockDelay;
-        IFlyoverConfigurations.PegConfiguration pegInConfig;
-        IFlyoverConfigurations.PegConfiguration pegInMin;
-        IFlyoverConfigurations.PegConfiguration pegInMax;
-        IFlyoverConfigurations.PegOutConfiguration pegOutConfig;
-        IFlyoverConfigurations.PegOutConfiguration pegOutMin;
-        IFlyoverConfigurations.PegOutConfiguration pegOutMax;
     }
 
     NetworkConfig private cachedConfig;
@@ -417,20 +404,6 @@ contract HelperConfig is Script {
                 });
         }
         revert("DIFF_NETWORK must be mainnet|testnet");
-    }
-
-    function getRegtestFlyoverConfigurationSeeds()
-        public
-        pure
-        returns (FlyoverConfigurationSeeds memory seeds)
-    {
-        seeds.timelockDelay = FlyoverConfigurationsRegtest.TIMELOCK_DELAY;
-        seeds.pegInConfig = FlyoverConfigurationsRegtest.pegInConfig();
-        seeds.pegInMin = FlyoverConfigurationsRegtest.pegInMin();
-        seeds.pegInMax = FlyoverConfigurationsRegtest.pegInMax();
-        seeds.pegOutConfig = FlyoverConfigurationsRegtest.pegOutConfig();
-        seeds.pegOutMin = FlyoverConfigurationsRegtest.pegOutMin();
-        seeds.pegOutMax = FlyoverConfigurationsRegtest.pegOutMax();
     }
 
     function getOptions() public pure returns (Options memory) {

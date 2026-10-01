@@ -18,6 +18,7 @@ import {PegInContract} from "../../src/PegInContract.sol";
 import {PegOutContract} from "../../src/PegOutContract.sol";
 import {PegOutEscrow} from "../../src/PegOutEscrow.sol";
 import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
+import {FlyoverConfigurationsRegtest} from "../../src/libraries/FlyoverConfigurationsRegtest.sol";
 
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
@@ -51,9 +52,7 @@ contract DeployFlyover is Script {
         address pegOutEscrowProxyAdmin;
     }
 
-    function run(
-        HelperConfig.FlyoverConfigurationSeeds memory seeds
-    ) external returns (FlyoverDeployment memory) {
+    function run() external returns (FlyoverDeployment memory) {
         HelperConfig helper = new HelperConfig();
         HelperConfig.FlyoverConfig memory cfg = helper.getFlyoverConfig();
 
@@ -81,9 +80,11 @@ contract DeployFlyover is Script {
 
         vm.startBroadcast(deployerKey);
 
-        Options memory opts = helper.getOptions();
-        FlyoverDeployment memory d = _deployAll(defaultAdmin, cfg, opts);
-        _deployConfigurationsAndEscrow(d, defaultAdmin, cfg, opts, seeds);
+        FlyoverDeployment memory d = _deployAll(
+            defaultAdmin,
+            cfg,
+            helper.getOptions()
+        );
         _setupRoles(d);
 
         vm.stopBroadcast();
@@ -92,20 +93,14 @@ contract DeployFlyover is Script {
         return d;
     }
 
-    /// @notice Test-only helper. Seeds FlyoverConfigurationsRegtest.
+    /// @notice Test-only helper to deploy without broadcast/env key lookup.
+    /// @dev Reuses the same deployment and role wiring logic as run().
     function deployForTesting(
         address defaultAdmin,
         HelperConfig.FlyoverConfig memory cfg,
         Options memory opts
     ) external returns (FlyoverDeployment memory d) {
         d = _deployAll(defaultAdmin, cfg, opts);
-        _deployConfigurationsAndEscrow(
-            d,
-            defaultAdmin,
-            cfg,
-            opts,
-            new HelperConfig().getRegtestFlyoverConfigurationSeeds()
-        );
         _setupRoles(d);
     }
 
@@ -258,14 +253,16 @@ contract DeployFlyover is Script {
         );
         PegInAddressRegistry(payable(pegInAddressRegistryProxy))
             .setPegInContract(d.pegInProxy);
+
+        _deployConfigurationsAndEscrow(d, defaultAdmin, cfg, opts);
     }
 
+    /// @dev Separate stack frame avoids "stack too deep" in {_deployAll}.
     function _deployConfigurationsAndEscrow(
         FlyoverDeployment memory d,
         address defaultAdmin,
         HelperConfig.FlyoverConfig memory cfg,
-        Options memory opts,
-        HelperConfig.FlyoverConfigurationSeeds memory seeds
+        Options memory opts
     ) private {
         address configsProxy = Upgrades.deployTransparentProxy(
             "FlyoverConfigurations.sol",
@@ -275,13 +272,13 @@ contract DeployFlyover is Script {
                 (
                     defaultAdmin,
                     cfg.adminDelay,
-                    seeds.timelockDelay,
-                    seeds.pegInConfig,
-                    seeds.pegInMin,
-                    seeds.pegInMax,
-                    seeds.pegOutConfig,
-                    seeds.pegOutMin,
-                    seeds.pegOutMax
+                    FlyoverConfigurationsRegtest.TIMELOCK_DELAY,
+                    FlyoverConfigurationsRegtest.pegInConfig(),
+                    FlyoverConfigurationsRegtest.pegInMin(),
+                    FlyoverConfigurationsRegtest.pegInMax(),
+                    FlyoverConfigurationsRegtest.pegOutConfig(),
+                    FlyoverConfigurationsRegtest.pegOutMin(),
+                    FlyoverConfigurationsRegtest.pegOutMax()
                 )
             ),
             opts
