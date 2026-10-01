@@ -49,6 +49,9 @@ contract CollateralManagementContract is
     /// @dev Block at which peg-out collateral first became positive; used by the grace window.
     mapping(address => uint256) private _pegOutRegistrationBlock;
     uint256 private _globalSlashGraceBlocks;
+    /// @dev Block at which {initializePegOutRegistrationBlocks} ran. Stands in for the registration
+    /// block of LPs that held peg-out collateral before registration blocks were recorded.
+    uint256 private _pegOutBackfillBlock;
 
     /// @notice Emitted when the minimum collateral is set
     /// @param oldMinCollateral The old minimum collateral
@@ -150,24 +153,17 @@ contract CollateralManagementContract is
         _rewardPercentage = rewardPercentage;
     }
 
-    /// @notice Backfills `_pegOutRegistrationBlock` for listed LPs with peg-out collateral but no recorded block.
+    /// @notice Backfills the peg-out registration block of LPs with peg-out collateral but no recorded block.
+    /// @dev Records the current block once. Every such LP is treated as registered at this block,
+    /// whether or not FlyoverDiscovery lists it, so the result does not depend on the listing rules
+    /// or on the upgrade order.
     // solhint-disable-next-line comprehensive-interface
     function initializePegOutRegistrationBlocks()
         external
         reinitializer(2)
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
-        if (address(_flyoverDiscovery) == address(0)) revert FlyoverDiscoveryNotSet();
-
-        Flyover.LiquidityProvider[] memory providers = _flyoverDiscovery.getProviders();
-        uint256 length = providers.length;
-        uint256 registrationBlock = block.number;
-        for (uint256 i; i < length; ++i) {
-            if (providers[i].providerType == Flyover.ProviderType.PegIn) continue;
-            address lp = providers[i].providerAddress;
-            if (_pegOutCollateral[lp] == 0 || _pegOutRegistrationBlock[lp] != 0) continue;
-            _pegOutRegistrationBlock[lp] = registrationBlock;
-        }
+        _pegOutBackfillBlock = block.number;
     }
 
     /// @notice Sets the minimum collateral required for a liquidity provider **per operation**
@@ -346,12 +342,13 @@ contract CollateralManagementContract is
     }
 
     /// @notice Gets the block at which an account's peg-out collateral first became positive
-    /// @dev Zero means no recorded registration (pre-upgrade / never registered for peg-out).
+    /// @dev LPs with peg-out collateral but no recorded block report the backfill block. Zero means
+    /// no peg-out collateral and no recorded block, or a pre-upgrade LP before the backfill ran.
     /// @param addr The liquidity provider address
-    /// @return The registration block, or 0 if unset
+    /// @return The registration block used by the global-slash grace window, or 0 if unset
     // solhint-disable-next-line comprehensive-interface
     function getPegOutRegistrationBlock(address addr) external view returns (uint256) {
-        return _pegOutRegistrationBlock[addr];
+        return _effectivePegOutRegistrationBlock(addr);
     }
 
     /// @notice Gets the FlyoverDiscovery used as the provider-set source of truth
@@ -514,13 +511,23 @@ contract CollateralManagementContract is
     }
 
     /// @notice Whether an LP is still inside the global-slash grace window
-    /// @dev `regBlock == 0` (never recorded) is eligible, not in grace.
+    /// @dev `regBlock == 0` (never recorded and no backfill) is eligible, not in grace.
     /// @param addr The liquidity provider address
     /// @return True if the LP must be skipped by {globalSlash}
     function _isInGlobalSlashGraceWindow(address addr) private view returns (bool) {
-        uint256 regBlock = _pegOutRegistrationBlock[addr];
+        uint256 regBlock = _effectivePegOutRegistrationBlock(addr);
         if (regBlock == 0) return false;
         return block.number < regBlock + _globalSlashGraceBlocks;
+    }
+
+    /// @notice The peg-out registration block the grace window uses for an LP
+    /// @dev Falls back to the backfill block for LPs with peg-out collateral but no recorded block
+    /// @param addr The liquidity provider address
+    /// @return The recorded block, the backfill block, or 0
+    function _effectivePegOutRegistrationBlock(address addr) private view returns (uint256) {
+        uint256 regBlock = _pegOutRegistrationBlock[addr];
+        if (regBlock != 0 || _pegOutCollateral[addr] == 0) return regBlock;
+        return _pegOutBackfillBlock;
     }
 
     /// @notice Checks if an account is registered
