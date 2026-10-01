@@ -6,23 +6,16 @@ LABEL org.opencontainers.image.source="https://github.com/rsksmart/liquidity-bri
 LABEL org.opencontainers.image.revision="${VCS_REF}"
 LABEL org.opencontainers.image.version="${VERSION}"
 
-# Install Foundry and required tools
+# Install required tools
 RUN apt-get update -y && \
     apt-get install -y -qq --no-install-recommends jq make curl && \
-    apt-get clean && \
-    curl -L https://foundry.paradigm.xyz | bash && \
-    /root/.foundry/bin/foundryup --install v1.7.1 && \
-    cp -a /root/.foundry /home/node/.foundry && \
-    for link in /home/node/.foundry/bin/*; do \
-      if [ -L "$link" ]; then \
-        target="$(readlink "$link")"; \
-        ln -sfn "/home/node/.foundry${target#/root/.foundry}" "$link"; \
-      fi; \
-    done && \
-    chown -R node:node /home/node/.foundry && \
-    chmod -R a+rx /home/node/.foundry
+    apt-get clean
 
 USER node
+
+# Install Foundry as node so its bin/ symlinks point into /home/node/.foundry
+RUN curl -L https://foundry.paradigm.xyz | bash && \
+    /home/node/.foundry/bin/foundryup --install v1.7.1
 
 # Add Foundry to PATH
 ENV PATH="/home/node/.foundry/bin:${PATH}"
