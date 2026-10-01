@@ -905,7 +905,11 @@ contract SlashingTest is CollateralTestBase {
             "top-up keeps the backfill block"
         );
 
-        _assertInGraceUntil(lpA, backfillBlock + BACKFILL_GRACE, COLLATERAL_A + 1);
+        _assertInGraceUntil(
+            lpA,
+            backfillBlock + BACKFILL_GRACE,
+            COLLATERAL_A + 1
+        );
     }
 
     function test_T3_GlobalSlash_BackfillCoversBothLpWithLowPegIn() public {
@@ -913,7 +917,9 @@ contract SlashingTest is CollateralTestBase {
         collateralManagement.setGlobalSlashGraceBlocks(BACKFILL_GRACE);
         _approveBoth(lpB, COLLATERAL_B);
         _clearPegOutRegistrationBlock(lpB);
-        uint256 pegOutCollateral = collateralManagement.getPegOutCollateral(lpB);
+        uint256 pegOutCollateral = collateralManagement.getPegOutCollateral(
+            lpB
+        );
 
         // Peg-in side drops below the minimum; the peg-out side is untouched.
         Quotes.PegInQuote memory quote = createPegInQuote();
@@ -937,7 +943,11 @@ contract SlashingTest is CollateralTestBase {
         collateralManagement.addPegInCollateralTo{value: BASE_COLLATERAL}(lpB);
         assertEq(discovery.getProviders().length, 1);
 
-        _assertInGraceUntil(lpB, backfillBlock + BACKFILL_GRACE, pegOutCollateral);
+        _assertInGraceUntil(
+            lpB,
+            backfillBlock + BACKFILL_GRACE,
+            pegOutCollateral
+        );
     }
 
     function test_T3_GlobalSlash_BackfillCoversDeactivatedLp() public {
