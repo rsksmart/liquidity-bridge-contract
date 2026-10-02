@@ -17,6 +17,7 @@ import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcU
 /// @notice Shared proxy deploy + register helpers for PegInAddressRegistry tests.
 abstract contract PegInRegistryTestBase is Test {
     uint48 internal constant ADMIN_DELAY = 0;
+    uint256 internal constant MIN_DEPOSIT_SATS = 2;
 
     address internal constant PEGIN_CONTRACT =
         address(0x00000000000000000000000000000000C0FFEE01);
@@ -49,9 +50,12 @@ abstract contract PegInRegistryTestBase is Test {
     }
 
     function _deploy(bool isMainnet) internal {
+        _deploy(isMainnet, MIN_DEPOSIT_SATS);
+    }
+
+    function _deploy(bool isMainnet, uint256 bridgeMinSats) internal {
         isMainnetDeployment = isMainnet;
         bridge = new RegistryBridgeMock();
-        // Protocol floor must be greater than the mock bridge min (2).
         configurations = new RegistryConfigurationsMock();
         configurations.setMinAmount(3 * Flyover.SAT_TO_WEI_CONVERSION);
         _deployPauseRegistry();
@@ -64,7 +68,8 @@ abstract contract PegInRegistryTestBase is Test {
                 address(bridge),
                 isMainnet,
                 address(configurations),
-                IPauseRegistry(address(pauseRegistry))
+                IPauseRegistry(address(pauseRegistry)),
+                bridgeMinSats
             )
         );
         ERC1967Proxy proxy = new ERC1967Proxy(address(impl), initData);
@@ -87,7 +92,8 @@ abstract contract PegInRegistryTestBase is Test {
                 address(bridge),
                 isMainnet,
                 address(0),
-                IPauseRegistry(address(pauseRegistry))
+                IPauseRegistry(address(pauseRegistry)),
+                MIN_DEPOSIT_SATS
             )
         );
         ERC1967Proxy proxy = new ERC1967Proxy(address(impl), initData);
