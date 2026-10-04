@@ -268,6 +268,8 @@ contract DeployFlyover is Script {
         HelperConfig.FlyoverConfig memory cfg,
         Options memory opts
     ) private {
+        // TODO: seeds FlyoverConfigurationsRegtest on every chain. Add reviewed
+        // per-network seeds before any testnet/mainnet deploy.
         address configsProxy = Upgrades.deployTransparentProxy(
             "FlyoverConfigurations.sol",
             defaultAdmin,
@@ -298,6 +300,10 @@ contract DeployFlyover is Script {
         );
         PegInAddressRegistry(payable(d.pegInAddressRegistryProxy))
             .setFlyoverConfigurations(configsProxy);
+        PegInContract(payable(d.pegInProxy)).setPegInDependencies(
+            d.pegInAddressRegistryProxy,
+            configsProxy
+        );
 
         address escrowProxy = Upgrades.deployTransparentProxy(
             "PegOutEscrow.sol",
