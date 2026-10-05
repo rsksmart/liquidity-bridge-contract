@@ -96,7 +96,8 @@ abstract contract RequestPegInTestBase is PegInTestBase {
                 address(bridgeMock),
                 IS_MAINNET_DEPLOYMENT,
                 address(0),
-                pauseRegistry
+                pauseRegistry,
+                2
             )
         );
         ERC1967Proxy proxy = new ERC1967Proxy(
@@ -341,7 +342,6 @@ abstract contract RequestPegInTestBase is PegInTestBase {
             pegInContract.requestPegIn{value: value}(
                 rskAddr,
                 btcTx,
-                "",
                 bytes32(0),
                 0,
                 _emptyBranch()

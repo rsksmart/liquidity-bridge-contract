@@ -52,6 +52,9 @@ contract DeployFlyover is Script {
         address pegOutEscrowProxyAdmin;
     }
 
+    /// @notice The bridge peg-in floor in satoshis after RSKIP219.
+    uint256 public constant BRIDGE_MIN_DEPOSIT_SATS = 500_000;
+
     function run() external returns (FlyoverDeployment memory) {
         HelperConfig helper = new HelperConfig();
         HelperConfig.FlyoverConfig memory cfg = helper.getFlyoverConfig();
@@ -237,7 +240,8 @@ contract DeployFlyover is Script {
                     cfg.bridge,
                     cfg.mainnet,
                     address(0),
-                    IPauseRegistry(pauseRegistryProxy)
+                    IPauseRegistry(pauseRegistryProxy),
+                    BRIDGE_MIN_DEPOSIT_SATS
                 )
             ),
             opts
@@ -264,6 +268,8 @@ contract DeployFlyover is Script {
         HelperConfig.FlyoverConfig memory cfg,
         Options memory opts
     ) private {
+        // TODO: seeds FlyoverConfigurationsRegtest on every chain. Add reviewed
+        // per-network seeds before any testnet/mainnet deploy.
         address configsProxy = Upgrades.deployTransparentProxy(
             "FlyoverConfigurations.sol",
             defaultAdmin,
@@ -294,6 +300,10 @@ contract DeployFlyover is Script {
         );
         PegInAddressRegistry(payable(d.pegInAddressRegistryProxy))
             .setFlyoverConfigurations(configsProxy);
+        PegInContract(payable(d.pegInProxy)).setPegInDependencies(
+            d.pegInAddressRegistryProxy,
+            configsProxy
+        );
 
         address escrowProxy = Upgrades.deployTransparentProxy(
             "PegOutEscrow.sol",

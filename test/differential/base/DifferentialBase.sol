@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import {Test} from "forge-std/Test.sol";
 import {HelperConfig} from "../../../script/HelperConfig.s.sol";
 import {DeployFlyover} from "../../../script/deployment/DeployFlyover.s.sol";
+import {PegInContract} from "../../../src/PegInContract.sol";
 import {IDifferentialAdapter} from "../adapters/IDifferentialAdapter.sol";
 import {CandidateAdapter} from "../adapters/CandidateAdapter.sol";
 import {ReferenceAdapter} from "../adapters/ReferenceAdapter.sol";
@@ -186,6 +187,15 @@ abstract contract DifferentialBase is Test {
             address(deployer),
             cfg,
             helper.getOptions()
+        );
+        PegInContract pegIn = PegInContract(payable(d.pegInProxy));
+        require(
+            pegIn.getPegInAddressRegistry() != address(0),
+            "PegInAddressRegistry should be set"
+        );
+        require(
+            pegIn.getFlyoverConfigurations() != address(0),
+            "FlyoverConfigurations should be set"
         );
         targets.pegIn = d.pegInProxy;
         targets.pegOut = d.pegOutProxy;

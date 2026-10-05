@@ -86,7 +86,6 @@ contract RequestPegInProviderGateTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: before.net}(
             rskUser,
             before.btcTx,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
