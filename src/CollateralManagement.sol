@@ -46,7 +46,9 @@ contract CollateralManagementContract is
 
     /// @dev FlyoverDiscovery is the source of truth for the listed provider set.
     IFlyoverDiscovery private _flyoverDiscovery;
-    /// @dev Block at which peg-out collateral first became positive; used by the grace window.
+    /// @dev Block at which peg-out collateral last went from 0 to positive. Left at 0 for LPs that
+    /// already held peg-out collateral before the upgrade. Read it through
+    /// {_effectivePegOutRegistrationBlock}, never directly.
     mapping(address => uint256) private _pegOutRegistrationBlock;
     uint256 private _globalSlashGraceBlocks;
     /// @dev Block at which {initializePegOutRegistrationBlocks} ran. Stands in for the registration
