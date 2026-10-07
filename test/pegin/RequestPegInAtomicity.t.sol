@@ -209,7 +209,6 @@ contract RequestPegInAtomicityTest is RequestPegInTestBase {
         pegInContract.requestPegIn{value: net}(
             rskUser,
             btcTx,
-            "",
             bytes32(0),
             0,
             _emptyBranch()
