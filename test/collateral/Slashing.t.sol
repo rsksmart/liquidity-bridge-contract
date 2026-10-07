@@ -37,6 +37,7 @@ contract SlashingTest is CollateralTestBase {
     uint256 constant COLLATERAL_A = 10 ether;
     uint256 constant COLLATERAL_B = 20 ether;
     uint256 constant SLASH_TOTAL = 3 ether;
+    uint256 constant BACKFILL_GRACE = 1_000;
 
     function setUp() public {
         deployCollateralManagement();
@@ -832,6 +833,156 @@ contract SlashingTest is CollateralTestBase {
         collateralManagement.globalSlash(SLASH_TOTAL);
 
         assertEq(collateralManagement.getPegOutCollateral(lpA), COLLATERAL_A);
+    }
+
+    // ============ backfill: registered LPs that are unlisted at upgrade ============
+
+    /// @dev Simulates an LP that held peg-out collateral before registration blocks existed.
+    function _clearPegOutRegistrationBlock(address lp) internal {
+        stdstore
+            .target(address(collateralManagement))
+            .sig("getPegOutRegistrationBlock(address)")
+            .with_key(lp)
+            .checked_write(uint256(0));
+    }
+
+    function _backfill() internal returns (uint256 backfillBlock) {
+        backfillBlock = block.number;
+        vm.prank(owner);
+        collateralManagement.initializePegOutRegistrationBlocks();
+    }
+
+    /// @dev The LP is listed again inside the grace window: not slashed until the window ends.
+    function _assertInGraceUntil(
+        address lp,
+        uint256 graceEnd,
+        uint256 collateral
+    ) internal {
+        vm.roll(graceEnd - 1);
+        vm.prank(slasher);
+        vm.expectRevert(
+            ICollateralManagement.GlobalSlashNoEligibleProviders.selector
+        );
+        collateralManagement.globalSlash(SLASH_TOTAL);
+        assertEq(collateralManagement.getPegOutCollateral(lp), collateral);
+
+        vm.roll(graceEnd);
+        vm.prank(slasher);
+        collateralManagement.globalSlash(SLASH_TOTAL);
+        assertEq(
+            collateralManagement.getPegOutCollateral(lp),
+            collateral - SLASH_TOTAL
+        );
+    }
+
+    function test_T3_GlobalSlash_BackfillCoversLpBelowMinCollateral() public {
+        vm.prank(owner);
+        collateralManagement.setGlobalSlashGraceBlocks(BACKFILL_GRACE);
+        _approvePegOut(lpA, COLLATERAL_A);
+        _clearPegOutRegistrationBlock(lpA);
+
+        // Below the minimum: registered, but not listed by Discovery.
+        vm.prank(owner);
+        collateralManagement.setMinCollateral(COLLATERAL_A + 1);
+        assertTrue(
+            collateralManagement.isRegistered(Flyover.ProviderType.PegOut, lpA)
+        );
+        assertEq(discovery.getProviders().length, 0);
+
+        uint256 backfillBlock = _backfill();
+        assertEq(
+            collateralManagement.getPegOutRegistrationBlock(lpA),
+            backfillBlock
+        );
+
+        vm.roll(backfillBlock + 10);
+        vm.prank(lpA);
+        collateralManagement.addPegOutCollateral{value: 1}();
+        assertEq(discovery.getProviders().length, 1);
+        assertEq(
+            collateralManagement.getPegOutRegistrationBlock(lpA),
+            backfillBlock,
+            "top-up keeps the backfill block"
+        );
+
+        _assertInGraceUntil(
+            lpA,
+            backfillBlock + BACKFILL_GRACE,
+            COLLATERAL_A + 1
+        );
+    }
+
+    function test_T3_GlobalSlash_BackfillCoversBothLpWithLowPegIn() public {
+        vm.prank(owner);
+        collateralManagement.setGlobalSlashGraceBlocks(BACKFILL_GRACE);
+        _approveBoth(lpB, COLLATERAL_B);
+        _clearPegOutRegistrationBlock(lpB);
+        uint256 pegOutCollateral = collateralManagement.getPegOutCollateral(
+            lpB
+        );
+
+        // Peg-in side drops below the minimum; the peg-out side is untouched.
+        Quotes.PegInQuote memory quote = createPegInQuote();
+        quote.liquidityProviderRskAddress = lpB;
+        quote.penaltyFee =
+            collateralManagement.getPegInCollateral(lpB) -
+            TEST_MIN_COLLATERAL +
+            1;
+        vm.prank(slasher);
+        collateralManagement.slashPegInCollateral(punisher, quote, quoteHash);
+        assertEq(discovery.getProviders().length, 0);
+
+        uint256 backfillBlock = _backfill();
+        assertEq(
+            collateralManagement.getPegOutRegistrationBlock(lpB),
+            backfillBlock
+        );
+
+        vm.roll(backfillBlock + 10);
+        vm.prank(adder);
+        collateralManagement.addPegInCollateralTo{value: BASE_COLLATERAL}(lpB);
+        assertEq(discovery.getProviders().length, 1);
+
+        _assertInGraceUntil(
+            lpB,
+            backfillBlock + BACKFILL_GRACE,
+            pegOutCollateral
+        );
+    }
+
+    function test_T3_GlobalSlash_BackfillCoversDeactivatedLp() public {
+        vm.prank(owner);
+        collateralManagement.setGlobalSlashGraceBlocks(BACKFILL_GRACE);
+        _approvePegOut(lpA, COLLATERAL_A);
+        _clearPegOutRegistrationBlock(lpA);
+
+        uint256 deactivatedAt = _deactivate(lpA);
+        vm.roll(deactivatedAt + TEST_RESIGN_DELAY_BLOCKS);
+        assertEq(discovery.getProviders().length, 0);
+
+        uint256 backfillBlock = _backfill();
+        assertEq(
+            collateralManagement.getPegOutRegistrationBlock(lpA),
+            backfillBlock
+        );
+
+        vm.roll(backfillBlock + 10);
+        _activate(lpA);
+        assertEq(discovery.getProviders().length, 1);
+
+        _assertInGraceUntil(lpA, backfillBlock + BACKFILL_GRACE, COLLATERAL_A);
+    }
+
+    function test_T3_GlobalSlash_PostBackfillRegistrationUsesOwnBlock() public {
+        uint256 backfillBlock = _backfill();
+
+        vm.roll(backfillBlock + 10);
+        _approvePegOut(lpA, COLLATERAL_A);
+
+        assertEq(
+            collateralManagement.getPegOutRegistrationBlock(lpA),
+            backfillBlock + 10
+        );
     }
 
     function test_T3_GlobalSlash_DestinationIsPenalties() public {
