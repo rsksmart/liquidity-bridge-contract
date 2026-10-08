@@ -97,7 +97,6 @@ interface IPegInCommitFirst {
     error InsufficientConfirmations(uint256 have, uint256 required);
 
     /// @notice Reverts requestPegIn when msg.value does not equal the amount minus the fee
-    /// @dev The credential is capital: there is no LP-only gate and no signature.
     /// @param expected The required msg.value (amount minus fee), in wei
     /// @param actual The msg.value sent, in wei
     error IncorrectFronting(uint256 expected, uint256 actual);
@@ -112,9 +111,7 @@ interface IPegInCommitFirst {
     /// Payable: msg.value must equal the amount read from the deposit minus the fee. The claim
     /// record stores
     /// the claimer, the fronted amount, and the fee at claim time, because the configuration
-    /// can change before settlement pays the claimer back (~17 hours later). Check order:
-    /// witness strip → already processed → deps → unregistered → deposit output → below
-    /// minimum → confirmations → fronting.
+    /// can change before settlement pays the claimer back (~17 hours later).
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param btcTxSerialized The witness-stripped raw BTC deposit transaction
     /// @param btcBlockHash The hash of the Bitcoin block containing the deposit

@@ -169,6 +169,15 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         bytes32 dustClaimTxHash = this.hashTx(dustClaimTx);
         address attacker = makeAddr("attacker");
         vm.deal(attacker, 1 ether);
+        vm.prank(attacker, attacker);
+        discovery.register{value: MIN_COLLATERAL}(
+            "Dust Attacker",
+            "attacker.com",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+        vm.prank(owner);
+        discovery.approveRegistration(attacker);
 
         vm.prank(attacker);
         vm.expectRevert(

@@ -336,6 +336,9 @@ contract PegInContract is
         uint256 merkleBranchPath,
         bytes32[] calldata merkleBranchHashes
     ) external payable nonReentrant whenNotSoftPaused override returns (bytes32 pegInId) {
+        if(!_collateralManagement.isRegistered(_PEG_TYPE, msg.sender)) {
+            revert Flyover.ProviderNotRegistered(msg.sender);
+        }
         // Before the hash, never after: hashBtcTx would return a wtxid for the witness form, and
         // pegInId is derived from it. See {BtcTransactionReader-WitnessSerializedTxNotAccepted}.
         BtcTransactionReader.requireWitnessStripped(btcTxSerialized);

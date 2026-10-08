@@ -5,6 +5,7 @@ import {RequestPegInTestBase} from "./RequestPegInTestBase.sol";
 import {IPegInCommitFirst} from "../../src/interfaces/IPegInCommitFirst.sol";
 import {IBridge} from "../../src/interfaces/IBridge.sol";
 import {BtcTransactionReader} from "../../src/libraries/BtcTransactionReader.sol";
+import {Flyover} from "../../src/libraries/Flyover.sol";
 
 /// @title One deposit, two serializations
 /// @notice A segwit deposit has two legal serializations (BIP144), and BtcUtils treats them
@@ -237,6 +238,29 @@ contract BridgeMockBlindSpotTest is RequestPegInTestBase {
     // ------------------------------------------------------------------
     // The other blind spot the txid-aware mock closed
     // ------------------------------------------------------------------
+
+    /// @notice An unregistered caller is rejected before the witness-serialization check.
+    function test_revert_unregisteredCaller_witnessTx() public {
+        (, bytes memory witness) = _twoSerializationsOfOneDeposit();
+        uint256 net = DEFAULT_AMOUNT - _expectedFee(DEFAULT_AMOUNT);
+        address stranger = makeAddr("witnessStranger");
+        vm.deal(stranger, 100 ether);
+
+        vm.prank(stranger);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Flyover.ProviderNotRegistered.selector,
+                stranger
+            )
+        );
+        pegInContract.requestPegIn{value: net}(
+            rskUser,
+            witness,
+            bytes32(0),
+            0,
+            _emptyBranch()
+        );
+    }
 
     /// @notice Independent of segwit: with a txid-aware mock the suite can observe that
     /// requestPegIn asks the bridge about the hash it derived from the presented bytes. Confirm a
