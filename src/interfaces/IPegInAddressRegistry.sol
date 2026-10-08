@@ -89,6 +89,25 @@ interface IPegInAddressRegistry {
     /// @param bridgeMinSats The bridge minimum value, in satoshis
     error ConfigMinBelowBridge(uint256 protocolMinSats, uint256 bridgeMinSats);
 
+    /// @notice Registers an RSK destination address by proving a confirmed BTC deposit pays
+    /// its derived deposit address
+    /// @dev Permissionless and deposit-gated: anyone may call, but only with an SPV proof of
+    /// a real confirmed deposit, so registry spam costs real BTC. Returns nothing; its
+    /// effects are the packed record (registrant = msg.sender), the AddressRegistered event,
+    /// and the root fold, written atomically. Walkthrough anchors: step 8, decisions D5, D8.
+    /// @param rskAddr The RSK destination address to register
+    /// @param btcTxSerialized The witness-stripped serialization of the deposit transaction
+    /// @param btcBlockHash The hash of the Bitcoin block containing the deposit
+    /// @param merkleBranchPath The path bitmap of the merkle branch proving inclusion
+    /// @param merkleBranchHashes The hashes of the merkle branch proving inclusion
+    function registerAddress(
+        address rskAddr,
+        bytes calldata btcTxSerialized,
+        bytes32 btcBlockHash,
+        uint256 merkleBranchPath,
+        bytes32[] calldata merkleBranchHashes
+    ) external;
+
     /// @notice Derives the deterministic BTC deposit address for an RSK destination address
     /// @dev The address is a prediction of what the bridge recomputes at settlement, byte for
     /// byte: it depends only on the RSK address, fixed protocol constants, and the active
@@ -117,13 +136,18 @@ interface IPegInAddressRegistry {
     /// @return registered Whether the address is registered
     function isRegistered(address rskAddr) external view returns (bool registered);
 
-    /// @notice Returns the full registration record of an RSK destination address
-    /// @dev One read serves both settlement (registrant fee, step 14) and the slash deadline
-    /// anchor (exception A5). Walkthrough anchors: step 4, decision D5.
-    /// @param rskAddr The RSK destination address to look up
-    /// @return registration The packed {registrant, registrationBlock} record; zeroed when
-    /// the address is not registered
-    function getRegistration(address rskAddr) external view returns (Registration memory registration);
+    /// @notice Returns the account that registered an RSK address
+    /// @dev PegInContract pays the registrant fee to this account.
+    /// The result is the zero address when the RSK address has no registration.
+    /// @param rskAddr The RSK address to look up
+    /// @return registrant The account that called registerAddress
+    function getRegistrant(address rskAddr) external view returns (address registrant);
+
+    /// @notice Returns the block where an RSK address was registered
+    /// @dev The result is 0 when the RSK address has no registration.
+    /// @param rskAddr The RSK address to look up
+    /// @return registrationBlock The RSK block number of the registration
+    function getRegistrationBlock(address rskAddr) external view returns (uint96 registrationBlock);
 
     /// @notice Returns the running registration accumulator root
     /// @dev One 32-byte slot folding every registration in order:
@@ -138,23 +162,4 @@ interface IPegInAddressRegistry {
     /// minimum. The call reverts when the protocol minimum is lower. Equal floors are valid.
     /// @return minDepositSats The protocol minimum deposit, in satoshis.
     function getMinDepositSats() external view returns (uint256 minDepositSats);
-
-    /// @notice Registers an RSK destination address by proving a confirmed BTC deposit pays
-    /// its derived deposit address
-    /// @dev Permissionless and deposit-gated: anyone may call, but only with an SPV proof of
-    /// a real confirmed deposit, so registry spam costs real BTC. Returns nothing; its
-    /// effects are the packed record (registrant = msg.sender), the AddressRegistered event,
-    /// and the root fold, written atomically. Walkthrough anchors: step 8, decisions D5, D8.
-    /// @param rskAddr The RSK destination address to register
-    /// @param btcTxSerialized The witness-stripped serialization of the deposit transaction
-    /// @param btcBlockHash The hash of the Bitcoin block containing the deposit
-    /// @param merkleBranchPath The path bitmap of the merkle branch proving inclusion
-    /// @param merkleBranchHashes The hashes of the merkle branch proving inclusion
-    function registerAddress(
-        address rskAddr,
-        bytes calldata btcTxSerialized,
-        bytes32 btcBlockHash,
-        uint256 merkleBranchPath,
-        bytes32[] calldata merkleBranchHashes
-    ) external;
 }
