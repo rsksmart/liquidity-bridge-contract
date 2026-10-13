@@ -7,7 +7,6 @@ import {
 import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
-import {OpCodes} from "@rsksmart/btc-transaction-solidity-helper/contracts/OpCodes.sol";
 import {EmergencyPause} from "./EmergencyPause/EmergencyPause.sol";
 import {IBridge} from "./interfaces/IBridge.sol";
 import {ICollateralManagement, CollateralManagementSet} from "./interfaces/ICollateralManagement.sol";
@@ -19,8 +18,6 @@ import {IPegInCommitFirst} from "./interfaces/IPegInCommitFirst.sol";
 import {BtcTransactionReader} from "./libraries/BtcTransactionReader.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 import {PegInDerivation} from "./libraries/PegInDerivation.sol";
-import {Quotes} from "./libraries/Quotes.sol";
-import {SignatureValidator} from "./libraries/SignatureValidator.sol";
 
 /// @title PegIn
 /// @notice This contract is used to handle the peg in of the Bitcoin network to the Rootstock network
@@ -60,14 +57,6 @@ contract PegInContract is
     /// @notice The name of the contract (used for EIP712)
     string constant public NAME = "PegInContract";
     Flyover.ProviderType constant private _PEG_TYPE = Flyover.ProviderType.PegIn;
-    uint256 constant private _REFUND_ADDRESS_LENGTH = 21;
-
-    uint256 constant private _MAX_CALL_GAS_COST = 35000;
-    uint256 constant private _MAX_REFUND_GAS_LIMIT = 2300;
-
-    int256 constant private _BRIDGE_UNPROCESSABLE_TX_VALIDATIONS_ERROR = -303;
-    int256 constant private _BRIDGE_REFUNDED_USER_ERROR_CODE = -100;
-    int256 constant private _BRIDGE_REFUNDED_LP_ERROR_CODE = -200;
 
     IBridge private _bridge;
     ICollateralManagement private _collateralManagement;
@@ -231,103 +220,6 @@ contract PegInContract is
         }
     }
 
-    /// @inheritdoc IPegIn
-    function callForUser(
-        Quotes.PegInQuote calldata quote
-    ) external payable nonReentrant whenNotHardPaused override returns (bool) {
-        if(!_collateralManagement.isRegistered(_PEG_TYPE, msg.sender)) {
-            revert Flyover.ProviderNotRegistered(msg.sender);
-        }
-        if (quote.liquidityProviderRskAddress != msg.sender) {
-            revert Flyover.InvalidSender(quote.liquidityProviderRskAddress, msg.sender);
-        }
-        uint256 newBalance = _balances[quote.liquidityProviderRskAddress] + msg.value;
-        if (newBalance < quote.value) {
-            revert Flyover.InsufficientAmount(newBalance, quote.value);
-        }
-
-        bytes32 quoteHash = _hashPegInQuote(quote);
-        if (_processedQuotes[quoteHash] != PegInStates.UNPROCESSED_QUOTE) {
-            revert QuoteAlreadyProcessed(quoteHash);
-        }
-
-        _increaseBalance(quote.liquidityProviderRskAddress, msg.value);
-
-        // This check ensures that the call cannot be performed with less gas than the agreed amount
-        if (gasleft() < quote.gasLimit + _MAX_CALL_GAS_COST) {
-            revert InsufficientGas(gasleft(), quote.gasLimit + _MAX_CALL_GAS_COST);
-        }
-        (bool success,) = quote.contractAddress.call{
-            gas: quote.gasLimit,
-            value: quote.value
-        }(quote.data);
-
-        _callRegistry[quoteHash].timestamp = block.timestamp;
-        _processedQuotes[quoteHash] = PegInStates.CALL_DONE;
-
-        if (success) {
-            _callRegistry[quoteHash].success = true;
-            _decreaseBalance(quote.liquidityProviderRskAddress, quote.value);
-        }
-
-        emit CallForUser(
-            msg.sender,
-            quote.contractAddress,
-            quoteHash,
-            quote.gasLimit,
-            quote.value,
-            quote.data,
-            success
-        );
-        return success;
-    }
-
-    /// @inheritdoc IPegIn
-    function registerPegIn(
-        Quotes.PegInQuote calldata quote,
-        bytes calldata signature,
-        bytes calldata btcRawTransaction,
-        bytes calldata partialMerkleTree,
-        uint256 height
-    ) external nonReentrant whenNotHardPaused override returns (int256) {
-        bytes32 quoteHash = _hashPegInQuote(quote);
-        _validateRegisterParams(quote, quoteHash, height, signature);
-        int256 registerResult = _registerBridge(quote, btcRawTransaction, partialMerkleTree, height, quoteHash);
-
-        bool btcRefunded = registerResult == _BRIDGE_REFUNDED_USER_ERROR_CODE ||
-            registerResult == _BRIDGE_REFUNDED_LP_ERROR_CODE;
-        if (registerResult == _BRIDGE_UNPROCESSABLE_TX_VALIDATIONS_ERROR) {
-            revert NotEnoughConfirmations();
-        } else if (!btcRefunded && registerResult < 1) {
-            revert UnexpectedBridgeError(registerResult);
-        }
-
-        Registry memory callRegistry = _callRegistry[quoteHash];
-        delete _callRegistry[quoteHash];
-        if (_shouldPenalize(quote, registerResult, callRegistry.timestamp, height)) {
-            _collateralManagement.slashPegInCollateral(msg.sender, quote, quoteHash);
-        }
-        if (btcRefunded) {
-            _processedQuotes[quoteHash] = PegInStates.PROCESSED_QUOTE;
-            emit BridgeCapExceeded(quoteHash, registerResult);
-            return registerResult;
-        }
-
-        // the amount is safely assumed positive because it's already been validated there's
-        // no (negative) error code being returned by the bridge.
-        uint256 transferredAmount = uint256(registerResult);
-        Quotes.checkAgreedAmount(quote, transferredAmount);
-
-        _processedQuotes[quoteHash] = PegInStates.PROCESSED_QUOTE;
-        emit PegInRegistered(quoteHash, transferredAmount);
-        if (callRegistry.timestamp > 0) {
-            _registerCallDone(quote, quoteHash, callRegistry.success, transferredAmount);
-        } else {
-            _registerCallNotDone(quote, quoteHash, transferredAmount);
-        }
-        return registerResult;
-    }
-
     /// @inheritdoc IPegInCommitFirst
     function requestPegIn(
         address rskAddr,
@@ -407,29 +299,6 @@ contract PegInContract is
     }
 
     /// @inheritdoc IPegIn
-    function validatePegInDepositAddress(
-        Quotes.PegInQuote calldata quote,
-        bytes calldata depositAddress
-    ) external view override returns (bool) {
-        bytes32 derivationValue = keccak256(
-            bytes.concat(
-                _hashPegInQuote(quote),
-                quote.btcRefundAddress,
-                bytes20(quote.lbcAddress),
-                quote.liquidityProviderBtcAddress
-            )
-        );
-        bytes memory flyoverRedeemScript = bytes.concat(
-            OpCodes.OP_PUSHBYTES_32,
-            derivationValue,
-            OpCodes.OP_DROP,
-            _bridge.getActivePowpegRedeemScript()
-        );
-        bytes memory segwitScript = bytes.concat(OpCodes.OP_0, OpCodes.OP_PUSHBYTES_32, sha256(flyoverRedeemScript));
-        return BtcUtils.validateP2SHAdress(depositAddress, segwitScript, _mainnet);
-    }
-
-    /// @inheritdoc IPegIn
     function getMinPegIn() external view override returns (uint256) {
         return _minPegIn;
     }
@@ -438,22 +307,6 @@ contract PegInContract is
     function getBalance(address addr) external view override returns (uint256) {
         if (_reentrancyGuardEntered()) revert ReentrancyGuardReentrantCall();
         return _balances[addr];
-    }
-
-    /// @inheritdoc IPegIn
-    function hashPegInQuote(Quotes.PegInQuote calldata quote) external view override returns (bytes32) {
-        return _hashPegInQuote(quote);
-    }
-
-    /// @inheritdoc IPegIn
-    function hashPegInQuoteEIP712(Quotes.PegInQuote calldata quote) external view override returns (bytes32) {
-        return _hashPegInQuoteEIP712(quote);
-    }
-
-    /// @inheritdoc IPegIn
-    function getQuoteStatus(bytes32 quoteHash) external view override returns (PegInStates) {
-        if (_reentrancyGuardEntered()) revert ReentrancyGuardReentrantCall();
-        return _processedQuotes[quoteHash];
     }
 
     /// @dev Bridge fast-register with per-network BTC placeholder addresses.
@@ -627,299 +480,6 @@ contract PegInContract is
             _balances[dest] -= amount;
             emit BalanceDecrease(dest, amount);
         }
-    }
-
-    /// @notice This function is used to register the peg in into the bridge
-    /// @param quote The quote of the peg in
-    /// @param btcRawTransaction The raw transaction of the peg in in the Bitcoin network,
-    /// without the witness data
-    /// @param partialMerkleTree The partial merkle tree proving the inclusion of the peg
-    /// in transaction
-    /// @param height The height of the peg in transaction
-    /// @param derivationHash The hash of the quote used to derive the deposit address
-    /// @return registerResult The result of the registration. It can be:
-    /// - A negative value: An error code returned by the bridge
-    /// - A positive value: The amount of the peg in transaction
-    function _registerBridge(
-        Quotes.PegInQuote memory quote,
-        bytes memory btcRawTransaction,
-        bytes memory partialMerkleTree,
-        uint256 height,
-        bytes32 derivationHash
-    ) private returns (int256) {
-        Registry memory callRegistry = _callRegistry[derivationHash];
-        return _bridge.registerFastBridgeBtcTransaction(
-            btcRawTransaction,
-            height,
-            partialMerkleTree,
-            derivationHash,
-            quote.btcRefundAddress,
-            payable(this),
-            quote.liquidityProviderBtcAddress,
-            callRegistry.timestamp > 0 && callRegistry.success
-        );
-    }
-
-    /// @notice This function is used by the registerPegIn function to handle the scenarios
-    /// where the liquidity provider has already called the callForUser function
-    /// @dev This function makes an external call, therefore it might be exposed to a reentrancy attack,
-    /// the caller must have the nonReentrant modifier or any kind of reentrancy protection. Not all the
-    /// modifications to the state can be done before the call as some of them depend on the result of the
-    /// call itself
-    /// @param quote The quote of the peg in
-    /// @param quoteHash The hash of the quote
-    /// @param callSuccessful Whether the call on behalf of the user was successful or not
-    /// @param transferredAmount The amount of the peg in transaction
-    function _registerCallDone(
-        Quotes.PegInQuote calldata quote,
-        bytes32 quoteHash,
-        bool callSuccessful,
-        uint256 transferredAmount
-    ) private {
-        uint refundAmount;
-        if (callSuccessful) {
-            refundAmount = _min(transferredAmount, quote.value + quote.callFee + quote.gasFee);
-        } else {
-            refundAmount = _min(transferredAmount, quote.callFee + quote.gasFee);
-        }
-        _increaseBalance(quote.liquidityProviderRskAddress, refundAmount);
-
-        uint remainingAmount = transferredAmount - refundAmount;
-        if (remainingAmount > dustThreshold) {
-            // refund rskRefundAddress, if remaining amount greater than dust
-            (bool success,) = quote.rskRefundAddress.call{
-                gas: _MAX_REFUND_GAS_LIMIT,
-                value: remainingAmount
-            }("");
-
-            emit Refund(
-                quote.rskRefundAddress,
-                quoteHash,
-                remainingAmount,
-                success
-            );
-
-            if (!success) {
-                // transfer funds to LP instead, if for some reason transfer to rskRefundAddress was unsuccessful
-                _increaseBalance(quote.liquidityProviderRskAddress, remainingAmount);
-            }
-        }
-    }
-
-    /// @notice This function is used by the registerPegIn function to handle the scenarios
-    /// where the liquidity provider has not called the callForUser function
-    /// @dev This function makes an external call, therefore it might be exposed to a reentrancy attack,
-    /// the caller must have the nonReentrant modifier or any kind of reentrancy protection. Not all the
-    /// modifications to the state can be done before the call as some of them depend on the result of the
-    /// call itself
-    /// @param quote The quote of the peg in
-    /// @param quoteHash The hash of the quote
-    /// @param transferredAmount The amount of the peg in transaction
-    function _registerCallNotDone(
-        Quotes.PegInQuote calldata quote,
-        bytes32 quoteHash,
-        uint256 transferredAmount
-    ) private {
-        uint refundAmount = transferredAmount;
-
-        if (quote.callOnRegister && refundAmount >= quote.value) { // solhint-disable-line gas-strict-inequalities
-            (bool callSuccess,) = quote.contractAddress.call{
-                gas: quote.gasLimit,
-                value: quote.value
-            }(quote.data);
-
-            emit CallForUser(
-                msg.sender,
-                quote.contractAddress,
-                quoteHash,
-                quote.gasLimit,
-                quote.value,
-                quote.data,
-                callSuccess
-            );
-
-            if (callSuccess) {
-                refundAmount -= quote.value;
-            }
-        }
-        if (refundAmount > dustThreshold) {
-            // refund rskRefundAddress, if refund amount greater than dust
-            (bool success,) = quote.rskRefundAddress.call{
-                gas: _MAX_REFUND_GAS_LIMIT,
-                value: refundAmount
-            }("");
-            emit Refund(
-                quote.rskRefundAddress,
-                quoteHash,
-                refundAmount,
-                success
-            );
-            if (!success) {
-                // transfer funds to user instead, if for some reason transfer to rskRefundAddress was unsuccessful
-                _increaseBalance(quote.rskRefundAddress, refundAmount);
-            }
-        }
-    }
-
-    /// @notice This function is used to validate the parameters of the registerPegIn function
-    /// @dev The validations include:
-    /// - If the quote was already registered
-    /// - If the signature provided by the liquidity provider is valid
-    /// - If the height is supported by the Rootstock bridge
-    /// @param quote The quote of the peg in
-    /// @param quoteHash The hash of the quote
-    /// @param height The height of the peg in transaction
-    /// @param signature The signature of the quoteHash by the liquidity provider
-    function _validateRegisterParams(
-        Quotes.PegInQuote calldata quote,
-        bytes32 quoteHash,
-        uint256 height,
-        bytes calldata signature
-    ) private view {
-        if (_processedQuotes[quoteHash] == PegInStates.PROCESSED_QUOTE) {
-            revert QuoteAlreadyProcessed(quoteHash);
-        }
-        bytes32 eip712hash = _hashPegInQuoteEIP712(quote);
-        if (!SignatureValidator.verify(quote.liquidityProviderRskAddress, eip712hash, signature)) {
-            revert SignatureValidator.IncorrectSignature(quote.liquidityProviderRskAddress, eip712hash, signature);
-        }
-        // the actual type in the RSKj node source code is a java int which is equivalent to int32
-        if (height > uint256(int(type(int32).max)) - 1) {
-            revert Flyover.Overflow(uint256(int(type(int32).max)));
-        }
-    }
-
-    /// @notice This function is used to hash a peg in quote
-    /// @dev The function also validates the following:
-    /// - The quote belongs to this contract
-    /// - The quote destination is not the bridge contract
-    /// - The quote BTC refund address is valid
-    /// - The quote liquidity provider BTC address is valid
-    /// - The quote total amount is greater than the bridge minimum peg in amount
-    /// - The sum of the timestamp values is not greater than the maximum uint32 value
-    /// @param quote The peg in quote
-    /// @return quoteHash The hash of the quote
-    function _hashPegInQuote(Quotes.PegInQuote calldata quote) private view returns (bytes32) {
-        _validatePegInQuote(quote);
-        return keccak256(Quotes.encodeQuote(quote));
-    }
-
-    /// @notice This function is used to hash a peg in quote using EIP712 specification
-    /// @dev The function also validates the following:
-    /// - The quote belongs to this contract
-    /// - The quote destination is not the bridge contract
-    /// - The quote BTC refund address is valid
-    /// - The quote liquidity provider BTC address is valid
-    /// - The quote total amount is greater than the bridge minimum peg in amount
-    /// - The sum of the timestamp values is not greater than the maximum uint32 value
-    /// @param quote The peg in quote
-    /// @return quoteHash The hash struct to be combined with the domain separator
-    function _hashPegInQuoteEIP712(Quotes.PegInQuote calldata quote) private view returns (bytes32) {
-        _validatePegInQuote(quote);
-        return _hashTypedDataV4(Quotes.hashPegInQuoteEIP712(quote));
-    }
-
-    function _validatePegInQuote(Quotes.PegInQuote calldata quote) private view {
-        if (quote.chainId != block.chainid) {
-            revert Flyover.InvalidChainId(block.chainid, quote.chainId);
-        }
-        if (address(this) != quote.lbcAddress) {
-            revert Flyover.IncorrectContract(address(this), quote.lbcAddress);
-        }
-        if (
-            address(_bridge) == quote.contractAddress ||
-            address(this) == quote.contractAddress ||
-            address(0) == quote.contractAddress ||
-            address(_collateralManagement) == quote.contractAddress
-        ) {
-            revert Flyover.NoContract(quote.contractAddress);
-        }
-        if (
-            quote.btcRefundAddress.length != _REFUND_ADDRESS_LENGTH ||
-            !_isValidBtcPrefix(quote.btcRefundAddress[0])
-        ) {
-            revert InvalidRefundAddress(quote.btcRefundAddress);
-        }
-        if (
-            quote.liquidityProviderBtcAddress.length != _REFUND_ADDRESS_LENGTH ||
-            !_isValidBtcPrefix(quote.liquidityProviderBtcAddress[0])
-        ) {
-            revert InvalidRefundAddress(quote.liquidityProviderBtcAddress);
-        }
-        uint256 total = quote.value + quote.callFee + quote.gasFee;
-        if (total < _minPegIn) {
-            revert AmountUnderMinimum(_minPegIn);
-        }
-        if (type(uint32).max < uint64(quote.agreementTimestamp) + uint64(quote.timeForDeposit)) {
-            revert Flyover.Overflow(type(uint32).max);
-        }
-    }
-
-    /// @notice This function is used to check if the prefix of a btc address is valid
-    /// @param prefix The prefix of the address
-    /// @return isValid Whether the prefix is valid or not
-    function _isValidBtcPrefix(bytes1 prefix) private view returns (bool) {
-        return _mainnet ?
-            prefix == 0x00 || prefix == 0x05 : // p2pkh and p2sh mainnet
-            prefix == 0x6f || prefix == 0xc4; // p2pkh and p2sh testnet
-    }
-
-    /// @notice This function is used to determine if the liquidity provider should be penalized
-    /// @param quote The peg in quote
-    /// @param amount The amount of the peg in transaction
-    /// @param callTimestamp The timestamp of the call on behalf of the user
-    /// @param height The height of the peg in transaction
-    /// @return shouldPenalize Whether the liquidity provider should be penalized or not
-    function _shouldPenalize(
-        Quotes.PegInQuote calldata quote,
-        int256 amount,
-        uint256 callTimestamp,
-        uint256 height
-    ) private view returns (bool) {
-        // do not penalize if deposit amount is insufficient
-        uint256 quoteTotal = quote.value + quote.callFee + quote.gasFee;
-        if (amount > 0 && uint256(amount) < quoteTotal) {
-            return false;
-        }
-
-        bytes memory firstConfirmationHeader = _bridge.getBtcBlockchainBlockHeaderByHeight(height);
-        if (firstConfirmationHeader.length < 1) revert Flyover.EmptyBlockHeader(bytes32(height));
-
-        uint256 firstConfirmationTimestamp = BtcUtils.getBtcBlockTimestamp(
-            firstConfirmationHeader
-        );
-
-        // do not penalize if deposit was not made on time (BTC-side, no pause adjustment)
-        uint256 timeLimit = quote.agreementTimestamp + quote.timeForDeposit;
-        if (firstConfirmationTimestamp > timeLimit) {
-            return false;
-        }
-
-        bytes memory nConfirmationsHeader = _bridge.getBtcBlockchainBlockHeaderByHeight(
-            height + quote.depositConfirmations - 1
-        );
-        if (nConfirmationsHeader.length < 1) revert Flyover.EmptyBlockHeader(bytes32(height));
-        uint256 nConfirmationsTimestamp = BtcUtils.getBtcBlockTimestamp(
-            nConfirmationsHeader
-        );
-
-        uint256 pauseOverlap = pauseRegistry().computePauseOverlap(
-            nConfirmationsTimestamp,
-            block.timestamp
-        );
-        uint256 adjustedDeadline = nConfirmationsTimestamp + quote.callTime + pauseOverlap;
-
-        // if LP never called: penalize only if adjusted deadline has passed
-        if (callTimestamp == 0) {
-            return block.timestamp > adjustedDeadline;
-        }
-
-        // penalize if the call was not made on time (adjusted for hard pause)
-        if (callTimestamp > adjustedDeadline) {
-            return true;
-        }
-
-        return false;
     }
 
     /// @dev Derives pegInId from witness-stripped raw tx bytes.
