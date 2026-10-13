@@ -11,8 +11,8 @@ GAS_PRICE ?= 0
 PRIORITY_GAS_PRICE ?= 0
 
 # Hash-quote defaults
-QUOTE_TYPE ?= pegin
-HASH_QUOTE_FILE ?= script/legacy/tasks/hash-quote.example.json
+QUOTE_TYPE ?= pegout
+HASH_QUOTE_FILE ?=
 
 # Pause-system defaults
 PAUSE_REASON ?= Emergency maintenance
@@ -20,11 +20,6 @@ PAUSE_REASON ?= Emergency maintenance
 # Refund-user-pegout defaults
 QUOTE_HASH ?=
 QUOTE_FILE ?=
-
-# Register-pegin defaults
-PEGIN_QUOTE_FILE ?=
-PEGIN_SIGNATURE ?=
-PEGIN_TXID ?=
 
 # Flyover library addresses are read from addresses.json at build time
 
@@ -175,7 +170,7 @@ help:
 	@echo "  development-upgrade-lbc-broadcast - Upgrade LBC on development (actual deployment)"
 	@echo ""
 	@echo "Task Scripts:"
-	@echo "  hash-quote               - Hash a PegIn or PegOut quote"
+	@echo "  hash-quote               - Hash a PegOut quote"
 	@echo "  get-btc-height           - Get current BTC block height"
 	@echo "  get-versions             - Get contract versions"
 	@echo "  query-proxy-admin        - Read ERC-1967 proxy admin for PROXY_ADDRESS (read-only)"
@@ -186,8 +181,6 @@ help:
 	@echo "  unpause-system-broadcast - Unpause all system contracts (actual)"
 	@echo "  refund-user-pegout       - Refund user for expired PegOut (simulation)"
 	@echo "  refund-user-pegout-broadcast - Refund user for expired PegOut (actual)"
-	@echo "  register-pegin           - Register a PegIn Bitcoin transaction (simulation)"
-	@echo "  register-pegin-broadcast - Register a PegIn Bitcoin transaction (actual)"
 	@echo ""
 	@echo "Setup:"
 	@echo "  python-setup      - Create .venv/ with pinned Halmos for formal verification"
@@ -217,7 +210,6 @@ help:
 	@echo "  test-fuzz             - Run all fuzz tests"
 	@echo "  test-fuzz-collateral  - Run collateral fuzz tests"
 	@echo "  test-fuzz-discovery   - Run discovery fuzz tests"
-	@echo "  test-fuzz-pegin       - Run pegin fuzz tests"
 	@echo "  test-fuzz-pegout      - Run pegout fuzz tests"
 	@echo "  test-fuzz-libraries   - Run libraries fuzz tests"
 	@echo ""
@@ -242,7 +234,6 @@ help:
 	@echo "  test-fuzz             - Run all fuzz tests"
 	@echo "  test-fuzz-collateral  - Run collateral fuzz tests"
 	@echo "  test-fuzz-discovery   - Run discovery fuzz tests"
-	@echo "  test-fuzz-pegin       - Run pegin fuzz tests"
 	@echo "  test-fuzz-pegout      - Run pegout fuzz tests"
 	@echo "  test-fuzz-libraries   - Run libraries fuzz tests"
 	@echo ""
@@ -252,7 +243,6 @@ help:
 	@echo "  make testnet-fork-deploy                                # Testnet fork simulation"
 	@echo "  make upgrade-lbc-fork NETWORK=rskMainnet FORK_BLOCK=6020639 # Fork simulation"
 	@echo "  make upgrade-lbc-broadcast NETWORK=rskMainnet             # Actual upgrade"
-	@echo "  make hash-quote pegin rskTestnet                      # Hash PegIn quote"
 	@echo "  make hash-quote pegout mainnet my-quote.json       # Hash PegOut with custom file"
 	@echo "  make hash-quote HASH_QUOTE_FILE=my-quote.json     # Hash with named file parameter"
 	@echo "  make pause-status NETWORK=rskTestnet                  # Check pause status"
@@ -263,8 +253,6 @@ help:
 	@echo "  make refund-user-pegout NETWORK=rskTestnet QUOTE_HASH=abc123...  # Refund user (simulation)"
 	@echo "  make refund-user-pegout NETWORK=rskTestnet QUOTE_FILE=script/tasks/quote.json # Refund from file (simulation)"
 	@echo "  make refund-user-pegout-broadcast NETWORK=rskTestnet QUOTE_HASH=abc123... # Refund user (actual)"
-	@echo "  make register-pegin NETWORK=rskTestnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc... # Register PegIn (simulation)"
-	@echo "  make register-pegin-broadcast NETWORK=rskTestnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc... # Register PegIn (actual)"
 	@echo ""
 	@echo "Test examples:"
 	@echo "  make test                                     # Run all tests (unit + fuzz)"
@@ -662,8 +650,8 @@ query-proxy-admin:
 		-vv
 
 # Hash quote - supports both syntaxes:
-# make hash-quote pegin rskTestnet
-# make hash-quote QUOTE_TYPE=pegin NETWORK=rskTestnet HASH_QUOTE_FILE=file.json
+# make hash-quote pegout rskTestnet file.json
+# make hash-quote QUOTE_TYPE=pegout NETWORK=rskTestnet HASH_QUOTE_FILE=file.json
 .PHONY: hash-quote
 hash-quote:
 	@$(eval ARGS := $(filter-out $@,$(MAKECMDGOALS)))
@@ -673,25 +661,22 @@ hash-quote:
 	@$(eval FINAL_TYPE := $(if $(QUOTE_TYPE_ARG),$(QUOTE_TYPE_ARG),$(QUOTE_TYPE)))
 	@$(eval FINAL_NETWORK := $(if $(NETWORK_ARG),$(NETWORK_ARG),$(NETWORK)))
 	@$(eval FINAL_FILE := $(if $(FILE_ARG),$(FILE_ARG),$(HASH_QUOTE_FILE)))
-	@if [ "$(FINAL_TYPE)" != "pegin" ] && [ "$(FINAL_TYPE)" != "pegout" ]; then \
-		echo "Error: Type must be 'pegin' or 'pegout'"; \
+	@if [ "$(FINAL_TYPE)" != "pegout" ]; then \
+		echo "Error: Type must be 'pegout'"; \
+		exit 1; \
+	fi
+	@if [ -z "$(FINAL_FILE)" ]; then \
+		echo "Error: HASH_QUOTE_FILE is required"; \
 		exit 1; \
 	fi
 	@echo "Hashing $(FINAL_TYPE) quote on $(FINAL_NETWORK)..."
 	@echo "File: $(FINAL_FILE)"
 	@echo "RPC URL: $(call get_network_config,$(FINAL_NETWORK))"
 	@export NETWORK=$(FINAL_NETWORK); \
-	if [ "$(FINAL_TYPE)" = "pegin" ]; then \
-		forge script script/tasks/HashQuote.s.sol:HashQuote \
-			--sig "hashPeginQuote(string)" "$(FINAL_FILE)" \
-			--rpc-url $(call get_network_config,$(FINAL_NETWORK)) \
-			--ffi -vv; \
-	else \
-		forge script script/tasks/HashQuote.s.sol:HashQuote \
-			--sig "hashPegoutQuote(string)" "$(FINAL_FILE)" \
-			--rpc-url $(call get_network_config,$(FINAL_NETWORK)) \
-			--ffi -vv; \
-	fi
+	forge script script/tasks/HashQuote.s.sol:HashQuote \
+		--sig "hashPegoutQuote(string)" "$(FINAL_FILE)" \
+		--rpc-url $(call get_network_config,$(FINAL_NETWORK)) \
+		--ffi -vv
 
 # Check pause status of all system contracts
 .PHONY: pause-status
@@ -809,64 +794,6 @@ refund-user-pegout-broadcast:
 			--rpc-url $(call get_network_config,$(NETWORK)) \
 			--broadcast --private-key $(call get_network_key,$(NETWORK)) -vv; \
 	fi
-
-# Register PegIn (simulation)
-.PHONY: register-pegin
-register-pegin:
-	@if [ -z "$(PEGIN_QUOTE_FILE)" ]; then \
-		echo "Error: PEGIN_QUOTE_FILE is required"; \
-		echo "Usage: make register-pegin NETWORK=rskTestnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc..."; \
-		exit 1; \
-	fi
-	@if [ -z "$(PEGIN_SIGNATURE)" ]; then \
-		echo "Error: PEGIN_SIGNATURE is required"; \
-		echo "Usage: make register-pegin NETWORK=rskTestnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc..."; \
-		exit 1; \
-	fi
-	@if [ -z "$(PEGIN_TXID)" ]; then \
-		echo "Error: PEGIN_TXID is required"; \
-		echo "Usage: make register-pegin NETWORK=rskTestnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc..."; \
-		exit 1; \
-	fi
-	@echo "Registering PegIn on $(NETWORK) (SIMULATION)..."
-	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
-	@echo "Quote File: $(PEGIN_QUOTE_FILE)"
-	@echo "TX ID: $(PEGIN_TXID)"
-	@export NETWORK=$(NETWORK); \
-	export BTC_NETWORK=$(if $(filter rskMainnet,$(NETWORK)),mainnet,testnet); \
-	forge script script/tasks/RegisterPegin.s.sol:RegisterPegin \
-		--sig "registerPegin(string,string,string)" "$(PEGIN_QUOTE_FILE)" "$(PEGIN_SIGNATURE)" "$(PEGIN_TXID)" \
-		--rpc-url $(call get_network_config,$(NETWORK)) \
-		--ffi -vv
-
-# Register PegIn (actual broadcast)
-.PHONY: register-pegin-broadcast
-register-pegin-broadcast:
-	@if [ -z "$(PEGIN_QUOTE_FILE)" ]; then \
-		echo "Error: PEGIN_QUOTE_FILE is required"; \
-		echo "Usage: make register-pegin-broadcast NETWORK=rskTestnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc..."; \
-		exit 1; \
-	fi
-	@if [ -z "$(PEGIN_SIGNATURE)" ]; then \
-		echo "Error: PEGIN_SIGNATURE is required"; \
-		echo "Usage: make register-pegin-broadcast NETWORK=rskTestnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc..."; \
-		exit 1; \
-	fi
-	@if [ -z "$(PEGIN_TXID)" ]; then \
-		echo "Error: PEGIN_TXID is required"; \
-		echo "Usage: make register-pegin-broadcast NETWORK=rskTestnet PEGIN_QUOTE_FILE=quote.json PEGIN_SIGNATURE=0x... PEGIN_TXID=abc..."; \
-		exit 1; \
-	fi
-	@echo "Registering PegIn on $(NETWORK) (ACTUAL BROADCAST)..."
-	@echo "RPC URL: $(call get_network_config,$(NETWORK))"
-	@echo "Quote File: $(PEGIN_QUOTE_FILE)"
-	@echo "TX ID: $(PEGIN_TXID)"
-	@export NETWORK=$(NETWORK); \
-	export BTC_NETWORK=$(if $(filter rskMainnet,$(NETWORK)),mainnet,testnet); \
-	forge script script/tasks/RegisterPegin.s.sol:RegisterPegin \
-		--sig "registerPegin(string,string,string)" "$(PEGIN_QUOTE_FILE)" "$(PEGIN_SIGNATURE)" "$(PEGIN_TXID)" \
-		--rpc-url $(call get_network_config,$(NETWORK)) \
-		--broadcast --private-key $(call get_network_key,$(NETWORK)) --ffi -vv
 
 # Build contracts
 .PHONY: build
@@ -995,12 +922,6 @@ test-fuzz-collateral:
 test-fuzz-discovery:
 	@echo "Running discovery fuzz tests..."
 	forge test --match-path "test/fuzz/discovery/*.sol" -vv
-
-# Run pegin fuzz tests
-.PHONY: test-fuzz-pegin
-test-fuzz-pegin:
-	@echo "Running pegin fuzz tests..."
-	forge test --match-path "test/fuzz/pegin/*.sol" -vv
 
 # Run pegout fuzz tests
 .PHONY: test-fuzz-pegout
@@ -1217,7 +1138,7 @@ python-setup:
 	@scripts/setup-python.sh
 
 # Catch-all target for hash-quote arguments (pegin/pegout, network names, file paths)
-# This prevents make from complaining about unknown targets when using: make hash-quote pegin rskTestnet
+# This prevents make from complaining about unknown targets when using: make hash-quote pegout rskTestnet
 ifneq (,$(findstring hash-quote,$(MAKECMDGOALS)))
 pegin pegout rskMainnet rskTestnet rskDevelopment rskRegtest:
 	@:
