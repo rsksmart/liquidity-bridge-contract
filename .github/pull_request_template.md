@@ -19,7 +19,7 @@ Explain the motivation, bug, risk, or product/security need behind this PR.
 
 ## Affected Areas
 
-- [ ] PegIn flow (`registerPegIn`, `callForUser`, quote validation)
+- [ ] PegIn flow (`requestPegIn`, `resolvePegIn`)
 - [ ] PegOut flow (`depositPegout`, `refundPegOut`, `refundUserPegOut`)
 - [ ] Liquidity Provider lifecycle (register/update/status/resign/collateral/withdraw)
 - [ ] Pause/operational controls

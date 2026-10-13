@@ -34,10 +34,6 @@ interface IDifferentialAdapter {
 
     function getDustThreshold() external view returns (uint256);
 
-    function hashQuote(
-        QuotesV2.PeginQuote memory quote
-    ) external view returns (bytes32);
-
     function hashPegoutQuote(
         QuotesV2.PegOutQuote memory quote
     ) external view returns (bytes32);
@@ -47,20 +43,6 @@ interface IDifferentialAdapter {
     function minPegIn() external view returns (uint256);
 
     function minCollateral() external view returns (uint256);
-
-    /// @notice Hashes a peg-in quote using the quote-provided target field as-is.
-    /// @param quote Peg-in quote to hash.
-    /// @return Quote hash.
-    function hashPegInQuoteRaw(
-        QuotesV2.PeginQuote memory quote
-    ) external view returns (bytes32);
-
-    /// @notice Hashes a peg-in quote forcing implementer-specific target normalization.
-    /// @param quote Peg-in quote to hash.
-    /// @return Quote hash.
-    function hashPegInQuoteForTarget(
-        QuotesV2.PeginQuote memory quote
-    ) external view returns (bytes32);
 
     /// @notice Hashes a peg-out quote using the quote-provided target field as-is.
     /// @param quote Peg-out quote to hash.

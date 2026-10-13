@@ -55,12 +55,6 @@ contract ReferenceAdapter is IDifferentialAdapter {
         return _expectedDustThreshold;
     }
 
-    function hashQuote(
-        QuotesV2.PeginQuote memory quote
-    ) external view returns (bytes32) {
-        return _target.hashQuote(quote);
-    }
-
     function hashPegoutQuote(
         QuotesV2.PegOutQuote memory quote
     ) external view returns (bytes32) {
@@ -77,19 +71,6 @@ contract ReferenceAdapter is IDifferentialAdapter {
 
     function minCollateral() external view returns (uint256) {
         return _target.getMinCollateral();
-    }
-
-    function hashPegInQuoteRaw(
-        QuotesV2.PeginQuote memory quote
-    ) external view returns (bytes32) {
-        return _target.hashQuote(quote);
-    }
-
-    function hashPegInQuoteForTarget(
-        QuotesV2.PeginQuote memory quote
-    ) external view returns (bytes32) {
-        quote.lbcAddress = address(_target);
-        return _target.hashQuote(quote);
     }
 
     function hashPegOutQuoteRaw(
