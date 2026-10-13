@@ -2,23 +2,19 @@
 pragma solidity 0.8.25;
 
 import {console} from "forge-std/Test.sol";
-import {PegInTestBase} from "../pegin/PegInTestBase.sol";
+import {ResolvePegInTestBase} from "../pegin/ResolvePegInTestBase.sol";
 import {PegInHandler} from "./handlers/PegInHandler.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 
 /// @title PegInContract Invariant Tests
 /// @notice Tests critical invariants for the PegInContract using a dedicated handler
-contract PegInInvariantTest is PegInTestBase {
+contract PegInInvariantTest is ResolvePegInTestBase {
     PegInHandler public handler;
     address public nonLpRefundCreditor;
     uint256 public baselineBalance;
 
-    bytes constant RAW_TX_MOCK = hex"112233";
-    bytes constant PMT_MOCK = hex"010203";
-    uint256 constant HEIGHT_MOCK = 10;
-
-    function setUp() public {
-        deployPegInContract();
+    function setUp() public override {
+        super.setUp();
         setupProviders();
 
         handler = new PegInHandler(pegInContract);
@@ -36,15 +32,15 @@ contract PegInInvariantTest is PegInTestBase {
         );
         handler.addLP(extraPegInLp);
 
-        (address creditor, ) = _seedNonLpRefundLiabilityFixture(
-            fullLp,
-            fullLpKey,
-            1 ether,
-            HEIGHT_MOCK,
-            RAW_TX_MOCK,
-            PMT_MOCK
+        nonLpRefundCreditor = makeAddr("registrant");
+        bytes memory rawTx = _depositTx(rskUser, DEFAULT_AMOUNT);
+        _claimAndFund(rskUser, rawTx, 6 ether);
+        _resolve(claimer, rskUser, rawTx);
+        assertGt(
+            pegInContract.getBalance(nonLpRefundCreditor),
+            0,
+            "Expected non-LP refund creditor balance to be seeded"
         );
-        nonLpRefundCreditor = creditor;
         baselineBalance = address(pegInContract).balance;
 
         targetContract(address(handler));

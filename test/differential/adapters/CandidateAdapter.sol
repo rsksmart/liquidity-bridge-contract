@@ -58,13 +58,6 @@ contract CandidateAdapter is IDifferentialAdapter {
         return _pegIn.dustThreshold();
     }
 
-    function hashQuote(
-        QuotesV2.PeginQuote memory quote
-    ) external view returns (bytes32) {
-        Quotes.PegInQuote memory q = _toPegInQuote(quote, address(_pegIn));
-        return _pegIn.hashPegInQuote(q);
-    }
-
     function hashPegoutQuote(
         QuotesV2.PegOutQuote memory quote
     ) external view returns (bytes32) {
@@ -82,20 +75,6 @@ contract CandidateAdapter is IDifferentialAdapter {
 
     function minCollateral() external view returns (uint256) {
         return _collateral.getMinCollateral();
-    }
-
-    function hashPegInQuoteRaw(
-        QuotesV2.PeginQuote memory quote
-    ) external view returns (bytes32) {
-        Quotes.PegInQuote memory q = _toPegInQuote(quote, quote.lbcAddress);
-        return _pegIn.hashPegInQuote(q);
-    }
-
-    function hashPegInQuoteForTarget(
-        QuotesV2.PeginQuote memory quote
-    ) external view returns (bytes32) {
-        Quotes.PegInQuote memory q = _toPegInQuote(quote, address(_pegIn));
-        return _pegIn.hashPegInQuote(q);
     }
 
     function hashPegOutQuoteRaw(
@@ -172,35 +151,6 @@ contract CandidateAdapter is IDifferentialAdapter {
                 _toFlyoverProviderType(providerType),
                 providerAddress
             );
-    }
-
-    function _toPegInQuote(
-        QuotesV2.PeginQuote memory quote,
-        address lbcAddress
-    ) private view returns (Quotes.PegInQuote memory) {
-        return
-            Quotes.PegInQuote({
-                chainId: block.chainid,
-                callFee: quote.callFee,
-                penaltyFee: quote.penaltyFee,
-                value: quote.value,
-                gasFee: quote.gasFee,
-                fedBtcAddress: quote.fedBtcAddress,
-                lbcAddress: lbcAddress,
-                liquidityProviderRskAddress: quote.liquidityProviderRskAddress,
-                contractAddress: quote.contractAddress,
-                rskRefundAddress: quote.rskRefundAddress,
-                nonce: quote.nonce,
-                gasLimit: quote.gasLimit,
-                agreementTimestamp: quote.agreementTimestamp,
-                timeForDeposit: quote.timeForDeposit,
-                callTime: quote.callTime,
-                depositConfirmations: quote.depositConfirmations,
-                callOnRegister: quote.callOnRegister,
-                btcRefundAddress: quote.btcRefundAddress,
-                liquidityProviderBtcAddress: quote.liquidityProviderBtcAddress,
-                data: quote.data
-            });
     }
 
     function _toPegOutQuote(
