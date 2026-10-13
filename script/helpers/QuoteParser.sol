@@ -7,28 +7,10 @@ import {BtcAddressParser} from "./BtcAddressParser.sol";
 
 /**
  * @title QuoteParser
- * @notice Shared utility for parsing PegIn and PegOut quotes from JSON
+ * @notice Shared utility for parsing PegOut quotes from JSON
  * @dev Provides consistent quote parsing across all task scripts
  *
  * ## JSON Field Naming Convention
- *
- * ### PegIn Quote Fields:
- * - fedBTCAddr: Federation Bitcoin address (string)
- * - lbcAddr: LBC contract address (address)
- * - lpRSKAddr: LP RSK address (address)
- * - btcRefundAddr: BTC refund address (string)
- * - rskRefundAddr: RSK refund address (address)
- * - lpBTCAddr: LP Bitcoin address (string)
- * - callFee, penaltyFee, value, gasFee: (uint256)
- * - contractAddr: Destination contract address (address)
- * - data: Call data (bytes)
- * - gasLimit: Gas limit (uint32)
- * - nonce: Quote nonce (int64 or string)
- * - agreementTimestamp: Agreement timestamp (uint32)
- * - timeForDeposit: Time for deposit (uint32)
- * - lpCallTime: LP call time (uint32)
- * - confirmations: Deposit confirmations (uint16)
- * - callOnRegister: Whether to call on register (bool)
  *
  * ### PegOut Quote Fields:
  * - lbcAddress: LBC contract address (address)
@@ -48,64 +30,6 @@ import {BtcAddressParser} from "./BtcAddressParser.sol";
  * - expireDate: Expiration date (uint32)
  */
 abstract contract QuoteParser is BtcAddressParser {
-    /// @notice Parse a PegIn quote from JSON string
-    /// @param json The JSON string containing the quote data
-    /// @return quote The parsed PegInQuote struct
-    function parsePegInQuote(
-        string memory json
-    ) internal returns (Quotes.PegInQuote memory quote) {
-        Vm vm = _getVm();
-
-        // Parse Bitcoin addresses using FFI
-        string memory fedBTCAddr = vm.parseJsonString(json, ".fedBTCAddr");
-        quote.fedBtcAddress = parseFedBtcAddress(fedBTCAddr);
-
-        // Parse RSK/EVM addresses
-        quote.lbcAddress = vm.parseJsonAddress(json, ".lbcAddr");
-        quote.liquidityProviderRskAddress = vm.parseJsonAddress(
-            json,
-            ".lpRSKAddr"
-        );
-
-        string memory btcRefundAddr = vm.parseJsonString(
-            json,
-            ".btcRefundAddr"
-        );
-        quote.btcRefundAddress = parseBtcAddress(btcRefundAddr);
-
-        quote.rskRefundAddress = payable(
-            vm.parseJsonAddress(json, ".rskRefundAddr")
-        );
-
-        string memory lpBTCAddr = vm.parseJsonString(json, ".lpBTCAddr");
-        quote.liquidityProviderBtcAddress = parseBtcAddress(lpBTCAddr);
-
-        // Parse numeric fields
-        quote.callFee = vm.parseJsonUint(json, ".callFee");
-        quote.penaltyFee = vm.parseJsonUint(json, ".penaltyFee");
-        quote.contractAddress = vm.parseJsonAddress(json, ".contractAddr");
-        quote.data = vm.parseJsonBytes(json, ".data");
-        quote.gasLimit = uint32(vm.parseJsonUint(json, ".gasLimit"));
-
-        // Parse nonce - handle both string and number formats
-        quote.nonce = _parseNonce(vm, json);
-
-        quote.value = vm.parseJsonUint(json, ".value");
-        quote.agreementTimestamp = uint32(
-            vm.parseJsonUint(json, ".agreementTimestamp")
-        );
-        quote.timeForDeposit = uint32(
-            vm.parseJsonUint(json, ".timeForDeposit")
-        );
-        quote.callTime = uint32(vm.parseJsonUint(json, ".lpCallTime"));
-        quote.depositConfirmations = uint16(
-            vm.parseJsonUint(json, ".confirmations")
-        );
-        quote.callOnRegister = vm.parseJsonBool(json, ".callOnRegister");
-        quote.gasFee = vm.parseJsonUint(json, ".gasFee");
-        quote.chainId = block.chainid;
-    }
-
     /// @notice Parse a PegOut quote from JSON string
     /// @param json The JSON string containing the quote data
     /// @return quote The parsed PegOutQuote struct
