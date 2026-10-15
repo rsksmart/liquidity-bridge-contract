@@ -2,7 +2,9 @@
 pragma solidity 0.8.25;
 
 import {ResolvePegInTestBase} from "./ResolvePegInTestBase.sol";
+import {Vm} from "forge-std/Vm.sol";
 import {IPegInCommitFirst} from "../../src/interfaces/IPegInCommitFirst.sol";
+import {WalletMock} from "../../src/test-contracts/WalletMock.sol";
 import {BtcTransactionReader} from "../../src/libraries/BtcTransactionReader.sol";
 import {PegInDerivation} from "../../src/libraries/PegInDerivation.sol";
 import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
@@ -53,7 +55,7 @@ contract ResolvePegInTest is ResolvePegInTestBase {
             bridgeRelease,
             DEFAULT_AMOUNT,
             0,
-            0
+            bridgeRelease - DEFAULT_AMOUNT
         );
         _resolve(claimer, rskUser, rawTx2);
         assertEq(_balance(registrant), 1e14);
@@ -152,7 +154,7 @@ contract ResolvePegInTest is ResolvePegInTestBase {
             bridgeRelease,
             claimerPayout,
             1e14,
-            0
+            bridgeRelease - DEFAULT_AMOUNT
         );
         _resolve(claimer, rskUser, rawTx);
     }
@@ -181,6 +183,149 @@ contract ResolvePegInTest is ResolvePegInTestBase {
 
         assertTrue(_isSettled(pegInId));
         assertEq(_balance(claimer), DEFAULT_AMOUNT - 1e14);
+    }
+
+    function test_release_equal_to_owed_sends_nothing_to_user() public {
+        _claimAndFund(rskUser, rawTx, DEFAULT_AMOUNT);
+        uint256 userBefore = rskUser.balance;
+
+        vm.recordLogs();
+        _resolve(claimer, rskUser, rawTx);
+
+        assertEq(_balance(claimer), DEFAULT_AMOUNT - 1e14);
+        assertEq(_balance(registrant), 1e14);
+        assertEq(rskUser.balance, userBefore);
+        assertFalse(_remainderRefundEmitted());
+    }
+
+    function test_release_above_owed_sends_remainder_to_user() public {
+        bytes32 pegInId = _claimAndFund(rskUser, rawTx, bridgeRelease);
+        uint256 remainder = bridgeRelease - DEFAULT_AMOUNT;
+        uint256 userBefore = rskUser.balance;
+
+        vm.expectEmit(true, true, true, true);
+        emit IPegInCommitFirst.UserRemainderRefunded(
+            pegInId,
+            rskUser,
+            remainder,
+            true
+        );
+        _resolve(claimer, rskUser, rawTx);
+
+        assertEq(rskUser.balance - userBefore, remainder);
+        assertEq(_balance(claimer), DEFAULT_AMOUNT - 1e14);
+        _assertReleaseFullyAssigned(
+            bridgeRelease,
+            rskUser.balance - userBefore
+        );
+    }
+
+    function test_release_below_owed_caps_claimer_and_registrant() public {
+        uint256 release = 4 ether;
+        bytes32 pegInId = _claimAndFund(rskUser, rawTx, release);
+        uint256 userBefore = rskUser.balance;
+
+        vm.expectEmit(true, true, true, true);
+        emit IPegInCommitFirst.PegInResolved(
+            pegInId,
+            claimer,
+            registrant,
+            release,
+            release - 1e14,
+            1e14,
+            0
+        );
+        _resolve(claimer, rskUser, rawTx);
+
+        assertEq(_balance(claimer) + _balance(registrant), release);
+        assertEq(rskUser.balance, userBefore);
+    }
+
+    function test_release_below_registrant_fee_caps_registrant() public {
+        uint256 release = 5e13;
+        _claimAndFund(rskUser, rawTx, release);
+
+        _resolve(claimer, rskUser, rawTx);
+
+        assertEq(_balance(registrant), release);
+        assertEq(_balance(claimer), 0);
+    }
+
+    function test_dust_remainder_is_credited_to_claimer() public {
+        uint256 release = DEFAULT_AMOUNT + TEST_DUST_THRESHOLD;
+        bytes32 pegInId = _claimAndFund(rskUser, rawTx, release);
+        uint256 userBefore = rskUser.balance;
+
+        vm.recordLogs();
+        vm.expectEmit(true, true, true, true);
+        emit IPegInCommitFirst.PegInResolved(
+            pegInId,
+            claimer,
+            registrant,
+            release,
+            DEFAULT_AMOUNT - 1e14 + TEST_DUST_THRESHOLD,
+            1e14,
+            0
+        );
+        _resolve(claimer, rskUser, rawTx);
+
+        assertEq(rskUser.balance, userBefore);
+        assertFalse(_remainderRefundEmitted());
+        _assertReleaseFullyAssigned(release, 0);
+    }
+
+    function test_failed_user_send_credits_claimer() public {
+        WalletMock wallet = new WalletMock();
+        address walletAddr = address(wallet);
+        registry.harness_seedRegistration(walletAddr, registrant, 1);
+        bytes memory walletTx = _depositTx(walletAddr, DEFAULT_AMOUNT);
+        bytes32 pegInId = _claimAndFund(walletAddr, walletTx, bridgeRelease);
+        uint256 remainder = bridgeRelease - DEFAULT_AMOUNT;
+        wallet.setRejectFunds(true);
+
+        vm.expectEmit(true, true, true, true);
+        emit IPegInCommitFirst.UserRemainderRefunded(
+            pegInId,
+            walletAddr,
+            remainder,
+            false
+        );
+        vm.expectEmit(true, true, true, true);
+        emit IPegInCommitFirst.PegInResolved(
+            pegInId,
+            claimer,
+            registrant,
+            bridgeRelease,
+            DEFAULT_AMOUNT - 1e14 + remainder,
+            1e14,
+            0
+        );
+        _resolve(claimer, walletAddr, walletTx);
+
+        _assertReleaseFullyAssigned(bridgeRelease, 0);
+    }
+
+    function _assertReleaseFullyAssigned(
+        uint256 release,
+        uint256 userReceived
+    ) private view {
+        assertEq(
+            _balance(claimer) + _balance(registrant) + userReceived,
+            release
+        );
+    }
+
+    function _remainderRefundEmitted() private returns (bool) {
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (
+                logs[i].topics[0] ==
+                IPegInCommitFirst.UserRemainderRefunded.selector
+            ) {
+                return true;
+            }
+        }
+        return false;
     }
 
     function test_bridge_args_use_placeholder_getters() public pure {

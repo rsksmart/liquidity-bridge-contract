@@ -57,6 +57,7 @@ contract PegInContract is
     /// @notice The name of the contract (used for EIP712)
     string constant public NAME = "PegInContract";
     Flyover.ProviderType constant private _PEG_TYPE = Flyover.ProviderType.PegIn;
+    uint256 constant private _MAX_REFUND_GAS_LIMIT = 2300;
 
     IBridge private _bridge;
     ICollateralManagement private _collateralManagement;
@@ -328,37 +329,63 @@ contract PegInContract is
         );
     }
 
-    /// @dev Credits claimerPayout to the claimer. On the first settle for rskAddr, may also
-    /// credit min(registrantFee, feeAtClaim) to the registered registrant and subtract that
-    /// from the claimer. Then marks the peg-in settled and emits PegInResolved.
+    /// @dev released is the cap. If the bridge releases less than the claimer is owed, the
+    /// claimer loses the difference, and other balances lose nothing. Dust and a remainder the
+    /// user does not accept go to the claimer, so no RBTC stays in the contract with no owner.
     function _creditResolvedPegIn(
         bytes32 pegInId,
         address rskAddr,
         PegInClaim memory claim,
         uint256 released
     ) private {
-        uint256 registrantFeePaid = 0;
-        address registrant = address(0);
-        if (!_registrantPaid[rskAddr]) {
-            registrant = _pegInAddressRegistry.getRegistration(rskAddr).registrant;
-            uint256 feeDue = _min(
-                _configurations.getPegInConfiguration().registrantFee,
-                claim.feeAtClaim
-            );
-            if (feeDue > 0 && registrant != address(0)) {
-                registrantFeePaid = feeDue;
-                _increaseBalance(registrant, registrantFeePaid);
+        _pegInSettled[pegInId] = true;
+        uint256 providerPot = _min(released, claim.frontedAmount + claim.feeAtClaim);
+
+        (address registrant, uint256 registrantFeePaid) =
+            _payRegistrantOnce(rskAddr, claim.feeAtClaim, providerPot);
+
+        uint256 claimerPayout = providerPot - registrantFeePaid;
+        _increaseBalance(claim.claimer, claimerPayout);
+
+        uint256 remaining = released - providerPot;
+        uint256 userPayout = 0;
+        if (remaining > dustThreshold) {
+            (bool success,) = rskAddr.call{gas: _MAX_REFUND_GAS_LIMIT, value: remaining}("");
+            emit UserRemainderRefunded(pegInId, rskAddr, remaining, success);
+            if (success) {
+                userPayout = remaining;
             }
-            _registrantPaid[rskAddr] = true;
         }
 
-        uint256 claimerPayout = claim.frontedAmount + claim.feeAtClaim - registrantFeePaid;
-        _increaseBalance(claim.claimer, claimerPayout);
-        _pegInSettled[pegInId] = true;
+        uint256 unsentRemainder = remaining - userPayout;
+        _increaseBalance(claim.claimer, unsentRemainder);
+        claimerPayout += unsentRemainder;
 
         emit PegInResolved(
-            pegInId, claim.claimer, registrant, released, claimerPayout, registrantFeePaid, 0
+            pegInId, claim.claimer, registrant, released, claimerPayout, registrantFeePaid, userPayout
         );
+    }
+
+    /// @dev The registrant is paid once per registered address, on the first peg-in that settles
+    /// to it.
+    function _payRegistrantOnce(
+        address rskAddr,
+        uint256 feeAtClaim,
+        uint256 providerPot
+    ) private returns (address registrant, uint256 paid) {
+        if (_registrantPaid[rskAddr]) {
+            return (address(0), 0);
+        }
+        _registrantPaid[rskAddr] = true;
+        registrant = _pegInAddressRegistry.getRegistration(rskAddr).registrant;
+        uint256 feeDue = _min(
+            _min(_configurations.getPegInConfiguration().registrantFee, feeAtClaim),
+            providerPot
+        );
+        if (feeDue > 0 && registrant != address(0)) {
+            paid = feeDue;
+            _increaseBalance(registrant, paid);
+        }
     }
 
     /// @notice This function is used to increase the balance of an account

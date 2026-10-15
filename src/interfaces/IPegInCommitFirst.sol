@@ -42,11 +42,13 @@ interface IPegInCommitFirst {
     /// @param registrant The registrant paid the registration fee; address(0) when no fee
     /// was paid (already paid on an earlier peg-in, or unclaimed slow rail)
     /// @param released The amount the bridge released to the contract, in wei
-    /// @param claimerPayout The claimer's payout (fronted advance plus the full service
-    /// fee), in wei; 0 when unclaimed
+    /// @param claimerPayout The claimer's payout, in wei: the fronted advance + the service
+    /// fee - registrantFee, capped at released, plus any remainder for the user that was
+    /// dust or that the destination address did not accept; 0 when unclaimed
     /// @param registrantFee The registrant fee paid, in wei; 0 when none was paid
-    /// @param userPayout The amount forwarded to the destination address (the over-limit
-    /// excess, or the full settled amount on the slow rail), in wei
+    /// @param userPayout The amount sent to the destination address, in wei: released above
+    /// what the claimer and the registrant are owed (the over-limit excess, or the full settled
+    /// amount on the slow rail); 0 when that remainder was dust or the send failed
     event PegInResolved(
         bytes32 indexed pegInId,
         address indexed claimer,
@@ -55,6 +57,21 @@ interface IPegInCommitFirst {
         uint256 claimerPayout,
         uint256 registrantFee,
         uint256 userPayout
+    );
+
+    /// @notice Emitted when settlement tries to send the user the part of the release above
+    /// what the claimer and the registrant are owed
+    /// @dev On failure the amount is credited to the claimer, so success == false is the only
+    /// signal that the user did not receive it
+    /// @param pegInId The id of the settled peg-in
+    /// @param rskAddr The destination address the remainder was sent to
+    /// @param amount The remainder, in wei
+    /// @param success Whether the destination address accepted the transfer
+    event UserRemainderRefunded(
+        bytes32 indexed pegInId,
+        address indexed rskAddr,
+        uint256 amount,
+        bool success
     );
 
     /// @notice Reverts requestPegIn when the peg-in already has a claimer
