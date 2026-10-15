@@ -236,8 +236,13 @@ contract PegInAddressRegistry is
     }
 
     /// @inheritdoc IPegInAddressRegistry
-    function getRegistration(address addr) external view override returns (Registration memory) {
-        return _getStorage().registrations[addr];
+    function getRegistrant(address addr) external view override returns (address) {
+        return _getStorage().registrations[addr].registrant;
+    }
+
+    /// @inheritdoc IPegInAddressRegistry
+    function getRegistrationBlock(address addr) external view override returns (uint96) {
+        return _getStorage().registrations[addr].registrationBlock;
     }
 
     /// @inheritdoc IPegInAddressRegistry

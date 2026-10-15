@@ -418,10 +418,8 @@ contract RegisterTest is PegInRegistryTestBase {
         _deploy(false);
         vm.roll(12345);
         _register(FIXTURE_RSK, 10_000, stranger);
-        IPegInAddressRegistry.Registration memory reg = registry
-            .getRegistration(FIXTURE_RSK);
-        assertEq(reg.registrant, stranger);
-        assertEq(reg.registrationBlock, 12345);
+        assertEq(registry.getRegistrant(FIXTURE_RSK), stranger);
+        assertEq(registry.getRegistrationBlock(FIXTURE_RSK), 12345);
     }
 
     // W8
@@ -588,10 +586,11 @@ contract RegisterTest is PegInRegistryTestBase {
             hashes
         );
         assertTrue(registry.isRegistered(FIXTURE_RSK));
-        IPegInAddressRegistry.Registration memory reg = registry
-            .getRegistration(FIXTURE_RSK);
-        assertEq(reg.registrant, stranger);
-        assertEq(reg.registrationBlock, uint96(block.number));
+        assertEq(registry.getRegistrant(FIXTURE_RSK), stranger);
+        assertEq(
+            registry.getRegistrationBlock(FIXTURE_RSK),
+            uint96(block.number)
+        );
         assertEq(registry.getRegistrationRoot(), expectedRoot);
     }
 
@@ -651,9 +650,7 @@ contract RegisterTest is PegInRegistryTestBase {
         );
         _register(FIXTURE_RSK, 10_000, watchtower);
         assertTrue(registry.isRegistered(FIXTURE_RSK));
-        IPegInAddressRegistry.Registration memory reg = registry
-            .getRegistration(FIXTURE_RSK);
-        assertEq(reg.registrant, watchtower);
+        assertEq(registry.getRegistrant(FIXTURE_RSK), watchtower);
     }
 
     // S7 — programmed-proof identity mismatch with confs >= 1
