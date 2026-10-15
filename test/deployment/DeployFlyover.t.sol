@@ -14,7 +14,6 @@ import {PegOutContract} from "../../src/PegOutContract.sol";
 import {PegOutEscrow} from "../../src/PegOutEscrow.sol";
 import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
-import {FlyoverConfigurationsRegtest} from "../../src/libraries/FlyoverConfigurationsRegtest.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {TransparentUpgradeableProxy, ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
@@ -200,6 +199,8 @@ contract DeployFlyoverTest is Test {
         address deployer,
         HelperConfig.FlyoverConfig memory cfg
     ) private {
+        HelperConfig.FlyoverConfigurationSeeds memory seeds = helperConfig
+            .getLocalFlyoverConfigurationSeeds();
         address impl = address(new FlyoverConfigurations());
         address proxy = address(
             new TransparentUpgradeableProxy(
@@ -210,13 +211,13 @@ contract DeployFlyoverTest is Test {
                     (
                         deployer,
                         cfg.adminDelay,
-                        FlyoverConfigurationsRegtest.TIMELOCK_DELAY,
-                        FlyoverConfigurationsRegtest.pegInConfig(),
-                        FlyoverConfigurationsRegtest.pegInMin(),
-                        FlyoverConfigurationsRegtest.pegInMax(),
-                        FlyoverConfigurationsRegtest.pegOutConfig(),
-                        FlyoverConfigurationsRegtest.pegOutMin(),
-                        FlyoverConfigurationsRegtest.pegOutMax()
+                        seeds.timelockDelay,
+                        seeds.pegInConfig,
+                        seeds.pegInMin,
+                        seeds.pegInMax,
+                        seeds.pegOutConfig,
+                        seeds.pegOutMin,
+                        seeds.pegOutMax
                     )
                 )
             )
