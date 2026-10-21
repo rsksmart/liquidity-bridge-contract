@@ -12,7 +12,6 @@ import {PegOutContract} from "../../src/PegOutContract.sol";
 import {PegOutEscrow} from "../../src/PegOutEscrow.sol";
 import {Quotes} from "../../src/libraries/Quotes.sol";
 import {IPauseRegistry} from "../../src/interfaces/IPauseRegistry.sol";
-import {FlyoverConfigurationsRegtest} from "../../src/libraries/FlyoverConfigurationsRegtest.sol";
 import {BridgeMock} from "../../src/test-contracts/BridgeMock.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {TransparentUpgradeableProxy, ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
@@ -85,6 +84,8 @@ contract DeployPegOutEscrowTest is Test {
             )
         );
 
+        HelperConfig.FlyoverConfigurationSeeds memory seeds = helperConfig
+            .getLocalFlyoverConfigurationSeeds();
         address configsImpl = address(new FlyoverConfigurations());
         configurationsProxy = address(
             new TransparentUpgradeableProxy(
@@ -95,13 +96,13 @@ contract DeployPegOutEscrowTest is Test {
                     (
                         deployer,
                         cfg.adminDelay,
-                        FlyoverConfigurationsRegtest.TIMELOCK_DELAY,
-                        FlyoverConfigurationsRegtest.pegInConfig(),
-                        FlyoverConfigurationsRegtest.pegInMin(),
-                        FlyoverConfigurationsRegtest.pegInMax(),
-                        FlyoverConfigurationsRegtest.pegOutConfig(),
-                        FlyoverConfigurationsRegtest.pegOutMin(),
-                        FlyoverConfigurationsRegtest.pegOutMax()
+                        seeds.timelockDelay,
+                        seeds.pegInConfig,
+                        seeds.pegInMin,
+                        seeds.pegInMax,
+                        seeds.pegOutConfig,
+                        seeds.pegOutMin,
+                        seeds.pegOutMax
                     )
                 )
             )
@@ -180,13 +181,15 @@ contract DeployPegOutEscrowTest is Test {
         FlyoverConfigurations configs = FlyoverConfigurations(
             payable(configurationsProxy)
         );
+        HelperConfig.FlyoverConfigurationSeeds memory seeds = helperConfig
+            .getLocalFlyoverConfigurationSeeds();
         assertEq(
             configs.getPegOutConfiguration().fixedFee,
-            FlyoverConfigurationsRegtest.pegOutConfig().fixedFee
+            seeds.pegOutConfig.fixedFee
         );
         assertEq(
             configs.getPegOutConfiguration().claimWindow,
-            FlyoverConfigurationsRegtest.pegOutConfig().claimWindow
+            seeds.pegOutConfig.claimWindow
         );
     }
 

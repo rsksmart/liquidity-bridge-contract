@@ -5,7 +5,6 @@ import {Test} from "forge-std/Test.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {DeployFlyover} from "../../script/deployment/DeployFlyover.s.sol";
 import {FlyoverConfigurations} from "../../src/FlyoverConfigurations.sol";
-import {FlyoverConfigurationsRegtest} from "../../src/libraries/FlyoverConfigurationsRegtest.sol";
 import {PegInAddressRegistry} from "../../src/PegInAddressRegistry.sol";
 import {PegInContract} from "../../src/PegInContract.sol";
 import {PegOutEscrow} from "../../src/PegOutEscrow.sol";
@@ -40,9 +39,7 @@ contract DeployFlyoverWiringTest is Test {
         _assertWired(d);
     }
 
-    function _assertWired(
-        DeployFlyover.FlyoverDeployment memory d
-    ) private view {
+    function _assertWired(DeployFlyover.FlyoverDeployment memory d) private {
         PegInContract pegIn = PegInContract(payable(d.pegInProxy));
         assertTrue(
             d.pegInAddressRegistryProxy != address(0),
@@ -80,7 +77,10 @@ contract DeployFlyoverWiringTest is Test {
             FlyoverConfigurations(payable(d.flyoverConfigurationsProxy))
                 .getPegInConfiguration()
                 .minAmount,
-            FlyoverConfigurationsRegtest.pegInConfig().minAmount,
+            new HelperConfig()
+                .getLocalFlyoverConfigurationSeeds()
+                .pegInConfig
+                .minAmount,
             "peg-in minAmount floor not seeded"
         );
     }
