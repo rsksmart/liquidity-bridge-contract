@@ -384,7 +384,7 @@ contract HelperConfig is Script {
     {
         uint256 chainId = block.chainid;
 
-        if (chainId == 30 || chainId == 31) {
+        if (chainId != 33 && chainId != 31337) {
             revert FlyoverConfigurationSeedsNotSet(chainId);
         }
 
