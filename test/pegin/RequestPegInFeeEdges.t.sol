@@ -49,6 +49,75 @@ contract RequestPegInFeeEdgesTest is RequestPegInTestBase {
         assertEq(feeAtClaim, fee, "fee at max amount");
     }
 
+    function test_feeEdges_aboveMaxAmount_frontsMaxAmount() public {
+        uint256 amount = 150 ether;
+        uint256 cap = DEFAULT_MAX_AMOUNT;
+        uint256 fee = _expectedFee(cap);
+        uint256 net = cap - fee;
+        bytes memory btcTx = _depositTx(rskUser, amount);
+        bytes32 pegInId = _pegInIdForTx(rskUser, btcTx);
+
+        vm.deal(claimer, 200 ether);
+        uint256 claimerBefore = claimer.balance;
+        uint256 userBefore = rskUser.balance;
+        uint256 contractBefore = address(pegInContract).balance;
+
+        vm.expectEmit(true, true, true, true);
+        emit IPegInCommitFirst.PegInRequested(
+            pegInId,
+            claimer,
+            rskUser,
+            amount,
+            net,
+            true
+        );
+        _requestPegInTx(claimer, rskUser, btcTx, net);
+
+        assertEq(rskUser.balance, userBefore + net, "net delivered at cap");
+        assertEq(claimer.balance, claimerBefore - net, "claimer fronted cap");
+        assertEq(
+            address(pegInContract).balance,
+            contractBefore,
+            "excess not paid from contract"
+        );
+        (, uint256 frontedAmount, uint256 feeAtClaim, ) = _readClaim(pegInId);
+        assertEq(frontedAmount, net, "fronted at cap");
+        assertEq(feeAtClaim, fee, "fee on capped amount");
+    }
+
+    function test_feeEdges_oneSatAboveMaxAmount_isCapped() public {
+        uint256 amount = DEFAULT_MAX_AMOUNT + 1e10;
+        uint256 cap = DEFAULT_MAX_AMOUNT;
+        uint256 fee = _expectedFee(cap);
+        uint256 net = cap - fee;
+        bytes memory btcTx = _depositTx(rskUser, amount);
+        bytes32 pegInId = _pegInIdForTx(rskUser, btcTx);
+
+        vm.deal(claimer, 200 ether);
+        _requestPegInTx(claimer, rskUser, btcTx, net);
+
+        (, uint256 frontedAmount, uint256 feeAtClaim, ) = _readClaim(pegInId);
+        assertEq(frontedAmount, net, "fronted at cap");
+        assertEq(feeAtClaim, fee, "fee on capped amount");
+    }
+
+    function test_feeEdges_tierMaxAmountIsNotTheCap() public {
+        uint256 amount = DEFAULT_AMOUNT;
+        uint256 highTierConfirmations = 40;
+        _applyTwoTierConfiguration(1 ether, 2, highTierConfirmations);
+        bridgeMock.setConfirmations(int256(highTierConfirmations));
+        uint256 fee = _expectedFee(amount);
+        uint256 net = amount - fee;
+        bytes memory btcTx = _depositTx(rskUser, amount);
+        bytes32 pegInId = _pegInIdForTx(rskUser, btcTx);
+
+        _requestPegInTx(claimer, rskUser, btcTx, net);
+
+        (, uint256 frontedAmount, uint256 feeAtClaim, ) = _readClaim(pegInId);
+        assertEq(frontedAmount, net, "fronted in full above the tier max");
+        assertEq(feeAtClaim, fee, "fee on full amount");
+    }
+
     function test_feeEdges_amountBelowFee_revertsWithoutUnderflow() public {
         uint256 amount = DEFAULT_AMOUNT;
         // Fee strictly greater than the amount: amount < fee path -> IncorrectFronting(0, msg.value).
