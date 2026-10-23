@@ -330,8 +330,9 @@ contract PegInContract is
     }
 
     /// @dev released is the cap. If the bridge releases less than the claimer is owed, the
-    /// claimer loses the difference, and other balances lose nothing. Dust and a remainder the
-    /// user does not accept go to the claimer, so no RBTC stays in the contract with no owner.
+    /// claimer loses the difference, and other balances lose nothing. Dust goes to the claimer,
+    /// so no RBTC stays in the contract with no owner. A remainder the user does not accept is
+    /// credited to the user's balance, so the user can withdraw it.
     function _creditResolvedPegIn(
         bytes32 pegInId,
         address rskAddr,
@@ -354,12 +355,13 @@ contract PegInContract is
             emit UserRemainderRefunded(pegInId, rskAddr, remaining, success);
             if (success) {
                 userPayout = remaining;
+            } else {
+                _increaseBalance(rskAddr, remaining);
             }
+        } else {
+            _increaseBalance(claim.claimer, remaining);
+            claimerPayout += remaining;
         }
-
-        uint256 unsentRemainder = remaining - userPayout;
-        _increaseBalance(claim.claimer, unsentRemainder);
-        claimerPayout += unsentRemainder;
 
         emit PegInResolved(
             pegInId, claim.claimer, registrant, released, claimerPayout, registrantFeePaid, userPayout

@@ -274,7 +274,7 @@ contract ResolvePegInTest is ResolvePegInTestBase {
         _assertReleaseFullyAssigned(release, 0);
     }
 
-    function test_failed_user_send_credits_claimer() public {
+    function test_failed_user_send_credits_user_balance() public {
         WalletMock wallet = new WalletMock();
         address walletAddr = address(wallet);
         registry.harness_seedRegistration(walletAddr, registrant, 1);
@@ -296,13 +296,25 @@ contract ResolvePegInTest is ResolvePegInTestBase {
             claimer,
             registrant,
             bridgeRelease,
-            DEFAULT_AMOUNT - 1e14 + remainder,
+            DEFAULT_AMOUNT - 1e14,
             1e14,
             0
         );
         _resolve(claimer, walletAddr, walletTx);
 
-        _assertReleaseFullyAssigned(bridgeRelease, 0);
+        assertEq(_balance(claimer), DEFAULT_AMOUNT - 1e14);
+        assertEq(_balance(walletAddr), remainder);
+        _assertReleaseFullyAssigned(bridgeRelease, _balance(walletAddr));
+
+        wallet.setRejectFunds(false);
+        uint256 walletBefore = walletAddr.balance;
+        wallet.execute(
+            address(pegInContract),
+            0,
+            abi.encodeCall(pegInContract.withdraw, (remainder))
+        );
+        assertEq(walletAddr.balance - walletBefore, remainder);
+        assertEq(_balance(walletAddr), 0);
     }
 
     function _assertReleaseFullyAssigned(
