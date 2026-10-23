@@ -19,7 +19,7 @@ interface IPegInCommitFirst {
     /// @param rskAddr The RSK destination address that received the funds
     /// @param amount The gross peg-in amount, in wei — the deposit output's satoshi value
     /// scaled by 10**10, never a caller-supplied figure
-    /// @param netToUser The amount delivered to the user (amount minus fee), in wei
+    /// @param netToUser The amount delivered to the user, in wei
     /// @param callSuccess Whether the delivery call succeeded (always true this sprint)
     event PegInRequested(
         bytes32 indexed pegInId,
@@ -96,8 +96,8 @@ interface IPegInCommitFirst {
     /// @param required The confirmations the active configuration requires
     error InsufficientConfirmations(uint256 have, uint256 required);
 
-    /// @notice Reverts requestPegIn when msg.value does not equal the amount minus the fee
-    /// @param expected The required msg.value (amount minus fee), in wei
+    /// @notice Reverts requestPegIn when msg.value is not the required fronting
+    /// @param expected The required msg.value, in wei
     /// @param actual The msg.value sent, in wei
     error IncorrectFronting(uint256 expected, uint256 actual);
 
@@ -108,10 +108,11 @@ interface IPegInCommitFirst {
     /// from the same bytes, so the SPV proof, the peg-in id and the amount provably describe
     /// one transaction. Nothing about the deposit's value is caller-supplied.
     ///
-    /// Payable: msg.value must equal the amount read from the deposit minus the fee. The claim
-    /// record stores
-    /// the claimer, the fronted amount, and the fee at claim time, because the configuration
-    /// can change before settlement pays the claimer back (~17 hours later).
+    /// Payable: the provider fronts at most the configured maxAmount, which limits what one
+    /// provider advances per peg-in. Settlement pays the user the rest of a larger deposit.
+    /// The claim record stores the claimer, the fronted amount, and the fee at claim time,
+    /// because the configuration can change before settlement pays the claimer back
+    /// (~17 hours later).
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param btcTxSerialized The witness-stripped raw BTC deposit transaction
     /// @param btcBlockHash The hash of the Bitcoin block containing the deposit

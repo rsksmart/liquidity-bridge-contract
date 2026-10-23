@@ -28,7 +28,7 @@ interface IFlyoverConfigurations {
     /// @param percentageFee The proportional component of the fee, in basis points over
     /// 10,000
     /// @param minAmount The minimum peg-in amount, in wei
-    /// @param maxAmount The maximum peg-in amount, in wei
+    /// @param maxAmount The maximum amount a provider fronts per peg-in, in wei
     /// @param registrantFee The fee paid to the registrant on the first claimed peg-in per
     /// destination address, in wei; read at settlement from live config and clamped to feeAtClaim
     /// @param confirmationTiers The confirmation tiers, strictly ascending by maxAmount
