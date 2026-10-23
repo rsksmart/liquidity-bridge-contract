@@ -379,7 +379,7 @@ contract PegInContract is
             return (address(0), 0);
         }
         _registrantPaid[rskAddr] = true;
-        registrant = _pegInAddressRegistry.getRegistration(rskAddr).registrant;
+        registrant = _pegInAddressRegistry.getRegistrant(rskAddr);
         uint256 feeDue = _min(
             _min(_configurations.getPegInConfiguration().registrantFee, feeAtClaim),
             providerPot

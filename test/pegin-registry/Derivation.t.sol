@@ -114,14 +114,12 @@ contract DerivationTest is PegInRegistryTestBase {
         assertTrue(registry.isRegistered(FIXTURE_RSK));
     }
 
-    // R6 — getRegistration struct
-    function test_getRegistration_returns_struct() public {
+    // R6 — registrant and registration block
+    function test_getters_return_stored_registrant_and_block() public {
         _deploy(false);
         _seedRegistration(FIXTURE_RSK, stranger, uint96(99));
-        IPegInAddressRegistry.Registration memory reg = registry
-            .getRegistration(FIXTURE_RSK);
-        assertEq(reg.registrant, stranger);
-        assertEq(reg.registrationBlock, 99);
+        assertEq(registry.getRegistrant(FIXTURE_RSK), stranger);
+        assertEq(registry.getRegistrationBlock(FIXTURE_RSK), 99);
     }
 
     // R8 — admin-only setPegInContract
