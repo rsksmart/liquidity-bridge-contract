@@ -8,9 +8,9 @@ import {IFlyoverConfigurations} from "./interfaces/IFlyoverConfigurations.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 
 /// @title FlyoverConfigurations
-/// @notice The single on-chain source of the commit-first peg-in parameters (fee, confirmation
-/// tiers, amount limits) that every party reads: the SDK for its estimate, every LPS for its
-/// serve decision, and the settlement path for its amount validation. Admin changes are
+/// @notice The single on-chain source of the commit-first peg-in parameters (fee, gas fee,
+/// confirmation tiers, amount limits) that every party reads: the SDK for its estimate, every
+/// LPS for its serve decision, and the settlement path for its amount validation. Admin changes are
 /// time-locked in two steps (queue then apply) and re-validated at both steps against the active
 /// bounds, so an admin mistake cannot set absurd values even with the role. The bounds themselves
 /// are seeded at deployment and are editable by the admin only through the same two-step time
@@ -37,7 +37,8 @@ contract FlyoverConfigurations is
         CallTime,
         ExpireTime,
         ExpireBlocks,
-        MaxMinerFee
+        MaxMinerFee,
+        GasFee
     }
 
     /// @custom:storage-location erc7201:rsk.flyover.FlyoverConfigurations
@@ -504,6 +505,7 @@ contract FlyoverConfigurations is
             minConfigBoundary.registrantFee,
             maxConfigBoundary.registrantFee
         );
+        _checkBound(Field.GasFee, config.gasFee, minConfigBoundary.gasFee, maxConfigBoundary.gasFee);
 
         if (config.registrantFee >= MAX_REGISTRANT_FEE_EXCLUSIVE) {
             revert RegistrantFeeTooHigh(config.registrantFee, MAX_REGISTRANT_FEE_EXCLUSIVE);
@@ -542,6 +544,7 @@ contract FlyoverConfigurations is
         _checkActiveField(Field.MinAmount, active.minAmount, min.minAmount, max.minAmount);
         _checkActiveField(Field.MaxAmount, active.maxAmount, min.maxAmount, max.maxAmount);
         _checkActiveField(Field.RegistrantFee, active.registrantFee, min.registrantFee, max.registrantFee);
+        _checkActiveField(Field.GasFee, active.gasFee, min.gasFee, max.gasFee);
     }
 
     function _validatePegOutConfig(PegOutConfiguration memory config) private view {
@@ -599,7 +602,7 @@ contract FlyoverConfigurations is
         }
     }
 
-    /// @dev A bounds pair is well-formed when no field inverts, i.e. `min <= max` on all five
+    /// @dev A bounds pair is well-formed when no field inverts, i.e. `min <= max` on all six
     /// scalars. An inverted field admits no value at all, which would wedge every future
     /// configuration change. `confirmationTiers` carries no bound and is not inspected.
     function _validateBoundsPair(PegConfiguration memory min, PegConfiguration memory max)
@@ -611,6 +614,7 @@ contract FlyoverConfigurations is
         _checkPairOrdered(Field.MinAmount, min.minAmount, max.minAmount);
         _checkPairOrdered(Field.MaxAmount, min.maxAmount, max.maxAmount);
         _checkPairOrdered(Field.RegistrantFee, min.registrantFee, max.registrantFee);
+        _checkPairOrdered(Field.GasFee, min.gasFee, max.gasFee);
     }
 
     function _checkPairOrdered(Field field, uint256 minV, uint256 maxV) private pure {

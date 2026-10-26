@@ -31,6 +31,8 @@ interface IFlyoverConfigurations {
     /// @param maxAmount The maximum peg-in amount, in wei
     /// @param registrantFee The fee paid to the registrant on the first claimed peg-in per
     /// destination address, in wei; read at settlement from live config and clamped to feeAtClaim
+    /// @param gasFee The flat charge for the provider's RSK gas, in wei; deducted at claim beside
+    /// the fee and copied onto the claim, so settlement repays the amount the user was charged
     /// @param confirmationTiers The confirmation tiers, strictly ascending by maxAmount
     struct PegConfiguration {
         uint256 fixedFee;
@@ -38,6 +40,7 @@ interface IFlyoverConfigurations {
         uint256 minAmount;
         uint256 maxAmount;
         uint256 registrantFee;
+        uint256 gasFee;
         ConfirmationTier[] confirmationTiers;
     }
 
@@ -48,7 +51,7 @@ interface IFlyoverConfigurations {
     function getPegInConfiguration() external view returns (PegConfiguration memory configuration);
 
     /// @notice Calculates the peg-in fee for an amount under the active configuration
-    /// @dev fixedFee plus the percentage of the amount.
+    /// @dev fixedFee plus the percentage of the amount. Does not include gasFee.
     /// @param amount The peg-in amount, in wei
     /// @return fee The fee, in wei
     function calculatePegInFee(uint256 amount) external view returns (uint256 fee);
