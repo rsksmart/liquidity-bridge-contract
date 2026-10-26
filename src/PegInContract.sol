@@ -42,11 +42,13 @@ contract PegInContract is
 
     /// @notice Claim record written by requestPegIn for later settlement
     /// @param claimer The account that fronted RBTC; address(0) means unset
-    /// @param frontedAmount The net amount delivered to the user (msg.value at claim)
+    /// @param success Whether the RBTC payment to the user succeeded
+    /// @param frontedAmount The net amount delivered to the user; 0 when the payment failed
     /// @param feeAtClaim The fee snapshot at claim time
     /// @param requestBlock The RSK block number of the claim
     struct PegInClaim {
         address claimer;
+        bool success;
         uint256 frontedAmount;
         uint256 feeAtClaim;
         uint256 requestBlock;
@@ -257,12 +259,21 @@ contract PegInContract is
 
         _pegInClaims[pegInId] = PegInClaim({
             claimer: msg.sender,
-            frontedAmount: msg.value,
+            success: false,
+            frontedAmount: 0,
             feeAtClaim: fee,
             requestBlock: block.number
         });
-        _payPegInUser(rskAddr, expected);
-        emit PegInRequested(pegInId, msg.sender, rskAddr, amount, expected, true);
+        bool success = _payPegInUser(rskAddr, expected);
+        if (success) {
+            PegInClaim storage claim = _pegInClaims[pegInId];
+            claim.success = true;
+            claim.frontedAmount = msg.value;
+        } else {
+            // The LP keeps the RBTC it fronted, so settlement repays only the fee
+            _increaseBalance(msg.sender, msg.value);
+        }
+        emit PegInRequested(pegInId, msg.sender, rskAddr, amount, expected, success);
     }
 
     /// @inheritdoc IPegInCommitFirst
@@ -277,7 +288,7 @@ contract PegInContract is
         _requirePegInDepsSet();
 
         registerResult = _registerCommitFirstBridge(
-            rskAddr, btcRawTransaction, partialMerkleTree, height
+            rskAddr, btcRawTransaction, partialMerkleTree, height, claim.success
         );
 
         if (registerResult <= 0) {
@@ -310,12 +321,15 @@ contract PegInContract is
         return _balances[addr];
     }
 
-    /// @dev Bridge fast-register with per-network BTC placeholder addresses.
+    /// @dev Bridge fast-register with per-network BTC placeholder addresses. The bridge reads
+    /// userPaid only when it rejects the deposit over the locking cap: true refunds the BTC to
+    /// the LP address, false to the user refund address.
     function _registerCommitFirstBridge(
         address rskAddr,
         bytes calldata btcRawTransaction,
         bytes calldata partialMerkleTree,
-        uint256 height
+        uint256 height,
+        bool userPaid
     ) private returns (int256) {
         return _bridge.registerFastBridgeBtcTransaction(
             btcRawTransaction,
@@ -325,7 +339,7 @@ contract PegInContract is
             PegInDerivation.getRefundPlaceholderBtcAddress(_mainnet),
             payable(address(this)),
             PegInDerivation.getLpPlaceholderBtcAddress(_mainnet),
-            true
+            userPaid
         );
     }
 
@@ -490,13 +504,11 @@ contract PegInContract is
         }
     }
 
-    /// @notice Delivers net RBTC to the peg-in destination address
+    /// @notice Sends the net RBTC to the peg-in destination address
+    /// @return success False when the destination refused the RBTC
     // slither-disable-next-line arbitrary-send-eth,low-level-calls
-    function _payPegInUser(address rskAddr, uint256 expected) private {
-        (bool success, bytes memory reason) = rskAddr.call{value: expected}("");
-        if (!success) {
-            revert Flyover.PaymentFailed(rskAddr, expected, reason);
-        }
+    function _payPegInUser(address rskAddr, uint256 expected) private returns (bool success) {
+        (success,) = rskAddr.call{value: expected}("");
     }
 
     /// @notice This function is used to decrease the balance of an account

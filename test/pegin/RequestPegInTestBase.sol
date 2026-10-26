@@ -8,6 +8,7 @@ import {PegInAddressRegistryHarness} from "../pegin-registry/PegInAddressRegistr
 import {IFlyoverConfigurations} from "../../src/interfaces/IFlyoverConfigurations.sol";
 import {PegInDerivation} from "../../src/libraries/PegInDerivation.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
+import {WalletMock} from "../../src/test-contracts/WalletMock.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcUtils.sol";
 
@@ -20,8 +21,8 @@ abstract contract RequestPegInTestBase is PegInTestBase {
     /// 5.5.0 remapping in foundry.toml (contracts package under node_modules). OZ 5.5+ stores
     /// ReentrancyGuard in an ERC-7201 namespace, so claims sit at slot 10 (not 11). Verify with
     /// `forge inspect PegInContract storageLayout` after `npm ci`. A claim lives at
-    /// keccak256(abi.encode(pegInId, PEGIN_CLAIMS_BASE_SLOT)); the struct has no packing, so each
-    /// uint256 field starts a fresh slot after the 20-byte address.
+    /// keccak256(abi.encode(pegInId, PEGIN_CLAIMS_BASE_SLOT)); the `success` bool packs next to the
+    /// 20-byte address, and each uint256 field starts a fresh slot after it.
     uint256 internal constant PEGIN_CLAIMS_BASE_SLOT = 10;
 
     uint256 internal constant BASIS_POINTS = 10000;
@@ -213,6 +214,18 @@ abstract contract RequestPegInTestBase is PegInTestBase {
         frontedAmount = uint256(vm.load(address(target), bytes32(base + 1)));
         feeAtClaim = uint256(vm.load(address(target), bytes32(base + 2)));
         requestBlock = uint256(vm.load(address(target), bytes32(base + 3)));
+    }
+
+    /// @notice Deploys a recipient that refuses RBTC, registers it, and builds a deposit to it.
+    function _registerRefusingRecipient()
+        internal
+        returns (address recipient, bytes memory depositTx)
+    {
+        WalletMock wallet = new WalletMock();
+        wallet.setRejectFunds(true);
+        recipient = address(wallet);
+        registry.harness_seedRegistration(recipient, makeAddr("registrant"), 1);
+        depositTx = _depositTx(recipient, DEFAULT_AMOUNT);
     }
 
     /// @notice Writes a claimer directly into a claim slot, to set up ordering fixtures

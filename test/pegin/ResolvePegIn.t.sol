@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import {ResolvePegInTestBase} from "./ResolvePegInTestBase.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {IPegInCommitFirst} from "../../src/interfaces/IPegInCommitFirst.sol";
+import {IBridge} from "../../src/interfaces/IBridge.sol";
 import {WalletMock} from "../../src/test-contracts/WalletMock.sol";
 import {BtcTransactionReader} from "../../src/libraries/BtcTransactionReader.sol";
 import {PegInDerivation} from "../../src/libraries/PegInDerivation.sol";
@@ -315,6 +316,82 @@ contract ResolvePegInTest is ResolvePegInTestBase {
         );
         assertEq(walletAddr.balance - walletBefore, remainder);
         assertEq(_balance(walletAddr), 0);
+    }
+
+    function test_refused_payment_settles_fee_only() public {
+        uint256 fee = _expectedFee(DEFAULT_AMOUNT);
+        uint256 net = DEFAULT_AMOUNT - fee;
+        (
+            address recipient,
+            bytes memory depositTx
+        ) = _registerRefusingRecipient();
+        bytes32 pegInId = _claimAndFund(recipient, depositTx, bridgeRelease);
+        assertEq(_balance(claimer), net, "fronted RBTC credited at claim");
+
+        vm.expectEmit(true, true, true, true);
+        emit IPegInCommitFirst.PegInResolved(
+            pegInId,
+            claimer,
+            registrant,
+            bridgeRelease,
+            fee - 1e14,
+            1e14,
+            0
+        );
+        _resolve(claimer, recipient, depositTx);
+
+        assertEq(
+            _balance(claimer) - net,
+            fee - 1e14,
+            "settlement credits only the fee"
+        );
+        assertEq(_balance(recipient), bridgeRelease - fee);
+        assertTrue(_isSettled(pegInId));
+    }
+
+    function test_bridge_flag_true_after_paid_claim() public {
+        _claimAndFund(rskUser, rawTx, bridgeRelease);
+
+        _expectBridgeFlag(rskUser, rawTx, true);
+        _resolve(claimer, rskUser, rawTx);
+    }
+
+    function test_bridge_flag_false_after_refused_claim() public {
+        (
+            address recipient,
+            bytes memory depositTx
+        ) = _registerRefusingRecipient();
+        _claimAndFund(recipient, depositTx, bridgeRelease);
+
+        _expectBridgeFlag(recipient, depositTx, false);
+        _resolve(claimer, recipient, depositTx);
+    }
+
+    function _expectBridgeFlag(
+        address rskAddr,
+        bytes memory depositTx,
+        bool shouldTransferToContract
+    ) private {
+        vm.expectCall(
+            address(bridgeMock),
+            abi.encodeCall(
+                IBridge.registerFastBridgeBtcTransaction,
+                (
+                    depositTx,
+                    100,
+                    hex"00",
+                    _derivationHash(rskAddr),
+                    PegInDerivation.getRefundPlaceholderBtcAddress(
+                        IS_MAINNET_DEPLOYMENT
+                    ),
+                    payable(address(pegInContract)),
+                    PegInDerivation.getLpPlaceholderBtcAddress(
+                        IS_MAINNET_DEPLOYMENT
+                    ),
+                    shouldTransferToContract
+                )
+            )
+        );
     }
 
     function _assertReleaseFullyAssigned(

@@ -3,15 +3,14 @@ pragma solidity 0.8.25;
 
 import {RequestPegInTestBase} from "./RequestPegInTestBase.sol";
 import {RequestPegInReenterReceiver} from "../../src/test-contracts/RequestPegInReenterReceiver.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {Flyover} from "../../src/libraries/Flyover.sol";
+import {IPegInCommitFirst} from "../../src/interfaces/IPegInCommitFirst.sol";
 
 /// @title requestPegIn reentrancy-guard test
 /// @notice A malicious destination re-enters requestPegIn on delivery with a second, genuine
 /// deposit transaction of its own (a different txid, so a fresh pegInId), so the block comes from
 /// the nonReentrant guard rather than the already-processed check or the deposit match. The
-/// re-entry's revert bubbles through the delivery call, so the whole transaction reverts
-/// atomically and no claim is written for either pegInId.
+/// re-entry's revert makes the delivery fail, so the outer claim is stored as a failed payment
+/// and no claim is written for the re-entrant pegInId.
 contract RequestPegInReentrancyTest is RequestPegInTestBase {
     uint256 internal constant REENTER_TX_NONCE = 99;
 
@@ -42,35 +41,24 @@ contract RequestPegInReentrancyTest is RequestPegInTestBase {
         bytes32 reenterId = _pegInIdForTx(address(receiver), reenterTx);
         assertTrue(outerId != reenterId, "re-entry targets a fresh pegInId");
 
-        // The re-entry reverts with the reentrancy guard error, which the delivery call surfaces
-        // (and the implementation wraps) as PaymentFailed, reverting the whole transaction.
-        bytes memory reentrancyReason = abi.encodeWithSelector(
-            ReentrancyGuard.ReentrancyGuardReentrantCall.selector
-        );
-        vm.prank(claimer);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Flyover.PaymentFailed.selector,
-                address(receiver),
-                net,
-                reentrancyReason
+        vm.expectCall(
+            address(pegInContract),
+            abi.encodeCall(
+                IPegInCommitFirst.requestPegIn,
+                (address(receiver), reenterTx, bytes32(0), 0, _emptyBranch())
             )
         );
-        pegInContract.requestPegIn{value: net}(
-            address(receiver),
-            outerTx,
-            bytes32(0),
-            0,
-            _emptyBranch()
-        );
+        uint256 claimerBalanceBefore = pegInContract.getBalance(claimer);
+        _requestPegInTx(claimer, address(receiver), outerTx, net);
 
-        // Atomic revert-all: neither the outer nor the re-entrant pegInId holds a claim.
-        (address outerClaimer, , , ) = _readClaim(outerId);
+        (address outerClaimer, uint256 outerFronted, , ) = _readClaim(outerId);
         (address reenterClaimer, , , ) = _readClaim(reenterId);
+        assertEq(outerClaimer, claimer, "outer claim recorded for the LP");
+        assertEq(outerFronted, 0, "nothing delivered to the receiver");
         assertEq(
-            outerClaimer,
-            address(0),
-            "no claim written for outer pegInId"
+            pegInContract.getBalance(claimer),
+            claimerBalanceBefore + net,
+            "fronted RBTC credited to the LP"
         );
         assertEq(
             reenterClaimer,

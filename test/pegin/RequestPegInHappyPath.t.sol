@@ -4,7 +4,7 @@ pragma solidity 0.8.25;
 import {RequestPegInTestBase} from "./RequestPegInTestBase.sol";
 import {IPegInCommitFirst} from "../../src/interfaces/IPegInCommitFirst.sol";
 
-/// @title requestPegIn happy-path, claim record, fee snapshot, and event tests
+/// @title requestPegIn claim record, payment result, fee snapshot, and event tests
 contract RequestPegInHappyPathTest is RequestPegInTestBase {
     function test_setUp_deploysWiresAndSeeds() public view {
         assertEq(
@@ -37,6 +37,7 @@ contract RequestPegInHappyPathTest is RequestPegInTestBase {
 
         uint256 claimerBefore = claimer.balance;
         uint256 userBefore = rskUser.balance;
+        uint256 claimerBalanceBefore = pegInContract.getBalance(claimer);
 
         vm.expectEmit(true, true, true, true);
         emit IPegInCommitFirst.PegInRequested(
@@ -81,6 +82,54 @@ contract RequestPegInHappyPathTest is RequestPegInTestBase {
         );
         assertEq(feeAtClaim, fee, "claim.feeAtClaim == fee at call time");
         assertEq(requestBlock, block.number, "claim.requestBlock");
+        assertEq(
+            pegInContract.getBalance(claimer),
+            claimerBalanceBefore,
+            "LP balance unchanged"
+        );
+    }
+
+    function test_refused_payment_stores_claim() public {
+        uint256 fee = _expectedFee(DEFAULT_AMOUNT);
+        uint256 net = DEFAULT_AMOUNT - fee;
+        (
+            address recipient,
+            bytes memory depositTx
+        ) = _registerRefusingRecipient();
+        bytes32 pegInId = _pegInIdForTx(recipient, depositTx);
+        uint256 recipientBalanceBefore = recipient.balance;
+        uint256 claimerBalanceBefore = pegInContract.getBalance(claimer);
+
+        vm.expectEmit(true, true, true, true);
+        emit IPegInCommitFirst.PegInRequested(
+            pegInId,
+            claimer,
+            recipient,
+            DEFAULT_AMOUNT,
+            net,
+            false
+        );
+        _requestPegInTx(claimer, recipient, depositTx, net);
+
+        (
+            address storedClaimer,
+            uint256 frontedAmount,
+            uint256 feeAtClaim,
+
+        ) = _readClaim(pegInId);
+        assertEq(storedClaimer, claimer, "claim recorded for the LP");
+        assertEq(frontedAmount, 0, "nothing delivered to the user");
+        assertEq(feeAtClaim, fee, "fee snapshot");
+        assertEq(
+            pegInContract.getBalance(claimer),
+            claimerBalanceBefore + net,
+            "fronted RBTC credited to the LP"
+        );
+        assertEq(
+            recipient.balance,
+            recipientBalanceBefore,
+            "recipient got nothing"
+        );
     }
 
     function test_feeAtClaim_immutableAfterConfigChange() public {
