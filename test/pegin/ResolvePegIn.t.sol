@@ -356,6 +356,17 @@ contract ResolvePegInTest is ResolvePegInTestBase {
         _resolve(claimer, rskUser, rawTx);
     }
 
+    function test_bridge_flag_true_when_fee_equals_amount() public {
+        configurations.setFee(DEFAULT_AMOUNT, 0);
+        bytes32 pegInId = _requestPegInTx(claimer, rskUser, rawTx, 0);
+        bridgeMock.setPegin{value: bridgeRelease}(_derivationHash(rskUser));
+        (, uint256 frontedAmount, , ) = _readClaim(pegInId);
+        assertEq(frontedAmount, 0, "paid claim with nothing fronted");
+
+        _expectBridgeFlag(rskUser, rawTx, true);
+        _resolve(claimer, rskUser, rawTx);
+    }
+
     function test_bridge_flag_false_after_refused_claim() public {
         (
             address recipient,
