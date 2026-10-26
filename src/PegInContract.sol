@@ -43,12 +43,14 @@ contract PegInContract is
     /// @notice Claim record written by requestPegIn for later settlement
     /// @param claimer The account that fronted RBTC; address(0) means unset
     /// @param frontedAmount The net amount delivered to the user (msg.value at claim)
-    /// @param feeAtClaim The fee snapshot at claim time
+    /// @param feeAtClaim The service fee snapshot at claim time
+    /// @param gasFeeAtClaim The gas fee snapshot at claim time
     /// @param requestBlock The RSK block number of the claim
     struct PegInClaim {
         address claimer;
         uint256 frontedAmount;
         uint256 feeAtClaim;
+        uint256 gasFeeAtClaim;
         uint256 requestBlock;
     }
 
@@ -246,19 +248,20 @@ contract PegInContract is
             revert AddressNotRegistered(rskAddr);
         }
         uint256 amount = _readPegInAmount(rskAddr, btcTxSerialized, btcTxHash);
-        uint256 minAmount = _configurations.getPegInConfiguration().minAmount;
-        if (amount < minAmount) {
-            revert PegInBelowMinimum(amount, minAmount);
+        IFlyoverConfigurations.PegConfiguration memory configuration = _configurations.getPegInConfiguration();
+        if (amount < configuration.minAmount) {
+            revert PegInBelowMinimum(amount, configuration.minAmount);
         }
         _requirePegInConfirmations(amount, btcTxHash, btcBlockHash, merkleBranchPath, merkleBranchHashes);
 
         uint256 fee = _configurations.calculatePegInFee(amount);
-        uint256 expected = _requireCorrectFronting(amount, fee);
+        uint256 expected = _requireCorrectFronting(amount, fee + configuration.gasFee);
 
         _pegInClaims[pegInId] = PegInClaim({
             claimer: msg.sender,
             frontedAmount: msg.value,
             feeAtClaim: fee,
+            gasFeeAtClaim: configuration.gasFee,
             requestBlock: block.number
         });
         _payPegInUser(rskAddr, expected);
@@ -340,7 +343,7 @@ contract PegInContract is
         uint256 released
     ) private {
         _pegInSettled[pegInId] = true;
-        uint256 providerPot = _min(released, claim.frontedAmount + claim.feeAtClaim);
+        uint256 providerPot = _min(released, claim.frontedAmount + claim.feeAtClaim + claim.gasFeeAtClaim);
 
         (address registrant, uint256 registrantFeePaid) =
             _payRegistrantOnce(rskAddr, claim.feeAtClaim, providerPot);

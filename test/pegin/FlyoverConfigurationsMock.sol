@@ -28,6 +28,11 @@ contract FlyoverConfigurationsMock is IFlyoverConfigurations {
         _config.registrantFee = registrantFee;
     }
 
+    /// @notice Sets the gas fee directly
+    function setGasFee(uint256 gasFee) external {
+        _config.gasFee = gasFee;
+    }
+
     /// @notice Sets the amount bounds directly
     function setAmountBounds(uint256 minAmount, uint256 maxAmount) external {
         _config.minAmount = minAmount;

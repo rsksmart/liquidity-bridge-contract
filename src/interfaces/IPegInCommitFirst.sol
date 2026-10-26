@@ -19,7 +19,7 @@ interface IPegInCommitFirst {
     /// @param rskAddr The RSK destination address that received the funds
     /// @param amount The gross peg-in amount, in wei — the deposit output's satoshi value
     /// scaled by 10**10, never a caller-supplied figure
-    /// @param netToUser The amount delivered to the user (amount minus fee), in wei
+    /// @param netToUser The amount delivered to the user (amount - fee - gasFee), in wei
     /// @param callSuccess Whether the delivery call succeeded (always true this sprint)
     event PegInRequested(
         bytes32 indexed pegInId,
@@ -41,7 +41,8 @@ interface IPegInCommitFirst {
     /// was paid (already paid on an earlier peg-in)
     /// @param released The amount the bridge released to the contract, in wei
     /// @param claimerPayout The claimer's payout, in wei: the fronted advance + the service
-    /// fee - registrantFee, capped at released, plus any remainder for the user that was dust
+    /// fee + the gas fee - registrantFee, capped at released, plus any remainder for the user
+    /// that was dust
     /// @param registrantFee The registrant fee paid, in wei; 0 when none was paid
     /// @param userPayout The amount sent to the destination address, in wei: released above
     /// what the claimer and the registrant are owed; 0 when that remainder was dust or the send
@@ -109,8 +110,9 @@ interface IPegInCommitFirst {
     /// @param required The confirmations the active configuration requires
     error InsufficientConfirmations(uint256 have, uint256 required);
 
-    /// @notice Reverts requestPegIn when msg.value does not equal the amount minus the fee
-    /// @param expected The required msg.value (amount minus fee), in wei
+    /// @notice Reverts requestPegIn when msg.value does not equal the amount minus the fee and
+    /// the gas fee
+    /// @param expected The required msg.value (amount - fee - gasFee), in wei
     /// @param actual The msg.value sent, in wei
     error IncorrectFronting(uint256 expected, uint256 actual);
 
@@ -121,10 +123,10 @@ interface IPegInCommitFirst {
     /// from the same bytes, so the SPV proof, the peg-in id and the amount provably describe
     /// one transaction. Nothing about the deposit's value is caller-supplied.
     ///
-    /// Payable: msg.value must equal the amount read from the deposit minus the fee. The claim
-    /// record stores
-    /// the claimer, the fronted amount, and the fee at claim time, because the configuration
-    /// can change before settlement pays the claimer back (~17 hours later).
+    /// Payable: msg.value must equal the amount read from the deposit minus the fee and the
+    /// gas fee. The claim record stores the claimer, the fronted amount, the fee, and the gas
+    /// fee at claim time, because the configuration can change before settlement pays the
+    /// claimer back (~17 hours later).
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param btcTxSerialized The witness-stripped raw BTC deposit transaction
     /// @param btcBlockHash The hash of the Bitcoin block containing the deposit

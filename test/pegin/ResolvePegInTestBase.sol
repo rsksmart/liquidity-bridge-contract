@@ -29,7 +29,9 @@ abstract contract ResolvePegInTestBase is RequestPegInTestBase {
             claimer,
             rskAddr,
             depositTx,
-            DEFAULT_AMOUNT - _expectedFee(DEFAULT_AMOUNT)
+            DEFAULT_AMOUNT -
+                _expectedFee(DEFAULT_AMOUNT) -
+                configurations.getPegInConfiguration().gasFee
         );
         bridgeMock.setPegin{value: bridgeRelease}(_derivationHash(rskAddr));
     }
