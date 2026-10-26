@@ -6,8 +6,8 @@ import {IPegInCommitFirst} from "../interfaces/IPegInCommitFirst.sol";
 /// @notice Malicious peg-in destination that re-enters requestPegIn on delivery.
 /// @dev Mirrors the WithdrawReceiver test-contract pattern. On receiving the fronted RBTC it
 /// calls requestPegIn again with a different deposit transaction (a different txid, so a fresh
-/// pegInId), so the re-entry is blocked by the nonReentrant guard rather than trivially hitting
-/// the already-processed check.
+/// pegInId) and forwards the RBTC it received, so the re-entry is blocked by the nonReentrant
+/// guard rather than trivially hitting the already-processed or fronting checks.
 /* solhint-disable comprehensive-interface */
 contract RequestPegInReenterReceiver {
     IPegInCommitFirst private _pegIn;
@@ -21,7 +21,9 @@ contract RequestPegInReenterReceiver {
     receive() external payable {
         if (_attack) {
             _attack = false;
-            _pegIn.requestPegIn(address(this), _reenterBtcTx, bytes32(0), 0, new bytes32[](0));
+            _pegIn.requestPegIn{value: msg.value}(
+                address(this), _reenterBtcTx, bytes32(0), 0, new bytes32[](0)
+            );
         }
     }
 

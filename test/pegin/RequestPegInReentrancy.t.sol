@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import {RequestPegInTestBase} from "./RequestPegInTestBase.sol";
 import {RequestPegInReenterReceiver} from "../../src/test-contracts/RequestPegInReenterReceiver.sol";
 import {IPegInCommitFirst} from "../../src/interfaces/IPegInCommitFirst.sol";
+import {Flyover} from "../../src/libraries/Flyover.sol";
 
 /// @title requestPegIn reentrancy-guard test
 /// @notice A malicious destination re-enters requestPegIn on delivery with a second, genuine
@@ -23,6 +24,10 @@ contract RequestPegInReentrancyTest is RequestPegInTestBase {
             makeAddr("registrant2"),
             1
         );
+
+        // A registered provider that forwards the net amount makes the nested request valid,
+        // so without the guard it would store a claim.
+        _registerProvider(address(receiver));
 
         uint256 amount = DEFAULT_AMOUNT;
         uint256 net = amount - _expectedFee(amount);
@@ -65,5 +70,18 @@ contract RequestPegInReentrancyTest is RequestPegInTestBase {
             address(0),
             "no claim written for re-entrant pegInId"
         );
+    }
+
+    function _registerProvider(address provider) private {
+        vm.deal(provider, MIN_COLLATERAL);
+        vm.prank(provider, provider);
+        discovery.register{value: MIN_COLLATERAL}(
+            "Reentrant Provider",
+            "reentrant.com",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+        vm.prank(owner);
+        discovery.approveRegistration(provider);
     }
 }
