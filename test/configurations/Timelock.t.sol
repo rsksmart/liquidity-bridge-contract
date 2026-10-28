@@ -14,7 +14,7 @@ import {IFlyoverConfigurations} from "../../src/interfaces/IFlyoverConfiguration
 /// Plus exact-eta success, applying with nothing queued, and event emission.
 contract TimelockTest is ConfigurationsTestBase {
     /// @dev pending.fixedFee lives at the mutable namespace base + 7 (activePegIn occupies the
-    /// first 7 slots: six scalars plus confirmationTiers-length).
+    /// first 7 slots: six scalars + confirmationTiers-length).
     bytes32 private constant _PENDING_FIXED_FEE_SLOT =
         bytes32(uint256(STORAGE_SLOT) + 7);
 
@@ -216,7 +216,7 @@ contract TimelockTest is ConfigurationsTestBase {
     // not invert, and a pair the active configuration falls outside is rejected at apply time.
 
     /// @dev pendingMin.fixedFee lives at the bounds namespace base + 15 (timelockDelay occupies
-    /// slot 0, then min and max take 7 slots each: six scalars plus confirmationTiers-length).
+    /// slot 0, then min and max take 7 slots each: six scalars + confirmationTiers-length).
     bytes32 private constant _PENDING_MIN_FIXED_FEE_SLOT =
         bytes32(uint256(BOUNDS_SLOT) + 15);
 

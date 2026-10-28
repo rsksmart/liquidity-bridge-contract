@@ -51,7 +51,7 @@ interface IFlyoverConfigurations {
     function getPegInConfiguration() external view returns (PegConfiguration memory configuration);
 
     /// @notice Calculates the peg-in fee for an amount under the active configuration
-    /// @dev fixedFee plus the percentage of the amount. Does not include claimGasFee.
+    /// @dev fixedFee + amount * percentageFee / 10_000. Does not include claimGasFee.
     /// @param amount The peg-in amount, in wei
     /// @return fee The fee, in wei
     function calculatePegInFee(uint256 amount) external view returns (uint256 fee);
