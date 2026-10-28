@@ -20,6 +20,9 @@ contract DeployPegIn is Script {
         address admin;
     }
 
+    /// @notice The bridge peg-in floor in satoshis after RSKIP219.
+    uint256 public constant BRIDGE_MIN_DEPOSIT_SATS = 500_000;
+
     function run() external returns (DeploymentResult memory result) {
         HelperConfig helper = new HelperConfig();
         HelperConfig.FlyoverConfig memory cfg = helper.getFlyoverConfig();
@@ -71,7 +74,8 @@ contract DeployPegIn is Script {
                     cfg.minimumPegIn,
                     collateralManagementProxy,
                     cfg.mainnet,
-                    PauseRegistry(pauseRegistryProxy)
+                    PauseRegistry(pauseRegistryProxy),
+                    BRIDGE_MIN_DEPOSIT_SATS
                 )
             ),
             opts

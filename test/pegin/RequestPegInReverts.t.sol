@@ -202,6 +202,71 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         assertEq(claimerAddr, claimer, "honest LP still able to claim");
     }
 
+    // ---- Bridge minimum: checked right after the amount is read, before check 5 ----
+
+    function test_revert_oneSatBelowBridgeMinimum() public {
+        _setFlyoverMinimumOneSatBelowBridge();
+        uint256 depositSats = TEST_BRIDGE_MIN_DEPOSIT_SATS - 1;
+        bytes memory btcTx = _depositTx(rskUser, _toWei(depositSats));
+
+        vm.expectCall(
+            address(bridgeMock),
+            abi.encodeWithSelector(IBridge.getBtcTransactionConfirmations.selector),
+            0
+        );
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegInCommitFirst.DepositBelowBridgeMinimum.selector,
+                depositSats,
+                TEST_BRIDGE_MIN_DEPOSIT_SATS
+            )
+        );
+        _requestPegInTx(claimer, rskUser, btcTx, 1 ether);
+    }
+
+    function test_bridgeMinimum_exactBoundaryPasses() public {
+        _setFlyoverMinimumOneSatBelowBridge();
+        uint256 amount = _toWei(TEST_BRIDGE_MIN_DEPOSIT_SATS);
+
+        bytes32 pegInId = _requestPegIn(claimer, rskUser, amount, amount - _expectedFee(amount));
+
+        (address claimerAddr, , , ) = _readClaim(pegInId);
+        assertEq(claimerAddr, claimer, "deposit at the bridge minimum is claimed");
+    }
+
+    function test_ordering_bridgeMinimumBeforeBelowMinimum() public {
+        uint256 depositSats = TEST_BRIDGE_MIN_DEPOSIT_SATS - 1;
+        bytes memory btcTx = _depositTx(rskUser, _toWei(depositSats));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegInCommitFirst.DepositBelowBridgeMinimum.selector,
+                depositSats,
+                TEST_BRIDGE_MIN_DEPOSIT_SATS
+            )
+        );
+        _requestPegInTx(claimer, rskUser, btcTx, 1 ether);
+    }
+
+    function test_revert_belowRaisedBridgeMinimum() public {
+        uint256 raisedSats = TEST_BRIDGE_MIN_DEPOSIT_SATS + 100_000;
+        vm.expectEmit(true, true, false, false);
+        emit PegInContract.BridgeMinDepositSatsSet(TEST_BRIDGE_MIN_DEPOSIT_SATS, raisedSats);
+        vm.prank(owner);
+        pegInContract.setBridgeMinDepositSats(raisedSats);
+
+        _setFlyoverMinimumOneSatBelowBridge();
+        bytes memory btcTx = _depositTx(rskUser, _toWei(TEST_BRIDGE_MIN_DEPOSIT_SATS));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegInCommitFirst.DepositBelowBridgeMinimum.selector,
+                TEST_BRIDGE_MIN_DEPOSIT_SATS,
+                raisedSats
+            )
+        );
+        _requestPegInTx(claimer, rskUser, btcTx, 1 ether);
+    }
+
     // ---- Check 5: below configured minimum ----
 
     function test_revert_pegInBelowMinimum_oneSatBelow() public {
@@ -550,5 +615,15 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
             0,
             _emptyBranch()
         );
+    }
+
+    /// @dev A deposit at the Flyover minimum then passes the Flyover check, so only the bridge
+    /// check can reject it.
+    function _setFlyoverMinimumOneSatBelowBridge() private {
+        configurations.setAmountBounds(_toWei(TEST_BRIDGE_MIN_DEPOSIT_SATS - 1), DEFAULT_MAX_AMOUNT);
+    }
+
+    function _toWei(uint256 sats) private pure returns (uint256) {
+        return sats * Flyover.SAT_TO_WEI_CONVERSION;
     }
 }

@@ -18,6 +18,9 @@ import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.s
  * @notice Test for PegInContract deployment
  */
 contract DeployPegInTest is Test {
+    /// @dev Must match BRIDGE_MIN_DEPOSIT_SATS in the deploy scripts, which tests cannot read.
+    uint256 private constant BRIDGE_MIN_DEPOSIT_SATS = 500_000;
+
     HelperConfig public helperConfig;
     BridgeMock public bridgeMock;
     address public collateralManagementProxy;
@@ -81,7 +84,8 @@ contract DeployPegInTest is Test {
                 cfg.minimumPegIn,
                 collateralManagementProxy,
                 cfg.mainnet,
-                PauseRegistry(pauseRegistryProxy)
+                PauseRegistry(pauseRegistryProxy),
+                BRIDGE_MIN_DEPOSIT_SATS
             )
         );
         return
@@ -96,6 +100,7 @@ contract DeployPegInTest is Test {
         PegInContract pegIn = PegInContract(payable(proxy));
 
         assertEq(pegIn.getMinPegIn(), cfg.minimumPegIn, "Min PegIn mismatch");
+        assertEq(pegIn.getBridgeMinDepositSats(), BRIDGE_MIN_DEPOSIT_SATS, "Bridge min deposit mismatch");
         assertEq(
             pegIn.dustThreshold(),
             cfg.dustThreshold,
@@ -190,7 +195,8 @@ contract DeployPegInTest is Test {
                     cfg.minimumPegIn,
                     collateralManagementProxy,
                     cfg.mainnet,
-                    PauseRegistry(pauseRegistryProxy)
+                    PauseRegistry(pauseRegistryProxy),
+                    BRIDGE_MIN_DEPOSIT_SATS
                 )
             )
         );

@@ -132,6 +132,9 @@ contract LegacyChangeOwnerToTimelockTest is Test {
 // ============================================================
 
 contract SplitChangeOwnerToTimelockTest is Test {
+    /// @dev Must match BRIDGE_MIN_DEPOSIT_SATS in the deploy scripts, which tests cannot read.
+    uint256 private constant BRIDGE_MIN_DEPOSIT_SATS = 500_000;
+
     HelperConfig public helperConfig;
     SplitChangeOwnerToTimelock public script;
     BridgeMock public bridgeMock;
@@ -436,7 +439,8 @@ contract SplitChangeOwnerToTimelockTest is Test {
                         cfg.minimumPegIn,
                         address(collateralManagement),
                         cfg.mainnet,
-                        PauseRegistry(pauseRegistryProxy)
+                        PauseRegistry(pauseRegistryProxy),
+                        BRIDGE_MIN_DEPOSIT_SATS
                     )
                 )
             )

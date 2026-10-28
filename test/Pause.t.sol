@@ -123,7 +123,8 @@ contract PauseTest is Test {
                                 0.5 ether,
                                 address(collateralManagement),
                                 false,
-                                pauseRegistry
+                                pauseRegistry,
+                                500_000
                             )
                         )
                     )

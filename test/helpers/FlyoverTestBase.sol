@@ -101,6 +101,7 @@ abstract contract FlyoverTestBase is Test {
     uint256 constant TEST_DUST_THRESHOLD_PEGIN = 2300 * 65164000;
     uint256 constant TEST_DUST_THRESHOLD_PEGOUT = 0.0000001 ether;
     uint256 constant TEST_MIN_PEGIN = 0.5 ether;
+    uint256 constant TEST_BRIDGE_MIN_DEPOSIT_SATS = 500_000;
     uint256 constant TEST_BTC_BLOCK_TIME = 3600;
     uint256 constant DISCOVERY_INITIAL_DELAY = 5000;
 
@@ -217,7 +218,8 @@ abstract contract FlyoverTestBase is Test {
                 cfg.minimumPegIn,
                 address(collateralManagement),
                 cfg.mainnet,
-                pauseRegistry
+                pauseRegistry,
+                TEST_BRIDGE_MIN_DEPOSIT_SATS
             )
         );
         address proxy = address(
@@ -340,7 +342,8 @@ abstract contract FlyoverTestBase is Test {
                     cfg.minimumPegIn,
                     cmProxy,
                     cfg.mainnet,
-                    IPauseRegistry(prProxy)
+                    IPauseRegistry(prProxy),
+                    TEST_BRIDGE_MIN_DEPOSIT_SATS
                 )
             );
             address piProxy = address(

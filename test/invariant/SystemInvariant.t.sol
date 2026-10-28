@@ -359,7 +359,8 @@ contract SystemInvariantTest is Test {
                 MIN_PEGIN,
                 address(collateralManagement),
                 false,
-                pauseRegistry
+                pauseRegistry,
+                500_000
             )
         );
         ERC1967Proxy proxy = new ERC1967Proxy(address(impl), initData);

@@ -203,7 +203,8 @@ contract DeployFlyover is Script {
                     cfg.minimumPegIn,
                     d.collateralManagementProxy,
                     cfg.mainnet,
-                    PauseRegistry(pauseRegistryProxy)
+                    PauseRegistry(pauseRegistryProxy),
+                    BRIDGE_MIN_DEPOSIT_SATS
                 )
             ),
             opts

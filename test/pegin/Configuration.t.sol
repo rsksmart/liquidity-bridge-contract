@@ -64,6 +64,12 @@ contract ConfigurationTest is PegInTestBase {
             "minPegIn should match"
         );
 
+        assertEq(
+            pegInContract.getBridgeMinDepositSats(),
+            TEST_BRIDGE_MIN_DEPOSIT_SATS,
+            "bridgeMinDepositSats should match"
+        );
+
         // Check owner
         assertEq(pegInContract.owner(), owner, "owner should match");
     }
@@ -77,7 +83,8 @@ contract ConfigurationTest is PegInTestBase {
             TEST_MIN_PEGIN,
             address(collateralManagement),
             false,
-            pauseRegistry
+            pauseRegistry,
+            TEST_BRIDGE_MIN_DEPOSIT_SATS
         );
     }
 
@@ -92,7 +99,8 @@ contract ConfigurationTest is PegInTestBase {
             TEST_MIN_PEGIN,
             address(collateralManagement),
             false,
-            pauseRegistry
+            pauseRegistry,
+            TEST_BRIDGE_MIN_DEPOSIT_SATS
         );
     }
 
@@ -111,7 +119,8 @@ contract ConfigurationTest is PegInTestBase {
                 TEST_MIN_PEGIN,
                 noCodeAddress, // Address with no code
                 false,
-                pauseRegistry
+                pauseRegistry,
+                TEST_BRIDGE_MIN_DEPOSIT_SATS
             )
         );
 
@@ -258,5 +267,39 @@ contract ConfigurationTest is PegInTestBase {
             newMinPegIn,
             "minPegIn should be updated"
         );
+    }
+
+    // ============ setBridgeMinDepositSats function tests ============
+
+    function test_SetBridgeMinDepositSats_OnlyAllowsOwnerToModify() public {
+        vm.startPrank(notOwner);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                notOwner,
+                pegInContract.DEFAULT_ADMIN_ROLE()
+            )
+        );
+        pegInContract.setBridgeMinDepositSats(TEST_BRIDGE_MIN_DEPOSIT_SATS + 1);
+        vm.stopPrank();
+    }
+
+    function test_SetBridgeMinDepositSats_AcceptsSameValue() public {
+        vm.prank(owner);
+        pegInContract.setBridgeMinDepositSats(TEST_BRIDGE_MIN_DEPOSIT_SATS);
+
+        assertEq(pegInContract.getBridgeMinDepositSats(), TEST_BRIDGE_MIN_DEPOSIT_SATS);
+    }
+
+    function test_SetBridgeMinDepositSats_RevertsWhenLowered() public {
+        vm.prank(owner);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PegInContract.BridgeMinDepositSatsDecrease.selector,
+                TEST_BRIDGE_MIN_DEPOSIT_SATS,
+                TEST_BRIDGE_MIN_DEPOSIT_SATS - 1
+            )
+        );
+        pegInContract.setBridgeMinDepositSats(TEST_BRIDGE_MIN_DEPOSIT_SATS - 1);
     }
 }
