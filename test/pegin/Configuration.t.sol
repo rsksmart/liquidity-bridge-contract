@@ -288,7 +288,10 @@ contract ConfigurationTest is PegInTestBase {
         vm.prank(owner);
         pegInContract.setBridgeMinDepositSats(TEST_BRIDGE_MIN_DEPOSIT_SATS);
 
-        assertEq(pegInContract.getBridgeMinDepositSats(), TEST_BRIDGE_MIN_DEPOSIT_SATS);
+        assertEq(
+            pegInContract.getBridgeMinDepositSats(),
+            TEST_BRIDGE_MIN_DEPOSIT_SATS
+        );
     }
 
     function test_SetBridgeMinDepositSats_RevertsWhenLowered() public {

@@ -100,7 +100,11 @@ contract DeployPegInTest is Test {
         PegInContract pegIn = PegInContract(payable(proxy));
 
         assertEq(pegIn.getMinPegIn(), cfg.minimumPegIn, "Min PegIn mismatch");
-        assertEq(pegIn.getBridgeMinDepositSats(), BRIDGE_MIN_DEPOSIT_SATS, "Bridge min deposit mismatch");
+        assertEq(
+            pegIn.getBridgeMinDepositSats(),
+            BRIDGE_MIN_DEPOSIT_SATS,
+            "Bridge min deposit mismatch"
+        );
         assertEq(
             pegIn.dustThreshold(),
             cfg.dustThreshold,
