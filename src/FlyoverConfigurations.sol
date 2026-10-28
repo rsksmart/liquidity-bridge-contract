@@ -82,9 +82,6 @@ contract FlyoverConfigurations is
     /// @notice Rejects registrantFee values at or above this cap (0.001 ether).
     uint256 public constant MAX_REGISTRANT_FEE_EXCLUSIVE = 0.001 ether;
 
-    /// @notice LP claim-gas headroom required between fixedFee and registrantFee at queue/apply.
-    uint256 private constant _REGISTRANT_FEE_LP_GAS_CUSHION = 0;
-
     // ERC-7201: keccak256(abi.encode(uint256(keccak256("rsk.flyover.FlyoverConfigurations")) - 1)) &
     // ~bytes32(uint256(0xff))
     bytes32 private constant _FLYOVER_CONFIGURATIONS_STORAGE =
@@ -146,8 +143,8 @@ contract FlyoverConfigurations is
     error InvalidPegOutDeadlines();
     /// @notice Raised when registrantFee is at or above {MAX_REGISTRANT_FEE_EXCLUSIVE}.
     error RegistrantFeeTooHigh(uint256 registrantFee, uint256 maxExclusive);
-    /// @notice Raised when fixedFee cannot cover registrantFee plus the LP gas cushion.
-    error InsufficientFixedFeeForRegistrant(uint256 fixedFee, uint256 registrantFee, uint256 cushion);
+    /// @notice Raised when fixedFee is below registrantFee.
+    error InsufficientFixedFeeForRegistrant(uint256 fixedFee, uint256 registrantFee);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -512,10 +509,8 @@ contract FlyoverConfigurations is
         if (config.registrantFee >= MAX_REGISTRANT_FEE_EXCLUSIVE) {
             revert RegistrantFeeTooHigh(config.registrantFee, MAX_REGISTRANT_FEE_EXCLUSIVE);
         }
-        if (config.fixedFee < config.registrantFee + _REGISTRANT_FEE_LP_GAS_CUSHION) {
-            revert InsufficientFixedFeeForRegistrant(
-                config.fixedFee, config.registrantFee, _REGISTRANT_FEE_LP_GAS_CUSHION
-            );
+        if (config.fixedFee < config.registrantFee) {
+            revert InsufficientFixedFeeForRegistrant(config.fixedFee, config.registrantFee);
         }
 
         if (config.percentageFee > FEE_PERCENTAGE_DENOMINATOR) {
