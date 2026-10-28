@@ -29,10 +29,10 @@ contract RequestPegInHappyPathTest is RequestPegInTestBase {
     }
 
     function test_happyPath_claimRecordAndDelivery() public {
-        configurations.setGasFee(GAS_FEE);
+        configurations.setClaimGasFee(CLAIM_GAS_FEE);
         uint256 amount = DEFAULT_AMOUNT;
         uint256 fee = _expectedFee(amount);
-        uint256 expectedNet = amount - fee - GAS_FEE;
+        uint256 expectedNet = amount - fee - CLAIM_GAS_FEE;
         bytes memory btcTx = _defaultTx();
         bytes32 pegInId = _pegInIdForTx(rskUser, btcTx);
 
@@ -81,7 +81,11 @@ contract RequestPegInHappyPathTest is RequestPegInTestBase {
             "claim.frontedAmount == msg.value"
         );
         assertEq(feeAtClaim, fee, "claim.feeAtClaim == fee at call time");
-        assertEq(_readGasFeeAtClaim(pegInId), GAS_FEE, "claim.gasFeeAtClaim");
+        assertEq(
+            _readGasFeeAtClaim(pegInId),
+            CLAIM_GAS_FEE,
+            "claim.gasFeeAtClaim"
+        );
         assertEq(requestBlock, block.number, "claim.requestBlock");
     }
 

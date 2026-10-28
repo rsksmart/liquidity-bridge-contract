@@ -19,7 +19,7 @@ interface IPegInCommitFirst {
     /// @param rskAddr The RSK destination address that received the funds
     /// @param amount The gross peg-in amount, in wei — the deposit output's satoshi value
     /// scaled by 10**10, never a caller-supplied figure
-    /// @param netToUser The amount delivered to the user (amount - fee - gasFee), in wei
+    /// @param netToUser The amount delivered to the user (amount - fee - claimGasFee), in wei
     /// @param callSuccess Whether the delivery call succeeded (always true this sprint)
     event PegInRequested(
         bytes32 indexed pegInId,
@@ -112,7 +112,7 @@ interface IPegInCommitFirst {
 
     /// @notice Reverts requestPegIn when msg.value does not equal the amount minus the fee and
     /// the gas fee
-    /// @param expected The required msg.value (amount - fee - gasFee), in wei
+    /// @param expected The required msg.value (amount - fee - claimGasFee), in wei
     /// @param actual The msg.value sent, in wei
     error IncorrectFronting(uint256 expected, uint256 actual);
 

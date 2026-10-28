@@ -29,8 +29,8 @@ contract FlyoverConfigurationsMock is IFlyoverConfigurations {
     }
 
     /// @notice Sets the gas fee directly
-    function setGasFee(uint256 gasFee) external {
-        _config.gasFee = gasFee;
+    function setClaimGasFee(uint256 claimGasFee) external {
+        _config.claimGasFee = claimGasFee;
     }
 
     /// @notice Sets the amount bounds directly

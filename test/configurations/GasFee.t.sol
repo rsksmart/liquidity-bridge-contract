@@ -11,49 +11,52 @@ contract GasFeeTest is ConfigurationsTestBase {
         _deploy();
     }
 
-    function test_queueChange_rejects_gasFee_above_max() public {
+    function test_queueChange_rejects_claimGasFee_above_max() public {
         IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
-        c.gasFee = BOUND_MAX_GAS_FEE + 1;
+        c.claimGasFee = BOUND_MAX_CLAIM_GAS_FEE + 1;
         vm.prank(owner);
         vm.expectRevert(
             abi.encodeWithSelector(
                 FlyoverConfigurations.ConfigValueOutOfBounds.selector,
-                FlyoverConfigurations.Field.GasFee,
-                BOUND_MAX_GAS_FEE + 1,
-                BOUND_MIN_GAS_FEE,
-                BOUND_MAX_GAS_FEE
+                FlyoverConfigurations.Field.ClaimGasFee,
+                BOUND_MAX_CLAIM_GAS_FEE + 1,
+                BOUND_MIN_CLAIM_GAS_FEE,
+                BOUND_MAX_CLAIM_GAS_FEE
             )
         );
         config.queueChange(c);
     }
 
-    function test_applyChange_activates_gasFee() public {
+    function test_applyChange_activates_claimGasFee() public {
         IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
-        c.gasFee = BOUND_MAX_GAS_FEE;
+        c.claimGasFee = BOUND_MAX_CLAIM_GAS_FEE;
         _applyConfig(c);
-        assertEq(config.getPegInConfiguration().gasFee, BOUND_MAX_GAS_FEE);
+        assertEq(
+            config.getPegInConfiguration().claimGasFee,
+            BOUND_MAX_CLAIM_GAS_FEE
+        );
     }
 
-    function test_queueBoundsChange_rejects_inverted_gasFee_pair() public {
+    function test_queueBoundsChange_rejects_inverted_claimGasFee_pair() public {
         IFlyoverConfigurations.PegConfiguration memory min = _boundsMin();
-        min.gasFee = BOUND_MAX_GAS_FEE + 1;
+        min.claimGasFee = BOUND_MAX_CLAIM_GAS_FEE + 1;
         vm.prank(owner);
         vm.expectRevert(
             abi.encodeWithSelector(
                 FlyoverConfigurations.InvalidBounds.selector,
-                FlyoverConfigurations.Field.GasFee,
-                BOUND_MAX_GAS_FEE + 1,
-                BOUND_MAX_GAS_FEE
+                FlyoverConfigurations.Field.ClaimGasFee,
+                BOUND_MAX_CLAIM_GAS_FEE + 1,
+                BOUND_MAX_CLAIM_GAS_FEE
             )
         );
         config.queueBoundsChange(min, _boundsMax());
     }
 
-    function test_applyBoundsChange_rejects_bounds_excluding_active_gasFee()
+    function test_applyBoundsChange_rejects_bounds_excluding_active_claimGasFee()
         public
     {
         IFlyoverConfigurations.PegConfiguration memory max = _boundsMax();
-        max.gasFee = SEED_GAS_FEE - 1;
+        max.claimGasFee = SEED_CLAIM_GAS_FEE - 1;
         vm.prank(owner);
         config.queueBoundsChange(_boundsMin(), max);
         vm.warp(block.timestamp + TIMELOCK_DELAY);
@@ -61,10 +64,10 @@ contract GasFeeTest is ConfigurationsTestBase {
         vm.expectRevert(
             abi.encodeWithSelector(
                 FlyoverConfigurations.ActiveConfigOutsideNewBounds.selector,
-                FlyoverConfigurations.Field.GasFee,
-                SEED_GAS_FEE,
-                BOUND_MIN_GAS_FEE,
-                SEED_GAS_FEE - 1
+                FlyoverConfigurations.Field.ClaimGasFee,
+                SEED_CLAIM_GAS_FEE,
+                BOUND_MIN_CLAIM_GAS_FEE,
+                SEED_CLAIM_GAS_FEE - 1
             )
         );
         config.applyBoundsChange();

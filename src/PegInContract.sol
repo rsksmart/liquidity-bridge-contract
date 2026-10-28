@@ -255,13 +255,13 @@ contract PegInContract is
         _requirePegInConfirmations(amount, btcTxHash, btcBlockHash, merkleBranchPath, merkleBranchHashes);
 
         uint256 fee = _configurations.calculatePegInFee(amount);
-        uint256 expected = _requireCorrectFronting(amount, fee + configuration.gasFee);
+        uint256 expected = _requireCorrectFronting(amount, fee + configuration.claimGasFee);
 
         _pegInClaims[pegInId] = PegInClaim({
             claimer: msg.sender,
             frontedAmount: msg.value,
             feeAtClaim: fee,
-            gasFeeAtClaim: configuration.gasFee,
+            gasFeeAtClaim: configuration.claimGasFee,
             requestBlock: block.number
         });
         _payPegInUser(rskAddr, expected);

@@ -38,7 +38,7 @@ contract FlyoverConfigurations is
         ExpireTime,
         ExpireBlocks,
         MaxMinerFee,
-        GasFee
+        ClaimGasFee
     }
 
     /// @custom:storage-location erc7201:rsk.flyover.FlyoverConfigurations
@@ -505,7 +505,9 @@ contract FlyoverConfigurations is
             minConfigBoundary.registrantFee,
             maxConfigBoundary.registrantFee
         );
-        _checkBound(Field.GasFee, config.gasFee, minConfigBoundary.gasFee, maxConfigBoundary.gasFee);
+        _checkBound(
+            Field.ClaimGasFee, config.claimGasFee, minConfigBoundary.claimGasFee, maxConfigBoundary.claimGasFee
+        );
 
         if (config.registrantFee >= MAX_REGISTRANT_FEE_EXCLUSIVE) {
             revert RegistrantFeeTooHigh(config.registrantFee, MAX_REGISTRANT_FEE_EXCLUSIVE);
@@ -544,7 +546,7 @@ contract FlyoverConfigurations is
         _checkActiveField(Field.MinAmount, active.minAmount, min.minAmount, max.minAmount);
         _checkActiveField(Field.MaxAmount, active.maxAmount, min.maxAmount, max.maxAmount);
         _checkActiveField(Field.RegistrantFee, active.registrantFee, min.registrantFee, max.registrantFee);
-        _checkActiveField(Field.GasFee, active.gasFee, min.gasFee, max.gasFee);
+        _checkActiveField(Field.ClaimGasFee, active.claimGasFee, min.claimGasFee, max.claimGasFee);
     }
 
     function _validatePegOutConfig(PegOutConfiguration memory config) private view {
@@ -614,7 +616,7 @@ contract FlyoverConfigurations is
         _checkPairOrdered(Field.MinAmount, min.minAmount, max.minAmount);
         _checkPairOrdered(Field.MaxAmount, min.maxAmount, max.maxAmount);
         _checkPairOrdered(Field.RegistrantFee, min.registrantFee, max.registrantFee);
-        _checkPairOrdered(Field.GasFee, min.gasFee, max.gasFee);
+        _checkPairOrdered(Field.ClaimGasFee, min.claimGasFee, max.claimGasFee);
     }
 
     function _checkPairOrdered(Field field, uint256 minV, uint256 maxV) private pure {

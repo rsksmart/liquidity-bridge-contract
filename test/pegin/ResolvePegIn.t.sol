@@ -26,9 +26,9 @@ contract ResolvePegInTest is ResolvePegInTestBase {
     }
 
     function test_claimer_balance_after_resolve() public {
-        configurations.setGasFee(GAS_FEE);
+        configurations.setClaimGasFee(CLAIM_GAS_FEE);
         bytes32 pegInId = _claimAndFund(rskUser, rawTx, bridgeRelease);
-        configurations.setGasFee(GAS_FEE * 2);
+        configurations.setClaimGasFee(CLAIM_GAS_FEE * 2);
         uint256 registrantFee = 1e14;
 
         _resolve(claimer, rskUser, rawTx);

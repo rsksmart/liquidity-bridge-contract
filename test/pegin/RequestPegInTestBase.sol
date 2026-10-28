@@ -30,7 +30,7 @@ abstract contract RequestPegInTestBase is PegInTestBase {
     uint256 internal constant DEFAULT_PERCENTAGE_FEE = 100; // 1%
     uint256 internal constant DEFAULT_MAX_AMOUNT = 100 ether;
     uint256 internal constant DEFAULT_TIER_CONFIRMATIONS = 10;
-    uint256 internal constant GAS_FEE = 0.0001 ether;
+    uint256 internal constant CLAIM_GAS_FEE = 0.0001 ether;
 
     PegInAddressRegistryHarness internal registry;
     FlyoverConfigurationsMock internal configurations;
