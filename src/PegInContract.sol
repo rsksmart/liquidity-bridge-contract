@@ -135,7 +135,7 @@ contract PegInContract is
     /// @param minPegIn the minimum peg in amount supported by the bridge
     /// @param collateralManagement the address of the Collateral Management contract
     /// @param mainnet whether the contract is on the mainnet or not
-    /// @param pauseRegistry the central PauseRegistry for pause state
+    /// @param pauseRegistry_ the central PauseRegistry for pause state
     /// @param bridgeMinDepositSats the bridge's minimum peg-in value (500,000 sats since RSKIP219);
     /// after initialization it can only be raised
     // solhint-disable-next-line comprehensive-interface
@@ -146,14 +146,14 @@ contract PegInContract is
         uint256 minPegIn,
         address collateralManagement,
         bool mainnet,
-        IPauseRegistry pauseRegistry,
+        IPauseRegistry pauseRegistry_,
         uint256 bridgeMinDepositSats
     ) external initializer {
         if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
-        if (address(pauseRegistry).code.length == 0) revert Flyover.NoContract(address(pauseRegistry));
+        if (address(pauseRegistry_).code.length == 0) revert Flyover.NoContract(address(pauseRegistry_));
         __AccessControlDefaultAdminRules_init(0, defaultAdmin);
         __EIP712_init(NAME, VERSION);
-        __EmergencyPause_init(pauseRegistry);
+        __EmergencyPause_init(pauseRegistry_);
         _bridge = IBridge(bridge);
         _collateralManagement = ICollateralManagement(collateralManagement);
         _mainnet = mainnet;
