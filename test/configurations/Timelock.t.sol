@@ -266,11 +266,13 @@ contract TimelockTest is ConfigurationsTestBase {
     /// @notice The point of the feature: after widening, a fee the old bounds rejected is
     /// accepted, and the widening required no upgrade.
     function test_bounds_widening_admitsPreviouslyRejectedValue() public {
-        uint256 highFee = BOUND_MAX_FIXED_FEE + 1 ether; // above the old max, below the new one
+        uint256 highFee = BOUND_MAX_FIXED_FEE + SAT; // above the old max, below the new one
 
         // Rejected under the deployment bounds.
         IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
         c.fixedFee = highFee;
+        // minAmount must be above the fee, or queueChange reverts.
+        c.minAmount = WIDE_MAX_MIN_AMOUNT;
         vm.prank(owner);
         vm.expectRevert(
             abi.encodeWithSelector(

@@ -27,6 +27,21 @@ contract GasFeeTest is ConfigurationsTestBase {
         config.queueChange(c);
     }
 
+    function test_queueChange_rejects_minAmount_equal_to_deduction() public {
+        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        c.percentageFee = 0;
+        c.minAmount = c.fixedFee + c.claimGasFee;
+        vm.prank(owner);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                FlyoverConfigurations.MinAmountDoesNotCoverDeduction.selector,
+                c.minAmount,
+                c.minAmount
+            )
+        );
+        config.queueChange(c);
+    }
+
     function test_applyChange_activates_claimGasFee() public {
         IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
         c.claimGasFee = BOUND_MAX_CLAIM_GAS_FEE;
