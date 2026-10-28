@@ -19,7 +19,9 @@ interface IPegInCommitFirst {
     /// @param rskAddr The RSK destination address that received the funds
     /// @param amount The gross peg-in amount, in wei — the deposit output's satoshi value
     /// scaled by 10**10, never a caller-supplied figure
-    /// @param netToUser The amount delivered to the user, in wei
+    /// @param netToUser The amount delivered to the user, in wei. For a deposit above
+    /// maxAmount, amount - netToUser is not the fee, because settlement pays the user the part
+    /// above maxAmount
     /// @param callSuccess Whether the delivery call succeeded (always true this sprint)
     event PegInRequested(
         bytes32 indexed pegInId,
@@ -121,8 +123,14 @@ interface IPegInCommitFirst {
     /// from the same bytes, so the SPV proof, the peg-in id and the amount provably describe
     /// one transaction. Nothing about the deposit's value is caller-supplied.
     ///
-    /// Payable: the provider fronts at most the configured maxAmount, which limits what one
-    /// provider advances per peg-in. Settlement pays the user the rest of a larger deposit.
+    /// Payable: msg.value must equal min(amount, maxAmount) minus the fee on that capped
+    /// amount. maxAmount limits what one provider advances per peg-in.
+    ///
+    /// Settlement pays the user the part of a deposit above maxAmount, from the bridge release,
+    /// with a 2,300-gas send. If that send fails, the part is credited to rskAddr's balance, and
+    /// only rskAddr can withdraw it. So a contract destination must accept a 2,300-gas transfer
+    /// or be able to call withdraw.
+    ///
     /// The claim record stores the claimer, the fronted amount, and the fee at claim time,
     /// because the configuration can change before settlement pays the claimer back
     /// (~17 hours later).
