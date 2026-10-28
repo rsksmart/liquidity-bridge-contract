@@ -58,7 +58,6 @@ contract PegOutContract is
 
     IBridge private _bridge;
     ICollateralManagement private _collateralManagement;
-    IPegOutEscrow private _pegOutEscrow;
 
     mapping(bytes32 => Quotes.PegOutQuote) private _pegOutQuotes;
     mapping(bytes32 => PegOutRecord) private _pegOutRegistry;
@@ -70,6 +69,7 @@ contract PegOutContract is
     /// @notice Average Bitcoin block time in seconds, used to calculate the expected confirmation time
     uint256 public btcBlockTime;
     bool private _mainnet;
+    IPegOutEscrow private _pegOutEscrow;
 
     /// @notice This event is emitted when the dust threshold is set
     /// @param oldThreshold the old dust threshold
