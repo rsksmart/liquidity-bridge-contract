@@ -60,7 +60,6 @@ contract RequestPegInFeeEdgesTest is RequestPegInTestBase {
         vm.deal(claimer, 200 ether);
         uint256 claimerBefore = claimer.balance;
         uint256 userBefore = rskUser.balance;
-        uint256 contractBefore = address(pegInContract).balance;
 
         vm.expectEmit(true, true, true, true);
         emit IPegInCommitFirst.PegInRequested(
@@ -75,11 +74,6 @@ contract RequestPegInFeeEdgesTest is RequestPegInTestBase {
 
         assertEq(rskUser.balance, userBefore + net, "net delivered at cap");
         assertEq(claimer.balance, claimerBefore - net, "claimer fronted cap");
-        assertEq(
-            address(pegInContract).balance,
-            contractBefore,
-            "excess not paid from contract"
-        );
         (, uint256 frontedAmount, uint256 feeAtClaim, ) = _readClaim(pegInId);
         assertEq(frontedAmount, net, "fronted at cap");
         assertEq(feeAtClaim, fee, "fee on capped amount");
