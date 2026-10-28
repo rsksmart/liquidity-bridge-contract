@@ -351,6 +351,12 @@ contract FlyoverConfigurations is
     }
 
     /// @inheritdoc IFlyoverConfigurations
+    function calculatePegInDeduction(uint256 amount) external view override returns (uint256 deduction) {
+        PegConfiguration storage config = _getStorage().activePegIn;
+        return _calculateDeduction(config.fixedFee, config.percentageFee, config.claimGasFee, amount);
+    }
+
+    /// @inheritdoc IFlyoverConfigurations
     function getRequiredPegInBtcConfirmations(uint256 amount)
         external
         view

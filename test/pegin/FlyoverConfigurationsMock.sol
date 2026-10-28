@@ -66,6 +66,17 @@ contract FlyoverConfigurationsMock is IFlyoverConfigurations {
     }
 
     /// @inheritdoc IFlyoverConfigurations
+    function calculatePegInDeduction(
+        uint256 amount
+    ) external view override returns (uint256 deduction) {
+        return
+            _config.fixedFee +
+            (amount * _config.percentageFee) /
+            _BASIS_POINTS +
+            _config.claimGasFee;
+    }
+
+    /// @inheritdoc IFlyoverConfigurations
     function getRequiredPegInBtcConfirmations(
         uint256 amount
     ) external view override returns (uint256 confirmations) {

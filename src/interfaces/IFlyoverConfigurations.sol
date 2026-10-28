@@ -56,6 +56,13 @@ interface IFlyoverConfigurations {
     /// @return fee The fee, in wei
     function calculatePegInFee(uint256 amount) external view returns (uint256 fee);
 
+    /// @notice Calculates the total that requestPegIn subtracts from an amount under the active
+    /// configuration
+    /// @dev calculatePegInFee + claimGasFee. The user receives the amount - this value.
+    /// @param amount The peg-in amount, in wei
+    /// @return deduction fee + claimGasFee, in wei
+    function calculatePegInDeduction(uint256 amount) external view returns (uint256 deduction);
+
     /// @notice Returns the BTC confirmations required before a peg-in of the given amount
     /// may be claimed
     /// @dev The first tier covering the amount answers. Read by the LPS before claiming

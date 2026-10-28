@@ -42,6 +42,14 @@ contract GasFeeTest is ConfigurationsTestBase {
         config.queueChange(c);
     }
 
+    function test_calculatePegInDeduction_adds_claimGasFee() public view {
+        uint256 amount = 1 ether;
+        assertEq(
+            config.calculatePegInDeduction(amount),
+            config.calculatePegInFee(amount) + SEED_CLAIM_GAS_FEE
+        );
+    }
+
     function test_applyChange_activates_claimGasFee() public {
         IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
         c.claimGasFee = BOUND_MAX_CLAIM_GAS_FEE;
