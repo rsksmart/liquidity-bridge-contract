@@ -126,10 +126,11 @@ interface IPegInCommitFirst {
     /// Payable: msg.value must equal min(amount, maxAmount) minus the fee on that capped
     /// amount. maxAmount limits what one provider advances per peg-in.
     ///
-    /// Settlement pays the user the part of a deposit above maxAmount, from the bridge release,
-    /// with a 2,300-gas send. If that send fails, the part is credited to rskAddr's balance, and
-    /// only rskAddr can withdraw it. So a contract destination must accept a 2,300-gas transfer
-    /// or be able to call withdraw.
+    /// Settlement distributes any bridge release above the fronted amount plus the fee.
+    /// A remainder greater than dustThreshold is sent to rskAddr with a 2,300-gas call;
+    /// if the send fails, it is credited to rskAddr's balance, and only rskAddr can withdraw it.
+    /// A remainder at or below dustThreshold is credited to the claimer instead.
+    /// Contract destinations must accept the send or be able to call withdraw.
     ///
     /// The claim record stores the claimer, the fronted amount, and the fee at claim time,
     /// because the configuration can change before settlement pays the claimer back
