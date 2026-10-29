@@ -220,7 +220,9 @@ contract ResolvePegInTest is ResolvePegInTestBase {
         );
     }
 
-    function test_deposit_above_max_amount_user_gets_rest_at_settlement() public {
+    function test_deposit_above_max_amount_user_gets_rest_at_settlement()
+        public
+    {
         uint256 amount = 150 ether;
         uint256 cappedFee = _expectedFee(DEFAULT_MAX_AMOUNT);
         uint256 net = DEFAULT_MAX_AMOUNT - cappedFee;
