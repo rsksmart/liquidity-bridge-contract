@@ -147,6 +147,8 @@ contract FlyoverConfigurations is
     error InsufficientFixedFeeForRegistrant(uint256 fixedFee, uint256 registrantFee);
     /// @notice Raised when fee + claimGasFee for a minAmount peg-in is minAmount or more.
     error MinAmountDoesNotCoverDeduction(uint256 minAmount, uint256 deduction);
+    /// @notice Raised when minAmount is not a whole number of satoshis.
+    error MinAmountNotWholeSatoshi(uint256 minAmount);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -527,15 +529,7 @@ contract FlyoverConfigurations is
         if (config.minAmount > config.maxAmount) {
             revert InvalidAmountLimits(config.minAmount, config.maxAmount);
         }
-        // If the deduction is minAmount or more, requestPegIn reverts for a minAmount deposit, and
-        // that deposit can never settle. The check tests only minAmount. A larger deposit always
-        // passes when minAmount passes: percentageFee is at most 100%, so each extra satoshi adds
-        // at most one satoshi to the fee.
-        uint256 deduction =
-            _calculateDeduction(config.fixedFee, config.percentageFee, config.claimGasFee, config.minAmount);
-        if (deduction >= config.minAmount) {
-            revert MinAmountDoesNotCoverDeduction(config.minAmount, deduction);
-        }
+        _validateMinAmount(config);
         _validateTiers(config.confirmationTiers);
     }
 
@@ -616,6 +610,23 @@ contract FlyoverConfigurations is
         returns (uint256)
     {
         return _calculateFee(fixedFee, percentageFee, amount) + claimGasFee;
+    }
+
+    function _validateMinAmount(PegConfiguration memory config) private pure {
+        // A BTC deposit is always a whole number of satoshis. The deduction check below treats
+        // minAmount as the smallest deposit, so minAmount must be a deposit size that can exist.
+        if (config.minAmount % Flyover.SAT_TO_WEI_CONVERSION != 0) {
+            revert MinAmountNotWholeSatoshi(config.minAmount);
+        }
+        // If the deduction is minAmount or more, requestPegIn reverts for a minAmount deposit, and
+        // that deposit can never settle. The check tests only minAmount. A larger deposit always
+        // passes when minAmount passes: percentageFee is at most 100%, so each extra satoshi adds
+        // at most one satoshi to the fee.
+        uint256 deduction =
+            _calculateDeduction(config.fixedFee, config.percentageFee, config.claimGasFee, config.minAmount);
+        if (deduction >= config.minAmount) {
+            revert MinAmountDoesNotCoverDeduction(config.minAmount, deduction);
+        }
     }
 
     function _checkBound(Field field, uint256 value, uint256 minV, uint256 maxV) private pure {

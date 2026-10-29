@@ -42,6 +42,19 @@ contract GasFeeTest is ConfigurationsTestBase {
         config.queueChange(c);
     }
 
+    function test_queueChange_rejects_minAmount_not_whole_satoshi() public {
+        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        c.minAmount = 0.002 ether + 1;
+        vm.prank(owner);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                FlyoverConfigurations.MinAmountNotWholeSatoshi.selector,
+                c.minAmount
+            )
+        );
+        config.queueChange(c);
+    }
+
     function test_calculatePegInDeduction_adds_claimGasFee() public view {
         uint256 amount = 1 ether;
         assertEq(
