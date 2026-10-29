@@ -243,6 +243,21 @@ contract ResolvePegInTest is ResolvePegInTestBase {
         assertEq(rskUser.balance, userBefore);
     }
 
+    // The release is above frontedAmount + feeAtClaim but below
+    // frontedAmount + feeAtClaim + gasFeeAtClaim. If settlement leaves out gasFeeAtClaim,
+    // the user gets the difference, and the difference is above the dust threshold.
+    function test_release_below_owed_by_less_than_gas_fee_pays_claimer() public {
+        configurations.setClaimGasFee(CLAIM_GAS_FEE);
+        uint256 release = DEFAULT_AMOUNT - CLAIM_GAS_FEE / 2;
+        _claimAndFund(rskUser, rawTx, release);
+        uint256 userBefore = rskUser.balance;
+
+        _resolve(claimer, rskUser, rawTx);
+
+        assertEq(_balance(claimer), release - 1e14);
+        assertEq(rskUser.balance, userBefore);
+    }
+
     function test_release_below_registrant_fee_caps_registrant() public {
         uint256 release = 5e13;
         _claimAndFund(rskUser, rawTx, release);
