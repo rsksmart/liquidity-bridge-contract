@@ -254,12 +254,14 @@ contract PegInContract is
         }
         _requirePegInConfirmations(amount, btcTxHash, btcBlockHash, merkleBranchPath, merkleBranchHashes);
 
-        uint256 fee = _configurations.calculatePegInFee(amount);
-        uint256 expected = _requireCorrectFronting(amount, fee + configuration.claimGasFee);
+        // Settlement pays the user the part of the deposit above the cap, from the bridge release.
+        uint256 cappedAmount = _min(amount, configuration.maxAmount);
+        uint256 fee = _configurations.calculatePegInFee(cappedAmount);
+        uint256 expected = _requireCorrectFronting(cappedAmount, fee + configuration.claimGasFee);
 
         _pegInClaims[pegInId] = PegInClaim({
             claimer: msg.sender,
-            frontedAmount: msg.value,
+            frontedAmount: expected,
             feeAtClaim: fee,
             gasFeeAtClaim: configuration.claimGasFee,
             requestBlock: block.number

@@ -28,7 +28,8 @@ interface IFlyoverConfigurations {
     /// @param percentageFee The proportional component of the fee, in basis points over
     /// 10,000
     /// @param minAmount The minimum peg-in amount, in wei
-    /// @param maxAmount The maximum peg-in amount, in wei
+    /// @param maxAmount The largest part of a deposit that a provider fronts and the fee is
+    /// charged on, in wei; the provider fronts maxAmount - the fee on maxAmount - claimGasFee
     /// @param registrantFee The fee paid to the registrant on the first claimed peg-in per
     /// destination address, in wei; read at settlement from live config and clamped to feeAtClaim
     /// @param claimGasFee The flat charge for the provider's RSK gas, in wei; deducted at claim beside
@@ -58,7 +59,8 @@ interface IFlyoverConfigurations {
 
     /// @notice Calculates the total that requestPegIn subtracts from an amount under the active
     /// configuration
-    /// @dev calculatePegInFee + claimGasFee. The user receives the amount - this value.
+    /// @dev calculatePegInFee + claimGasFee. requestPegIn charges it on min(amount, maxAmount),
+    /// so callers pass that value.
     /// @param amount The peg-in amount, in wei
     /// @return deduction fee + claimGasFee, in wei
     function calculatePegInDeduction(uint256 amount) external view returns (uint256 deduction);

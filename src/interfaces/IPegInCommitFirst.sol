@@ -19,7 +19,8 @@ interface IPegInCommitFirst {
     /// @param rskAddr The RSK destination address that received the funds
     /// @param amount The gross peg-in amount, in wei — the deposit output's satoshi value
     /// scaled by 10**10, never a caller-supplied figure
-    /// @param netToUser The amount delivered to the user (amount - fee - claimGasFee), in wei
+    /// @param netToUser The amount delivered to the user, in wei: min(amount, maxAmount) - fee -
+    /// claimGasFee. For a deposit above maxAmount, settlement pays the user the part above maxAmount
     /// @param callSuccess Whether the delivery call succeeded (always true this sprint)
     event PegInRequested(
         bytes32 indexed pegInId,
@@ -110,8 +111,8 @@ interface IPegInCommitFirst {
     /// @param required The confirmations the active configuration requires
     error InsufficientConfirmations(uint256 have, uint256 required);
 
-    /// @notice Reverts requestPegIn when msg.value is not amount - fee - claimGasFee
-    /// @param expected The required msg.value (amount - fee - claimGasFee), in wei
+    /// @notice Reverts requestPegIn when msg.value is not the required fronting
+    /// @param expected The required msg.value, in wei
     /// @param actual The msg.value sent, in wei
     error IncorrectFronting(uint256 expected, uint256 actual);
 
@@ -122,10 +123,18 @@ interface IPegInCommitFirst {
     /// from the same bytes, so the SPV proof, the peg-in id and the amount provably describe
     /// one transaction. Nothing about the deposit's value is caller-supplied.
     ///
-    /// Payable: msg.value must equal amount - fee - claimGasFee, where amount is read from the
-    /// deposit. The claim record stores the claimer, the fronted amount, the fee, and the gas
-    /// fee at claim time, because the configuration can change before settlement pays the
-    /// claimer back (~17 hours later).
+    /// Payable: msg.value must equal min(amount, maxAmount) - fee - claimGasFee, where the fee is
+    /// on the capped amount. maxAmount limits what one provider advances per peg-in.
+    ///
+    /// Settlement distributes any bridge release above the fronted amount + fee + claimGasFee.
+    /// A remainder greater than dustThreshold is sent to rskAddr with a 2,300-gas call;
+    /// if the send fails, it is credited to rskAddr's balance, and only rskAddr can withdraw it.
+    /// A remainder at or below dustThreshold is credited to the claimer instead.
+    /// Contract destinations must accept the send or be able to call withdraw.
+    ///
+    /// The claim record stores the claimer, the fronted amount, the fee, and the gas fee at claim
+    /// time, because the configuration can change before settlement pays the claimer back
+    /// (~17 hours later).
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param btcTxSerialized The witness-stripped raw BTC deposit transaction
     /// @param btcBlockHash The hash of the Bitcoin block containing the deposit
