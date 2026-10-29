@@ -129,8 +129,9 @@ interface IPegInCommitFirst {
     /// A destination that refuses the RBTC does not revert the claim: otherwise a destination
     /// that always refuses would leave the deposit unclaimable and locked in the bridge. The
     /// claim is stored with success = false and a fronted amount of 0, and msg.value is
-    /// credited to the claimer's balance. The payment forwards at most 2300 gas and copies no
-    /// return data, so a destination that needs more gas is treated as one that refuses.
+    /// credited to the claimer's balance. The payment forwards 2300 gas, plus the 2300-gas stipend
+    /// when it sends value, and copies no return data. A destination that needs more gas is
+    /// treated as one that refuses.
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param btcTxSerialized The witness-stripped raw BTC deposit transaction
     /// @param btcBlockHash The hash of the Bitcoin block containing the deposit
