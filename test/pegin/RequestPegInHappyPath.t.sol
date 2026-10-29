@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 import {RequestPegInTestBase} from "./RequestPegInTestBase.sol";
 import {IPegInCommitFirst} from "../../src/interfaces/IPegInCommitFirst.sol";
+import {WalletMock} from "../../src/test-contracts/WalletMock.sol";
 
 /// @title requestPegIn claim record, payment result, fee snapshot, and event tests
 contract RequestPegInHappyPathTest is RequestPegInTestBase {
@@ -129,6 +130,35 @@ contract RequestPegInHappyPathTest is RequestPegInTestBase {
             recipient.balance,
             recipientBalanceBefore,
             "recipient got nothing"
+        );
+    }
+
+    function test_payment_needing_more_than_gas_limit_stores_failed_claim()
+        public
+    {
+        uint256 net = DEFAULT_AMOUNT - _expectedFee(DEFAULT_AMOUNT);
+        WalletMock wallet = new WalletMock();
+        wallet.setCountReceipts(true);
+        address recipient = address(wallet);
+        registry.harness_seedRegistration(recipient, makeAddr("registrant"), 1);
+        bytes memory depositTx = _depositTx(recipient, DEFAULT_AMOUNT);
+        uint256 claimerBalanceBefore = pegInContract.getBalance(claimer);
+
+        vm.expectEmit(true, true, true, true);
+        emit IPegInCommitFirst.PegInRequested(
+            _pegInIdForTx(recipient, depositTx),
+            claimer,
+            recipient,
+            DEFAULT_AMOUNT,
+            net,
+            false
+        );
+        _requestPegInTx(claimer, recipient, depositTx, net);
+
+        assertEq(
+            pegInContract.getBalance(claimer),
+            claimerBalanceBefore + net,
+            "fronted RBTC credited to the LP"
         );
     }
 
