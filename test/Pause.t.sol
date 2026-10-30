@@ -108,7 +108,7 @@ contract PauseTest is Test {
             )
         );
 
-        PegInContract piImpl = new PegInContract();
+        PegInContract piImpl = new PegInContract(500_000);
         pegInContract = PegInContract(
             payable(
                 address(
@@ -123,8 +123,7 @@ contract PauseTest is Test {
                                 0.5 ether,
                                 address(collateralManagement),
                                 false,
-                                pauseRegistry,
-                                500_000
+                                pauseRegistry
                             )
                         )
                     )

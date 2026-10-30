@@ -349,7 +349,7 @@ contract SystemInvariantTest is Test {
 
     function _deployPegIn() internal {
         bridgeMock = new BridgeMock();
-        PegInContract impl = new PegInContract();
+        PegInContract impl = new PegInContract(500_000);
         bytes memory initData = abi.encodeCall(
             impl.initialize,
             (
@@ -359,8 +359,7 @@ contract SystemInvariantTest is Test {
                 MIN_PEGIN,
                 address(collateralManagement),
                 false,
-                pauseRegistry,
-                500_000
+                pauseRegistry
             )
         );
         ERC1967Proxy proxy = new ERC1967Proxy(address(impl), initData);

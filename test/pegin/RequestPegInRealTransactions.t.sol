@@ -41,8 +41,8 @@ contract RequestPegInRealTransactionsTest is RequestPegInTestBase {
         );
     }
 
-    /// @dev Real fixture outputs also sit below the bridge minimum, and the setter cannot
-    /// lower it, so this suite deploys with a 1-sat bridge minimum.
+    /// @dev Real fixture outputs also sit below the bridge minimum, so this suite deploys with a
+    /// 1-sat bridge minimum.
     function _bridgeMinDepositSats() internal pure override returns (uint256) {
         return 1;
     }

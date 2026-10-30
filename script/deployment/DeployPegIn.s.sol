@@ -81,6 +81,7 @@ contract DeployPegIn is Script {
         address pauseRegistryProxy,
         Options memory opts
     ) private returns (DeploymentResult memory result) {
+        opts.constructorData = abi.encode(BRIDGE_MIN_DEPOSIT_SATS);
         address pegInProxy = Upgrades.deployTransparentProxy(
             "PegInContract.sol",
             defaultAdmin,
@@ -93,8 +94,7 @@ contract DeployPegIn is Script {
                     cfg.minimumPegIn,
                     collateralManagementProxy,
                     cfg.mainnet,
-                    PauseRegistry(pauseRegistryProxy),
-                    BRIDGE_MIN_DEPOSIT_SATS
+                    PauseRegistry(pauseRegistryProxy)
                 )
             ),
             opts

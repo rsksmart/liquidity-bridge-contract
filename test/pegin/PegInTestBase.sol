@@ -42,7 +42,7 @@ abstract contract PegInTestBase is Test {
 
     address constant ZERO_ADDRESS = address(0);
 
-    /// @dev Override to deploy with a lower value: the setter cannot lower it.
+    /// @dev Override to deploy with a different value: it is immutable after deployment.
     function _bridgeMinDepositSats() internal pure virtual returns (uint256) {
         return TEST_BRIDGE_MIN_DEPOSIT_SATS;
     }
@@ -59,7 +59,9 @@ abstract contract PegInTestBase is Test {
     ) internal returns (PegInContract pegIn) {
         _deployPegInDependencies();
 
-        PegInContract implementation = new PegInContract();
+        PegInContract implementation = new PegInContract(
+            _bridgeMinDepositSats()
+        );
 
         bytes memory initData = abi.encodeCall(
             PegInContract.initialize,
@@ -70,8 +72,7 @@ abstract contract PegInTestBase is Test {
                 TEST_MIN_PEGIN,
                 address(collateralManagement),
                 mainnet,
-                pauseRegistry,
-                _bridgeMinDepositSats()
+                pauseRegistry
             )
         );
 

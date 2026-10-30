@@ -208,7 +208,7 @@ abstract contract FlyoverTestBase is Test {
         HelperConfig.FlyoverConfig memory cfg = _getTestConfig();
 
         // Inline deployment - split to avoid stack too deep
-        address impl = address(new PegInContract());
+        address impl = address(new PegInContract(TEST_BRIDGE_MIN_DEPOSIT_SATS));
         bytes memory initData = abi.encodeCall(
             PegInContract.initialize,
             (
@@ -218,8 +218,7 @@ abstract contract FlyoverTestBase is Test {
                 cfg.minimumPegIn,
                 address(collateralManagement),
                 cfg.mainnet,
-                pauseRegistry,
-                TEST_BRIDGE_MIN_DEPOSIT_SATS
+                pauseRegistry
             )
         );
         address proxy = address(
@@ -332,7 +331,9 @@ abstract contract FlyoverTestBase is Test {
 
         // 3) PegInContract
         {
-            address piImpl = address(new PegInContract());
+            address piImpl = address(
+                new PegInContract(TEST_BRIDGE_MIN_DEPOSIT_SATS)
+            );
             bytes memory piInitData = abi.encodeCall(
                 PegInContract.initialize,
                 (
@@ -342,8 +343,7 @@ abstract contract FlyoverTestBase is Test {
                     cfg.minimumPegIn,
                     cmProxy,
                     cfg.mainnet,
-                    IPauseRegistry(prProxy),
-                    TEST_BRIDGE_MIN_DEPOSIT_SATS
+                    IPauseRegistry(prProxy)
                 )
             );
             address piProxy = address(

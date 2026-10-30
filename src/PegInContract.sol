@@ -58,6 +58,13 @@ contract PegInContract is
     string constant public NAME = "PegInContract";
     Flyover.ProviderType constant private _PEG_TYPE = Flyover.ProviderType.PegIn;
     uint256 constant private _MAX_REFUND_GAS_LIMIT = 2300;
+    /// @notice The bridge's minimum peg-in value, in satoshis. The bridge refuses a smaller
+    /// deposit only at resolvePegIn, after the provider has paid.
+    /// @dev Immutable, so only a new implementation can change it, through the timelocked
+    /// upgrade. The constructor runs on every new implementation, so an upgrade of a live proxy
+    /// sets it too, which initialize would not.
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+    uint256 private immutable _BRIDGE_MIN_DEPOSIT_SATS;
 
     IBridge private _bridge;
     ICollateralManagement private _collateralManagement;
@@ -82,9 +89,6 @@ contract PegInContract is
     mapping(address => bool) private _registrantPaid;
     /// @notice Whether a peg-in id was already settled on the claimed path
     mapping(bytes32 => bool) private _pegInSettled;
-    /// @notice Must not be below the bridge's own minimum: the bridge refuses a smaller deposit
-    /// only at resolvePegIn, after the provider has paid
-    uint256 private _bridgeMinDepositSats;
 
     /// @notice Emitted when the dust threshold is set
     /// @param oldThreshold The old dust threshold
@@ -95,8 +99,6 @@ contract PegInContract is
     /// @param oldMinPegIn The old minimum peg in amount
     /// @param newMinPegIn The new minimum peg in amount
     event MinPegInSet(uint256 indexed oldMinPegIn, uint256 indexed newMinPegIn);
-
-    event BridgeMinDepositSatsSet(uint256 indexed oldMinDepositSats, uint256 indexed newMinDepositSats);
 
     /// @notice Emitted when commit-first dependency contracts are set
     /// @param oldRegistry The previous PegInAddressRegistry address
@@ -114,10 +116,11 @@ contract PegInContract is
     error PegInAddressRegistryNotSet();
     /// @notice Reverts when the FlyoverConfigurations dependency has not been set
     error FlyoverConfigurationsNotSet();
-    error BridgeMinDepositSatsDecrease(uint256 currentMinSats, uint256 newMinSats);
 
+    /// @param bridgeMinDepositSats the bridge's minimum peg-in value (500,000 sats since RSKIP219)
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
+    constructor(uint256 bridgeMinDepositSats) {
+        _BRIDGE_MIN_DEPOSIT_SATS = bridgeMinDepositSats;
         _disableInitializers();
     }
 
@@ -136,8 +139,6 @@ contract PegInContract is
     /// @param collateralManagement the address of the Collateral Management contract
     /// @param mainnet whether the contract is on the mainnet or not
     /// @param pauseRegistry_ the central PauseRegistry for pause state
-    /// @param bridgeMinDepositSats the bridge's minimum peg-in value (500,000 sats since RSKIP219);
-    /// after initialization it can only be raised
     // solhint-disable-next-line comprehensive-interface
     function initialize(
         address defaultAdmin,
@@ -146,8 +147,7 @@ contract PegInContract is
         uint256 minPegIn,
         address collateralManagement,
         bool mainnet,
-        IPauseRegistry pauseRegistry_,
-        uint256 bridgeMinDepositSats
+        IPauseRegistry pauseRegistry_
     ) external initializer {
         if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
         if (address(pauseRegistry_).code.length == 0) revert Flyover.NoContract(address(pauseRegistry_));
@@ -159,7 +159,6 @@ contract PegInContract is
         _mainnet = mainnet;
         dustThreshold = dustThreshold_;
         _minPegIn = minPegIn;
-        _bridgeMinDepositSats = bridgeMinDepositSats;
     }
 
     /// @notice This function is used to set the collateral management contract
@@ -188,17 +187,6 @@ contract PegInContract is
     function setMinPegIn(uint256 minPegIn) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         emit MinPegInSet(_minPegIn, minPegIn);
         _minPegIn = minPegIn;
-    }
-
-    /// @dev Increase-only, so one admin transaction cannot let deposits through that the bridge
-    /// rejects. If the bridge lowers its minimum, lowering this needs a timelocked upgrade.
-    // solhint-disable-next-line comprehensive-interface
-    function setBridgeMinDepositSats(uint256 bridgeMinDepositSats) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
-        if (bridgeMinDepositSats < _bridgeMinDepositSats) {
-            revert BridgeMinDepositSatsDecrease(_bridgeMinDepositSats, bridgeMinDepositSats);
-        }
-        emit BridgeMinDepositSatsSet(_bridgeMinDepositSats, bridgeMinDepositSats);
-        _bridgeMinDepositSats = bridgeMinDepositSats;
     }
 
     /// @notice Wires the commit-first PegInAddressRegistry and FlyoverConfigurations dependencies
@@ -324,7 +312,7 @@ contract PegInContract is
 
     /// @inheritdoc IPegInCommitFirst
     function getBridgeMinDepositSats() external view override returns (uint256) {
-        return _bridgeMinDepositSats;
+        return _BRIDGE_MIN_DEPOSIT_SATS;
     }
 
     /// @inheritdoc IPegIn
@@ -489,8 +477,8 @@ contract PegInContract is
     }
 
     function _requireBridgeMinimum(uint256 smallestOutputSats) private view {
-        if (smallestOutputSats < _bridgeMinDepositSats) {
-            revert DepositBelowBridgeMinimum(smallestOutputSats, _bridgeMinDepositSats);
+        if (smallestOutputSats < _BRIDGE_MIN_DEPOSIT_SATS) {
+            revert DepositBelowBridgeMinimum(smallestOutputSats, _BRIDGE_MIN_DEPOSIT_SATS);
         }
     }
 

@@ -132,7 +132,7 @@ contract LegacyChangeOwnerToTimelockTest is Test {
 // ============================================================
 
 contract SplitChangeOwnerToTimelockTest is Test {
-    /// @dev Must match BRIDGE_MIN_DEPOSIT_SATS in the deploy scripts, which tests cannot read.
+    /// @dev A constructor argument for the PegInContract implementation this file deploys.
     uint256 private constant BRIDGE_MIN_DEPOSIT_SATS = 500_000;
 
     HelperConfig public helperConfig;
@@ -425,7 +425,7 @@ contract SplitChangeOwnerToTimelockTest is Test {
         address admin_,
         HelperConfig.FlyoverConfig memory cfg
     ) private {
-        address impl = address(new PegInContract());
+        address impl = address(new PegInContract(BRIDGE_MIN_DEPOSIT_SATS));
         address proxy = address(
             new TransparentUpgradeableProxy(
                 impl,
@@ -439,8 +439,7 @@ contract SplitChangeOwnerToTimelockTest is Test {
                         cfg.minimumPegIn,
                         address(collateralManagement),
                         cfg.mainnet,
-                        PauseRegistry(pauseRegistryProxy),
-                        BRIDGE_MIN_DEPOSIT_SATS
+                        PauseRegistry(pauseRegistryProxy)
                     )
                 )
             )

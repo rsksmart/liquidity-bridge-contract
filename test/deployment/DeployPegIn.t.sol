@@ -76,7 +76,7 @@ contract DeployPegInTest is Test {
         address deployer,
         HelperConfig.FlyoverConfig memory cfg
     ) internal returns (address) {
-        address impl = address(new PegInContract());
+        address impl = address(new PegInContract(BRIDGE_MIN_DEPOSIT_SATS));
         bytes memory initData = abi.encodeCall(
             PegInContract.initialize,
             (
@@ -86,8 +86,7 @@ contract DeployPegInTest is Test {
                 cfg.minimumPegIn,
                 collateralManagementProxy,
                 cfg.mainnet,
-                PauseRegistry(pauseRegistryProxy),
-                BRIDGE_MIN_DEPOSIT_SATS
+                PauseRegistry(pauseRegistryProxy)
             )
         );
         return
@@ -201,7 +200,7 @@ contract DeployPegInTest is Test {
         HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
         address deployer = address(this);
 
-        address impl = address(new PegInContract());
+        address impl = address(new PegInContract(BRIDGE_MIN_DEPOSIT_SATS));
         TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
             impl,
             deployer,
@@ -214,8 +213,7 @@ contract DeployPegInTest is Test {
                     cfg.minimumPegIn,
                     collateralManagementProxy,
                     cfg.mainnet,
-                    PauseRegistry(pauseRegistryProxy),
-                    BRIDGE_MIN_DEPOSIT_SATS
+                    PauseRegistry(pauseRegistryProxy)
                 )
             )
         );
@@ -223,7 +221,11 @@ contract DeployPegInTest is Test {
         ProxyAdmin proxyAdmin = ProxyAdmin(
             ProxyReader.readAdmin(vm, address(proxy))
         );
-        address newImplementation = address(new PegInContract());
+        // A different value, so the check below can only pass if the upgrade itself sets it.
+        uint256 upgradedBridgeMinSats = BRIDGE_MIN_DEPOSIT_SATS + 100_000;
+        address newImplementation = address(
+            new PegInContract(upgradedBridgeMinSats)
+        );
         assertEq(
             ProxyReader.readImplementation(vm, address(proxy)),
             impl,
@@ -238,6 +240,11 @@ contract DeployPegInTest is Test {
             ProxyReader.readImplementation(vm, address(proxy)),
             newImplementation,
             "Implementation mismatch"
+        );
+        assertEq(
+            PegInContract(payable(address(proxy))).getBridgeMinDepositSats(),
+            upgradedBridgeMinSats,
+            "upgrade without initialize sets the bridge minimum"
         );
 
         console.log("\n[PASS] Contract is upgradeable");

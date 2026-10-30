@@ -83,13 +83,14 @@ contract ConfigurationTest is PegInTestBase {
             TEST_MIN_PEGIN,
             address(collateralManagement),
             false,
-            pauseRegistry,
-            TEST_BRIDGE_MIN_DEPOSIT_SATS
+            pauseRegistry
         );
     }
 
     function test_Initialize_RevertsWhenCalledOnImplementation() public {
-        PegInContract implementation = new PegInContract();
+        PegInContract implementation = new PegInContract(
+            TEST_BRIDGE_MIN_DEPOSIT_SATS
+        );
 
         vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
         implementation.initialize(
@@ -99,8 +100,7 @@ contract ConfigurationTest is PegInTestBase {
             TEST_MIN_PEGIN,
             address(collateralManagement),
             false,
-            pauseRegistry,
-            TEST_BRIDGE_MIN_DEPOSIT_SATS
+            pauseRegistry
         );
     }
 
@@ -108,7 +108,9 @@ contract ConfigurationTest is PegInTestBase {
         address noCodeAddress = makeAddr("noCodeAddress");
 
         // Deploy a new PegInContract implementation
-        PegInContract implementation = new PegInContract();
+        PegInContract implementation = new PegInContract(
+            TEST_BRIDGE_MIN_DEPOSIT_SATS
+        );
 
         bytes memory initData = abi.encodeCall(
             PegInContract.initialize,
@@ -119,8 +121,7 @@ contract ConfigurationTest is PegInTestBase {
                 TEST_MIN_PEGIN,
                 noCodeAddress, // Address with no code
                 false,
-                pauseRegistry,
-                TEST_BRIDGE_MIN_DEPOSIT_SATS
+                pauseRegistry
             )
         );
 
@@ -267,42 +268,5 @@ contract ConfigurationTest is PegInTestBase {
             newMinPegIn,
             "minPegIn should be updated"
         );
-    }
-
-    // ============ setBridgeMinDepositSats function tests ============
-
-    function test_SetBridgeMinDepositSats_OnlyAllowsOwnerToModify() public {
-        vm.startPrank(notOwner);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector,
-                notOwner,
-                pegInContract.DEFAULT_ADMIN_ROLE()
-            )
-        );
-        pegInContract.setBridgeMinDepositSats(TEST_BRIDGE_MIN_DEPOSIT_SATS + 1);
-        vm.stopPrank();
-    }
-
-    function test_SetBridgeMinDepositSats_AcceptsSameValue() public {
-        vm.prank(owner);
-        pegInContract.setBridgeMinDepositSats(TEST_BRIDGE_MIN_DEPOSIT_SATS);
-
-        assertEq(
-            pegInContract.getBridgeMinDepositSats(),
-            TEST_BRIDGE_MIN_DEPOSIT_SATS
-        );
-    }
-
-    function test_SetBridgeMinDepositSats_RevertsWhenLowered() public {
-        vm.prank(owner);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                PegInContract.BridgeMinDepositSatsDecrease.selector,
-                TEST_BRIDGE_MIN_DEPOSIT_SATS,
-                TEST_BRIDGE_MIN_DEPOSIT_SATS - 1
-            )
-        );
-        pegInContract.setBridgeMinDepositSats(TEST_BRIDGE_MIN_DEPOSIT_SATS - 1);
     }
 }

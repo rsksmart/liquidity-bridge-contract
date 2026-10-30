@@ -284,31 +284,6 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         _requestPegInTx(claimer, rskUser, btcTx, 1 ether);
     }
 
-    function test_revert_belowRaisedBridgeMinimum() public {
-        uint256 raisedSats = TEST_BRIDGE_MIN_DEPOSIT_SATS + 100_000;
-        vm.expectEmit(true, true, false, false);
-        emit PegInContract.BridgeMinDepositSatsSet(
-            TEST_BRIDGE_MIN_DEPOSIT_SATS,
-            raisedSats
-        );
-        vm.prank(owner);
-        pegInContract.setBridgeMinDepositSats(raisedSats);
-
-        _setFlyoverMinimumOneSatBelowBridge();
-        bytes memory btcTx = _depositTx(
-            rskUser,
-            _toWei(TEST_BRIDGE_MIN_DEPOSIT_SATS)
-        );
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IPegInCommitFirst.DepositBelowBridgeMinimum.selector,
-                TEST_BRIDGE_MIN_DEPOSIT_SATS,
-                raisedSats
-            )
-        );
-        _requestPegInTx(claimer, rskUser, btcTx, 1 ether);
-    }
-
     // ---- Check 5: below configured minimum ----
 
     function test_revert_pegInBelowMinimum_oneSatBelow() public {
