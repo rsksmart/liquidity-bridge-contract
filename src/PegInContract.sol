@@ -42,12 +42,14 @@ contract PegInContract is
 
     /// @notice Claim record written by requestPegIn for later settlement
     /// @param claimer The account that fronted RBTC; address(0) means unset
-    /// @param frontedAmount The net amount delivered to the user (msg.value at claim)
+    /// @param success Whether the RBTC payment to the user succeeded
+    /// @param frontedAmount The net amount delivered to the user; 0 when the payment failed
     /// @param feeAtClaim The service fee snapshot at claim time
     /// @param gasFeeAtClaim The gas fee snapshot at claim time
     /// @param requestBlock The RSK block number of the claim
     struct PegInClaim {
         address claimer;
+        bool success;
         uint256 frontedAmount;
         uint256 feeAtClaim;
         uint256 gasFeeAtClaim;
@@ -261,13 +263,23 @@ contract PegInContract is
 
         _pegInClaims[pegInId] = PegInClaim({
             claimer: msg.sender,
+            success: true,
             frontedAmount: expected,
             feeAtClaim: fee,
             gasFeeAtClaim: configuration.claimGasFee,
             requestBlock: block.number
         });
-        _payPegInUser(rskAddr, expected);
-        emit PegInRequested(pegInId, msg.sender, rskAddr, amount, expected, true);
+        // Stored as paid before the call: a failed call also reverts anything the destination
+        // did during it, so no re-entry can act on a paid claim that is later marked failed
+        bool success = _payPegInUser(rskAddr, expected);
+        if (!success) {
+            PegInClaim storage claim = _pegInClaims[pegInId];
+            claim.success = false;
+            claim.frontedAmount = 0;
+            // The LP keeps the RBTC it fronted, so settlement repays only the fee + claimGasFee
+            _increaseBalance(msg.sender, msg.value);
+        }
+        emit PegInRequested(pegInId, msg.sender, rskAddr, amount, expected, success);
     }
 
     /// @inheritdoc IPegInCommitFirst
@@ -282,7 +294,7 @@ contract PegInContract is
         _requirePegInDepsSet();
 
         registerResult = _registerCommitFirstBridge(
-            rskAddr, btcRawTransaction, partialMerkleTree, height
+            rskAddr, btcRawTransaction, partialMerkleTree, height, claim.success
         );
 
         if (registerResult <= 0) {
@@ -315,12 +327,15 @@ contract PegInContract is
         return _balances[addr];
     }
 
-    /// @dev Bridge fast-register with per-network BTC placeholder addresses.
+    /// @dev Bridge fast-register with per-network BTC placeholder addresses. The bridge reads
+    /// userPaid only when it rejects the deposit over the locking cap: true refunds the BTC to
+    /// the LP address, false to the user refund address.
     function _registerCommitFirstBridge(
         address rskAddr,
         bytes calldata btcRawTransaction,
         bytes calldata partialMerkleTree,
-        uint256 height
+        uint256 height,
+        bool userPaid
     ) private returns (int256) {
         return _bridge.registerFastBridgeBtcTransaction(
             btcRawTransaction,
@@ -330,7 +345,7 @@ contract PegInContract is
             PegInDerivation.getRefundPlaceholderBtcAddress(_mainnet),
             payable(address(this)),
             PegInDerivation.getLpPlaceholderBtcAddress(_mainnet),
-            true
+            userPaid
         );
     }
 
@@ -495,12 +510,17 @@ contract PegInContract is
         }
     }
 
-    /// @notice Delivers net RBTC to the peg-in destination address
+    /// @notice Sends the net RBTC to the peg-in destination address
+    /// @dev Forwards _MAX_REFUND_GAS_LIMIT gas, plus the 2300-gas stipend when expected > 0:
+    /// Rootstock has no 63/64 rule, so an unlimited call lets the destination spend all gas and
+    /// revert the claim. Copies no return data, so a large return cannot spend the gas left after
+    /// the call.
+    /// @return success False when the destination refused the RBTC or ran out of gas
     // slither-disable-next-line arbitrary-send-eth,low-level-calls
-    function _payPegInUser(address rskAddr, uint256 expected) private {
-        (bool success, bytes memory reason) = rskAddr.call{value: expected}("");
-        if (!success) {
-            revert Flyover.PaymentFailed(rskAddr, expected, reason);
+    function _payPegInUser(address rskAddr, uint256 expected) private returns (bool success) {
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            success := call(_MAX_REFUND_GAS_LIMIT, rskAddr, expected, 0, 0, 0, 0)
         }
     }
 
