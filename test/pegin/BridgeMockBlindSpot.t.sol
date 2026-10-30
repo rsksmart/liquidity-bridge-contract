@@ -141,7 +141,7 @@ contract BridgeMockBlindSpotTest is RequestPegInTestBase {
 
     /// @notice Rejection is ours, and it lands before the bridge is consulted at all.
     /// @dev Both bridge reads on the claim path are asserted absent: the powpeg script
-    /// `_readPegInAmount` derives against, and the confirmation lookup after it.
+    /// `_readDepositOutputs` derives against, and the confirmation lookup after it.
     function test_witnessTx_rejectedBeforeAnyBridgeCall() public {
         (, bytes memory witness) = _twoSerializationsOfOneDeposit();
         uint256 net = DEFAULT_AMOUNT - _expectedFee(DEFAULT_AMOUNT);

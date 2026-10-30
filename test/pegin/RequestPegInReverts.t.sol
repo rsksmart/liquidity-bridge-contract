@@ -204,10 +204,19 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
 
     // ---- Bridge minimum: checked right after the amount is read, before check 5 ----
 
+    /// @dev Only the second deposit output is below the minimum: the bridge checks every output
+    /// paying the deposit address, not only the first, which sets the amount.
     function test_revert_oneSatBelowBridgeMinimum() public {
         _setFlyoverMinimumOneSatBelowBridge();
         uint256 depositSats = TEST_BRIDGE_MIN_DEPOSIT_SATS - 1;
-        bytes memory btcTx = _depositTx(rskUser, _toWei(depositSats));
+        bytes memory pkScript = _depositPkScript(rskUser);
+        bytes[] memory pkScripts = new bytes[](2);
+        pkScripts[0] = pkScript;
+        pkScripts[1] = pkScript;
+        uint64[] memory valuesSats = new uint64[](2);
+        valuesSats[0] = uint64(TEST_BRIDGE_MIN_DEPOSIT_SATS);
+        valuesSats[1] = uint64(depositSats);
+        bytes memory btcTx = _buildTx(pkScripts, valuesSats, DEFAULT_TX_NONCE);
 
         vm.expectCall(
             address(bridgeMock),
@@ -226,23 +235,39 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         _requestPegInTx(claimer, rskUser, btcTx, 1 ether);
     }
 
+    /// @dev Three outputs: a deposit above the minimum, a small change output to another
+    /// address, and a deposit exactly at the minimum. The change output is not checked, the
+    /// last deposit output passes at the boundary, and the amount is the first deposit output,
+    /// not the sum and not the smallest.
     function test_bridgeMinimum_exactBoundaryPasses() public {
         _setFlyoverMinimumOneSatBelowBridge();
-        uint256 amount = _toWei(TEST_BRIDGE_MIN_DEPOSIT_SATS);
+        uint256 amount = _toWei(600_000);
+        uint256 net = amount - _expectedFee(amount);
+        bytes memory pkScript = _depositPkScript(rskUser);
+        bytes[] memory pkScripts = new bytes[](3);
+        pkScripts[0] = pkScript;
+        pkScripts[1] = abi.encodePacked(
+            hex"76a914",
+            bytes20(uint160(0xC0FFEE)),
+            hex"88ac"
+        );
+        pkScripts[2] = pkScript;
+        uint64[] memory valuesSats = new uint64[](3);
+        valuesSats[0] = _toSats(amount);
+        valuesSats[1] = 1_000;
+        valuesSats[2] = uint64(TEST_BRIDGE_MIN_DEPOSIT_SATS);
+        bytes memory btcTx = _buildTx(pkScripts, valuesSats, DEFAULT_TX_NONCE);
 
-        bytes32 pegInId = _requestPegIn(
+        vm.expectEmit(true, true, true, true);
+        emit IPegInCommitFirst.PegInRequested(
+            _pegInIdForTx(rskUser, btcTx),
             claimer,
             rskUser,
             amount,
-            amount - _expectedFee(amount)
+            net,
+            true
         );
-
-        (address claimerAddr, , , ) = _readClaim(pegInId);
-        assertEq(
-            claimerAddr,
-            claimer,
-            "deposit at the bridge minimum is claimed"
-        );
+        _requestPegInTx(claimer, rskUser, btcTx, net);
     }
 
     function test_ordering_bridgeMinimumBeforeBelowMinimum() public {

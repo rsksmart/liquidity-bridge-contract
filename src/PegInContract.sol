@@ -266,8 +266,9 @@ contract PegInContract is
         if (!_pegInAddressRegistry.isRegistered(rskAddr)) {
             revert AddressNotRegistered(rskAddr);
         }
-        uint256 amount = _readPegInAmount(rskAddr, btcTxSerialized, btcTxHash);
-        _requireBridgeMinimum(amount);
+        (uint256 firstSats, uint256 smallestOutputSats) = _readDepositOutputs(rskAddr, btcTxSerialized, btcTxHash);
+        _requireBridgeMinimum(smallestOutputSats);
+        uint256 amount = firstSats * Flyover.SAT_TO_WEI_CONVERSION;
         uint256 minAmount = _configurations.getPegInConfiguration().minAmount;
         if (amount < minAmount) {
             revert PegInBelowMinimum(amount, minAmount);
@@ -446,14 +447,15 @@ contract PegInContract is
         if (address(_configurations) == address(0)) revert FlyoverConfigurationsNotSet();
     }
 
-    /// @notice Reads the peg-in amount out of the deposit transaction
+    /// @notice Reads the outputs paying the deposit address out of the deposit transaction
     /// @dev Two different operations, and only the first is a derivation: the deposit
     /// scriptPubkey for rskAddr is DERIVED (a formula over this proxy's address and the live
-    /// powpeg script), and the amount is then READ from the FIRST output paying that script.
+    /// powpeg script), and the outputs paying that script are then READ. The first one sets the
+    /// peg-in amount.
     /// Both go through the same helpers the registry uses at registration —
-    /// {PegInDerivation-depositPkScript} for the script, {BtcTransactionReader} for the lookup. See
-    /// {BtcTransactionReader-findFirstOutputPaying} for why first-match and not the sum, and why
-    /// that is the open question here rather than in the registry.
+    /// {PegInDerivation-depositPkScript} for the script, {BtcTransactionReader} for the lookup.
+    /// docs/PEGIN_DEPOSIT_OUTPUTS.md records why the amount is the first output and not the sum,
+    /// and why every matching output is also checked against the bridge minimum.
     /// The derivation inputs come from state and the matched output from the SPV-proven bytes,
     /// so there is no argument a caller can move to change the answer.
     ///
@@ -469,28 +471,26 @@ contract PegInContract is
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param btcTxSerialized The witness-stripped raw deposit transaction
     /// @param btcTxHash The txid hashed from btcTxSerialized, for the revert reason
-    /// @return The gross peg-in amount in wei
-    function _readPegInAmount(address rskAddr, bytes calldata btcTxSerialized, bytes32 btcTxHash)
+    /// @return firstSats The first matching output, in satoshis
+    /// @return smallestOutputSats The smallest matching output, in satoshis
+    function _readDepositOutputs(address rskAddr, bytes calldata btcTxSerialized, bytes32 btcTxHash)
         private
         view
-        returns (uint256)
+        returns (uint256 firstSats, uint256 smallestOutputSats)
     {
         bytes memory pkScript = PegInDerivation.depositPkScript(
             rskAddr, address(this), _bridge.getActivePowpegRedeemScript(), _mainnet
         );
-        (uint64 depositSats, bool found) =
-            BtcTransactionReader.findFirstOutputPaying(btcTxSerialized, pkScript);
+        bool found;
+        (firstSats, smallestOutputSats, found) = BtcTransactionReader.findOutputsPaying(btcTxSerialized, pkScript);
         if (!found) {
             revert DepositOutputNotFound(rskAddr, btcTxHash);
         }
-        return uint256(depositSats) * Flyover.SAT_TO_WEI_CONVERSION;
     }
 
-    /// @dev The division is exact: _readPegInAmount builds the amount from whole satoshis.
-    function _requireBridgeMinimum(uint256 amount) private view {
-        uint256 depositSats = amount / Flyover.SAT_TO_WEI_CONVERSION;
-        if (depositSats < _bridgeMinDepositSats) {
-            revert DepositBelowBridgeMinimum(depositSats, _bridgeMinDepositSats);
+    function _requireBridgeMinimum(uint256 smallestOutputSats) private view {
+        if (smallestOutputSats < _bridgeMinDepositSats) {
+            revert DepositBelowBridgeMinimum(smallestOutputSats, _bridgeMinDepositSats);
         }
     }
 

@@ -98,8 +98,9 @@ interface IPegInCommitFirst {
 
     /// @notice Reverts requestPegIn when the bridge would refuse to register the deposit, which
     /// would leave the BTC locked and the provider's fronted RBTC unrecovered
-    /// @dev Checked before the Flyover minimum, which may be configured lower.
-    error DepositBelowBridgeMinimum(uint256 depositSats, uint256 bridgeMinSats);
+    /// @dev Checked before the Flyover minimum, which may be configured lower. The bridge checks
+    /// every output paying the deposit address, so this reports the smallest one.
+    error DepositBelowBridgeMinimum(uint256 smallestOutputSats, uint256 bridgeMinSats);
 
     /// @notice Reverts requestPegIn when the deposit amount is below the configured minimum
     /// @param amount The peg-in amount read from the deposit, in wei
