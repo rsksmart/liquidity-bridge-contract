@@ -505,10 +505,17 @@ contract PegInContract is
     }
 
     /// @notice Sends the net RBTC to the peg-in destination address
-    /// @return success False when the destination refused the RBTC
+    /// @dev Forwards _MAX_REFUND_GAS_LIMIT gas, plus the 2300-gas stipend when expected > 0:
+    /// Rootstock has no 63/64 rule, so an unlimited call lets the destination spend all gas and
+    /// revert the claim. Copies no return data, so a large return cannot spend the gas left after
+    /// the call.
+    /// @return success False when the destination refused the RBTC or ran out of gas
     // slither-disable-next-line arbitrary-send-eth,low-level-calls
     function _payPegInUser(address rskAddr, uint256 expected) private returns (bool success) {
-        (success,) = rskAddr.call{value: expected}("");
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            success := call(_MAX_REFUND_GAS_LIMIT, rskAddr, expected, 0, 0, 0, 0)
+        }
     }
 
     /// @notice This function is used to decrease the balance of an account
