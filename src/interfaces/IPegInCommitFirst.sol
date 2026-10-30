@@ -9,20 +9,19 @@ pragma solidity 0.8.25;
 /// @dev This interface is frozen (S0): any change to it is a cross-lane ABI event, not a
 /// side effect of another task.
 interface IPegInCommitFirst {
-    /// @notice Emitted when a peg-in is claimed and the user is paid, in the same
-    /// transaction
-    /// @dev Event fields and indexing are ABI, so they freeze here. callSuccess is always
-    /// true this sprint (plain transfers only); it exists for the sprint-2 contract-call
-    /// delivery path.
+    /// @notice Emitted when a peg-in is claimed; the payment to the user, made in the same
+    /// transaction, may fail
+    /// @dev Event fields and indexing are ABI, so they freeze here.
     /// @param pegInId The id under which the claim was recorded
     /// @param claimer The account that fronted the RBTC and holds the claim
-    /// @param rskAddr The RSK destination address that received the funds
+    /// @param rskAddr The RSK destination address of the peg-in
     /// @param amount The gross peg-in amount, in wei — the deposit output's satoshi value
     /// scaled by 10**10, never a caller-supplied figure
-    /// @param netToUser The amount delivered to the user, in wei. For a deposit above
-    /// maxAmount, amount - netToUser is not the fee, because settlement pays the user the part
-    /// above maxAmount
-    /// @param callSuccess Whether the delivery call succeeded (always true this sprint)
+    /// @param netToUser The amount sent to the user, in wei; delivered only when callSuccess
+    /// is true. For a deposit above maxAmount, amount - netToUser is not the fee, because
+    /// settlement pays the user the part above maxAmount
+    /// @param callSuccess Whether the destination accepted the RBTC. On false the fronted
+    /// amount stays in the claimer's balance
     event PegInRequested(
         bytes32 indexed pegInId,
         address indexed claimer,
@@ -117,7 +116,7 @@ interface IPegInCommitFirst {
     error IncorrectFronting(uint256 expected, uint256 actual);
 
     /// @notice Claims a confirmed BTC deposit by fronting the net amount in RBTC, which is
-    /// delivered to the destination address in the same transaction
+    /// sent to the destination address in the same transaction
     /// @dev Takes the raw deposit transaction, not an amount and not a txid. The gross amount
     /// is READ from the output paying the address derived for rskAddr, and the txid is hashed
     /// from the same bytes, so the SPV proof, the peg-in id and the amount provably describe
@@ -135,6 +134,13 @@ interface IPegInCommitFirst {
     /// The claim record stores the claimer, the fronted amount, and the fee at claim time,
     /// because the configuration can change before settlement pays the claimer back
     /// (~17 hours later).
+    ///
+    /// A destination that refuses the RBTC does not revert the claim: otherwise a destination
+    /// that always refuses would leave the deposit unclaimable and locked in the bridge. The
+    /// claim is stored with success = false and a fronted amount of 0, and msg.value is
+    /// credited to the claimer's balance. The payment forwards 2300 gas, plus the 2300-gas stipend
+    /// when it sends value, and copies no return data. A destination that needs more gas is
+    /// treated as one that refuses.
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param btcTxSerialized The witness-stripped raw BTC deposit transaction
     /// @param btcBlockHash The hash of the Bitcoin block containing the deposit
@@ -156,8 +162,9 @@ interface IPegInCommitFirst {
     /// request and registration time
     /// @dev Takes no registrant parameter: settlement reads the registrant from registry
     /// storage, never from a caller-supplied argument, so resolving someone else's peg-in
-    /// redirects nothing. The bridge pays the contract (shouldTransferToContract = true) and
-    /// the contract distributes from storage.
+    /// redirects nothing. The contract passes the stored payment result as
+    /// shouldTransferToContract; the bridge pays the contract and the contract distributes
+    /// from storage.
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param btcRawTransaction The raw witness-stripped deposit transaction
     /// @param partialMerkleTree The partial merkle tree proving the deposit's inclusion
