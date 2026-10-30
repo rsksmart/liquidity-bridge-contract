@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import "lib/forge-std/src/Test.sol";
 import "lib/forge-std/src/console.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
+import {DeployPegIn} from "../../script/deployment/DeployPegIn.s.sol";
 import {ProxyReader} from "../../script/helpers/ProxyReader.sol";
 import {PegInContract} from "../../src/PegInContract.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
@@ -18,7 +19,8 @@ import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.s
  * @notice Test for PegInContract deployment
  */
 contract DeployPegInTest is Test {
-    /// @dev Must match BRIDGE_MIN_DEPOSIT_SATS in the deploy scripts, which tests cannot read.
+    /// @dev Written out, not read from DeployPegIn, so a wrong value in the script fails
+    /// test_deployForTesting_setsBridgeMinDepositSats.
     uint256 private constant BRIDGE_MIN_DEPOSIT_SATS = 500_000;
 
     HelperConfig public helperConfig;
@@ -101,11 +103,6 @@ contract DeployPegInTest is Test {
 
         assertEq(pegIn.getMinPegIn(), cfg.minimumPegIn, "Min PegIn mismatch");
         assertEq(
-            pegIn.getBridgeMinDepositSats(),
-            BRIDGE_MIN_DEPOSIT_SATS,
-            "Bridge min deposit mismatch"
-        );
-        assertEq(
             pegIn.dustThreshold(),
             cfg.dustThreshold,
             "Dust threshold mismatch"
@@ -115,6 +112,24 @@ contract DeployPegInTest is Test {
             Ownable(ProxyReader.readAdmin(vm, proxy)).owner(),
             deployer,
             "PegInContract ProxyAdmin owner mismatch"
+        );
+    }
+
+    function test_deployForTesting_setsBridgeMinDepositSats() public {
+        DeployPegIn deployer = new DeployPegIn();
+
+        DeployPegIn.DeploymentResult memory result = deployer.deployForTesting(
+            address(deployer),
+            helperConfig.getFlyoverConfig(),
+            collateralManagementProxy,
+            pauseRegistryProxy,
+            helperConfig.getOptions()
+        );
+
+        assertEq(
+            PegInContract(payable(result.proxy)).getBridgeMinDepositSats(),
+            BRIDGE_MIN_DEPOSIT_SATS,
+            "script bridge min deposit mismatch"
         );
     }
 

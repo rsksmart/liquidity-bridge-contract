@@ -55,6 +55,25 @@ contract DeployPegIn is Script {
         _log(result);
     }
 
+    /// @notice Test-only helper to deploy without broadcast/env lookup.
+    /// @dev Reuses the same deployment logic as run().
+    function deployForTesting(
+        address defaultAdmin,
+        HelperConfig.FlyoverConfig memory cfg,
+        address collateralManagementProxy,
+        address pauseRegistryProxy,
+        Options memory opts
+    ) external returns (DeploymentResult memory) {
+        return
+            _deploy(
+                defaultAdmin,
+                cfg,
+                collateralManagementProxy,
+                pauseRegistryProxy,
+                opts
+            );
+    }
+
     function _deploy(
         address defaultAdmin,
         HelperConfig.FlyoverConfig memory cfg,

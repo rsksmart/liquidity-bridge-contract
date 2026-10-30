@@ -25,7 +25,8 @@ import {BridgeMock} from "../../src/test-contracts/BridgeMock.sol";
  * @dev Tests full deployment of all Flyover contracts and role setup
  */
 contract DeployFlyoverTest is Test {
-    /// @dev Must match BRIDGE_MIN_DEPOSIT_SATS in the deploy scripts, which tests cannot read.
+    /// @dev An initialize argument for the proxy this file deploys itself. The deploy scripts'
+    /// value is checked in DeployFlyoverWiring.t.sol and DeployPegIn.t.sol.
     uint256 private constant BRIDGE_MIN_DEPOSIT_SATS = 500_000;
 
     HelperConfig public helperConfig;
@@ -438,11 +439,6 @@ contract DeployFlyoverTest is Test {
             pegInContract.dustThreshold(),
             cfg.dustThreshold,
             "Dust threshold mismatch"
-        );
-        assertEq(
-            pegInContract.getBridgeMinDepositSats(),
-            BRIDGE_MIN_DEPOSIT_SATS,
-            "Bridge min deposit mismatch"
         );
         console.log("   Min PegIn:", pegInContract.getMinPegIn());
         console.log("   Dust Threshold:", pegInContract.dustThreshold());
