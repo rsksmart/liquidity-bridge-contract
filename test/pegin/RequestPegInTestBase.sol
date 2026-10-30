@@ -31,6 +31,7 @@ abstract contract RequestPegInTestBase is PegInTestBase {
     uint256 internal constant DEFAULT_PERCENTAGE_FEE = 100; // 1%
     uint256 internal constant DEFAULT_MAX_AMOUNT = 100 ether;
     uint256 internal constant DEFAULT_TIER_CONFIRMATIONS = 10;
+    uint256 internal constant CLAIM_GAS_FEE = 0.0001 ether;
 
     PegInAddressRegistryHarness internal registry;
     FlyoverConfigurationsMock internal configurations;
@@ -213,7 +214,19 @@ abstract contract RequestPegInTestBase is PegInTestBase {
         );
         frontedAmount = uint256(vm.load(address(target), bytes32(base + 1)));
         feeAtClaim = uint256(vm.load(address(target), bytes32(base + 2)));
-        requestBlock = uint256(vm.load(address(target), bytes32(base + 3)));
+        requestBlock = uint256(vm.load(address(target), bytes32(base + 4)));
+    }
+
+    function _readGasFeeAtClaim(
+        bytes32 pegInId
+    ) internal view returns (uint256) {
+        return
+            uint256(
+                vm.load(
+                    address(pegInContract),
+                    bytes32(_claimSlot(pegInId) + 3)
+                )
+            );
     }
 
     /// @notice Deploys a recipient that refuses RBTC, registers it, and builds a deposit to it.

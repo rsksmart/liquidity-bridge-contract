@@ -29,9 +29,11 @@ interface IFlyoverConfigurations {
     /// 10,000
     /// @param minAmount The minimum peg-in amount, in wei
     /// @param maxAmount The largest part of a deposit that a provider fronts and the fee is
-    /// charged on, in wei; the provider fronts maxAmount minus the fee on maxAmount
+    /// charged on, in wei; the provider fronts maxAmount - the fee on maxAmount - claimGasFee
     /// @param registrantFee The fee paid to the registrant on the first claimed peg-in per
     /// destination address, in wei; read at settlement from live config and clamped to feeAtClaim
+    /// @param claimGasFee The flat charge for the provider's RSK gas, in wei; deducted at claim beside
+    /// the fee and copied onto the claim, so settlement repays the amount the user was charged
     /// @param confirmationTiers The confirmation tiers, strictly ascending by maxAmount
     struct PegConfiguration {
         uint256 fixedFee;
@@ -39,6 +41,7 @@ interface IFlyoverConfigurations {
         uint256 minAmount;
         uint256 maxAmount;
         uint256 registrantFee;
+        uint256 claimGasFee;
         ConfirmationTier[] confirmationTiers;
     }
 
@@ -49,10 +52,18 @@ interface IFlyoverConfigurations {
     function getPegInConfiguration() external view returns (PegConfiguration memory configuration);
 
     /// @notice Calculates the peg-in fee for an amount under the active configuration
-    /// @dev fixedFee plus the percentage of the amount.
+    /// @dev fixedFee + amount * percentageFee / 10_000. Does not include claimGasFee.
     /// @param amount The peg-in amount, in wei
     /// @return fee The fee, in wei
     function calculatePegInFee(uint256 amount) external view returns (uint256 fee);
+
+    /// @notice Calculates the total that requestPegIn subtracts from an amount under the active
+    /// configuration
+    /// @dev calculatePegInFee + claimGasFee. requestPegIn charges it on min(amount, maxAmount),
+    /// so callers pass that value.
+    /// @param amount The peg-in amount, in wei
+    /// @return deduction fee + claimGasFee, in wei
+    function calculatePegInDeduction(uint256 amount) external view returns (uint256 deduction);
 
     /// @notice Returns the BTC confirmations required before a peg-in of the given amount
     /// may be claimed

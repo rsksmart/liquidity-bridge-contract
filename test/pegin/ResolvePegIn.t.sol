@@ -27,7 +27,9 @@ contract ResolvePegInTest is ResolvePegInTestBase {
     }
 
     function test_claimer_balance_after_resolve() public {
+        configurations.setClaimGasFee(CLAIM_GAS_FEE);
         bytes32 pegInId = _claimAndFund(rskUser, rawTx, bridgeRelease);
+        configurations.setClaimGasFee(CLAIM_GAS_FEE * 2);
         uint256 registrantFee = 1e14;
 
         _resolve(claimer, rskUser, rawTx);
@@ -266,6 +268,23 @@ contract ResolvePegInTest is ResolvePegInTestBase {
         _resolve(claimer, rskUser, rawTx);
 
         assertEq(_balance(claimer) + _balance(registrant), release);
+        assertEq(rskUser.balance, userBefore);
+    }
+
+    // The release is above frontedAmount + feeAtClaim but below
+    // frontedAmount + feeAtClaim + gasFeeAtClaim. If settlement leaves out gasFeeAtClaim,
+    // the user gets the difference, and the difference is above the dust threshold.
+    function test_release_below_owed_by_less_than_gas_fee_pays_claimer()
+        public
+    {
+        configurations.setClaimGasFee(CLAIM_GAS_FEE);
+        uint256 release = DEFAULT_AMOUNT - CLAIM_GAS_FEE / 2;
+        _claimAndFund(rskUser, rawTx, release);
+        uint256 userBefore = rskUser.balance;
+
+        _resolve(claimer, rskUser, rawTx);
+
+        assertEq(_balance(claimer), release - 1e14);
         assertEq(rskUser.balance, userBefore);
     }
 
