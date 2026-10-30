@@ -98,6 +98,12 @@ interface IPegInCommitFirst {
     /// @param btcTxHash The hash of the presented transaction
     error DepositOutputNotFound(address rskAddr, bytes32 btcTxHash);
 
+    /// @notice Reverts requestPegIn when the bridge would refuse to register the deposit, which
+    /// would leave the BTC locked and the provider's fronted RBTC unrecovered
+    /// @dev Checked before the Flyover minimum, which may be configured lower. The bridge checks
+    /// every output paying the deposit address, so this reports the smallest one.
+    error DepositBelowBridgeMinimum(uint256 smallestOutputSats, uint256 bridgeMinSats);
+
     /// @notice Reverts requestPegIn when the deposit amount is below the configured minimum
     /// @param amount The peg-in amount read from the deposit, in wei
     /// @param minAmount The configured Flyover minimum, in wei
@@ -170,4 +176,7 @@ interface IPegInCommitFirst {
         bytes calldata partialMerkleTree,
         uint256 height
     ) external returns (int256 registerResult);
+
+    /// @dev In satoshis, unlike the wei amounts in the Flyover configuration.
+    function getBridgeMinDepositSats() external view returns (uint256 bridgeMinDepositSats);
 }

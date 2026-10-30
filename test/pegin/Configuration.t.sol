@@ -64,6 +64,12 @@ contract ConfigurationTest is PegInTestBase {
             "minPegIn should match"
         );
 
+        assertEq(
+            pegInContract.getBridgeMinDepositSats(),
+            TEST_BRIDGE_MIN_DEPOSIT_SATS,
+            "bridgeMinDepositSats should match"
+        );
+
         // Check owner
         assertEq(pegInContract.owner(), owner, "owner should match");
     }
@@ -82,7 +88,9 @@ contract ConfigurationTest is PegInTestBase {
     }
 
     function test_Initialize_RevertsWhenCalledOnImplementation() public {
-        PegInContract implementation = new PegInContract();
+        PegInContract implementation = new PegInContract(
+            TEST_BRIDGE_MIN_DEPOSIT_SATS
+        );
 
         vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
         implementation.initialize(
@@ -100,7 +108,9 @@ contract ConfigurationTest is PegInTestBase {
         address noCodeAddress = makeAddr("noCodeAddress");
 
         // Deploy a new PegInContract implementation
-        PegInContract implementation = new PegInContract();
+        PegInContract implementation = new PegInContract(
+            TEST_BRIDGE_MIN_DEPOSIT_SATS
+        );
 
         bytes memory initData = abi.encodeCall(
             PegInContract.initialize,

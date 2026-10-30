@@ -58,6 +58,13 @@ contract PegInContract is
     string constant public NAME = "PegInContract";
     Flyover.ProviderType constant private _PEG_TYPE = Flyover.ProviderType.PegIn;
     uint256 constant private _MAX_REFUND_GAS_LIMIT = 2300;
+    /// @notice The bridge's minimum peg-in value, in satoshis. The bridge refuses a smaller
+    /// deposit only at resolvePegIn, after the provider has paid.
+    /// @dev Immutable, so only a new implementation can change it, through the timelocked
+    /// upgrade. The constructor runs on every new implementation, so an upgrade of a live proxy
+    /// sets it too, which initialize would not.
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+    uint256 private immutable _BRIDGE_MIN_DEPOSIT_SATS;
 
     IBridge private _bridge;
     ICollateralManagement private _collateralManagement;
@@ -110,8 +117,10 @@ contract PegInContract is
     /// @notice Reverts when the FlyoverConfigurations dependency has not been set
     error FlyoverConfigurationsNotSet();
 
+    /// @param bridgeMinDepositSats the bridge's minimum peg-in value (500,000 sats since RSKIP219)
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
+    constructor(uint256 bridgeMinDepositSats) {
+        _BRIDGE_MIN_DEPOSIT_SATS = bridgeMinDepositSats;
         _disableInitializers();
     }
 
@@ -129,7 +138,7 @@ contract PegInContract is
     /// @param minPegIn the minimum peg in amount supported by the bridge
     /// @param collateralManagement the address of the Collateral Management contract
     /// @param mainnet whether the contract is on the mainnet or not
-    /// @param pauseRegistry the central PauseRegistry for pause state
+    /// @param pauseRegistry_ the central PauseRegistry for pause state
     // solhint-disable-next-line comprehensive-interface
     function initialize(
         address defaultAdmin,
@@ -138,13 +147,13 @@ contract PegInContract is
         uint256 minPegIn,
         address collateralManagement,
         bool mainnet,
-        IPauseRegistry pauseRegistry
+        IPauseRegistry pauseRegistry_
     ) external initializer {
         if (collateralManagement.code.length == 0) revert Flyover.NoContract(collateralManagement);
-        if (address(pauseRegistry).code.length == 0) revert Flyover.NoContract(address(pauseRegistry));
+        if (address(pauseRegistry_).code.length == 0) revert Flyover.NoContract(address(pauseRegistry_));
         __AccessControlDefaultAdminRules_init(0, defaultAdmin);
         __EIP712_init(NAME, VERSION);
-        __EmergencyPause_init(pauseRegistry);
+        __EmergencyPause_init(pauseRegistry_);
         _bridge = IBridge(bridge);
         _collateralManagement = ICollateralManagement(collateralManagement);
         _mainnet = mainnet;
@@ -245,7 +254,13 @@ contract PegInContract is
         if (!_pegInAddressRegistry.isRegistered(rskAddr)) {
             revert AddressNotRegistered(rskAddr);
         }
-        uint256 amount = _readPegInAmount(rskAddr, btcTxSerialized, btcTxHash);
+        uint256 amount;
+        {
+            (uint256 firstSats, uint256 smallestOutputSats) =
+                _readDepositOutputs(rskAddr, btcTxSerialized, btcTxHash);
+            _requireBridgeMinimum(smallestOutputSats);
+            amount = firstSats * Flyover.SAT_TO_WEI_CONVERSION;
+        }
         IFlyoverConfigurations.PegConfiguration memory configuration = _configurations.getPegInConfiguration();
         if (amount < configuration.minAmount) {
             revert PegInBelowMinimum(amount, configuration.minAmount);
@@ -299,6 +314,11 @@ contract PegInContract is
     // solhint-disable-next-line comprehensive-interface
     function getFlyoverConfigurations() external view returns (address) {
         return address(_configurations);
+    }
+
+    /// @inheritdoc IPegInCommitFirst
+    function getBridgeMinDepositSats() external view override returns (uint256) {
+        return _BRIDGE_MIN_DEPOSIT_SATS;
     }
 
     /// @inheritdoc IPegIn
@@ -421,14 +441,15 @@ contract PegInContract is
         if (address(_configurations) == address(0)) revert FlyoverConfigurationsNotSet();
     }
 
-    /// @notice Reads the peg-in amount out of the deposit transaction
+    /// @notice Reads the outputs paying the deposit address out of the deposit transaction
     /// @dev Two different operations, and only the first is a derivation: the deposit
     /// scriptPubkey for rskAddr is DERIVED (a formula over this proxy's address and the live
-    /// powpeg script), and the amount is then READ from the FIRST output paying that script.
+    /// powpeg script), and the outputs paying that script are then READ. The first one sets the
+    /// peg-in amount.
     /// Both go through the same helpers the registry uses at registration —
-    /// {PegInDerivation-depositPkScript} for the script, {BtcTransactionReader} for the lookup. See
-    /// {BtcTransactionReader-findFirstOutputPaying} for why first-match and not the sum, and why
-    /// that is the open question here rather than in the registry.
+    /// {PegInDerivation-depositPkScript} for the script, {BtcTransactionReader} for the lookup.
+    /// docs/PEGIN_DEPOSIT_OUTPUTS.md records why the amount is the first output and not the sum,
+    /// and why every matching output is also checked against the bridge minimum.
     /// The derivation inputs come from state and the matched output from the SPV-proven bytes,
     /// so there is no argument a caller can move to change the answer.
     ///
@@ -444,21 +465,27 @@ contract PegInContract is
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param btcTxSerialized The witness-stripped raw deposit transaction
     /// @param btcTxHash The txid hashed from btcTxSerialized, for the revert reason
-    /// @return The gross peg-in amount in wei
-    function _readPegInAmount(address rskAddr, bytes calldata btcTxSerialized, bytes32 btcTxHash)
+    /// @return firstSats The first matching output, in satoshis
+    /// @return smallestOutputSats The smallest matching output, in satoshis
+    function _readDepositOutputs(address rskAddr, bytes calldata btcTxSerialized, bytes32 btcTxHash)
         private
         view
-        returns (uint256)
+        returns (uint256 firstSats, uint256 smallestOutputSats)
     {
         bytes memory pkScript = PegInDerivation.depositPkScript(
             rskAddr, address(this), _bridge.getActivePowpegRedeemScript(), _mainnet
         );
-        (uint64 depositSats, bool found) =
-            BtcTransactionReader.findFirstOutputPaying(btcTxSerialized, pkScript);
+        bool found;
+        (firstSats, smallestOutputSats, found) = BtcTransactionReader.findOutputsPaying(btcTxSerialized, pkScript);
         if (!found) {
             revert DepositOutputNotFound(rskAddr, btcTxHash);
         }
-        return uint256(depositSats) * Flyover.SAT_TO_WEI_CONVERSION;
+    }
+
+    function _requireBridgeMinimum(uint256 smallestOutputSats) private view {
+        if (smallestOutputSats < _BRIDGE_MIN_DEPOSIT_SATS) {
+            revert DepositBelowBridgeMinimum(smallestOutputSats, _BRIDGE_MIN_DEPOSIT_SATS);
+        }
     }
 
     /// @notice Reverts unless Bridge confirmations meet the configured tier for amount

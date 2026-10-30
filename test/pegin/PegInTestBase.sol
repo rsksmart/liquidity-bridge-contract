@@ -36,10 +36,16 @@ abstract contract PegInTestBase is Test {
     uint256 constant TEST_REWARD_PERCENTAGE = 1000;
     uint256 constant TEST_DUST_THRESHOLD = 2300 * 65164000; // From PEGIN_CONSTANTS
     uint256 constant TEST_MIN_PEGIN = 0.5 ether;
+    uint256 constant TEST_BRIDGE_MIN_DEPOSIT_SATS = 500_000;
     uint256 constant DISCOVERY_INITIAL_DELAY = 5000;
     uint256 constant MIN_COLLATERAL = 0.6 ether;
 
     address constant ZERO_ADDRESS = address(0);
+
+    /// @dev Override to deploy with a different value: it is immutable after deployment.
+    function _bridgeMinDepositSats() internal pure virtual returns (uint256) {
+        return TEST_BRIDGE_MIN_DEPOSIT_SATS;
+    }
 
     /// @notice Deploy PegInContract with all dependencies (testnet BTC prefixes)
     function deployPegInContract() internal {
@@ -53,7 +59,9 @@ abstract contract PegInTestBase is Test {
     ) internal returns (PegInContract pegIn) {
         _deployPegInDependencies();
 
-        PegInContract implementation = new PegInContract();
+        PegInContract implementation = new PegInContract(
+            _bridgeMinDepositSats()
+        );
 
         bytes memory initData = abi.encodeCall(
             PegInContract.initialize,

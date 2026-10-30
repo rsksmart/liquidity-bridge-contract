@@ -25,6 +25,10 @@ import {BridgeMock} from "../../src/test-contracts/BridgeMock.sol";
  * @dev Tests full deployment of all Flyover contracts and role setup
  */
 contract DeployFlyoverTest is Test {
+    /// @dev A constructor argument for the implementations this file deploys itself. The deploy scripts'
+    /// value is checked in DeployFlyoverWiring.t.sol and DeployPegIn.t.sol.
+    uint256 private constant BRIDGE_MIN_DEPOSIT_SATS = 500_000;
+
     HelperConfig public helperConfig;
     BridgeMock public bridgeMock;
 
@@ -151,7 +155,7 @@ contract DeployFlyoverTest is Test {
         address deployer,
         HelperConfig.FlyoverConfig memory cfg
     ) private {
-        address impl = address(new PegInContract());
+        address impl = address(new PegInContract(BRIDGE_MIN_DEPOSIT_SATS));
         pegInImplementation = impl;
         bytes memory initData = abi.encodeCall(
             PegInContract.initialize,
@@ -609,7 +613,7 @@ contract DeployFlyoverTest is Test {
 
         address piProxy = address(pegInContract);
         proxyAdmin = ProxyAdmin(ProxyReader.readAdmin(vm, piProxy));
-        newImplementation = address(new PegInContract());
+        newImplementation = address(new PegInContract(BRIDGE_MIN_DEPOSIT_SATS));
         assertEq(
             ProxyReader.readImplementation(vm, piProxy),
             pegInImplementation,

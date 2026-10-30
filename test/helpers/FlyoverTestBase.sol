@@ -101,6 +101,7 @@ abstract contract FlyoverTestBase is Test {
     uint256 constant TEST_DUST_THRESHOLD_PEGIN = 2300 * 65164000;
     uint256 constant TEST_DUST_THRESHOLD_PEGOUT = 0.0000001 ether;
     uint256 constant TEST_MIN_PEGIN = 0.5 ether;
+    uint256 constant TEST_BRIDGE_MIN_DEPOSIT_SATS = 500_000;
     uint256 constant TEST_BTC_BLOCK_TIME = 3600;
     uint256 constant DISCOVERY_INITIAL_DELAY = 5000;
 
@@ -207,7 +208,7 @@ abstract contract FlyoverTestBase is Test {
         HelperConfig.FlyoverConfig memory cfg = _getTestConfig();
 
         // Inline deployment - split to avoid stack too deep
-        address impl = address(new PegInContract());
+        address impl = address(new PegInContract(TEST_BRIDGE_MIN_DEPOSIT_SATS));
         bytes memory initData = abi.encodeCall(
             PegInContract.initialize,
             (
@@ -330,7 +331,9 @@ abstract contract FlyoverTestBase is Test {
 
         // 3) PegInContract
         {
-            address piImpl = address(new PegInContract());
+            address piImpl = address(
+                new PegInContract(TEST_BRIDGE_MIN_DEPOSIT_SATS)
+            );
             bytes memory piInitData = abi.encodeCall(
                 PegInContract.initialize,
                 (

@@ -349,7 +349,7 @@ contract SystemInvariantTest is Test {
 
     function _deployPegIn() internal {
         bridgeMock = new BridgeMock();
-        PegInContract impl = new PegInContract();
+        PegInContract impl = new PegInContract(500_000);
         bytes memory initData = abi.encodeCall(
             impl.initialize,
             (

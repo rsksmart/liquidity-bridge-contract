@@ -261,11 +261,25 @@ abstract contract RequestPegInTestBase is PegInTestBase {
         uint64 valueSats,
         uint256 nonce
     ) internal pure returns (bytes memory) {
-        bytes memory valueLe = new bytes(8);
-        uint64 v = valueSats;
-        for (uint256 i = 0; i < 8; ++i) {
-            valueLe[i] = bytes1(uint8(v & 0xFF));
-            v >>= 8;
+        bytes[] memory pkScripts = new bytes[](1);
+        pkScripts[0] = pkScript;
+        uint64[] memory valuesSats = new uint64[](1);
+        valuesSats[0] = valueSats;
+        return _buildTx(pkScripts, valuesSats, nonce);
+    }
+
+    /// @notice A one-input raw transaction with one output per entry, in the order given.
+    function _buildTx(
+        bytes[] memory pkScripts,
+        uint64[] memory valuesSats,
+        uint256 nonce
+    ) internal pure returns (bytes memory) {
+        bytes memory outputs;
+        for (uint256 i = 0; i < pkScripts.length; ++i) {
+            outputs = abi.encodePacked(
+                outputs,
+                _txOutput(pkScripts[i], valuesSats[i])
+            );
         }
         return
             abi.encodePacked(
@@ -275,12 +289,24 @@ abstract contract RequestPegInTestBase is PegInTestBase {
                 hex"00000000", // prevout index
                 hex"00", // empty scriptSig
                 hex"ffffffff", // sequence
-                hex"01", // output count
-                valueLe,
-                bytes1(uint8(pkScript.length)),
-                pkScript,
+                bytes1(uint8(pkScripts.length)), // output count
+                outputs,
                 hex"00000000" // locktime
             );
+    }
+
+    function _txOutput(
+        bytes memory pkScript,
+        uint64 valueSats
+    ) private pure returns (bytes memory) {
+        bytes memory valueLe = new bytes(8);
+        uint64 v = valueSats;
+        for (uint256 i = 0; i < 8; ++i) {
+            valueLe[i] = bytes1(uint8(v & 0xFF));
+            v >>= 8;
+        }
+        return
+            abi.encodePacked(valueLe, bytes1(uint8(pkScript.length)), pkScript);
     }
 
     /// @notice A deposit transaction paying `rskAddr`'s derived address `amount` wei worth of BTC.
