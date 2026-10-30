@@ -221,6 +221,33 @@ contract ResolvePegInTest is ResolvePegInTestBase {
         );
     }
 
+    function test_deposit_above_max_amount_user_gets_rest_at_settlement()
+        public
+    {
+        uint256 amount = 150 ether;
+        uint256 cappedFee = _expectedFee(DEFAULT_MAX_AMOUNT);
+        uint256 net = DEFAULT_MAX_AMOUNT - cappedFee;
+        bytes memory depositTx = _depositTx(rskUser, amount);
+        vm.deal(claimer, amount);
+        uint256 userBefore = rskUser.balance;
+
+        bytes32 pegInId = _requestPegInTx(claimer, rskUser, depositTx, net);
+        bridgeMock.setPegin{value: amount}(_derivationHash(rskUser));
+
+        vm.expectEmit(true, true, true, true);
+        emit IPegInCommitFirst.UserRemainderRefunded(
+            pegInId,
+            rskUser,
+            amount - DEFAULT_MAX_AMOUNT,
+            true
+        );
+        _resolve(claimer, rskUser, depositTx);
+
+        assertEq(rskUser.balance - userBefore, amount - cappedFee);
+        assertEq(_balance(claimer), DEFAULT_MAX_AMOUNT - 1e14);
+        _assertReleaseFullyAssigned(amount, rskUser.balance - userBefore - net);
+    }
+
     function test_release_below_owed_caps_claimer_and_registrant() public {
         uint256 release = 4 ether;
         bytes32 pegInId = _claimAndFund(rskUser, rawTx, release);
