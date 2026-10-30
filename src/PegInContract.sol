@@ -254,21 +254,27 @@ contract PegInContract is
         if (!_pegInAddressRegistry.isRegistered(rskAddr)) {
             revert AddressNotRegistered(rskAddr);
         }
-        (uint256 firstSats, uint256 smallestOutputSats) = _readDepositOutputs(rskAddr, btcTxSerialized, btcTxHash);
-        _requireBridgeMinimum(smallestOutputSats);
-        uint256 amount = firstSats * Flyover.SAT_TO_WEI_CONVERSION;
-        uint256 minAmount = _configurations.getPegInConfiguration().minAmount;
-        if (amount < minAmount) {
-            revert PegInBelowMinimum(amount, minAmount);
+        uint256 amount;
+        {
+            (uint256 firstSats, uint256 smallestOutputSats) =
+                _readDepositOutputs(rskAddr, btcTxSerialized, btcTxHash);
+            _requireBridgeMinimum(smallestOutputSats);
+            amount = firstSats * Flyover.SAT_TO_WEI_CONVERSION;
+        }
+        IFlyoverConfigurations.PegConfiguration memory configuration = _configurations.getPegInConfiguration();
+        if (amount < configuration.minAmount) {
+            revert PegInBelowMinimum(amount, configuration.minAmount);
         }
         _requirePegInConfirmations(amount, btcTxHash, btcBlockHash, merkleBranchPath, merkleBranchHashes);
 
-        uint256 fee = _configurations.calculatePegInFee(amount);
-        uint256 expected = _requireCorrectFronting(amount, fee);
+        // Settlement pays the user the part of the deposit above the cap, from the bridge release.
+        uint256 cappedAmount = _min(amount, configuration.maxAmount);
+        uint256 fee = _configurations.calculatePegInFee(cappedAmount);
+        uint256 expected = _requireCorrectFronting(cappedAmount, fee);
 
         _pegInClaims[pegInId] = PegInClaim({
             claimer: msg.sender,
-            frontedAmount: msg.value,
+            frontedAmount: expected,
             feeAtClaim: fee,
             requestBlock: block.number
         });

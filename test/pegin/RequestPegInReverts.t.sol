@@ -446,6 +446,40 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         );
     }
 
+    /// @notice A deposit above maxAmount is fronted only up to the cap, but the whole deposit is
+    /// exposed to a reorg, so it must still wait for the tier of its full size.
+    function test_revert_aboveMaxAmount_confirmationsUseFullDeposit() public {
+        uint256 amount = 150 ether;
+        uint256 cap = DEFAULT_MAX_AMOUNT;
+        uint256 lowTierConfirmations = 2;
+        uint256 highTierConfirmations = 40;
+        _applyTwoTierConfiguration(
+            cap,
+            lowTierConfirmations,
+            highTierConfirmations
+        );
+
+        bridgeMock.setConfirmations(int256(lowTierConfirmations));
+        vm.deal(claimer, 200 ether);
+        bytes memory btcTx = _depositTx(rskUser, amount);
+
+        vm.prank(claimer);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegInCommitFirst.InsufficientConfirmations.selector,
+                lowTierConfirmations,
+                highTierConfirmations
+            )
+        );
+        pegInContract.requestPegIn{value: cap - _expectedFee(cap)}(
+            rskUser,
+            btcTx,
+            bytes32(0),
+            0,
+            _emptyBranch()
+        );
+    }
+
     function test_confirmations_exactBoundaryPasses() public {
         bridgeMock.setConfirmations(int256(DEFAULT_TIER_CONFIRMATIONS));
         uint256 amount = DEFAULT_AMOUNT;
@@ -524,6 +558,31 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
             )
         );
         pegInContract.requestPegIn{value: 1 wei}(
+            rskUser,
+            btcTx,
+            bytes32(0),
+            0,
+            _emptyBranch()
+        );
+    }
+
+    function test_revert_incorrectFronting_fullDepositAboveMaxAmount() public {
+        uint256 amount = 150 ether;
+        uint256 cap = DEFAULT_MAX_AMOUNT;
+        uint256 expectedNet = cap - _expectedFee(cap);
+        uint256 fullNet = amount - _expectedFee(amount);
+        vm.deal(claimer, 200 ether);
+        bytes memory btcTx = _depositTx(rskUser, amount);
+
+        vm.prank(claimer);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegInCommitFirst.IncorrectFronting.selector,
+                expectedNet,
+                fullNet
+            )
+        );
+        pegInContract.requestPegIn{value: fullNet}(
             rskUser,
             btcTx,
             bytes32(0),
