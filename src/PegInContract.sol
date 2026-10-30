@@ -261,17 +261,18 @@ contract PegInContract is
 
         _pegInClaims[pegInId] = PegInClaim({
             claimer: msg.sender,
-            success: false,
-            frontedAmount: 0,
+            success: true,
+            frontedAmount: expected,
             feeAtClaim: fee,
             requestBlock: block.number
         });
+        // Stored as paid before the call: a failed call also reverts anything the destination
+        // did during it, so no re-entry can act on a paid claim that is later marked failed
         bool success = _payPegInUser(rskAddr, expected);
-        if (success) {
+        if (!success) {
             PegInClaim storage claim = _pegInClaims[pegInId];
-            claim.success = true;
-            claim.frontedAmount = msg.value;
-        } else {
+            claim.success = false;
+            claim.frontedAmount = 0;
             // The LP keeps the RBTC it fronted, so settlement repays only the fee
             _increaseBalance(msg.sender, msg.value);
         }
