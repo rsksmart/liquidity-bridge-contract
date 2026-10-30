@@ -48,8 +48,23 @@ contract GasFeeTest is ConfigurationsTestBase {
         vm.prank(owner);
         vm.expectRevert(
             abi.encodeWithSelector(
-                FlyoverConfigurations.MinAmountNotWholeSatoshi.selector,
+                FlyoverConfigurations.NotWholeSatoshi.selector,
+                FlyoverConfigurations.Field.MinAmount,
                 c.minAmount
+            )
+        );
+        config.queueChange(c);
+    }
+
+    function test_queueChange_rejects_maxAmount_not_whole_satoshi() public {
+        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        c.maxAmount = 200 ether + 1;
+        vm.prank(owner);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                FlyoverConfigurations.NotWholeSatoshi.selector,
+                FlyoverConfigurations.Field.MaxAmount,
+                c.maxAmount
             )
         );
         config.queueChange(c);

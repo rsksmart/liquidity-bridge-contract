@@ -147,8 +147,8 @@ contract FlyoverConfigurations is
     error InsufficientFixedFeeForRegistrant(uint256 fixedFee, uint256 registrantFee);
     /// @notice Raised when fee + claimGasFee for a minAmount peg-in is minAmount or more.
     error MinAmountDoesNotCoverDeduction(uint256 minAmount, uint256 deduction);
-    /// @notice Raised when minAmount is not a whole number of satoshis.
-    error MinAmountNotWholeSatoshi(uint256 minAmount);
+    /// @notice Raised when an amount field is not a whole number of satoshis.
+    error NotWholeSatoshi(Field field, uint256 value);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -529,7 +529,7 @@ contract FlyoverConfigurations is
         if (config.minAmount > config.maxAmount) {
             revert InvalidAmountLimits(config.minAmount, config.maxAmount);
         }
-        _validateMinAmount(config);
+        _validateAmountLimits(config);
         _validateTiers(config.confirmationTiers);
     }
 
@@ -612,11 +612,18 @@ contract FlyoverConfigurations is
         return _calculateFee(fixedFee, percentageFee, amount) + claimGasFee;
     }
 
-    function _validateMinAmount(PegConfiguration memory config) private pure {
-        // A BTC deposit is always a whole number of satoshis. The deduction check below treats
-        // minAmount as the smallest deposit, so minAmount must be a deposit size that can exist.
+    function _validateAmountLimits(PegConfiguration memory config) private pure {
+        // A BTC deposit is always a whole number of satoshis, so a fractional minAmount is not a
+        // deposit size that can exist.
         if (config.minAmount % Flyover.SAT_TO_WEI_CONVERSION != 0) {
-            revert MinAmountNotWholeSatoshi(config.minAmount);
+            revert NotWholeSatoshi(Field.MinAmount, config.minAmount);
+        }
+        // requestPegIn calculates the deduction on min(amount, maxAmount). The deduction check
+        // below tests only minAmount, and it covers a larger amount only when that amount is
+        // minAmount + whole satoshis. With a fractional maxAmount, the fee at maxAmount can
+        // round up by one satoshi, and the deduction can then be more than maxAmount.
+        if (config.maxAmount % Flyover.SAT_TO_WEI_CONVERSION != 0) {
+            revert NotWholeSatoshi(Field.MaxAmount, config.maxAmount);
         }
         // If the deduction is minAmount or more, requestPegIn reverts for a minAmount deposit, and
         // that deposit can never settle. The check tests only minAmount. A larger deposit always
