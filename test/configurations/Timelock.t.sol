@@ -13,10 +13,10 @@ import {IFlyoverConfigurations} from "../../src/interfaces/IFlyoverConfiguration
 /// (4) a second queue replaces the pending change.
 /// Plus exact-eta success, applying with nothing queued, and event emission.
 contract TimelockTest is ConfigurationsTestBase {
-    /// @dev pending.fixedFee lives at the mutable namespace base + 6 (activePegIn occupies the
-    /// first 6 slots: five scalars plus confirmationTiers-length).
+    /// @dev pending.fixedFee lives at the mutable namespace base + 7 (activePegIn occupies the
+    /// first 7 slots: six scalars + confirmationTiers-length).
     bytes32 private constant _PENDING_FIXED_FEE_SLOT =
-        bytes32(uint256(STORAGE_SLOT) + 6);
+        bytes32(uint256(STORAGE_SLOT) + 7);
 
     function setUp() public {
         _deploy();
@@ -215,10 +215,10 @@ contract TimelockTest is ConfigurationsTestBase {
     // the four cases above for the bounds path, then pin the two rules unique to it: a pair may
     // not invert, and a pair the active configuration falls outside is rejected at apply time.
 
-    /// @dev pendingMin.fixedFee lives at the bounds namespace base + 13 (timelockDelay occupies
-    /// slot 0, then min and max take 6 slots each: five scalars plus confirmationTiers-length).
+    /// @dev pendingMin.fixedFee lives at the bounds namespace base + 15 (timelockDelay occupies
+    /// slot 0, then min and max take 7 slots each: six scalars + confirmationTiers-length).
     bytes32 private constant _PENDING_MIN_FIXED_FEE_SLOT =
-        bytes32(uint256(BOUNDS_SLOT) + 13);
+        bytes32(uint256(BOUNDS_SLOT) + 15);
 
     // ------------------------------------------------ case 1: queue then apply after the delay
 
@@ -266,11 +266,13 @@ contract TimelockTest is ConfigurationsTestBase {
     /// @notice The point of the feature: after widening, a fee the old bounds rejected is
     /// accepted, and the widening required no upgrade.
     function test_bounds_widening_admitsPreviouslyRejectedValue() public {
-        uint256 highFee = BOUND_MAX_FIXED_FEE + 1 ether; // above the old max, below the new one
+        uint256 highFee = BOUND_MAX_FIXED_FEE + SAT; // above the old max, below the new one
 
         // Rejected under the deployment bounds.
         IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
         c.fixedFee = highFee;
+        // minAmount must be above the fee, or queueChange reverts.
+        c.minAmount = WIDE_MAX_MIN_AMOUNT;
         vm.prank(owner);
         vm.expectRevert(
             abi.encodeWithSelector(

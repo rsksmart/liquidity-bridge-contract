@@ -17,8 +17,8 @@ interface IPegInCommitFirst {
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param amount The gross peg-in amount, in wei — the deposit output's satoshi value
     /// scaled by 10**10, never a caller-supplied figure
-    /// @param netToUser The amount sent to the user, in wei; delivered only when callSuccess
-    /// is true. For a deposit above maxAmount, amount - netToUser is not the fee, because
+    /// @param netToUser The amount sent to the user, in wei: min(amount, maxAmount) - fee -
+    /// claimGasFee; delivered only when callSuccess is true. For a deposit above maxAmount,
     /// settlement pays the user the part above maxAmount
     /// @param callSuccess Whether the destination accepted the RBTC. On false the fronted
     /// amount stays in the claimer's balance
@@ -42,7 +42,8 @@ interface IPegInCommitFirst {
     /// was paid (already paid on an earlier peg-in)
     /// @param released The amount the bridge released to the contract, in wei
     /// @param claimerPayout The claimer's payout, in wei: the fronted advance + the service
-    /// fee - registrantFee, capped at released, plus any remainder for the user that was dust
+    /// fee + the gas fee - registrantFee, capped at released, + any remainder for the user that
+    /// was dust
     /// @param registrantFee The registrant fee paid, in wei; 0 when none was paid
     /// @param userPayout The amount sent to the destination address, in wei: released above
     /// what the claimer and the registrant are owed; 0 when that remainder was dust or the send
@@ -122,17 +123,17 @@ interface IPegInCommitFirst {
     /// from the same bytes, so the SPV proof, the peg-in id and the amount provably describe
     /// one transaction. Nothing about the deposit's value is caller-supplied.
     ///
-    /// Payable: msg.value must equal min(amount, maxAmount) minus the fee on that capped
-    /// amount. maxAmount limits what one provider advances per peg-in.
+    /// Payable: msg.value must equal min(amount, maxAmount) - fee - claimGasFee, where the fee is
+    /// on the capped amount. maxAmount limits what one provider advances per peg-in.
     ///
-    /// Settlement distributes any bridge release above the fronted amount plus the fee.
+    /// Settlement distributes any bridge release above the fronted amount + fee + claimGasFee.
     /// A remainder greater than dustThreshold is sent to rskAddr with a 2,300-gas call;
     /// if the send fails, it is credited to rskAddr's balance, and only rskAddr can withdraw it.
     /// A remainder at or below dustThreshold is credited to the claimer instead.
     /// Contract destinations must accept the send or be able to call withdraw.
     ///
-    /// The claim record stores the claimer, the fronted amount, and the fee at claim time,
-    /// because the configuration can change before settlement pays the claimer back
+    /// The claim record stores the claimer, the fronted amount, the fee, and the gas fee at claim
+    /// time, because the configuration can change before settlement pays the claimer back
     /// (~17 hours later).
     ///
     /// A destination that refuses the RBTC does not revert the claim: otherwise a destination

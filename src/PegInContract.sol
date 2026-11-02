@@ -44,13 +44,15 @@ contract PegInContract is
     /// @param claimer The account that fronted RBTC; address(0) means unset
     /// @param success Whether the RBTC payment to the user succeeded
     /// @param frontedAmount The net amount delivered to the user; 0 when the payment failed
-    /// @param feeAtClaim The fee snapshot at claim time
+    /// @param feeAtClaim The service fee snapshot at claim time
+    /// @param gasFeeAtClaim The gas fee snapshot at claim time
     /// @param requestBlock The RSK block number of the claim
     struct PegInClaim {
         address claimer;
         bool success;
         uint256 frontedAmount;
         uint256 feeAtClaim;
+        uint256 gasFeeAtClaim;
         uint256 requestBlock;
     }
 
@@ -257,13 +259,14 @@ contract PegInContract is
         // Settlement pays the user the part of the deposit above the cap, from the bridge release.
         uint256 cappedAmount = _min(amount, configuration.maxAmount);
         uint256 fee = _configurations.calculatePegInFee(cappedAmount);
-        uint256 expected = _requireCorrectFronting(cappedAmount, fee);
+        uint256 expected = _requireCorrectFronting(cappedAmount, fee + configuration.claimGasFee);
 
         _pegInClaims[pegInId] = PegInClaim({
             claimer: msg.sender,
             success: true,
             frontedAmount: expected,
             feeAtClaim: fee,
+            gasFeeAtClaim: configuration.claimGasFee,
             requestBlock: block.number
         });
         // Stored as paid before the call: a failed call also reverts anything the destination
@@ -273,7 +276,7 @@ contract PegInContract is
             PegInClaim storage claim = _pegInClaims[pegInId];
             claim.success = false;
             claim.frontedAmount = 0;
-            // The LP keeps the RBTC it fronted, so settlement repays only the fee
+            // The LP keeps the RBTC it fronted, so settlement repays only the fee + claimGasFee
             _increaseBalance(msg.sender, msg.value);
         }
         emit PegInRequested(pegInId, msg.sender, rskAddr, amount, expected, success);
@@ -357,7 +360,7 @@ contract PegInContract is
         uint256 released
     ) private {
         _pegInSettled[pegInId] = true;
-        uint256 providerPot = _min(released, claim.frontedAmount + claim.feeAtClaim);
+        uint256 providerPot = _min(released, claim.frontedAmount + claim.feeAtClaim + claim.gasFeeAtClaim);
 
         (address registrant, uint256 registrantFeePaid) =
             _payRegistrantOnce(rskAddr, claim.feeAtClaim, providerPot);

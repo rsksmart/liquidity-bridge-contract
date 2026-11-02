@@ -8,9 +8,9 @@ import {IFlyoverConfigurations} from "./interfaces/IFlyoverConfigurations.sol";
 import {Flyover} from "./libraries/Flyover.sol";
 
 /// @title FlyoverConfigurations
-/// @notice The single on-chain source of the commit-first peg-in parameters (fee, confirmation
-/// tiers, amount limits) that every party reads: the SDK for its estimate, every LPS for its
-/// serve decision, and the settlement path for its amount validation. Admin changes are
+/// @notice The single on-chain source of the commit-first peg-in parameters (fee, gas fee,
+/// confirmation tiers, amount limits) that every party reads: the SDK for its estimate, every
+/// LPS for its serve decision, and the settlement path for its amount validation. Admin changes are
 /// time-locked in two steps (queue then apply) and re-validated at both steps against the active
 /// bounds, so an admin mistake cannot set absurd values even with the role. The bounds themselves
 /// are seeded at deployment and are editable by the admin only through the same two-step time
@@ -37,7 +37,8 @@ contract FlyoverConfigurations is
         CallTime,
         ExpireTime,
         ExpireBlocks,
-        MaxMinerFee
+        MaxMinerFee,
+        ClaimGasFee
     }
 
     /// @custom:storage-location erc7201:rsk.flyover.FlyoverConfigurations
@@ -80,9 +81,6 @@ contract FlyoverConfigurations is
 
     /// @notice Rejects registrantFee values at or above this cap (0.001 ether).
     uint256 public constant MAX_REGISTRANT_FEE_EXCLUSIVE = 0.001 ether;
-
-    /// @notice LP claim-gas headroom required between fixedFee and registrantFee at queue/apply.
-    uint256 private constant _REGISTRANT_FEE_LP_GAS_CUSHION = 0;
 
     // ERC-7201: keccak256(abi.encode(uint256(keccak256("rsk.flyover.FlyoverConfigurations")) - 1)) &
     // ~bytes32(uint256(0xff))
@@ -145,8 +143,12 @@ contract FlyoverConfigurations is
     error InvalidPegOutDeadlines();
     /// @notice Raised when registrantFee is at or above {MAX_REGISTRANT_FEE_EXCLUSIVE}.
     error RegistrantFeeTooHigh(uint256 registrantFee, uint256 maxExclusive);
-    /// @notice Raised when fixedFee cannot cover registrantFee plus the LP gas cushion.
-    error InsufficientFixedFeeForRegistrant(uint256 fixedFee, uint256 registrantFee, uint256 cushion);
+    /// @notice Raised when fixedFee is below registrantFee.
+    error InsufficientFixedFeeForRegistrant(uint256 fixedFee, uint256 registrantFee);
+    /// @notice Raised when fee + claimGasFee for a minAmount peg-in is minAmount or more.
+    error MinAmountDoesNotCoverDeduction(uint256 minAmount, uint256 deduction);
+    /// @notice Raised when an amount field is not a whole number of satoshis.
+    error NotWholeSatoshi(Field field, uint256 value);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -351,6 +353,12 @@ contract FlyoverConfigurations is
     }
 
     /// @inheritdoc IFlyoverConfigurations
+    function calculatePegInDeduction(uint256 amount) external view override returns (uint256 deduction) {
+        PegConfiguration storage config = _getStorage().activePegIn;
+        return _calculateDeduction(config.fixedFee, config.percentageFee, config.claimGasFee, amount);
+    }
+
+    /// @inheritdoc IFlyoverConfigurations
     function getRequiredPegInBtcConfirmations(uint256 amount)
         external
         view
@@ -504,14 +512,15 @@ contract FlyoverConfigurations is
             minConfigBoundary.registrantFee,
             maxConfigBoundary.registrantFee
         );
+        _checkBound(
+            Field.ClaimGasFee, config.claimGasFee, minConfigBoundary.claimGasFee, maxConfigBoundary.claimGasFee
+        );
 
         if (config.registrantFee >= MAX_REGISTRANT_FEE_EXCLUSIVE) {
             revert RegistrantFeeTooHigh(config.registrantFee, MAX_REGISTRANT_FEE_EXCLUSIVE);
         }
-        if (config.fixedFee < config.registrantFee + _REGISTRANT_FEE_LP_GAS_CUSHION) {
-            revert InsufficientFixedFeeForRegistrant(
-                config.fixedFee, config.registrantFee, _REGISTRANT_FEE_LP_GAS_CUSHION
-            );
+        if (config.fixedFee < config.registrantFee) {
+            revert InsufficientFixedFeeForRegistrant(config.fixedFee, config.registrantFee);
         }
 
         if (config.percentageFee > FEE_PERCENTAGE_DENOMINATOR) {
@@ -520,6 +529,7 @@ contract FlyoverConfigurations is
         if (config.minAmount > config.maxAmount) {
             revert InvalidAmountLimits(config.minAmount, config.maxAmount);
         }
+        _validateAmountLimits(config);
         _validateTiers(config.confirmationTiers);
     }
 
@@ -542,6 +552,7 @@ contract FlyoverConfigurations is
         _checkActiveField(Field.MinAmount, active.minAmount, min.minAmount, max.minAmount);
         _checkActiveField(Field.MaxAmount, active.maxAmount, min.maxAmount, max.maxAmount);
         _checkActiveField(Field.RegistrantFee, active.registrantFee, min.registrantFee, max.registrantFee);
+        _checkActiveField(Field.ClaimGasFee, active.claimGasFee, min.claimGasFee, max.claimGasFee);
     }
 
     function _validatePegOutConfig(PegOutConfiguration memory config) private view {
@@ -593,13 +604,45 @@ contract FlyoverConfigurations is
         return fee;
     }
 
+    function _calculateDeduction(uint256 fixedFee, uint256 percentageFee, uint256 claimGasFee, uint256 amount)
+        private
+        pure
+        returns (uint256)
+    {
+        return _calculateFee(fixedFee, percentageFee, amount) + claimGasFee;
+    }
+
+    function _validateAmountLimits(PegConfiguration memory config) private pure {
+        // A BTC deposit is always a whole number of satoshis, so a fractional minAmount is not a
+        // deposit size that can exist.
+        if (config.minAmount % Flyover.SAT_TO_WEI_CONVERSION != 0) {
+            revert NotWholeSatoshi(Field.MinAmount, config.minAmount);
+        }
+        // requestPegIn calculates the deduction on min(amount, maxAmount). The deduction check
+        // below tests only minAmount, and it covers a larger amount only when that amount is
+        // minAmount + whole satoshis. With a fractional maxAmount, the fee at maxAmount can
+        // round up by one satoshi, and the deduction can then be more than maxAmount.
+        if (config.maxAmount % Flyover.SAT_TO_WEI_CONVERSION != 0) {
+            revert NotWholeSatoshi(Field.MaxAmount, config.maxAmount);
+        }
+        // If the deduction is minAmount or more, requestPegIn reverts for a minAmount deposit, and
+        // that deposit can never settle. The check tests only minAmount. A larger deposit always
+        // passes when minAmount passes: percentageFee is at most 100%, so each extra satoshi adds
+        // at most one satoshi to the fee.
+        uint256 deduction =
+            _calculateDeduction(config.fixedFee, config.percentageFee, config.claimGasFee, config.minAmount);
+        if (deduction >= config.minAmount) {
+            revert MinAmountDoesNotCoverDeduction(config.minAmount, deduction);
+        }
+    }
+
     function _checkBound(Field field, uint256 value, uint256 minV, uint256 maxV) private pure {
         if (value < minV || value > maxV) {
             revert ConfigValueOutOfBounds(field, value, minV, maxV);
         }
     }
 
-    /// @dev A bounds pair is well-formed when no field inverts, i.e. `min <= max` on all five
+    /// @dev A bounds pair is well-formed when no field inverts, i.e. `min <= max` on all six
     /// scalars. An inverted field admits no value at all, which would wedge every future
     /// configuration change. `confirmationTiers` carries no bound and is not inspected.
     function _validateBoundsPair(PegConfiguration memory min, PegConfiguration memory max)
@@ -611,6 +654,7 @@ contract FlyoverConfigurations is
         _checkPairOrdered(Field.MinAmount, min.minAmount, max.minAmount);
         _checkPairOrdered(Field.MaxAmount, min.maxAmount, max.maxAmount);
         _checkPairOrdered(Field.RegistrantFee, min.registrantFee, max.registrantFee);
+        _checkPairOrdered(Field.ClaimGasFee, min.claimGasFee, max.claimGasFee);
     }
 
     function _checkPairOrdered(Field field, uint256 minV, uint256 maxV) private pure {

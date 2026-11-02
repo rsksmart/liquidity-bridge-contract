@@ -19,6 +19,7 @@ contract GettersTest is ConfigurationsTestBase {
         assertEq(c.percentageFee, SEED_PCT);
         assertEq(c.minAmount, SEED_MIN_AMOUNT);
         assertEq(c.maxAmount, SEED_MAX_AMOUNT);
+        assertEq(c.claimGasFee, SEED_CLAIM_GAS_FEE);
         assertEq(c.confirmationTiers.length, 3);
         assertEq(c.confirmationTiers[0].maxAmount, 1 ether);
         assertEq(c.confirmationTiers[0].confirmations, 1);

@@ -44,8 +44,7 @@ contract RegistrantFeeTest is ConfigurationsTestBase {
                     .InsufficientFixedFeeForRegistrant
                     .selector,
                 c.fixedFee,
-                c.registrantFee,
-                uint256(0)
+                c.registrantFee
             )
         );
         config.queueChange(c);

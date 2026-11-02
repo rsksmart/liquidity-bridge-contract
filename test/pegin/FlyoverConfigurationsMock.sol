@@ -28,6 +28,11 @@ contract FlyoverConfigurationsMock is IFlyoverConfigurations {
         _config.registrantFee = registrantFee;
     }
 
+    /// @notice Sets the gas fee directly
+    function setClaimGasFee(uint256 claimGasFee) external {
+        _config.claimGasFee = claimGasFee;
+    }
+
     /// @notice Sets the amount bounds directly
     function setAmountBounds(uint256 minAmount, uint256 maxAmount) external {
         _config.minAmount = minAmount;
@@ -58,6 +63,17 @@ contract FlyoverConfigurationsMock is IFlyoverConfigurations {
     ) external view override returns (uint256 fee) {
         return
             _config.fixedFee + (amount * _config.percentageFee) / _BASIS_POINTS;
+    }
+
+    /// @inheritdoc IFlyoverConfigurations
+    function calculatePegInDeduction(
+        uint256 amount
+    ) external view override returns (uint256 deduction) {
+        return
+            _config.fixedFee +
+            (amount * _config.percentageFee) /
+            _BASIS_POINTS +
+            _config.claimGasFee;
     }
 
     /// @inheritdoc IFlyoverConfigurations
