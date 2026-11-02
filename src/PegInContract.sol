@@ -62,6 +62,9 @@ contract PegInContract is
     string constant public NAME = "PegInContract";
     Flyover.ProviderType constant private _PEG_TYPE = Flyover.ProviderType.PegIn;
     uint256 constant private _MAX_REFUND_GAS_LIMIT = 2300;
+    int256 constant private _BRIDGE_UNPROCESSABLE_TX_VALIDATIONS_ERROR = -303;
+    int256 constant private _BRIDGE_REFUNDED_USER_ERROR_CODE = -100;
+    int256 constant private _BRIDGE_REFUNDED_LP_ERROR_CODE = -200;
     /// @notice The bridge's minimum peg-in value, in satoshis. The bridge refuses a smaller
     /// deposit only at resolvePegIn, after the provider has paid.
     /// @dev Immutable, so only a new implementation can change it, through the timelocked
@@ -312,7 +315,18 @@ contract PegInContract is
             rskAddr, btcRawTransaction, partialMerkleTree, height, claim.success
         );
 
-        if (registerResult <= 0) {
+        bool btcRefunded = registerResult == _BRIDGE_REFUNDED_USER_ERROR_CODE ||
+            registerResult == _BRIDGE_REFUNDED_LP_ERROR_CODE;
+        if (registerResult == _BRIDGE_UNPROCESSABLE_TX_VALIDATIONS_ERROR) {
+            revert BridgeValidationFailed();
+        } else if (!btcRefunded && registerResult < 1) {
+            revert UnexpectedBridgeError(registerResult);
+        }
+
+        // The bridge marks a refunded transaction as processed, so a retry could never succeed
+        if (btcRefunded) {
+            _pegInSettled[pegInId] = true;
+            emit BridgeCapExceeded(pegInId, registerResult);
             return registerResult;
         }
 
