@@ -63,13 +63,11 @@ library BtcTransactionReader {
     ///
     /// FIRST match, not the sum of every matching output. A deposit split across several outputs
     /// to the same derived address therefore counts only its first output, which UNDERSTATES the
-    /// deposit — the name says `First` so no caller mistakes this for the amount paid. The rule is
-    /// inherited from the registry, where the value is only a minimum-deposit gate and
-    /// undercounting is conservative. `PegInContract.requestPegIn` uses it as the peg-in AMOUNT,
-    /// where undercounting silently drops the user's remaining outputs, so summing is the likely
-    /// correct rule there; it is not applied yet because the two call sites must move together and
-    /// because the reconciling side (`resolvePegIn`, and whether the RSK bridge sums outputs to the
-    /// derivation address) is not implemented. Revisit with settlement.
+    /// deposit — the name says `First` so no caller mistakes this for the amount paid. The
+    /// registry uses the value only as a minimum-deposit gate, where undercounting is
+    /// conservative. `PegInContract.requestPegIn` reads the same first output through
+    /// {findOutputsPaying}. docs/PEGIN_DEPOSIT_OUTPUTS.md records why the amount is the first
+    /// output and not the sum.
     /// @param btcTxSerialized The witness-stripped raw transaction
     /// @param pkScript The scriptPubkey to search for, from {PegInDerivation-depositPkScript}
     /// @return value The matched output's value in satoshis, 0 when no output matched
@@ -88,5 +86,43 @@ library BtcTransactionReader {
             }
         }
         return (0, false);
+    }
+
+    /// @notice Searches every output of `btcTxSerialized` locked by `pkScript` and returns the
+    /// first one's value and the smallest value among them.
+    /// @dev The first value is the one {findFirstOutputPaying} returns. The smallest value exists
+    /// for the bridge minimum: the RSK bridge refuses a flyover deposit when ANY output paying the
+    /// deposit address is below its minimum, not only the first. See
+    /// docs/PEGIN_DEPOSIT_OUTPUTS.md.
+    /// @param btcTxSerialized The witness-stripped raw transaction
+    /// @param pkScript The scriptPubkey to search for, from {PegInDerivation-depositPkScript}
+    /// @return firstValue The first matched output's value in satoshis, 0 when no output matched
+    /// @return smallestValue The smallest matched output's value in satoshis, 0 when no output
+    /// matched
+    /// @return found Whether any output was locked by `pkScript`
+    function findOutputsPaying(bytes calldata btcTxSerialized, bytes memory pkScript)
+        internal
+        pure
+        returns (uint64 firstValue, uint64 smallestValue, bool found)
+    {
+        BtcUtils.TxRawOutput[] memory outputs = BtcUtils.getOutputs(btcTxSerialized);
+        bytes32 pkScriptHash = keccak256(pkScript);
+        uint256 outputCount = outputs.length;
+        smallestValue = type(uint64).max;
+        for (uint256 i = 0; i < outputCount; ++i) {
+            if (keccak256(outputs[i].pkScript) == pkScriptHash) {
+                uint64 value = outputs[i].value;
+                if (!found) {
+                    firstValue = value;
+                    found = true;
+                }
+                if (value < smallestValue) {
+                    smallestValue = value;
+                }
+            }
+        }
+        if (!found) {
+            smallestValue = 0;
+        }
     }
 }

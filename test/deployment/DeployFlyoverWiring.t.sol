@@ -12,6 +12,8 @@ import {PegOutEscrow} from "../../src/PegOutEscrow.sol";
 /// @title DeployFlyoverWiringTest
 /// @notice Asserts DeployFlyover wires PegInAddressRegistry and FlyoverConfigurations.
 contract DeployFlyoverWiringTest is Test {
+    /// @dev Written out, not read from DeployFlyover, so a wrong value in the script fails here.
+    uint256 private constant BRIDGE_MIN_DEPOSIT_SATS = 500_000;
     // Anvil account 0. Used when DEV_SIGNER_PRIVATE_KEY is not in the environment.
     string internal constant TEST_SIGNER_KEY =
         "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
@@ -58,6 +60,11 @@ contract DeployFlyoverWiringTest is Test {
             pegIn.getFlyoverConfigurations(),
             d.flyoverConfigurationsProxy,
             "configurations pointer mismatch"
+        );
+        assertEq(
+            pegIn.getBridgeMinDepositSats(),
+            BRIDGE_MIN_DEPOSIT_SATS,
+            "bridge min deposit mismatch"
         );
         assertEq(
             address(

@@ -190,7 +190,9 @@ contract DeployFlyover is Script {
             flyoverDiscoveryProxy
         );
 
-        // 3) PegInContract
+        // 3) PegInContract. The only implementation here with a constructor argument, so the
+        // shared opts carry it for this deployment only.
+        opts.constructorData = abi.encode(BRIDGE_MIN_DEPOSIT_SATS);
         address pegInProxy = Upgrades.deployTransparentProxy(
             "PegInContract.sol",
             defaultAdmin,
@@ -208,6 +210,7 @@ contract DeployFlyover is Script {
             ),
             opts
         );
+        opts.constructorData = "";
         d.pegInProxy = pegInProxy;
         d.pegInImpl = ProxyReader.readImplementation(vm, pegInProxy);
         d.pegInProxyAdmin = ProxyReader.readAdmin(vm, pegInProxy);

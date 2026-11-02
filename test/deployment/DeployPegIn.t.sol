@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import "lib/forge-std/src/Test.sol";
 import "lib/forge-std/src/console.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
+import {DeployPegIn} from "../../script/deployment/DeployPegIn.s.sol";
 import {ProxyReader} from "../../script/helpers/ProxyReader.sol";
 import {PegInContract} from "../../src/PegInContract.sol";
 import {CollateralManagementContract} from "../../src/CollateralManagement.sol";
@@ -18,6 +19,10 @@ import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.s
  * @notice Test for PegInContract deployment
  */
 contract DeployPegInTest is Test {
+    /// @dev Written out, not read from DeployPegIn, so a wrong value in the script fails
+    /// test_deployForTesting_setsBridgeMinDepositSats.
+    uint256 private constant BRIDGE_MIN_DEPOSIT_SATS = 500_000;
+
     HelperConfig public helperConfig;
     BridgeMock public bridgeMock;
     address public collateralManagementProxy;
@@ -71,7 +76,7 @@ contract DeployPegInTest is Test {
         address deployer,
         HelperConfig.FlyoverConfig memory cfg
     ) internal returns (address) {
-        address impl = address(new PegInContract());
+        address impl = address(new PegInContract(BRIDGE_MIN_DEPOSIT_SATS));
         bytes memory initData = abi.encodeCall(
             PegInContract.initialize,
             (
@@ -106,6 +111,24 @@ contract DeployPegInTest is Test {
             Ownable(ProxyReader.readAdmin(vm, proxy)).owner(),
             deployer,
             "PegInContract ProxyAdmin owner mismatch"
+        );
+    }
+
+    function test_deployForTesting_setsBridgeMinDepositSats() public {
+        DeployPegIn deployer = new DeployPegIn();
+
+        DeployPegIn.DeploymentResult memory result = deployer.deployForTesting(
+            address(deployer),
+            helperConfig.getFlyoverConfig(),
+            collateralManagementProxy,
+            pauseRegistryProxy,
+            helperConfig.getOptions()
+        );
+
+        assertEq(
+            PegInContract(payable(result.proxy)).getBridgeMinDepositSats(),
+            BRIDGE_MIN_DEPOSIT_SATS,
+            "script bridge min deposit mismatch"
         );
     }
 
@@ -177,7 +200,7 @@ contract DeployPegInTest is Test {
         HelperConfig.FlyoverConfig memory cfg = helperConfig.getFlyoverConfig();
         address deployer = address(this);
 
-        address impl = address(new PegInContract());
+        address impl = address(new PegInContract(BRIDGE_MIN_DEPOSIT_SATS));
         TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
             impl,
             deployer,
@@ -198,7 +221,11 @@ contract DeployPegInTest is Test {
         ProxyAdmin proxyAdmin = ProxyAdmin(
             ProxyReader.readAdmin(vm, address(proxy))
         );
-        address newImplementation = address(new PegInContract());
+        // A different value, so the check below can only pass if the upgrade itself sets it.
+        uint256 upgradedBridgeMinSats = BRIDGE_MIN_DEPOSIT_SATS + 100_000;
+        address newImplementation = address(
+            new PegInContract(upgradedBridgeMinSats)
+        );
         assertEq(
             ProxyReader.readImplementation(vm, address(proxy)),
             impl,
@@ -213,6 +240,11 @@ contract DeployPegInTest is Test {
             ProxyReader.readImplementation(vm, address(proxy)),
             newImplementation,
             "Implementation mismatch"
+        );
+        assertEq(
+            PegInContract(payable(address(proxy))).getBridgeMinDepositSats(),
+            upgradedBridgeMinSats,
+            "upgrade without initialize sets the bridge minimum"
         );
 
         console.log("\n[PASS] Contract is upgradeable");

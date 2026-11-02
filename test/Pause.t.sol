@@ -108,7 +108,7 @@ contract PauseTest is Test {
             )
         );
 
-        PegInContract piImpl = new PegInContract();
+        PegInContract piImpl = new PegInContract(500_000);
         pegInContract = PegInContract(
             payable(
                 address(

@@ -20,6 +20,9 @@ contract DeployPegIn is Script {
         address admin;
     }
 
+    /// @notice The bridge peg-in floor in satoshis after RSKIP219.
+    uint256 public constant BRIDGE_MIN_DEPOSIT_SATS = 500_000;
+
     function run() external returns (DeploymentResult memory result) {
         HelperConfig helper = new HelperConfig();
         HelperConfig.FlyoverConfig memory cfg = helper.getFlyoverConfig();
@@ -52,6 +55,25 @@ contract DeployPegIn is Script {
         _log(result);
     }
 
+    /// @notice Test-only helper to deploy without broadcast/env lookup.
+    /// @dev Reuses the same deployment logic as run().
+    function deployForTesting(
+        address defaultAdmin,
+        HelperConfig.FlyoverConfig memory cfg,
+        address collateralManagementProxy,
+        address pauseRegistryProxy,
+        Options memory opts
+    ) external returns (DeploymentResult memory) {
+        return
+            _deploy(
+                defaultAdmin,
+                cfg,
+                collateralManagementProxy,
+                pauseRegistryProxy,
+                opts
+            );
+    }
+
     function _deploy(
         address defaultAdmin,
         HelperConfig.FlyoverConfig memory cfg,
@@ -59,6 +81,7 @@ contract DeployPegIn is Script {
         address pauseRegistryProxy,
         Options memory opts
     ) private returns (DeploymentResult memory result) {
+        opts.constructorData = abi.encode(BRIDGE_MIN_DEPOSIT_SATS);
         address pegInProxy = Upgrades.deployTransparentProxy(
             "PegInContract.sol",
             defaultAdmin,
