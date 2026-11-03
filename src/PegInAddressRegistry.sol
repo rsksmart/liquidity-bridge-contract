@@ -179,6 +179,9 @@ contract PegInAddressRegistry is
         bytes32 btcTxHash = BtcUtils.hashBtcTx(btcTxSerialized);
         int256 confirmations =
             $.bridge.getBtcTransactionConfirmations(btcTxHash, btcBlockHash, merkleBranchPath, merkleBranchHashes);
+        if (confirmations < 0) {
+            revert UnableToGetConfirmations(confirmations);
+        }
         if (confirmations < MIN_CONFIRMATIONS) {
             revert DepositNotConfirmed(btcTxHash);
         }

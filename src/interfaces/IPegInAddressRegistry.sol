@@ -60,12 +60,20 @@ interface IPegInAddressRegistry {
     /// @param rskAddr The address whose derived deposit output was not found
     error DepositOutputNotFound(address rskAddr);
 
-    /// @notice Reverts registerAddress when the bridge does not report the deposit
-    /// transaction as confirmed
+    /// @notice Reverts registerAddress when the bridge accepts the deposit proof but reports
+    /// fewer than MIN_CONFIRMATIONS confirmations
     /// @dev The confirmation lookup is read-only; registering never consumes the peg-in.
     /// Walkthrough anchors: step 8, check 3; decision D8.
     /// @param btcTxHash The hash of the unconfirmed deposit transaction
     error DepositNotConfirmed(bytes32 btcTxHash);
+
+    /// @notice Reverts registerAddress when the bridge rejects the deposit proof
+    /// @dev Same signature, and so the same selector, as IPegOut and IPegInCommitFirst.
+    /// Bridge codes: -1 block hash does not exist, -2 block not in the best chain, -3 inconsistent
+    /// block, -4 block too old, -5 invalid merkle branch. Only -2 can succeed on a retry, after a
+    /// reorg puts the block back in the best chain; the others need a new proof
+    /// @param errorCode The negative code returned by getBtcTransactionConfirmations
+    error UnableToGetConfirmations(int256 errorCode);
 
     /// @notice Reverts registerAddress when the deposit output paying the derived address is
     /// below the minimum registrable amount
