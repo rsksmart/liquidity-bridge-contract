@@ -119,9 +119,10 @@ interface IPegInCommitFirst {
 
     /// @notice Reverts requestPegIn when the bridge rejects the deposit proof
     /// @dev Same signature, and so the same selector, as IPegOut and IPegInAddressRegistry.
-    /// Bridge codes: -1 block hash does not exist, -2 block not in the best chain, -3 inconsistent
-    /// block, -4 block too old, -5 invalid merkle branch. Only -2 can succeed on a retry, after a
-    /// reorg puts the block back in the best chain; the others need a new proof
+    /// Bridge codes: -1 block hash not in the bridge's block store, -2 block not in the best chain,
+    /// -3 inconsistent block, -4 block too old, -5 invalid merkle branch. The same proof can succeed
+    /// on a retry for -1, after the bridge receives the block header, and for -2, after a reorg puts
+    /// the block back in the best chain. -4 is final for the deposit, and -5 needs a correct proof
     /// @param errorCode The negative code returned by getBtcTransactionConfirmations
     error UnableToGetConfirmations(int256 errorCode);
 
