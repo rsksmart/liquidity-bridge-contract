@@ -9,6 +9,9 @@ export default [
   {
     ignores: [
       "eslint.config.mjs",
+      // Standalone Node drift-detection utility kept byte-identical across repos;
+      // not part of the typed project. See docs/release-drift.md.
+      "scripts/check-release-drift.mjs",
       "typechain-types/*",
       "node_modules/*",
       "artifacts/*",
