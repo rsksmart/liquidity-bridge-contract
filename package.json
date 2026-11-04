@@ -9,6 +9,8 @@
     "test:fuzz": "npm run compile && make test-fuzz",
     "test:invariant": "npm run compile && make test-invariant",
     "test:formal": "npm run compile && make test-formal",
+    "gas:snapshot": "forge snapshot",
+    "gas:compare": "npx ts-node --transpile-only script/compare_gas.ts",
     "coverage": "forge coverage",
     "coverage:lcov": "make coverage-lcov",
     "lint:ts": "npx prettier --check . && npx eslint .",

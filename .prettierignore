@@ -8,3 +8,9 @@ coverage/
 coverage.json
 out/
 cache/
+
+# Standalone drift-detection utility kept byte-identical across repos (see docs/release-drift.md)
+scripts/check-release-drift.mjs
+# Generated drift-detection artifacts
+drift-report.md
+merge-status.json
