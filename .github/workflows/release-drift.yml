@@ -1,0 +1,80 @@
+name: Release Branch Drift Detection
+
+on:
+  schedule:
+    # Mondays at 12:00 UTC
+    - cron: "0 12 * * 1"
+  pull_request:
+    # Run exactly once when a PR is opened. Subsequent pushes do not re-run
+    # the drift check.
+    types: [opened]
+  workflow_dispatch:
+    inputs:
+      release_branch_pattern:
+        description: Glob for release branches
+        required: false
+        default: "v[0-9]*.[0-9]*.[0-9]*"
+      trunk_branch:
+        description: Trunk branch name
+        required: false
+        default: master
+      compare_all_vs_trunk:
+        description: Compare every release branch against trunk (not just the newest)
+        required: false
+        type: choice
+        default: "1"
+        options:
+          - "1"
+          - "0"
+      release_tag_pattern:
+        description: Glob for release tags (used to map drifted commits to releases)
+        required: false
+        default: "v[0-9]*"
+
+permissions:
+  contents: read
+
+jobs:
+  detect-drift:
+    name: Detect drift between release branches
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js 20.15.1
+        uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v4.0.4
+        with:
+          node-version: "20.15.1"
+
+      - name: Run drift detection
+        env:
+          RELEASE_BRANCH_PATTERN: ${{ inputs.release_branch_pattern || 'v[0-9]*.[0-9]*.[0-9]*' }}
+          TRUNK_BRANCH: ${{ inputs.trunk_branch || 'master' }}
+          COMPARE_ALL_VS_TRUNK: ${{ inputs.compare_all_vs_trunk || '1' }}
+          RELEASE_TAG_PATTERN: ${{ inputs.release_tag_pattern || 'v[0-9]*' }}
+          REMOTE: origin
+          REPORT_FILE: drift-report.md
+          # gh CLI uses this to authenticate non-interactively for `gh release list`
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/check-release-drift.mjs
+
+      - name: Append report to job summary
+        if: always()
+        run: |
+          if [[ -f drift-report.md ]]; then
+            cat drift-report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload report artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-drift-report
+          path: |
+            drift-report.md
+            merge-status.json
+          if-no-files-found: warn

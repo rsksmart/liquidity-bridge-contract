@@ -33,3 +33,6 @@ broadcast/**
 
 # Generated gas comparison output
 gas_comparison.csv
+# release-drift detection artifacts (scripts/check-release-drift.mjs)
+drift-report.md
+merge-status.json
