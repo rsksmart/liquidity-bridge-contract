@@ -91,7 +91,7 @@ contract PegInContract is
     mapping(bytes32 => PegInClaim) private _pegInClaims;
     /// @notice Whether the registrant fee was already paid for a destination address
     mapping(address => bool) private _registrantPaid;
-    /// @notice Whether a peg-in id was already settled on the claimed path
+    /// @notice Whether a peg-in id was already settled
     mapping(bytes32 => bool) private _pegInSettled;
 
     /// @notice Emitted when the dust threshold is set
@@ -305,7 +305,7 @@ contract PegInContract is
         uint256 height
     ) external override nonReentrant whenNotHardPaused returns (int256 registerResult) {
         bytes32 pegInId = _resolvePegInId(rskAddr, btcRawTransaction);
-        PegInClaim memory claim = _requireClaimedUnsettled(pegInId);
+        PegInClaim memory claim = _requireUnsettled(pegInId);
         _requirePegInDepsSet();
 
         registerResult = _registerCommitFirstBridge(
@@ -316,7 +316,11 @@ contract PegInContract is
             return registerResult;
         }
 
-        _creditResolvedPegIn(pegInId, rskAddr, claim, uint256(registerResult));
+        if (claim.claimer == address(0)) {
+            _settleUnclaimedPegIn(pegInId, rskAddr, uint256(registerResult));
+        } else {
+            _creditResolvedPegIn(pegInId, rskAddr, claim, uint256(registerResult));
+        }
     }
 
     /// @notice Returns the wired PegInAddressRegistry address
@@ -408,6 +412,26 @@ contract PegInContract is
         );
     }
 
+    /// @dev No LP fronted anything, so the whole release belongs to the user and no fee is taken.
+    /// A release the user does not accept is credited to the user's balance, so the user can
+    /// withdraw it.
+    function _settleUnclaimedPegIn(bytes32 pegInId, address rskAddr, uint256 released) private {
+        _pegInSettled[pegInId] = true;
+        // A stored claimer makes requestPegIn revert, so no LP fronts RBTC that settlement cannot repay
+        _pegInClaims[pegInId].claimer = msg.sender;
+
+        (bool success,) = rskAddr.call{gas: _MAX_REFUND_GAS_LIMIT, value: released}("");
+        emit UserRemainderRefunded(pegInId, rskAddr, released, success);
+        uint256 userPayout = 0;
+        if (success) {
+            userPayout = released;
+        } else {
+            _increaseBalance(rskAddr, released);
+        }
+
+        emit PegInResolved(pegInId, msg.sender, address(0), released, 0, 0, userPayout);
+    }
+
     /// @dev The registrant is paid once per registered address, on the first peg-in that settles
     /// to it.
     function _payRegistrantOnce(
@@ -442,15 +466,12 @@ contract PegInContract is
         }
     }
 
-    /// @dev Loads a claimed, not-yet-settled peg-in or reverts.
-    function _requireClaimedUnsettled(bytes32 pegInId) private view returns (PegInClaim memory claim) {
+    /// @dev Loads a not-yet-settled peg-in or reverts. The claim is empty when no LP claimed.
+    function _requireUnsettled(bytes32 pegInId) private view returns (PegInClaim memory claim) {
         if (_pegInSettled[pegInId]) {
             revert PegInAlreadyProcessed(pegInId);
         }
         claim = _pegInClaims[pegInId];
-        if (claim.claimer == address(0)) {
-            revert PegInNotClaimed(pegInId);
-        }
     }
 
     /// @notice Reverts unless commit-first registry and configurations are wired

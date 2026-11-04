@@ -89,16 +89,86 @@ contract ResolvePegInTest is ResolvePegInTestBase {
         assertGt(_balance(claimer), 0);
     }
 
-    function test_unclaimed_reverts_without_bridge_credit() public {
-        vm.prank(claimer);
+    function test_unclaimed_settle_pays_user_whole_release() public {
+        bytes32 pegInId = _pegInId(rskUser, btcTxHash);
+        bridgeMock.setPegin{value: bridgeRelease}(_derivationHash(rskUser));
+        address thirdParty = makeAddr("thirdParty");
+        uint256 userBefore = rskUser.balance;
+
+        vm.expectEmit(true, true, false, true);
+        emit IPegInCommitFirst.UserRemainderRefunded(
+            pegInId,
+            rskUser,
+            bridgeRelease,
+            true
+        );
+        vm.expectEmit(true, true, true, true);
+        emit IPegInCommitFirst.PegInResolved(
+            pegInId,
+            thirdParty,
+            address(0),
+            bridgeRelease,
+            0,
+            0,
+            bridgeRelease
+        );
+        int256 result = _resolve(thirdParty, rskUser, rawTx);
+
+        assertEq(result, int256(bridgeRelease));
+        assertEq(rskUser.balance - userBefore, bridgeRelease);
+        assertTrue(_isSettled(pegInId));
+        (address storedClaimer, uint256 frontedAmount, , ) = _readClaim(
+            pegInId
+        );
+        assertEq(storedClaimer, thirdParty);
+        assertEq(frontedAmount, 0);
+        assertFalse(_isRegistrantPaid(rskUser));
+        assertEq(_balance(registrant), 0);
+    }
+
+    function test_claim_after_unclaimed_settle_reverts() public {
+        bytes32 pegInId = _pegInId(rskUser, btcTxHash);
+        bridgeMock.setPegin{value: bridgeRelease}(_derivationHash(rskUser));
+        _resolve(makeAddr("thirdParty"), rskUser, rawTx);
+
         vm.expectRevert(
             abi.encodeWithSelector(
-                IPegInCommitFirst.PegInNotClaimed.selector,
-                _pegInId(rskUser, btcTxHash)
+                IPegInCommitFirst.PegInAlreadyProcessed.selector,
+                pegInId
             )
         );
-        pegInContract.resolvePegIn(rskUser, rawTx, hex"00", 100);
-        assertEq(_balance(claimer), 0);
+        _requestPegInTx(claimer, rskUser, rawTx, 0);
+    }
+
+    function test_unclaimed_refused_payment_credits_user_balance() public {
+        (
+            address recipient,
+            bytes memory depositTx
+        ) = _registerRefusingRecipient();
+        bytes32 pegInId = _pegInId(recipient, _btcTxHash(depositTx));
+        bridgeMock.setPegin{value: bridgeRelease}(_derivationHash(recipient));
+        address thirdParty = makeAddr("thirdParty");
+
+        vm.expectEmit(true, true, false, true);
+        emit IPegInCommitFirst.UserRemainderRefunded(
+            pegInId,
+            recipient,
+            bridgeRelease,
+            false
+        );
+        vm.expectEmit(true, true, true, true);
+        emit IPegInCommitFirst.PegInResolved(
+            pegInId,
+            thirdParty,
+            address(0),
+            bridgeRelease,
+            0,
+            0,
+            0
+        );
+        _resolve(thirdParty, recipient, depositTx);
+
+        assertEq(_balance(recipient), bridgeRelease);
     }
 
     function test_witness_serialized_tx_reverts() public {
@@ -109,24 +179,6 @@ contract ResolvePegInTest is ResolvePegInTestBase {
         );
         pegInContract.resolvePegIn(rskUser, WITNESS_MARKED_TX, hex"00", 100);
         assertEq(_balance(claimer), 0);
-    }
-
-    function test_wrong_tx_for_address_reverts_unclaimed() public {
-        bytes memory wrongRawTx = _depositTx(
-            rskUser,
-            DEFAULT_AMOUNT,
-            DEFAULT_TX_NONCE + 99
-        );
-        bytes32 wrongPegInId = _pegInId(rskUser, _btcTxHash(wrongRawTx));
-        _claimAndFund(rskUser, rawTx, bridgeRelease);
-        vm.prank(claimer);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IPegInCommitFirst.PegInNotClaimed.selector,
-                wrongPegInId
-            )
-        );
-        pegInContract.resolvePegIn(rskUser, wrongRawTx, hex"00", 100);
     }
 
     function test_bridge_error_leaves_balances_unchanged() public {

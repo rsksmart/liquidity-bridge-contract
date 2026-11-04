@@ -46,8 +46,8 @@ interface IPegInCommitFirst {
     /// was dust
     /// @param registrantFee The registrant fee paid, in wei; 0 when none was paid
     /// @param userPayout The amount sent to the destination address, in wei: released above
-    /// what the claimer and the registrant are owed; 0 when that remainder was dust or the send
-    /// failed
+    /// what the claimer and the registrant are owed, or the whole release when no LP claimed;
+    /// 0 when that amount was dust or the send failed
     event PegInResolved(
         bytes32 indexed pegInId,
         address indexed claimer,
@@ -59,11 +59,11 @@ interface IPegInCommitFirst {
     );
 
     /// @notice Emitted when settlement tries to send the user the part of the release above
-    /// what the claimer and the registrant are owed
+    /// what the claimer and the registrant are owed, or the whole release when no LP claimed
     /// @dev On failure the amount is credited to rskAddr's balance, and rskAddr can withdraw it
     /// @param pegInId The id of the settled peg-in
     /// @param rskAddr The destination address the remainder was sent to
-    /// @param amount The remainder, in wei
+    /// @param amount The remainder, or the whole release when no LP claimed, in wei
     /// @param success Whether the destination address accepted the transfer
     event UserRemainderRefunded(
         bytes32 indexed pegInId,
@@ -72,16 +72,15 @@ interface IPegInCommitFirst {
         bool success
     );
 
-    /// @notice Reverts requestPegIn when the peg-in already has a claimer
-    /// @dev First check in the function, so the loser of a claim race burns minimal gas. The
+    /// @notice Reverts requestPegIn when the peg-in already has a claimer, and resolvePegIn
+    /// when the peg-in is already settled
+    /// @dev First check in requestPegIn, so the loser of a claim race burns minimal gas. The
     /// deposit txid is hashed out of the raw transaction before it, because the id is keyed on
-    /// that txid; nothing else runs ahead of it.
-    /// @param pegInId The id of the already-claimed peg-in
+    /// that txid; nothing else runs ahead of it. A settle without a claim stores its caller as
+    /// the claimer, so this check also stops an LP from fronting RBTC that settlement can no
+    /// longer repay.
+    /// @param pegInId The id of the already-claimed or already-settled peg-in
     error PegInAlreadyProcessed(bytes32 pegInId);
-
-    /// @notice Reverts resolvePegIn when no claim record exists for the peg-in
-    /// @param pegInId The id of the unclaimed peg-in
-    error PegInNotClaimed(bytes32 pegInId);
 
     /// @notice Reverts requestPegIn when the destination address has no registration record
     /// @param rskAddr The unregistered RSK destination address
@@ -172,6 +171,11 @@ interface IPegInCommitFirst {
     /// redirects nothing. The contract passes the stored payment result as
     /// shouldTransferToContract; the bridge pays the contract and the contract distributes
     /// from storage.
+    ///
+    /// When no LP claimed, the whole release goes to rskAddr with no fee, and the caller is
+    /// stored as the claimer. The bridge releases only at its own depth, far past the claim
+    /// confirmation tiers, so LPs always had the claim window before this settle can run. That
+    /// holds only while the configured tiers stay well below the bridge depth.
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param btcRawTransaction The raw witness-stripped deposit transaction
     /// @param partialMerkleTree The partial merkle tree proving the deposit's inclusion
