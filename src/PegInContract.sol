@@ -420,7 +420,7 @@ contract PegInContract is
         // A stored claimer makes requestPegIn revert, so no LP fronts RBTC that settlement cannot repay
         _pegInClaims[pegInId].claimer = msg.sender;
 
-        (bool success,) = rskAddr.call{gas: _MAX_REFUND_GAS_LIMIT, value: released}("");
+        bool success = _payPegInUser(rskAddr, released);
         emit UserRemainderRefunded(pegInId, rskAddr, released, success);
         uint256 userPayout = 0;
         if (success) {
@@ -558,7 +558,7 @@ contract PegInContract is
         }
     }
 
-    /// @notice Sends the net RBTC to the peg-in destination address
+    /// @notice Sends RBTC to the peg-in destination address
     /// @dev Forwards _MAX_REFUND_GAS_LIMIT gas, plus the 2300-gas stipend when expected > 0:
     /// Rootstock has no 63/64 rule, so an unlimited call lets the destination spend all gas and
     /// revert the claim. Copies no return data, so a large return cannot spend the gas left after
