@@ -43,3 +43,6 @@ __pycache__/
 mewt.sqlite
 mutation-status.json
 *.sarif
+# release-drift detection artifacts (scripts/check-release-drift.mjs)
+drift-report.md
+merge-status.json
