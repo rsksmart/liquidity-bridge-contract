@@ -27,7 +27,7 @@ jobs:
         run: npm ci
 
       - name: "Install Foundry"
-        uses: "foundry-rs/foundry-toolchain@50d5a8956f2e319df19e6b57539d7e2acb9f8c1e" # v1.5.0
+        uses: "foundry-rs/foundry-toolchain@c7450ba673e133f5ee30098b3b54f444d3a2ca2d" # v1.8.0
         with:
           version: stable
 
@@ -35,7 +35,7 @@ jobs:
         run: forge build --build-info
 
       - name: Run Slither
-        uses: crytic/slither-action@f197989dea5b53e986d0f88c60a034ddd77ec9a8 # v0.4.0
+        uses: crytic/slither-action@b52cc1cbfee9ca3e8722dd5224299d16c9a6b80f # v0.4.2
         id: slither
         with:
           sarif: results.sarif
