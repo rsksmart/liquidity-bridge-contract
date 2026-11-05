@@ -74,7 +74,9 @@ interface IPegInCommitFirst {
 
     /// @notice Emitted when the bridge rejects the deposit over its locking cap and refunds the BTC
     /// @dev The peg-in is settled and no RBTC is distributed. -100 means the bridge refunded the
-    /// user refund address, -200 the liquidity provider address
+    /// user refund address, -200 the liquidity provider address. Both are the zero placeholders in
+    /// PegInDerivation, so the refunded BTC is burned. With the current cap of 21,000,000 BTC this
+    /// cannot happen; see docs/PEGIN_LOCKING_CAP_REFUND.md
     /// @param pegInId The id of the settled peg-in
     /// @param errorCode The error code returned by the bridge
     event BridgeCapExceeded(bytes32 indexed pegInId, int256 indexed errorCode);
