@@ -280,9 +280,8 @@ contract BridgeMockBlindSpotTest is RequestPegInTestBase {
         vm.prank(claimer);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IPegInCommitFirst.InsufficientConfirmations.selector,
-                0,
-                DEFAULT_TIER_CONFIRMATIONS
+                IPegInCommitFirst.UnableToGetConfirmations.selector,
+                int256(-5)
             )
         );
         pegInContract.requestPegIn{value: net}(

@@ -410,25 +410,25 @@ contract RegistryBridgeMock is IBridge {
         uint256 merkleBranchPath,
         bytes32[] calldata merkleBranchHashes
     ) external view override returns (int256) {
-        if (txHash == bytes32(0) || blockHash == bytes32(0)) {
-            return -1;
-        }
-        if (!_hasExpectedProof) {
-            return -1;
-        }
+        // Unknown block: the bridge has no header for this hash
         if (
-            txHash != _expectedTxHash ||
-            blockHash != _expectedBlockHash ||
-            merkleBranchPath != _expectedPath
+            !_hasExpectedProof ||
+            blockHash == bytes32(0) ||
+            blockHash != _expectedBlockHash
         ) {
             return -1;
         }
-        if (merkleBranchHashes.length != _expectedHashes.length) {
-            return -1;
+        // Known block, but the proof does not reduce to its merkle root
+        if (
+            txHash != _expectedTxHash ||
+            merkleBranchPath != _expectedPath ||
+            merkleBranchHashes.length != _expectedHashes.length
+        ) {
+            return -5;
         }
         for (uint256 i = 0; i < merkleBranchHashes.length; ++i) {
             if (merkleBranchHashes[i] != _expectedHashes[i]) {
-                return -1;
+                return -5;
             }
         }
         return _confirmations;

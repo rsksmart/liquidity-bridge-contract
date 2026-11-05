@@ -360,6 +360,28 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
 
     // ---- Check 6: insufficient confirmations ----
 
+    function test_revert_insufficientConfirmations_zeroConfirmations() public {
+        uint256 required = DEFAULT_TIER_CONFIRMATIONS;
+        bridgeMock.setConfirmations(0);
+        bytes memory btcTx = _defaultTx();
+
+        vm.prank(claimer);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegInCommitFirst.InsufficientConfirmations.selector,
+                0,
+                required
+            )
+        );
+        pegInContract.requestPegIn{value: 1 ether}(
+            rskUser,
+            btcTx,
+            bytes32(0),
+            0,
+            _emptyBranch()
+        );
+    }
+
     function test_revert_insufficientConfirmations_tierBoundary() public {
         uint256 required = DEFAULT_TIER_CONFIRMATIONS;
         bridgeMock.setConfirmations(int256(required) - 1);
@@ -382,28 +404,27 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
         );
     }
 
-    function test_revert_insufficientConfirmations_negativeBridgeReportsZeroHave()
-        public
-    {
-        uint256 required = DEFAULT_TIER_CONFIRMATIONS;
-        bridgeMock.setConfirmations(-1);
+    function test_revert_unableToGetConfirmations_eachBridgeCode() public {
+        int256[5] memory codes = [int256(-1), -2, -3, -4, -5];
         bytes memory btcTx = _defaultTx();
 
-        vm.prank(claimer);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IPegInCommitFirst.InsufficientConfirmations.selector,
+        for (uint256 i = 0; i < codes.length; ++i) {
+            bridgeMock.setConfirmations(codes[i]);
+            vm.prank(claimer);
+            vm.expectRevert(
+                abi.encodeWithSelector(
+                    IPegInCommitFirst.UnableToGetConfirmations.selector,
+                    codes[i]
+                )
+            );
+            pegInContract.requestPegIn{value: 1 ether}(
+                rskUser,
+                btcTx,
+                bytes32(0),
                 0,
-                required
-            )
-        );
-        pegInContract.requestPegIn{value: 1 ether}(
-            rskUser,
-            btcTx,
-            bytes32(0),
-            0,
-            _emptyBranch()
-        );
+                _emptyBranch()
+            );
+        }
     }
 
     /// @notice The tier is looked up with the amount READ off the deposit, so a large deposit

@@ -122,9 +122,19 @@ interface IPegInCommitFirst {
     /// configuration requires for its amount
     /// @dev The amount driving the tier lookup is the one read off the deposit output, so
     /// understating a large deposit to buy the low tier is not expressible.
-    /// @param have The confirmations the bridge reports
+    /// @param have The confirmations the bridge reports, 0 or more
     /// @param required The confirmations the active configuration requires
     error InsufficientConfirmations(uint256 have, uint256 required);
+
+    /// @notice Reverts requestPegIn when the bridge rejects the deposit proof
+    /// @dev Same signature, and so the same selector, as IPegOut and IPegInAddressRegistry.
+    /// Bridge codes: -1 block hash not in the bridge's block store, -2 block not in the best chain,
+    /// -3 the bridge failed to read the block at its height, -4 block too old, -5 invalid merkle
+    /// branch. The same proof can succeed on a retry for -1, after the bridge receives the block
+    /// header, and for -2, after a reorg puts the block back in the best chain. The bridge code gives
+    /// no retry guarantee for -3. -4 is final for the deposit, and -5 needs a correct proof
+    /// @param errorCode The negative code returned by getBtcTransactionConfirmations
+    error UnableToGetConfirmations(int256 errorCode);
 
     /// @notice Reverts requestPegIn when msg.value is not the required fronting
     /// @param expected The required msg.value, in wei

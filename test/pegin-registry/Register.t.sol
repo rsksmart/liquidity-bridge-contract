@@ -594,30 +594,32 @@ contract RegisterTest is PegInRegistryTestBase {
         assertEq(registry.getRegistrationRoot(), expectedRoot);
     }
 
-    // S2 — negative confirmations
-    function test_revert_when_negative_confirmations() public {
+    function test_revert_when_bridge_rejects_proof() public {
         _deploy(false);
-        bridge.setConfirmations(-1);
+        int256[5] memory codes = [int256(-1), -2, -3, -4, -5];
         bytes memory txBytes = _buildDepositTx(
             _depositPkScript(FIXTURE_RSK),
             10_000
         );
         bytes32[] memory hashes = _emptyHashes();
         _programProof(txBytes, BLOCK_HASH, MERKLE_PATH, hashes);
-        bytes32 txHash = BtcUtils.hashBtcTx(txBytes);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IPegInAddressRegistry.DepositNotConfirmed.selector,
-                txHash
-            )
-        );
-        registry.registerAddress(
-            FIXTURE_RSK,
-            txBytes,
-            BLOCK_HASH,
-            MERKLE_PATH,
-            hashes
-        );
+
+        for (uint256 i = 0; i < codes.length; ++i) {
+            bridge.setConfirmations(codes[i]);
+            vm.expectRevert(
+                abi.encodeWithSelector(
+                    IPegInAddressRegistry.UnableToGetConfirmations.selector,
+                    codes[i]
+                )
+            );
+            registry.registerAddress(
+                FIXTURE_RSK,
+                txBytes,
+                BLOCK_HASH,
+                MERKLE_PATH,
+                hashes
+            );
+        }
     }
 
     // S3 — write path with unset pegInContract
@@ -662,7 +664,6 @@ contract RegisterTest is PegInRegistryTestBase {
             10_000
         );
         bytes32[] memory hashes = _emptyHashes();
-        bytes32 realTxHash = BtcUtils.hashBtcTx(txBytes);
         // Program a different txHash than the one the registry will pass.
         bridge.setExpectedProof(
             bytes32(uint256(0xDEAD)),
@@ -672,8 +673,8 @@ contract RegisterTest is PegInRegistryTestBase {
         );
         vm.expectRevert(
             abi.encodeWithSelector(
-                IPegInAddressRegistry.DepositNotConfirmed.selector,
-                realTxHash
+                IPegInAddressRegistry.UnableToGetConfirmations.selector,
+                int256(-5)
             )
         );
         registry.registerAddress(
@@ -704,7 +705,7 @@ contract RegisterTest is PegInRegistryTestBase {
                 MERKLE_PATH,
                 hashes
             ),
-            -1
+            -5
         );
         assertEq(
             bridge.getBtcTransactionConfirmations(
@@ -727,8 +728,8 @@ contract RegisterTest is PegInRegistryTestBase {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                IPegInAddressRegistry.DepositNotConfirmed.selector,
-                txHash
+                IPegInAddressRegistry.UnableToGetConfirmations.selector,
+                int256(-1)
             )
         );
         registry.registerAddress(

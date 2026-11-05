@@ -520,7 +520,7 @@ contract PegInContract is
         }
     }
 
-    /// @notice Reverts unless Bridge confirmations meet the configured tier for amount
+    /// @notice Reverts unless the bridge accepts the proof and its confirmations meet the configured tier for amount
     function _requirePegInConfirmations(
         uint256 amount,
         bytes32 btcTxHash,
@@ -531,12 +531,12 @@ contract PegInContract is
         int256 reportedConfirmations = _bridge.getBtcTransactionConfirmations(
             btcTxHash, btcBlockHash, merkleBranchPath, merkleBranchHashes
         );
+        if (reportedConfirmations < 0) {
+            revert UnableToGetConfirmations(reportedConfirmations);
+        }
         uint256 requiredConfirmations = _configurations.getRequiredPegInBtcConfirmations(amount);
-        if (reportedConfirmations < 0 || uint256(reportedConfirmations) < requiredConfirmations) {
-            revert InsufficientConfirmations(
-                reportedConfirmations < 0 ? 0 : uint256(reportedConfirmations),
-                requiredConfirmations
-            );
+        if (uint256(reportedConfirmations) < requiredConfirmations) {
+            revert InsufficientConfirmations(uint256(reportedConfirmations), requiredConfirmations);
         }
     }
 
