@@ -517,10 +517,10 @@ contract PegInContract is
         int256 reportedConfirmations = _bridge.getBtcTransactionConfirmations(
             btcTxHash, btcBlockHash, merkleBranchPath, merkleBranchHashes
         );
-        uint256 requiredConfirmations = _configurations.getRequiredPegInBtcConfirmations(amount);
         if (reportedConfirmations < 0) {
             revert UnableToGetConfirmations(reportedConfirmations);
         }
+        uint256 requiredConfirmations = _configurations.getRequiredPegInBtcConfirmations(amount);
         if (uint256(reportedConfirmations) < requiredConfirmations) {
             revert InsufficientConfirmations(uint256(reportedConfirmations), requiredConfirmations);
         }

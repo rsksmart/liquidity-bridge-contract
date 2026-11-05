@@ -674,7 +674,7 @@ contract RegisterTest is PegInRegistryTestBase {
         vm.expectRevert(
             abi.encodeWithSelector(
                 IPegInAddressRegistry.UnableToGetConfirmations.selector,
-                int256(-1)
+                int256(-5)
             )
         );
         registry.registerAddress(
@@ -705,7 +705,7 @@ contract RegisterTest is PegInRegistryTestBase {
                 MERKLE_PATH,
                 hashes
             ),
-            -1
+            -5
         );
         assertEq(
             bridge.getBtcTransactionConfirmations(

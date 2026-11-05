@@ -360,6 +360,28 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
 
     // ---- Check 6: insufficient confirmations ----
 
+    function test_revert_insufficientConfirmations_zeroConfirmations() public {
+        uint256 required = DEFAULT_TIER_CONFIRMATIONS;
+        bridgeMock.setConfirmations(0);
+        bytes memory btcTx = _defaultTx();
+
+        vm.prank(claimer);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegInCommitFirst.InsufficientConfirmations.selector,
+                0,
+                required
+            )
+        );
+        pegInContract.requestPegIn{value: 1 ether}(
+            rskUser,
+            btcTx,
+            bytes32(0),
+            0,
+            _emptyBranch()
+        );
+    }
+
     function test_revert_insufficientConfirmations_tierBoundary() public {
         uint256 required = DEFAULT_TIER_CONFIRMATIONS;
         bridgeMock.setConfirmations(int256(required) - 1);

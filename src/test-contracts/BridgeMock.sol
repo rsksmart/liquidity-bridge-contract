@@ -11,12 +11,13 @@ contract BridgeMock is IBridge {
     mapping (bytes32 => bytes) private _headersByHash;
     int private _confirmations;
     /// @dev Per-hash confirmations, so a test can prove WHICH hash was proven. A real merkle
-    /// proof only confirms the txid it was built for; the blanket _confirmations value cannot
-    /// express that, and hides any mismatch between the hash a caller derives and the hash it
-    /// proves.
+    /// proof only confirms the txid it was built for. _confirmations is returned for every hash, so
+    /// it cannot express that, and hides any mismatch between the hash a caller derives and the
+    /// hash it proves.
     mapping(bytes32 => int) private _confirmationsByTxHash;
-    /// @dev Set by setConfirmationsFor. While false the mock keeps its original blanket
-    /// behaviour, so existing tests are unaffected.
+    mapping(bytes32 => bool) private _hasTxHashConfirmations;
+    /// @dev Set by setConfirmationsFor. While false, the mock returns _confirmations for every
+    /// hash, so tests that use only setConfirmations are unaffected.
     bool private _perTxHashConfirmations;
     int private _registerError;
 
@@ -58,10 +59,12 @@ contract BridgeMock is IBridge {
 
     /// @notice Confirms one specific transaction hash, as a merkle proof does.
     /// @dev Use instead of setConfirmations when a test needs to prove WHICH hash the caller
-    /// asked the bridge about. Seeding any hash switches this mock into per-hash mode, so
-    /// unseeded hashes report no confirmations rather than falling back to the blanket value.
+    /// asked the bridge about. After the first call, the mock ignores the setConfirmations value.
+    /// A hash not set with this function returns -5 (invalid merkle branch), as the bridge does for
+    /// a proof of another transaction.
     function setConfirmationsFor(bytes32 btcTxHash, int confirmations) external {
         _confirmationsByTxHash[btcTxHash] = confirmations;
+        _hasTxHashConfirmations[btcTxHash] = true;
         _perTxHashConfirmations = true;
     }
 
@@ -91,7 +94,7 @@ contract BridgeMock is IBridge {
     function getBtcTransactionConfirmations ( bytes32 btcTxHash, bytes32, uint256 , bytes32[] calldata  )
         external view override returns (int256) {
         if (_perTxHashConfirmations) {
-            return _confirmationsByTxHash[btcTxHash];
+            return _hasTxHashConfirmations[btcTxHash] ? _confirmationsByTxHash[btcTxHash] : int256(-5);
         }
         return _confirmations;
     }
