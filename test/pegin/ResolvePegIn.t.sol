@@ -181,13 +181,72 @@ contract ResolvePegInTest is ResolvePegInTestBase {
         assertEq(_balance(claimer), 0);
     }
 
-    function test_bridge_error_leaves_balances_unchanged() public {
+    function test_user_refund_settles_without_payout() public {
+        bytes32 pegInId = _claimAndFund(rskUser, rawTx, bridgeRelease);
+        bridgeMock.setPeginError(-100);
+
+        vm.recordLogs();
+        vm.expectEmit(true, true, false, false);
+        emit IPegInCommitFirst.BridgeCapExceeded(pegInId, -100);
+        int256 result = _resolve(claimer, rskUser, rawTx);
+
+        assertEq(result, -100);
+        assertTrue(_isSettled(pegInId));
+        assertEq(_balance(claimer), 0);
+        assertEq(_balance(registrant), 0);
+        assertFalse(_pegInResolvedEmitted());
+    }
+
+    function test_lp_refund_settles_without_payout() public {
+        bytes32 pegInId = _claimAndFund(rskUser, rawTx, bridgeRelease);
+        bridgeMock.setPeginError(-200);
+
+        vm.recordLogs();
+        vm.expectEmit(true, true, false, false);
+        emit IPegInCommitFirst.BridgeCapExceeded(pegInId, -200);
+        int256 result = _resolve(claimer, rskUser, rawTx);
+
+        assertEq(result, -200);
+        assertTrue(_isSettled(pegInId));
+        assertEq(_balance(claimer), 0);
+        assertEq(_balance(registrant), 0);
+        assertFalse(_pegInResolvedEmitted());
+    }
+
+    function test_unprocessable_tx_reverts_and_stays_retryable() public {
+        bytes32 pegInId = _claimAndFund(rskUser, rawTx, bridgeRelease);
+        bridgeMock.setPeginError(-303);
+        vm.expectRevert(IPegInCommitFirst.BridgeValidationFailed.selector);
+        _resolve(claimer, rskUser, rawTx);
+
+        bridgeMock.setPeginError(0);
+        _resolve(claimer, rskUser, rawTx);
+
+        assertTrue(_isSettled(pegInId));
+        assertGt(_balance(claimer), 0);
+    }
+
+    function test_unexpected_bridge_error_reverts() public {
         _claimAndFund(rskUser, rawTx, bridgeRelease);
         bridgeMock.setPeginError(-900);
-        int256 result = _resolve(claimer, rskUser, rawTx);
-        assertEq(result, -900);
-        assertEq(_balance(claimer), 0);
-        assertFalse(_isSettled(_pegInId(rskUser, btcTxHash)));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegInCommitFirst.UnexpectedBridgeError.selector,
+                int256(-900)
+            )
+        );
+        _resolve(claimer, rskUser, rawTx);
+    }
+
+    function test_zero_bridge_result_reverts() public {
+        _claimAndFund(rskUser, rawTx, 0);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegInCommitFirst.UnexpectedBridgeError.selector,
+                int256(0)
+            )
+        );
+        _resolve(claimer, rskUser, rawTx);
     }
 
     function test_registrant_fee_clamped_to_fee_at_claim() public {
@@ -520,6 +579,16 @@ contract ResolvePegInTest is ResolvePegInTestBase {
                 logs[i].topics[0] ==
                 IPegInCommitFirst.UserRemainderRefunded.selector
             ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function _pegInResolvedEmitted() private returns (bool) {
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].topics[0] == IPegInCommitFirst.PegInResolved.selector) {
                 return true;
             }
         }

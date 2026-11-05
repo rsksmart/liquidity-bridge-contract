@@ -72,6 +72,15 @@ interface IPegInCommitFirst {
         bool success
     );
 
+    /// @notice Emitted when the bridge rejects the deposit over its locking cap and refunds the BTC
+    /// @dev The peg-in is settled and no RBTC is distributed. -100 means the bridge refunded the
+    /// user refund address, -200 the liquidity provider address. Both are the zero placeholders in
+    /// PegInDerivation, so the refunded BTC is burned. With the current cap of 21,000,000 BTC this
+    /// cannot happen; see docs/PEGIN_LOCKING_CAP_REFUND.md
+    /// @param pegInId The id of the settled peg-in
+    /// @param errorCode The error code returned by the bridge
+    event BridgeCapExceeded(bytes32 indexed pegInId, int256 indexed errorCode);
+
     /// @notice Reverts requestPegIn when the peg-in already has a claimer, and resolvePegIn
     /// when the peg-in is already settled
     /// @dev First check in requestPegIn, so the loser of a claim race burns minimal gas. The
@@ -120,6 +129,15 @@ interface IPegInCommitFirst {
     /// @param expected The required msg.value, in wei
     /// @param actual The msg.value sent, in wei
     error IncorrectFronting(uint256 expected, uint256 actual);
+
+    /// @notice Reverts resolvePegIn when the bridge cannot validate the deposit proof: too few
+    /// confirmations, an invalid height, or a partial merkle tree that does not match the block.
+    /// The peg-in stays unsettled, so it can be resolved again later
+    error BridgeValidationFailed();
+
+    /// @notice Reverts resolvePegIn when the bridge returns an error code that is not handled
+    /// @param errorCode The error code returned by the bridge
+    error UnexpectedBridgeError(int256 errorCode);
 
     /// @notice Claims a confirmed BTC deposit by fronting the net amount in RBTC, which is
     /// sent to the destination address in the same transaction
@@ -180,8 +198,9 @@ interface IPegInCommitFirst {
     /// @param btcRawTransaction The raw witness-stripped deposit transaction
     /// @param partialMerkleTree The partial merkle tree proving the deposit's inclusion
     /// @param height The Bitcoin block height of the deposit
-    /// @return registerResult The bridge's status: the released amount, or its negative
-    /// error code, same convention as registerPegIn
+    /// @return registerResult The released amount, or -100/-200 when the bridge refunded the
+    /// BTC over its locking cap; the peg-in is then settled with no payout. Other non-positive
+    /// results revert
     function resolvePegIn(
         address rskAddr,
         bytes calldata btcRawTransaction,
