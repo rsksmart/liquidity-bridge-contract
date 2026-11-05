@@ -140,6 +140,20 @@ contract ResolvePegInTest is ResolvePegInTestBase {
         _requestPegInTx(claimer, rskUser, rawTx, 0);
     }
 
+    function test_claim_after_unclaimed_cap_refund_reverts() public {
+        bytes32 pegInId = _pegInId(rskUser, btcTxHash);
+        bridgeMock.setPeginError(-100);
+        _resolve(makeAddr("thirdParty"), rskUser, rawTx);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegInCommitFirst.PegInAlreadyProcessed.selector,
+                pegInId
+            )
+        );
+        _requestPegInTx(claimer, rskUser, rawTx, 0);
+    }
+
     function test_unclaimed_refused_payment_credits_user_balance() public {
         (
             address recipient,

@@ -326,6 +326,11 @@ contract PegInContract is
         // The bridge marks a refunded transaction as processed, so a retry could never succeed
         if (btcRefunded) {
             _pegInSettled[pegInId] = true;
+            if (claim.claimer == address(0)) {
+                // A stored claimer makes requestPegIn revert, so no LP fronts RBTC for a deposit
+                // the bridge already refunded
+                _pegInClaims[pegInId].claimer = msg.sender;
+            }
             emit BridgeCapExceeded(pegInId, registerResult);
             return registerResult;
         }
