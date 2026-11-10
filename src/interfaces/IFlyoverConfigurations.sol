@@ -7,13 +7,10 @@ pragma solidity 0.8.25;
 /// trusts equally: the SDK's estimate, every LPS's serve decision, and the settlement
 /// validation all read the same numbers from this contract. Peg-in and peg-out share this
 /// deployment (paired getters).
-/// @dev This interface is frozen: any change to it is a cross-lane ABI event, not a side
-/// effect of another task.
 interface IFlyoverConfigurations {
 
     /// @notice One confirmation tier: deposits up to maxAmount require confirmations
-    /// @dev Struct fields are ABI and freeze here. Tiers are kept strictly ascending by
-    /// maxAmount.
+    /// @dev Tiers are kept strictly ascending by maxAmount.
     /// @param maxAmount The upper amount bound of the tier, in wei
     /// @param confirmations The BTC confirmations required for amounts in the tier
     struct ConfirmationTier {
@@ -22,8 +19,7 @@ interface IFlyoverConfigurations {
     }
 
     /// @notice The full peg-in parameter set
-    /// @dev Struct fields are ABI and freeze here. The fee floor is a security parameter,
-    /// not just pricing.
+    /// @dev The fee floor is a security parameter, not just pricing.
     /// @param fixedFee The fixed component of the peg-in fee, in wei
     /// @param percentageFee The proportional component of the fee, in basis points over
     /// 10,000
@@ -35,6 +31,10 @@ interface IFlyoverConfigurations {
     /// @param claimGasFee The flat charge for the provider's RSK gas, in wei; deducted at claim beside
     /// the fee and copied onto the claim, so settlement repays the amount the user was charged
     /// @param confirmationTiers The confirmation tiers, strictly ascending by maxAmount
+    /// @param penaltyFee The total taken from peg-in LPs' collateral when an unclaimed peg-in that LPs
+    /// could claim is settled, in wei
+    /// @param claimWindow Seconds LPs have to claim a deposit after it reaches its confirmation tier,
+    /// extended by hard-pause time
     struct PegInConfiguration {
         uint256 fixedFee;
         uint256 percentageFee;
@@ -43,6 +43,8 @@ interface IFlyoverConfigurations {
         uint256 registrantFee;
         uint256 claimGasFee;
         ConfirmationTier[] confirmationTiers;
+        uint256 penaltyFee;
+        uint256 claimWindow;
     }
 
     /// @notice Returns the active peg-in parameter set
@@ -94,9 +96,8 @@ interface IFlyoverConfigurations {
     // -------------------------------------------------------------------------
 
     /// @notice The full peg-out parameter set
-    /// @dev Struct fields are ABI and freeze here. Peg-in fee/limits/tiers plus claim /
-    /// fulfillment deadlines and `maxMinerFee`. Escrow request-id preimage, amount/fee
-    /// split, and overpayment rule: see {IPegOutEscrow}.
+    /// @dev Peg-in fee/limits/tiers plus claim / fulfillment deadlines and `maxMinerFee`.
+    /// Escrow request-id preimage, amount/fee split, and overpayment rule: see {IPegOutEscrow}.
     /// @param fixedFee Fixed component of the peg-out fee, in wei (security floor)
     /// @param percentageFee Proportional fee, basis points over 10_000
     /// @param minAmount Minimum serviceable peg-out amount, in wei

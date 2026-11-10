@@ -515,6 +515,10 @@ contract FlyoverConfigurations is
         _checkBound(
             Field.ClaimGasFee, config.claimGasFee, minConfigBoundary.claimGasFee, maxConfigBoundary.claimGasFee
         );
+        _checkBound(Field.PenaltyFee, config.penaltyFee, minConfigBoundary.penaltyFee, maxConfigBoundary.penaltyFee);
+        _checkBound(
+            Field.ClaimWindow, config.claimWindow, minConfigBoundary.claimWindow, maxConfigBoundary.claimWindow
+        );
 
         if (config.registrantFee >= MAX_REGISTRANT_FEE_EXCLUSIVE) {
             revert RegistrantFeeTooHigh(config.registrantFee, MAX_REGISTRANT_FEE_EXCLUSIVE);
@@ -553,6 +557,8 @@ contract FlyoverConfigurations is
         _checkActiveField(Field.MaxAmount, active.maxAmount, min.maxAmount, max.maxAmount);
         _checkActiveField(Field.RegistrantFee, active.registrantFee, min.registrantFee, max.registrantFee);
         _checkActiveField(Field.ClaimGasFee, active.claimGasFee, min.claimGasFee, max.claimGasFee);
+        _checkActiveField(Field.PenaltyFee, active.penaltyFee, min.penaltyFee, max.penaltyFee);
+        _checkActiveField(Field.ClaimWindow, active.claimWindow, min.claimWindow, max.claimWindow);
     }
 
     function _validatePegOutConfig(PegOutConfiguration memory config) private view {
@@ -642,7 +648,7 @@ contract FlyoverConfigurations is
         }
     }
 
-    /// @dev A bounds pair is well-formed when no field inverts, i.e. `min <= max` on all six
+    /// @dev A bounds pair is well-formed when no field inverts, i.e. `min <= max` on all eight
     /// scalars. An inverted field admits no value at all, which would wedge every future
     /// configuration change. `confirmationTiers` carries no bound and is not inspected.
     function _validateBoundsPair(PegInConfiguration memory min, PegInConfiguration memory max)
@@ -655,6 +661,8 @@ contract FlyoverConfigurations is
         _checkPairOrdered(Field.MaxAmount, min.maxAmount, max.maxAmount);
         _checkPairOrdered(Field.RegistrantFee, min.registrantFee, max.registrantFee);
         _checkPairOrdered(Field.ClaimGasFee, min.claimGasFee, max.claimGasFee);
+        _checkPairOrdered(Field.PenaltyFee, min.penaltyFee, max.penaltyFee);
+        _checkPairOrdered(Field.ClaimWindow, min.claimWindow, max.claimWindow);
     }
 
     function _checkPairOrdered(Field field, uint256 minV, uint256 maxV) private pure {

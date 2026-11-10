@@ -8,7 +8,7 @@ import {IFlyoverConfigurations} from "../../src/interfaces/IFlyoverConfiguration
 
 /// @title ConfigurationsTestBase
 /// @notice Shared setup for the FlyoverConfigurations suite (tests the S2.1 / FLY-2459 contract
-/// against the S0-frozen peg-in-only interface). Deploys the contract behind an ERC1967 proxy
+/// against the peg-in-only interface). Deploys the contract behind an ERC1967 proxy
 /// with a known seed config, explicit deployment bounds, and a non-zero time-lock delay.
 /// @dev ERC1967 (not Transparent) is used so `owner` can call admin functions directly; a
 /// TransparentUpgradeableProxy would route the admin's calls to the proxy admin, not the impl.
@@ -62,6 +62,10 @@ abstract contract ConfigurationsTestBase is Test {
     uint256 internal constant WIDE_MAX_REGISTRANT_FEE = 0.001 ether - 1;
     uint256 internal constant WIDE_MIN_CLAIM_GAS_FEE = 0;
     uint256 internal constant WIDE_MAX_CLAIM_GAS_FEE = 0.002 ether;
+    uint256 internal constant WIDE_MIN_PENALTY_FEE = 0;
+    uint256 internal constant WIDE_MAX_PENALTY_FEE = 2 ether;
+    uint256 internal constant WIDE_MIN_CLAIM_WINDOW = 1 minutes;
+    uint256 internal constant WIDE_MAX_CLAIM_WINDOW = 2 days;
 
     // --- peg-out seed / bounds ---
     uint256 internal constant SEED_PENALTY_FEE = 0.01 ether;
@@ -169,6 +173,8 @@ abstract contract ConfigurationsTestBase is Test {
         c.registrantFee = SEED_REGISTRANT_FEE;
         c.claimGasFee = SEED_CLAIM_GAS_FEE;
         c.confirmationTiers = _seedTiers();
+        c.penaltyFee = SEED_PENALTY_FEE;
+        c.claimWindow = SEED_CLAIM_WINDOW;
     }
 
     /// @notice Seed tiers: (1e18,1) (10e18,3) (100e18,6), strictly ascending.
@@ -205,6 +211,8 @@ abstract contract ConfigurationsTestBase is Test {
         c.claimGasFee = BOUND_MIN_CLAIM_GAS_FEE;
         // Tier array is ordering/non-emptiness checked, never min/max bounded; left empty.
         c.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
+        c.penaltyFee = BOUND_MIN_PENALTY_FEE;
+        c.claimWindow = BOUND_MIN_CLAIM_WINDOW;
     }
 
     function _boundsMax()
@@ -219,6 +227,8 @@ abstract contract ConfigurationsTestBase is Test {
         c.registrantFee = BOUND_MAX_REGISTRANT_FEE;
         c.claimGasFee = BOUND_MAX_CLAIM_GAS_FEE;
         c.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
+        c.penaltyFee = BOUND_MAX_PENALTY_FEE;
+        c.claimWindow = BOUND_MAX_CLAIM_WINDOW;
     }
 
     /// @notice A valid config distinct from the seed, for queue/apply tests so the applied change
@@ -243,6 +253,8 @@ abstract contract ConfigurationsTestBase is Test {
             maxAmount: 20 ether,
             confirmations: 5
         });
+        c.penaltyFee = 0.02 ether;
+        c.claimWindow = 1 hours;
     }
 
     /// @notice Convenience: queue `_altConfig()` as the admin and return it.
@@ -270,6 +282,8 @@ abstract contract ConfigurationsTestBase is Test {
         c.registrantFee = WIDE_MIN_REGISTRANT_FEE;
         c.claimGasFee = WIDE_MIN_CLAIM_GAS_FEE;
         c.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
+        c.penaltyFee = WIDE_MIN_PENALTY_FEE;
+        c.claimWindow = WIDE_MIN_CLAIM_WINDOW;
     }
 
     /// @notice Widened upper bounds: strictly above the deployment max on every field.
@@ -285,6 +299,8 @@ abstract contract ConfigurationsTestBase is Test {
         c.registrantFee = WIDE_MAX_REGISTRANT_FEE;
         c.claimGasFee = WIDE_MAX_CLAIM_GAS_FEE;
         c.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
+        c.penaltyFee = WIDE_MAX_PENALTY_FEE;
+        c.claimWindow = WIDE_MAX_CLAIM_WINDOW;
     }
 
     /// @notice Convenience: queue the widened bounds as the admin.
