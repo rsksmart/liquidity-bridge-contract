@@ -191,9 +191,11 @@ interface IPegInCommitFirst {
     /// from storage.
     ///
     /// When no LP claimed, the whole release goes to rskAddr with no fee, and the caller is
-    /// stored as the claimer. The bridge releases only at its own depth, far past the claim
-    /// confirmation tiers, so LPs always had the claim window before this settle can run. That
-    /// holds only while the configured tiers stay well below the bridge depth.
+    /// stored as the claimer. The settle does not check that LPs had a chance to claim. It
+    /// assumes that the configured confirmation tiers are below the bridge depth, and that the
+    /// address was registered before the deposit reached that depth. Nothing enforces either
+    /// assumption. A penalty on this path must check whether LPs could claim before it treats
+    /// them as having missed the peg-in.
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param btcRawTransaction The raw witness-stripped deposit transaction
     /// @param partialMerkleTree The partial merkle tree proving the deposit's inclusion

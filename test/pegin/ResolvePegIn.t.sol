@@ -126,6 +126,25 @@ contract ResolvePegInTest is ResolvePegInTestBase {
         assertEq(_balance(registrant), 0);
     }
 
+    function test_unclaimed_settle_to_unregistered_address() public {
+        address unregistered = makeAddr("unregistered");
+        bytes memory depositTx = _depositTx(unregistered, DEFAULT_AMOUNT);
+        bridgeMock.setPegin{value: bridgeRelease}(
+            _derivationHash(unregistered)
+        );
+        uint256 userBefore = unregistered.balance;
+
+        int256 result = _resolve(
+            makeAddr("thirdParty"),
+            unregistered,
+            depositTx
+        );
+
+        assertFalse(registry.isRegistered(unregistered));
+        assertEq(result, int256(bridgeRelease));
+        assertEq(unregistered.balance - userBefore, bridgeRelease);
+    }
+
     function test_claim_after_unclaimed_settle_reverts() public {
         bytes32 pegInId = _pegInId(rskUser, btcTxHash);
         bridgeMock.setPegin{value: bridgeRelease}(_derivationHash(rskUser));
