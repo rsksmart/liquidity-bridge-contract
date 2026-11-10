@@ -43,8 +43,8 @@ contract FlyoverConfigurations is
 
     /// @custom:storage-location erc7201:rsk.flyover.FlyoverConfigurations
     struct FlyoverConfigurationsStorage {
-        PegConfiguration activePegIn;
-        PegConfiguration pending;
+        PegInConfiguration activePegIn;
+        PegInConfiguration pending;
         uint256 pendingEta;
     }
 
@@ -56,10 +56,10 @@ contract FlyoverConfigurations is
     /// `timelockDelay` is not editable; it is the review window itself.
     struct FlyoverConfigurationsBounds {
         uint256 timelockDelay;
-        PegConfiguration min;
-        PegConfiguration max;
-        PegConfiguration pendingMin;
-        PegConfiguration pendingMax;
+        PegInConfiguration min;
+        PegInConfiguration max;
+        PegInConfiguration pendingMin;
+        PegInConfiguration pendingMax;
         uint256 pendingEta;
     }
 
@@ -100,22 +100,22 @@ contract FlyoverConfigurations is
     /// @notice Emitted when a configuration change is queued by the admin.
     /// @param newConfiguration The configuration that will activate once the time lock elapses
     /// @param eta The earliest timestamp `applyChange` may activate the queued configuration
-    event ChangeQueued(PegConfiguration newConfiguration, uint256 eta);
+    event ChangeQueued(PegInConfiguration newConfiguration, uint256 eta);
 
     /// @notice Emitted when a queued configuration change is applied and becomes active.
     /// @param newConfiguration The now-active configuration
-    event ChangeApplied(PegConfiguration newConfiguration);
+    event ChangeApplied(PegInConfiguration newConfiguration);
 
     /// @notice Emitted when a bounds change is queued by the admin.
     /// @param newMin The lower bounds that will take effect once the time lock elapses
     /// @param newMax The upper bounds that will take effect once the time lock elapses
     /// @param eta The earliest timestamp `applyBoundsChange` may activate the queued bounds
-    event BoundsChangeQueued(PegConfiguration newMin, PegConfiguration newMax, uint256 eta);
+    event BoundsChangeQueued(PegInConfiguration newMin, PegInConfiguration newMax, uint256 eta);
 
     /// @notice Emitted when a queued bounds change is applied and becomes active.
     /// @param newMin The now-active lower bounds
     /// @param newMax The now-active upper bounds
-    event BoundsChangeApplied(PegConfiguration newMin, PegConfiguration newMax);
+    event BoundsChangeApplied(PegInConfiguration newMin, PegInConfiguration newMax);
 
     event PegOutChangeQueued(PegOutConfiguration newConfiguration, uint256 eta);
     event PegOutChangeApplied(PegOutConfiguration newConfiguration);
@@ -182,9 +182,9 @@ contract FlyoverConfigurations is
         address defaultAdmin,
         uint48 initialDelay,
         uint256 timelockDelay,
-        PegConfiguration calldata pegInConfig,
-        PegConfiguration calldata pegInMin,
-        PegConfiguration calldata pegInMax,
+        PegInConfiguration calldata pegInConfig,
+        PegInConfiguration calldata pegInMin,
+        PegInConfiguration calldata pegInMax,
         PegOutConfiguration calldata pegOutConfig,
         PegOutConfiguration calldata pegOutMin,
         PegOutConfiguration calldata pegOutMax
@@ -206,7 +206,7 @@ contract FlyoverConfigurations is
     }
 
     /// @inheritdoc IFlyoverConfigurations
-    function queueChange(PegConfiguration calldata newConfiguration) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+    function queueChange(PegInConfiguration calldata newConfiguration) external override onlyRole(DEFAULT_ADMIN_ROLE) {
         _validateConfig(newConfiguration);
         FlyoverConfigurationsStorage storage $ = _getStorage();
         uint256 eta = block.timestamp + _getBounds().timelockDelay;
@@ -222,7 +222,7 @@ contract FlyoverConfigurations is
         if (eta == 0) revert NoQueuedChange();
         if (block.timestamp < eta) revert TimelockNotElapsed(eta, block.timestamp);
 
-        PegConfiguration memory pending = $.pending;
+        PegInConfiguration memory pending = $.pending;
         // Re-validate at apply time: the bounds may themselves have moved during the delay, so a
         // value that was in range when queued is not guaranteed to be in range when it lands.
         _validateConfig(pending);
@@ -257,7 +257,7 @@ contract FlyoverConfigurations is
     /// @param newMin Lower bound for every peg-in scalar field
     /// @param newMax Upper bound for every peg-in scalar field
     // solhint-disable-next-line comprehensive-interface
-    function queueBoundsChange(PegConfiguration calldata newMin, PegConfiguration calldata newMax)
+    function queueBoundsChange(PegInConfiguration calldata newMin, PegInConfiguration calldata newMax)
         external
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
@@ -300,8 +300,8 @@ contract FlyoverConfigurations is
         // nested ConfirmationTier[] array).
         bounds.min = bounds.pendingMin;
         bounds.max = bounds.pendingMax;
-        PegConfiguration memory newMin = bounds.min;
-        PegConfiguration memory newMax = bounds.max;
+        PegInConfiguration memory newMin = bounds.min;
+        PegInConfiguration memory newMax = bounds.max;
         delete bounds.pendingMin;
         delete bounds.pendingMax;
         bounds.pendingEta = 0;
@@ -342,19 +342,19 @@ contract FlyoverConfigurations is
     // `confirmations`, `min`/`max`, `pending`/`eta`) — peg-in and peg-out. Names mirror NatSpec
     // but are unused when the body uses an explicit `return`.
     /// @inheritdoc IFlyoverConfigurations
-    function getPegInConfiguration() external view override returns (PegConfiguration memory configuration) {
+    function getPegInConfiguration() external view override returns (PegInConfiguration memory configuration) {
         return _getStorage().activePegIn;
     }
 
     /// @inheritdoc IFlyoverConfigurations
     function calculatePegInFee(uint256 amount) external view override returns (uint256 fee) {
-        PegConfiguration storage config = _getStorage().activePegIn;
+        PegInConfiguration storage config = _getStorage().activePegIn;
         return _calculateFee(config.fixedFee, config.percentageFee, amount);
     }
 
     /// @inheritdoc IFlyoverConfigurations
     function calculatePegInDeduction(uint256 amount) external view override returns (uint256 deduction) {
-        PegConfiguration storage config = _getStorage().activePegIn;
+        PegInConfiguration storage config = _getStorage().activePegIn;
         return _calculateDeduction(config.fixedFee, config.percentageFee, config.claimGasFee, amount);
     }
 
@@ -377,7 +377,7 @@ contract FlyoverConfigurations is
     function getPegInConfigurationBounds()
         external
         view
-        returns (PegConfiguration memory min, PegConfiguration memory max)
+        returns (PegInConfiguration memory min, PegInConfiguration memory max)
     {
         FlyoverConfigurationsBounds storage bounds = _getBounds();
         return (bounds.min, bounds.max);
@@ -391,7 +391,7 @@ contract FlyoverConfigurations is
     function getPendingBoundsChange()
         external
         view
-        returns (PegConfiguration memory min, PegConfiguration memory max, uint256 eta)
+        returns (PegInConfiguration memory min, PegInConfiguration memory max, uint256 eta)
     {
         FlyoverConfigurationsBounds storage bounds = _getBounds();
         return (bounds.pendingMin, bounds.pendingMax, bounds.pendingEta);
@@ -401,7 +401,7 @@ contract FlyoverConfigurations is
     /// @return pending The queued configuration (zeroed when nothing is queued)
     /// @return eta The earliest activation timestamp; `0` means no change is queued
     // solhint-disable-next-line comprehensive-interface
-    function getPendingChange() external view returns (PegConfiguration memory pending, uint256 eta) {
+    function getPendingChange() external view returns (PegInConfiguration memory pending, uint256 eta) {
         FlyoverConfigurationsStorage storage $ = _getStorage();
         return ($.pending, $.pendingEta);
     }
@@ -492,10 +492,10 @@ contract FlyoverConfigurations is
     /// every scalar within [min, max], minAmount <= maxAmount, percentageFee <= 10_000, and the
     /// confirmation tiers non-empty and strictly ascending by maxAmount. The tier array itself is
     /// only ordering/non-emptiness checked; it is not min/max-bounded.
-    function _validateConfig(PegConfiguration memory config) private view {
+    function _validateConfig(PegInConfiguration memory config) private view {
         FlyoverConfigurationsBounds storage bounds = _getBounds();
-        PegConfiguration storage minConfigBoundary = bounds.min;
-        PegConfiguration storage maxConfigBoundary = bounds.max;
+        PegInConfiguration storage minConfigBoundary = bounds.min;
+        PegInConfiguration storage maxConfigBoundary = bounds.max;
 
         _checkBound(Field.FixedFee, config.fixedFee, minConfigBoundary.fixedFee, maxConfigBoundary.fixedFee);
         _checkBound(
@@ -537,11 +537,11 @@ contract FlyoverConfigurations is
     /// configuration lies within the active bounds. Called before a bounds change lands, so a
     /// pair that would strand the live configuration outside it is rejected instead of applied.
     /// See {applyBoundsChange} for why rejecting beats accepting it as a forward-only constraint.
-    function _checkActiveConfigFits(PegConfiguration memory min, PegConfiguration memory max)
+    function _checkActiveConfigFits(PegInConfiguration memory min, PegInConfiguration memory max)
         private
         view
     {
-        PegConfiguration storage active = _getStorage().activePegIn;
+        PegInConfiguration storage active = _getStorage().activePegIn;
         _checkActiveField(Field.FixedFee, active.fixedFee, min.fixedFee, max.fixedFee);
         _checkActiveField(
             Field.PercentageFee,
@@ -612,7 +612,7 @@ contract FlyoverConfigurations is
         return _calculateFee(fixedFee, percentageFee, amount) + claimGasFee;
     }
 
-    function _validateAmountLimits(PegConfiguration memory config) private pure {
+    function _validateAmountLimits(PegInConfiguration memory config) private pure {
         // A BTC deposit is always a whole number of satoshis, so a fractional minAmount is not a
         // deposit size that can exist.
         if (config.minAmount % Flyover.SAT_TO_WEI_CONVERSION != 0) {
@@ -645,7 +645,7 @@ contract FlyoverConfigurations is
     /// @dev A bounds pair is well-formed when no field inverts, i.e. `min <= max` on all six
     /// scalars. An inverted field admits no value at all, which would wedge every future
     /// configuration change. `confirmationTiers` carries no bound and is not inspected.
-    function _validateBoundsPair(PegConfiguration memory min, PegConfiguration memory max)
+    function _validateBoundsPair(PegInConfiguration memory min, PegInConfiguration memory max)
         private
         pure
     {

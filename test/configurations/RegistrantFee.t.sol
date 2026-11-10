@@ -19,7 +19,7 @@ contract RegistrantFeeTest is ConfigurationsTestBase {
     }
 
     function test_queueChange_rejects_registrantFee_at_cap() public {
-        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
         c.registrantFee = 0.001 ether;
         vm.prank(owner);
         vm.expectRevert(
@@ -35,7 +35,7 @@ contract RegistrantFeeTest is ConfigurationsTestBase {
     }
 
     function test_queueChange_rejects_fixedFee_below_registrantFee() public {
-        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
         c.registrantFee = c.fixedFee + 1;
         vm.prank(owner);
         vm.expectRevert(
@@ -51,12 +51,12 @@ contract RegistrantFeeTest is ConfigurationsTestBase {
     }
 
     function test_queueChange_accepts_valid_registrantFee() public {
-        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
         c.fixedFee = SEED_REGISTRANT_FEE;
         c.registrantFee = SEED_REGISTRANT_FEE;
         vm.prank(owner);
         config.queueChange(c);
-        (IFlyoverConfigurations.PegConfiguration memory pending, ) = config
+        (IFlyoverConfigurations.PegInConfiguration memory pending, ) = config
             .getPendingChange();
         assertEq(pending.registrantFee, SEED_REGISTRANT_FEE);
     }

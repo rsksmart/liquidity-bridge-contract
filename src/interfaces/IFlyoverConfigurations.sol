@@ -35,7 +35,7 @@ interface IFlyoverConfigurations {
     /// @param claimGasFee The flat charge for the provider's RSK gas, in wei; deducted at claim beside
     /// the fee and copied onto the claim, so settlement repays the amount the user was charged
     /// @param confirmationTiers The confirmation tiers, strictly ascending by maxAmount
-    struct PegConfiguration {
+    struct PegInConfiguration {
         uint256 fixedFee;
         uint256 percentageFee;
         uint256 minAmount;
@@ -48,8 +48,8 @@ interface IFlyoverConfigurations {
     /// @notice Returns the active peg-in parameter set
     /// @dev The SDK reads it for the user's estimate, every LPS for its serve decision,
     /// and settlement for amount validation.
-    /// @return configuration The active PegConfiguration
-    function getPegInConfiguration() external view returns (PegConfiguration memory configuration);
+    /// @return configuration The active PegInConfiguration
+    function getPegInConfiguration() external view returns (PegInConfiguration memory configuration);
 
     /// @notice Calculates the peg-in fee for an amount under the active configuration
     /// @dev fixedFee + amount * percentageFee / 10_000. Does not include claimGasFee.
@@ -78,7 +78,7 @@ interface IFlyoverConfigurations {
     /// delay; the values are validated against the active bounds at queue time.
     /// Returns nothing. Walkthrough anchors: step 2, decision block 2·D.
     /// @param newConfiguration The configuration to activate after the delay
-    function queueChange(PegConfiguration calldata newConfiguration) external;
+    function queueChange(PegInConfiguration calldata newConfiguration) external;
 
     /// @notice Activates the queued configuration change, the second step of the time-locked
     /// admin change

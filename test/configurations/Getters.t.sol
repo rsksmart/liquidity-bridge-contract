@@ -13,7 +13,7 @@ contract GettersTest is ConfigurationsTestBase {
     }
 
     function test_getPegInConfiguration_roundTripsSeed() public view {
-        IFlyoverConfigurations.PegConfiguration memory c = config
+        IFlyoverConfigurations.PegInConfiguration memory c = config
             .getPegInConfiguration();
         assertEq(c.fixedFee, SEED_FIXED_FEE);
         assertEq(c.percentageFee, SEED_PCT);
@@ -30,7 +30,7 @@ contract GettersTest is ConfigurationsTestBase {
     }
 
     function test_limits_readableFromConfiguration() public view {
-        IFlyoverConfigurations.PegConfiguration memory c = config
+        IFlyoverConfigurations.PegInConfiguration memory c = config
             .getPegInConfiguration();
         assertEq(c.minAmount, SEED_MIN_AMOUNT);
         assertEq(c.maxAmount, SEED_MAX_AMOUNT);
@@ -42,8 +42,8 @@ contract GettersTest is ConfigurationsTestBase {
         view
     {
         (
-            IFlyoverConfigurations.PegConfiguration memory min,
-            IFlyoverConfigurations.PegConfiguration memory max
+            IFlyoverConfigurations.PegInConfiguration memory min,
+            IFlyoverConfigurations.PegInConfiguration memory max
         ) = config.getPegInConfigurationBounds();
 
         assertEq(min.fixedFee, BOUND_MIN_FIXED_FEE);
@@ -63,7 +63,7 @@ contract GettersTest is ConfigurationsTestBase {
 
     function test_getPendingChange_zeroedWhenNothingQueued() public view {
         (
-            IFlyoverConfigurations.PegConfiguration memory pending,
+            IFlyoverConfigurations.PegInConfiguration memory pending,
             uint256 eta
         ) = config.getPendingChange();
         assertEq(eta, 0);
@@ -76,10 +76,10 @@ contract GettersTest is ConfigurationsTestBase {
 
     function test_getPendingChange_reflectsQueuedChange() public {
         uint256 expectedEta = block.timestamp + TIMELOCK_DELAY;
-        IFlyoverConfigurations.PegConfiguration memory queued = _queueAlt();
+        IFlyoverConfigurations.PegInConfiguration memory queued = _queueAlt();
 
         (
-            IFlyoverConfigurations.PegConfiguration memory pending,
+            IFlyoverConfigurations.PegInConfiguration memory pending,
             uint256 eta
         ) = config.getPendingChange();
         assertEq(eta, expectedEta);
@@ -111,7 +111,7 @@ contract GettersTest is ConfigurationsTestBase {
         config.applyChange();
 
         (
-            IFlyoverConfigurations.PegConfiguration memory pending,
+            IFlyoverConfigurations.PegInConfiguration memory pending,
             uint256 eta
         ) = config.getPendingChange();
         assertEq(eta, 0);
@@ -127,8 +127,8 @@ contract GettersTest is ConfigurationsTestBase {
 
     function test_getPendingBoundsChange_zeroedWhenNothingQueued() public view {
         (
-            IFlyoverConfigurations.PegConfiguration memory min,
-            IFlyoverConfigurations.PegConfiguration memory max,
+            IFlyoverConfigurations.PegInConfiguration memory min,
+            IFlyoverConfigurations.PegInConfiguration memory max,
             uint256 eta
         ) = config.getPendingBoundsChange();
         assertEq(eta, 0);
@@ -147,8 +147,8 @@ contract GettersTest is ConfigurationsTestBase {
         _queueWideBounds();
 
         (
-            IFlyoverConfigurations.PegConfiguration memory min,
-            IFlyoverConfigurations.PegConfiguration memory max,
+            IFlyoverConfigurations.PegInConfiguration memory min,
+            IFlyoverConfigurations.PegInConfiguration memory max,
             uint256 eta
         ) = config.getPendingBoundsChange();
         assertEq(eta, expectedEta);
@@ -166,8 +166,8 @@ contract GettersTest is ConfigurationsTestBase {
         _applyBounds(_wideMin(), _wideMax());
 
         (
-            IFlyoverConfigurations.PegConfiguration memory min,
-            IFlyoverConfigurations.PegConfiguration memory max,
+            IFlyoverConfigurations.PegInConfiguration memory min,
+            IFlyoverConfigurations.PegInConfiguration memory max,
             uint256 eta
         ) = config.getPendingBoundsChange();
         assertEq(eta, 0);

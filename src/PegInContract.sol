@@ -268,7 +268,7 @@ contract PegInContract is
             _requireBridgeMinimum(smallestOutputSats);
             amount = firstSats * Flyover.SAT_TO_WEI_CONVERSION;
         }
-        IFlyoverConfigurations.PegConfiguration memory configuration = _configurations.getPegInConfiguration();
+        IFlyoverConfigurations.PegInConfiguration memory configuration = _configurations.getPegInConfiguration();
         if (amount < configuration.minAmount) {
             revert PegInBelowMinimum(amount, configuration.minAmount);
         }

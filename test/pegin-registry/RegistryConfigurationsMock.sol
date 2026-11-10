@@ -15,7 +15,7 @@ contract RegistryConfigurationsMock {
     function getPegInConfiguration()
         external
         view
-        returns (IFlyoverConfigurations.PegConfiguration memory configuration)
+        returns (IFlyoverConfigurations.PegInConfiguration memory configuration)
     {
         configuration.minAmount = _minAmount;
     }

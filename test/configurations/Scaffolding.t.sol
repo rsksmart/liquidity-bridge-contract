@@ -42,7 +42,8 @@ contract ScaffoldingTest is ConfigurationsTestBase {
     /// @notice The seed configuration must itself respect the deployment bounds.
     function test_initialize_seedOutOfBounds_reverts() public {
         FlyoverConfigurations impl = new FlyoverConfigurations();
-        IFlyoverConfigurations.PegConfiguration memory badSeed = _seedConfig();
+        IFlyoverConfigurations.PegInConfiguration
+            memory badSeed = _seedConfig();
         badSeed.fixedFee = BOUND_MIN_FIXED_FEE - 1; // below the 2·D floor
 
         bytes memory initData = _initializeCall(
@@ -67,7 +68,7 @@ contract ScaffoldingTest is ConfigurationsTestBase {
     /// install bounds that admit no value at all.
     function test_initialize_invertedBounds_reverts() public {
         FlyoverConfigurations impl = new FlyoverConfigurations();
-        IFlyoverConfigurations.PegConfiguration memory badMax = _boundsMax();
+        IFlyoverConfigurations.PegInConfiguration memory badMax = _boundsMax();
         badMax.fixedFee = BOUND_MIN_FIXED_FEE - 1;
 
         bytes memory initData = _initializeCall(

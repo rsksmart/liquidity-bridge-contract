@@ -12,7 +12,7 @@ contract GasFeeTest is ConfigurationsTestBase {
     }
 
     function test_queueChange_rejects_claimGasFee_above_max() public {
-        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
         c.claimGasFee = BOUND_MAX_CLAIM_GAS_FEE + 1;
         vm.prank(owner);
         vm.expectRevert(
@@ -28,7 +28,7 @@ contract GasFeeTest is ConfigurationsTestBase {
     }
 
     function test_queueChange_rejects_minAmount_equal_to_deduction() public {
-        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
         c.percentageFee = 0;
         c.minAmount = c.fixedFee + c.claimGasFee;
         vm.prank(owner);
@@ -43,7 +43,7 @@ contract GasFeeTest is ConfigurationsTestBase {
     }
 
     function test_queueChange_rejects_minAmount_not_whole_satoshi() public {
-        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
         c.minAmount = 0.002 ether + 1;
         vm.prank(owner);
         vm.expectRevert(
@@ -57,7 +57,7 @@ contract GasFeeTest is ConfigurationsTestBase {
     }
 
     function test_queueChange_rejects_maxAmount_not_whole_satoshi() public {
-        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
         c.maxAmount = 200 ether + 1;
         vm.prank(owner);
         vm.expectRevert(
@@ -79,7 +79,7 @@ contract GasFeeTest is ConfigurationsTestBase {
     }
 
     function test_applyChange_activates_claimGasFee() public {
-        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
         c.claimGasFee = BOUND_MAX_CLAIM_GAS_FEE;
         _applyConfig(c);
         assertEq(
@@ -89,7 +89,7 @@ contract GasFeeTest is ConfigurationsTestBase {
     }
 
     function test_queueBoundsChange_rejects_inverted_claimGasFee_pair() public {
-        IFlyoverConfigurations.PegConfiguration memory min = _boundsMin();
+        IFlyoverConfigurations.PegInConfiguration memory min = _boundsMin();
         min.claimGasFee = BOUND_MAX_CLAIM_GAS_FEE + 1;
         vm.prank(owner);
         vm.expectRevert(
@@ -106,7 +106,7 @@ contract GasFeeTest is ConfigurationsTestBase {
     function test_applyBoundsChange_rejects_bounds_excluding_active_claimGasFee()
         public
     {
-        IFlyoverConfigurations.PegConfiguration memory max = _boundsMax();
+        IFlyoverConfigurations.PegInConfiguration memory max = _boundsMax();
         max.claimGasFee = SEED_CLAIM_GAS_FEE - 1;
         vm.prank(owner);
         config.queueBoundsChange(_boundsMin(), max);

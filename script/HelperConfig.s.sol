@@ -51,9 +51,9 @@ contract HelperConfig is Script {
     /// @notice Seed values for FlyoverConfigurations.initialize
     struct FlyoverConfigurationSeeds {
         uint256 timelockDelay;
-        IFlyoverConfigurations.PegConfiguration pegInConfig;
-        IFlyoverConfigurations.PegConfiguration pegInMin;
-        IFlyoverConfigurations.PegConfiguration pegInMax;
+        IFlyoverConfigurations.PegInConfiguration pegInConfig;
+        IFlyoverConfigurations.PegInConfiguration pegInMin;
+        IFlyoverConfigurations.PegInConfiguration pegInMax;
         IFlyoverConfigurations.PegOutConfiguration pegOutConfig;
         IFlyoverConfigurations.PegOutConfiguration pegOutMin;
         IFlyoverConfigurations.PegOutConfiguration pegOutMax;
@@ -401,7 +401,7 @@ contract HelperConfig is Script {
             memory noTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
 
         seeds.timelockDelay = 5 minutes;
-        seeds.pegInConfig = IFlyoverConfigurations.PegConfiguration({
+        seeds.pegInConfig = IFlyoverConfigurations.PegInConfiguration({
             fixedFee: 0.0001 ether,
             percentageFee: 10,
             minAmount: 0.005 ether,
@@ -410,7 +410,7 @@ contract HelperConfig is Script {
             claimGasFee: 0,
             confirmationTiers: _localConfirmationTiers()
         });
-        seeds.pegInMin = IFlyoverConfigurations.PegConfiguration({
+        seeds.pegInMin = IFlyoverConfigurations.PegInConfiguration({
             fixedFee: 0.0001 ether,
             percentageFee: 0,
             minAmount: 0.001 ether,
@@ -419,7 +419,7 @@ contract HelperConfig is Script {
             claimGasFee: 0,
             confirmationTiers: noTiers
         });
-        seeds.pegInMax = IFlyoverConfigurations.PegConfiguration({
+        seeds.pegInMax = IFlyoverConfigurations.PegInConfiguration({
             fixedFee: 0.01 ether,
             percentageFee: 1_000,
             minAmount: 1 ether,
