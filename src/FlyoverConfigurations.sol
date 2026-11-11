@@ -141,6 +141,8 @@ contract FlyoverConfigurations is
     /// @notice Raised when applying bounds that would leave the active configuration outside them.
     error ActiveConfigOutsideNewBounds(Field field, uint256 value, uint256 min, uint256 max);
     error InvalidPegOutDeadlines();
+    /// @notice Raised when the peg-in claimWindow is zero, even if the active bounds allow it.
+    error InvalidPegInClaimWindow();
     /// @notice Raised when registrantFee is at or above {MAX_REGISTRANT_FEE_EXCLUSIVE}.
     error RegistrantFeeTooHigh(uint256 registrantFee, uint256 maxExclusive);
     /// @notice Raised when fixedFee is below registrantFee.
@@ -532,6 +534,9 @@ contract FlyoverConfigurations is
         }
         if (config.minAmount > config.maxAmount) {
             revert InvalidAmountLimits(config.minAmount, config.maxAmount);
+        }
+        if (config.claimWindow == 0) {
+            revert InvalidPegInClaimWindow();
         }
         _validateAmountLimits(config);
         _validateTiers(config.confirmationTiers);

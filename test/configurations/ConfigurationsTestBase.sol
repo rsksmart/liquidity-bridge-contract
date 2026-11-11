@@ -67,6 +67,15 @@ abstract contract ConfigurationsTestBase is Test {
     uint256 internal constant WIDE_MIN_CLAIM_WINDOW = 1 minutes;
     uint256 internal constant WIDE_MAX_CLAIM_WINDOW = 2 days;
 
+    // --- peg-in penaltyFee / claimWindow ---
+    // Differ from the peg-out values so a test fails if peg-in code reads a peg-out field.
+    uint256 internal constant PEGIN_SEED_PENALTY_FEE = 0.05 ether;
+    uint256 internal constant PEGIN_SEED_CLAIM_WINDOW = 2 hours;
+    uint256 internal constant PEGIN_BOUND_MIN_PENALTY_FEE = 0.002 ether;
+    uint256 internal constant PEGIN_BOUND_MAX_PENALTY_FEE = 0.5 ether;
+    uint256 internal constant PEGIN_BOUND_MIN_CLAIM_WINDOW = 10 minutes;
+    uint256 internal constant PEGIN_BOUND_MAX_CLAIM_WINDOW = 12 hours;
+
     // --- peg-out seed / bounds ---
     uint256 internal constant SEED_PENALTY_FEE = 0.01 ether;
     uint256 internal constant SEED_CLAIM_WINDOW = 30 minutes;
@@ -173,8 +182,8 @@ abstract contract ConfigurationsTestBase is Test {
         c.registrantFee = SEED_REGISTRANT_FEE;
         c.claimGasFee = SEED_CLAIM_GAS_FEE;
         c.confirmationTiers = _seedTiers();
-        c.penaltyFee = SEED_PENALTY_FEE;
-        c.claimWindow = SEED_CLAIM_WINDOW;
+        c.penaltyFee = PEGIN_SEED_PENALTY_FEE;
+        c.claimWindow = PEGIN_SEED_CLAIM_WINDOW;
     }
 
     /// @notice Seed tiers: (1e18,1) (10e18,3) (100e18,6), strictly ascending.
@@ -211,8 +220,8 @@ abstract contract ConfigurationsTestBase is Test {
         c.claimGasFee = BOUND_MIN_CLAIM_GAS_FEE;
         // Tier array is ordering/non-emptiness checked, never min/max bounded; left empty.
         c.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
-        c.penaltyFee = BOUND_MIN_PENALTY_FEE;
-        c.claimWindow = BOUND_MIN_CLAIM_WINDOW;
+        c.penaltyFee = PEGIN_BOUND_MIN_PENALTY_FEE;
+        c.claimWindow = PEGIN_BOUND_MIN_CLAIM_WINDOW;
     }
 
     function _boundsMax()
@@ -227,8 +236,8 @@ abstract contract ConfigurationsTestBase is Test {
         c.registrantFee = BOUND_MAX_REGISTRANT_FEE;
         c.claimGasFee = BOUND_MAX_CLAIM_GAS_FEE;
         c.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
-        c.penaltyFee = BOUND_MAX_PENALTY_FEE;
-        c.claimWindow = BOUND_MAX_CLAIM_WINDOW;
+        c.penaltyFee = PEGIN_BOUND_MAX_PENALTY_FEE;
+        c.claimWindow = PEGIN_BOUND_MAX_CLAIM_WINDOW;
     }
 
     /// @notice A valid config distinct from the seed, for queue/apply tests so the applied change

@@ -13,15 +13,15 @@ contract PenaltyFeeTest is ConfigurationsTestBase {
 
     function test_queueChange_rejects_penaltyFee_above_max() public {
         IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
-        c.penaltyFee = BOUND_MAX_PENALTY_FEE + 1;
+        c.penaltyFee = PEGIN_BOUND_MAX_PENALTY_FEE + 1;
         vm.prank(owner);
         vm.expectRevert(
             abi.encodeWithSelector(
                 FlyoverConfigurations.ConfigValueOutOfBounds.selector,
                 FlyoverConfigurations.Field.PenaltyFee,
-                BOUND_MAX_PENALTY_FEE + 1,
-                BOUND_MIN_PENALTY_FEE,
-                BOUND_MAX_PENALTY_FEE
+                PEGIN_BOUND_MAX_PENALTY_FEE + 1,
+                PEGIN_BOUND_MIN_PENALTY_FEE,
+                PEGIN_BOUND_MAX_PENALTY_FEE
             )
         );
         config.queueChange(c);
@@ -29,14 +29,14 @@ contract PenaltyFeeTest is ConfigurationsTestBase {
 
     function test_queueBoundsChange_rejects_inverted_penaltyFee_pair() public {
         IFlyoverConfigurations.PegInConfiguration memory min = _boundsMin();
-        min.penaltyFee = BOUND_MAX_PENALTY_FEE + 1;
+        min.penaltyFee = PEGIN_BOUND_MAX_PENALTY_FEE + 1;
         vm.prank(owner);
         vm.expectRevert(
             abi.encodeWithSelector(
                 FlyoverConfigurations.InvalidBounds.selector,
                 FlyoverConfigurations.Field.PenaltyFee,
-                BOUND_MAX_PENALTY_FEE + 1,
-                BOUND_MAX_PENALTY_FEE
+                PEGIN_BOUND_MAX_PENALTY_FEE + 1,
+                PEGIN_BOUND_MAX_PENALTY_FEE
             )
         );
         config.queueBoundsChange(min, _boundsMax());
@@ -46,7 +46,7 @@ contract PenaltyFeeTest is ConfigurationsTestBase {
         public
     {
         IFlyoverConfigurations.PegInConfiguration memory max = _boundsMax();
-        max.penaltyFee = SEED_PENALTY_FEE - 1;
+        max.penaltyFee = PEGIN_SEED_PENALTY_FEE - 1;
         vm.prank(owner);
         config.queueBoundsChange(_boundsMin(), max);
         vm.warp(block.timestamp + TIMELOCK_DELAY);
@@ -55,9 +55,9 @@ contract PenaltyFeeTest is ConfigurationsTestBase {
             abi.encodeWithSelector(
                 FlyoverConfigurations.ActiveConfigOutsideNewBounds.selector,
                 FlyoverConfigurations.Field.PenaltyFee,
-                SEED_PENALTY_FEE,
-                BOUND_MIN_PENALTY_FEE,
-                SEED_PENALTY_FEE - 1
+                PEGIN_SEED_PENALTY_FEE,
+                PEGIN_BOUND_MIN_PENALTY_FEE,
+                PEGIN_SEED_PENALTY_FEE - 1
             )
         );
         config.applyBoundsChange();

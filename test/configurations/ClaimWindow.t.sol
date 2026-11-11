@@ -13,30 +13,43 @@ contract ClaimWindowTest is ConfigurationsTestBase {
 
     function test_queueChange_rejects_claimWindow_above_max() public {
         IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
-        c.claimWindow = BOUND_MAX_CLAIM_WINDOW + 1;
+        c.claimWindow = PEGIN_BOUND_MAX_CLAIM_WINDOW + 1;
         vm.prank(owner);
         vm.expectRevert(
             abi.encodeWithSelector(
                 FlyoverConfigurations.ConfigValueOutOfBounds.selector,
                 FlyoverConfigurations.Field.ClaimWindow,
-                BOUND_MAX_CLAIM_WINDOW + 1,
-                BOUND_MIN_CLAIM_WINDOW,
-                BOUND_MAX_CLAIM_WINDOW
+                PEGIN_BOUND_MAX_CLAIM_WINDOW + 1,
+                PEGIN_BOUND_MIN_CLAIM_WINDOW,
+                PEGIN_BOUND_MAX_CLAIM_WINDOW
             )
         );
         config.queueChange(c);
     }
 
+    function test_queueChange_rejects_zero_claimWindow_when_bounds_allow_it()
+        public
+    {
+        IFlyoverConfigurations.PegInConfiguration memory min = _boundsMin();
+        min.claimWindow = 0;
+        _applyBounds(min, _boundsMax());
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
+        c.claimWindow = 0;
+        vm.prank(owner);
+        vm.expectRevert(FlyoverConfigurations.InvalidPegInClaimWindow.selector);
+        config.queueChange(c);
+    }
+
     function test_queueBoundsChange_rejects_inverted_claimWindow_pair() public {
         IFlyoverConfigurations.PegInConfiguration memory min = _boundsMin();
-        min.claimWindow = BOUND_MAX_CLAIM_WINDOW + 1;
+        min.claimWindow = PEGIN_BOUND_MAX_CLAIM_WINDOW + 1;
         vm.prank(owner);
         vm.expectRevert(
             abi.encodeWithSelector(
                 FlyoverConfigurations.InvalidBounds.selector,
                 FlyoverConfigurations.Field.ClaimWindow,
-                BOUND_MAX_CLAIM_WINDOW + 1,
-                BOUND_MAX_CLAIM_WINDOW
+                PEGIN_BOUND_MAX_CLAIM_WINDOW + 1,
+                PEGIN_BOUND_MAX_CLAIM_WINDOW
             )
         );
         config.queueBoundsChange(min, _boundsMax());
@@ -46,7 +59,7 @@ contract ClaimWindowTest is ConfigurationsTestBase {
         public
     {
         IFlyoverConfigurations.PegInConfiguration memory max = _boundsMax();
-        max.claimWindow = SEED_CLAIM_WINDOW - 1;
+        max.claimWindow = PEGIN_SEED_CLAIM_WINDOW - 1;
         vm.prank(owner);
         config.queueBoundsChange(_boundsMin(), max);
         vm.warp(block.timestamp + TIMELOCK_DELAY);
@@ -55,9 +68,9 @@ contract ClaimWindowTest is ConfigurationsTestBase {
             abi.encodeWithSelector(
                 FlyoverConfigurations.ActiveConfigOutsideNewBounds.selector,
                 FlyoverConfigurations.Field.ClaimWindow,
-                SEED_CLAIM_WINDOW,
-                BOUND_MIN_CLAIM_WINDOW,
-                SEED_CLAIM_WINDOW - 1
+                PEGIN_SEED_CLAIM_WINDOW,
+                PEGIN_BOUND_MIN_CLAIM_WINDOW,
+                PEGIN_SEED_CLAIM_WINDOW - 1
             )
         );
         config.applyBoundsChange();

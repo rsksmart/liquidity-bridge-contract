@@ -20,6 +20,8 @@ contract GettersTest is ConfigurationsTestBase {
         assertEq(c.minAmount, SEED_MIN_AMOUNT);
         assertEq(c.maxAmount, SEED_MAX_AMOUNT);
         assertEq(c.claimGasFee, SEED_CLAIM_GAS_FEE);
+        assertEq(c.penaltyFee, PEGIN_SEED_PENALTY_FEE);
+        assertEq(c.claimWindow, PEGIN_SEED_CLAIM_WINDOW);
         assertEq(c.confirmationTiers.length, 3);
         assertEq(c.confirmationTiers[0].maxAmount, 1 ether);
         assertEq(c.confirmationTiers[0].confirmations, 1);
