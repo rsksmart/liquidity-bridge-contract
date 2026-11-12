@@ -70,10 +70,10 @@ abstract contract ConfigurationsTestBase is Test {
     // --- peg-in penaltyFee / claimWindow ---
     // Differ from the peg-out values so a test fails if peg-in code reads a peg-out field.
     uint256 internal constant PEGIN_SEED_PENALTY_FEE = 0.05 ether;
-    uint256 internal constant PEGIN_SEED_CLAIM_WINDOW = 2 hours;
+    uint256 internal constant PEGIN_SEED_CLAIM_WINDOW = 4 hours;
     uint256 internal constant PEGIN_BOUND_MIN_PENALTY_FEE = 0.002 ether;
     uint256 internal constant PEGIN_BOUND_MAX_PENALTY_FEE = 0.5 ether;
-    uint256 internal constant PEGIN_BOUND_MIN_CLAIM_WINDOW = 10 minutes;
+    uint256 internal constant PEGIN_BOUND_MIN_CLAIM_WINDOW = 3 hours;
     uint256 internal constant PEGIN_BOUND_MAX_CLAIM_WINDOW = 12 hours;
 
     // --- peg-out seed / bounds ---
@@ -263,7 +263,7 @@ abstract contract ConfigurationsTestBase is Test {
             confirmations: 5
         });
         c.penaltyFee = 0.02 ether;
-        c.claimWindow = 1 hours;
+        c.claimWindow = 5 hours;
     }
 
     /// @notice Convenience: queue `_altConfig()` as the admin and return it.

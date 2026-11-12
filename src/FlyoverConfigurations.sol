@@ -82,6 +82,11 @@ contract FlyoverConfigurations is
     /// @notice Rejects registrantFee values at or above this cap (0.001 ether).
     uint256 public constant MAX_REGISTRANT_FEE_EXCLUSIVE = 0.001 ether;
 
+    /// @notice Rejects a peg-in claimWindow below this floor (3 hours). The window starts at a
+    /// Bitcoin block timestamp, which can be about an hour early, so a shorter window could slash
+    /// LPs that had no fair chance to claim. Fixed here because the bounds can be changed later.
+    uint256 public constant MIN_PEGIN_CLAIM_WINDOW = 3 hours;
+
     // ERC-7201: keccak256(abi.encode(uint256(keccak256("rsk.flyover.FlyoverConfigurations")) - 1)) &
     // ~bytes32(uint256(0xff))
     bytes32 private constant _FLYOVER_CONFIGURATIONS_STORAGE =
@@ -141,8 +146,9 @@ contract FlyoverConfigurations is
     /// @notice Raised when applying bounds that would leave the active configuration outside them.
     error ActiveConfigOutsideNewBounds(Field field, uint256 value, uint256 min, uint256 max);
     error InvalidPegOutDeadlines();
-    /// @notice Raised when the peg-in claimWindow is zero, even if the active bounds allow it.
-    error InvalidPegInClaimWindow();
+    /// @notice Raised when the peg-in claimWindow is below {MIN_PEGIN_CLAIM_WINDOW}, even if the
+    /// active bounds allow it.
+    error PegInClaimWindowTooShort(uint256 claimWindow, uint256 minimum);
     /// @notice Raised when registrantFee is at or above {MAX_REGISTRANT_FEE_EXCLUSIVE}.
     error RegistrantFeeTooHigh(uint256 registrantFee, uint256 maxExclusive);
     /// @notice Raised when fixedFee is below registrantFee.
@@ -535,8 +541,8 @@ contract FlyoverConfigurations is
         if (config.minAmount > config.maxAmount) {
             revert InvalidAmountLimits(config.minAmount, config.maxAmount);
         }
-        if (config.claimWindow == 0) {
-            revert InvalidPegInClaimWindow();
+        if (config.claimWindow < MIN_PEGIN_CLAIM_WINDOW) {
+            revert PegInClaimWindowTooShort(config.claimWindow, MIN_PEGIN_CLAIM_WINDOW);
         }
         _validateAmountLimits(config);
         _validateTiers(config.confirmationTiers);

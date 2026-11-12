@@ -410,7 +410,7 @@ contract HelperConfig is Script {
             claimGasFee: 0,
             confirmationTiers: _localConfirmationTiers(),
             penaltyFee: 0.01 ether,
-            claimWindow: 30 minutes
+            claimWindow: 3 hours
         });
         seeds.pegInMin = IFlyoverConfigurations.PegInConfiguration({
             fixedFee: 0.0001 ether,
@@ -421,7 +421,7 @@ contract HelperConfig is Script {
             claimGasFee: 0,
             confirmationTiers: noTiers,
             penaltyFee: 0.001 ether,
-            claimWindow: 5 minutes
+            claimWindow: 3 hours
         });
         seeds.pegInMax = IFlyoverConfigurations.PegInConfiguration({
             fixedFee: 0.01 ether,
