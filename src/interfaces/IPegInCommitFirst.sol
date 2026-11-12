@@ -37,7 +37,7 @@ interface IPegInCommitFirst {
     /// durable record of settlement distribution: the registry zeroes its registrant slot
     /// after the first-peg-in payout, so the fee payment survives only here.
     /// @param pegInId The id of the settled peg-in
-    /// @param claimer The claimer repaid from the claim record
+    /// @param claimer The claimer repaid from the claim record; address(0) when no LP claimed
     /// @param registrant The registrant paid the registration fee; address(0) when no fee
     /// was paid (already paid on an earlier peg-in)
     /// @param released The amount the bridge released to the contract, in wei
@@ -81,6 +81,20 @@ interface IPegInCommitFirst {
     /// @param errorCode The error code returned by the bridge
     event BridgeCapExceeded(bytes32 indexed pegInId, int256 indexed errorCode);
 
+    /// @notice Emitted when a peg-in that no LP claimed is settled
+    /// @dev Records the caller, which PegInResolved does not report as a claimer because the
+    /// caller is repaid nothing
+    /// @param pegInId The id of the settled peg-in
+    /// @param rskAddr The destination address the release was sent to
+    /// @param caller The account that called resolvePegIn
+    /// @param released The amount the bridge released to the contract, in wei
+    event UnclaimedPegInSettled(
+        bytes32 indexed pegInId,
+        address indexed rskAddr,
+        address indexed caller,
+        uint256 released
+    );
+
     /// @notice Reverts requestPegIn when the peg-in already has a claimer, and resolvePegIn
     /// when the peg-in is already settled
     /// @dev First check in requestPegIn, so the loser of a claim race burns minimal gas. The
@@ -90,6 +104,10 @@ interface IPegInCommitFirst {
     /// longer repay.
     /// @param pegInId The id of the already-claimed or already-settled peg-in
     error PegInAlreadyProcessed(bytes32 pegInId);
+
+    /// @notice Reverts resolvePegIn when no claim record exists for the peg-in
+    /// @param pegInId The id of the unclaimed peg-in
+    error PegInNotClaimed(bytes32 pegInId);
 
     /// @notice Reverts requestPegIn when the destination address has no registration record
     /// @param rskAddr The unregistered RSK destination address

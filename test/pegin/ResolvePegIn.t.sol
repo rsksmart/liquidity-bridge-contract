@@ -103,9 +103,16 @@ contract ResolvePegInTest is ResolvePegInTestBase {
             true
         );
         vm.expectEmit(true, true, true, true);
+        emit IPegInCommitFirst.UnclaimedPegInSettled(
+            pegInId,
+            rskUser,
+            thirdParty,
+            bridgeRelease
+        );
+        vm.expectEmit(true, true, true, true);
         emit IPegInCommitFirst.PegInResolved(
             pegInId,
-            thirdParty,
+            address(0),
             address(0),
             bridgeRelease,
             0,
@@ -192,7 +199,7 @@ contract ResolvePegInTest is ResolvePegInTestBase {
         vm.expectEmit(true, true, true, true);
         emit IPegInCommitFirst.PegInResolved(
             pegInId,
-            thirdParty,
+            address(0),
             address(0),
             bridgeRelease,
             0,

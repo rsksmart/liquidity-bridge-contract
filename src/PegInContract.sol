@@ -448,7 +448,8 @@ contract PegInContract is
             _increaseBalance(rskAddr, released);
         }
 
-        emit PegInResolved(pegInId, msg.sender, address(0), released, 0, 0, userPayout);
+        emit UnclaimedPegInSettled(pegInId, rskAddr, msg.sender, released);
+        emit PegInResolved(pegInId, address(0), address(0), released, 0, 0, userPayout);
     }
 
     /// @dev The registrant is paid once per registered address, on the first peg-in that settles
