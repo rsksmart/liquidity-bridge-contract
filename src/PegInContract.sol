@@ -244,7 +244,7 @@ contract PegInContract is
         bytes32 btcBlockHash,
         uint256 merkleBranchPath,
         bytes32[] calldata merkleBranchHashes
-    ) external payable nonReentrant whenNotSoftPaused override returns (bytes32 pegInId) {
+    ) external payable nonReentrant whenNotHardPaused override returns (bytes32 pegInId) {
         if(!_collateralManagement.isRegistered(_PEG_TYPE, msg.sender)) {
             revert Flyover.ProviderNotRegistered(msg.sender);
         }
