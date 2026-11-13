@@ -5,6 +5,7 @@ out = "out"
 cache_path = "cache"
 
 solc_version = "0.8.25"
+evm_version = "cancun"
 optimizer = true
 optimizer_runs = 1
 via_ir = false
@@ -42,7 +43,7 @@ remappings = [
 ]
 
 # Halmos profile: OZ 5.5+ pulls Bytes.sol (mcopy) via EIP712 → Strings; requires Cancun.
-# Halmos 0.3.3 supports mcopy. Default deployment profile is unchanged.
+# Halmos 0.3.3 supports mcopy.
 [profile.halmos]
 evm_version = "cancun"
 
