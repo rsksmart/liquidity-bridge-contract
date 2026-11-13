@@ -41,7 +41,7 @@ contract TiersTest is ConfigurationsTestBase {
     /// @notice A single-tier configuration answers with that tier's confirmations for every
     /// amount, both within and above the tier's maxAmount.
     function test_singleTierConfig_answersEverything() public {
-        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
         c.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](1);
         c.confirmationTiers[0] = IFlyoverConfigurations.ConfirmationTier({
             maxAmount: 2 ether,

@@ -12,8 +12,8 @@ import {IFlyoverConfigurations} from "../../src/interfaces/IFlyoverConfiguration
 contract FlyoverConfigurationsMock is IFlyoverConfigurations {
     uint256 private constant _BASIS_POINTS = 10000;
 
-    PegConfiguration private _config;
-    PegConfiguration private _queued;
+    PegInConfiguration private _config;
+    PegInConfiguration private _queued;
     PegOutConfiguration private _pegOutConfig;
     PegOutConfiguration private _pegOutQueued;
 
@@ -52,7 +52,7 @@ contract FlyoverConfigurationsMock is IFlyoverConfigurations {
         external
         view
         override
-        returns (PegConfiguration memory configuration)
+        returns (PegInConfiguration memory configuration)
     {
         return _config;
     }
@@ -94,7 +94,7 @@ contract FlyoverConfigurationsMock is IFlyoverConfigurations {
 
     /// @inheritdoc IFlyoverConfigurations
     function queueChange(
-        PegConfiguration calldata newConfiguration
+        PegInConfiguration calldata newConfiguration
     ) external override {
         _queued = newConfiguration;
     }

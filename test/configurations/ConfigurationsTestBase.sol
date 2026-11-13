@@ -8,7 +8,7 @@ import {IFlyoverConfigurations} from "../../src/interfaces/IFlyoverConfiguration
 
 /// @title ConfigurationsTestBase
 /// @notice Shared setup for the FlyoverConfigurations suite (tests the S2.1 / FLY-2459 contract
-/// against the S0-frozen peg-in-only interface). Deploys the contract behind an ERC1967 proxy
+/// against the peg-in-only interface). Deploys the contract behind an ERC1967 proxy
 /// with a known seed config, explicit deployment bounds, and a non-zero time-lock delay.
 /// @dev ERC1967 (not Transparent) is used so `owner` can call admin functions directly; a
 /// TransparentUpgradeableProxy would route the admin's calls to the proxy admin, not the impl.
@@ -62,6 +62,19 @@ abstract contract ConfigurationsTestBase is Test {
     uint256 internal constant WIDE_MAX_REGISTRANT_FEE = 0.001 ether - 1;
     uint256 internal constant WIDE_MIN_CLAIM_GAS_FEE = 0;
     uint256 internal constant WIDE_MAX_CLAIM_GAS_FEE = 0.002 ether;
+    uint256 internal constant WIDE_MIN_PENALTY_FEE = 0;
+    uint256 internal constant WIDE_MAX_PENALTY_FEE = 2 ether;
+    uint256 internal constant WIDE_MIN_CLAIM_WINDOW = 1 minutes;
+    uint256 internal constant WIDE_MAX_CLAIM_WINDOW = 2 days;
+
+    // --- peg-in penaltyFee / claimWindow ---
+    // Differ from the peg-out values so a test fails if peg-in code reads a peg-out field.
+    uint256 internal constant PEGIN_SEED_PENALTY_FEE = 0.05 ether;
+    uint256 internal constant PEGIN_SEED_CLAIM_WINDOW = 4 hours;
+    uint256 internal constant PEGIN_BOUND_MIN_PENALTY_FEE = 0.002 ether;
+    uint256 internal constant PEGIN_BOUND_MAX_PENALTY_FEE = 0.5 ether;
+    uint256 internal constant PEGIN_BOUND_MIN_CLAIM_WINDOW = 3 hours;
+    uint256 internal constant PEGIN_BOUND_MAX_CLAIM_WINDOW = 12 hours;
 
     // --- peg-out seed / bounds ---
     uint256 internal constant SEED_PENALTY_FEE = 0.01 ether;
@@ -116,9 +129,9 @@ abstract contract ConfigurationsTestBase is Test {
     /// @notice Proxy-constructor calldata for {FlyoverConfigurations-initialize} with the given
     /// peg-in seed and the suite's default peg-out seed.
     function _initializeCall(
-        IFlyoverConfigurations.PegConfiguration memory pegInConfig,
-        IFlyoverConfigurations.PegConfiguration memory pegInMin,
-        IFlyoverConfigurations.PegConfiguration memory pegInMax
+        IFlyoverConfigurations.PegInConfiguration memory pegInConfig,
+        IFlyoverConfigurations.PegInConfiguration memory pegInMin,
+        IFlyoverConfigurations.PegInConfiguration memory pegInMax
     ) internal view returns (bytes memory) {
         return
             _initializeCall(
@@ -132,9 +145,9 @@ abstract contract ConfigurationsTestBase is Test {
     }
 
     function _initializeCall(
-        IFlyoverConfigurations.PegConfiguration memory pegInConfig,
-        IFlyoverConfigurations.PegConfiguration memory pegInMin,
-        IFlyoverConfigurations.PegConfiguration memory pegInMax,
+        IFlyoverConfigurations.PegInConfiguration memory pegInConfig,
+        IFlyoverConfigurations.PegInConfiguration memory pegInMin,
+        IFlyoverConfigurations.PegInConfiguration memory pegInMax,
         IFlyoverConfigurations.PegOutConfiguration memory pegOutConfig,
         IFlyoverConfigurations.PegOutConfiguration memory pegOutMin,
         IFlyoverConfigurations.PegOutConfiguration memory pegOutMax
@@ -160,7 +173,7 @@ abstract contract ConfigurationsTestBase is Test {
     function _seedConfig()
         internal
         pure
-        returns (IFlyoverConfigurations.PegConfiguration memory c)
+        returns (IFlyoverConfigurations.PegInConfiguration memory c)
     {
         c.fixedFee = SEED_FIXED_FEE;
         c.percentageFee = SEED_PCT;
@@ -169,6 +182,8 @@ abstract contract ConfigurationsTestBase is Test {
         c.registrantFee = SEED_REGISTRANT_FEE;
         c.claimGasFee = SEED_CLAIM_GAS_FEE;
         c.confirmationTiers = _seedTiers();
+        c.penaltyFee = PEGIN_SEED_PENALTY_FEE;
+        c.claimWindow = PEGIN_SEED_CLAIM_WINDOW;
     }
 
     /// @notice Seed tiers: (1e18,1) (10e18,3) (100e18,6), strictly ascending.
@@ -195,7 +210,7 @@ abstract contract ConfigurationsTestBase is Test {
     function _boundsMin()
         internal
         pure
-        returns (IFlyoverConfigurations.PegConfiguration memory c)
+        returns (IFlyoverConfigurations.PegInConfiguration memory c)
     {
         c.fixedFee = BOUND_MIN_FIXED_FEE;
         c.percentageFee = BOUND_MIN_PCT;
@@ -205,12 +220,14 @@ abstract contract ConfigurationsTestBase is Test {
         c.claimGasFee = BOUND_MIN_CLAIM_GAS_FEE;
         // Tier array is ordering/non-emptiness checked, never min/max bounded; left empty.
         c.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
+        c.penaltyFee = PEGIN_BOUND_MIN_PENALTY_FEE;
+        c.claimWindow = PEGIN_BOUND_MIN_CLAIM_WINDOW;
     }
 
     function _boundsMax()
         internal
         pure
-        returns (IFlyoverConfigurations.PegConfiguration memory c)
+        returns (IFlyoverConfigurations.PegInConfiguration memory c)
     {
         c.fixedFee = BOUND_MAX_FIXED_FEE;
         c.percentageFee = BOUND_MAX_PCT;
@@ -219,6 +236,8 @@ abstract contract ConfigurationsTestBase is Test {
         c.registrantFee = BOUND_MAX_REGISTRANT_FEE;
         c.claimGasFee = BOUND_MAX_CLAIM_GAS_FEE;
         c.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
+        c.penaltyFee = PEGIN_BOUND_MAX_PENALTY_FEE;
+        c.claimWindow = PEGIN_BOUND_MAX_CLAIM_WINDOW;
     }
 
     /// @notice A valid config distinct from the seed, for queue/apply tests so the applied change
@@ -226,7 +245,7 @@ abstract contract ConfigurationsTestBase is Test {
     function _altConfig()
         internal
         pure
-        returns (IFlyoverConfigurations.PegConfiguration memory c)
+        returns (IFlyoverConfigurations.PegInConfiguration memory c)
     {
         c.fixedFee = 2000 * SAT;
         c.percentageFee = 20; // 0.20%
@@ -243,12 +262,14 @@ abstract contract ConfigurationsTestBase is Test {
             maxAmount: 20 ether,
             confirmations: 5
         });
+        c.penaltyFee = 0.02 ether;
+        c.claimWindow = 5 hours;
     }
 
     /// @notice Convenience: queue `_altConfig()` as the admin and return it.
     function _queueAlt()
         internal
-        returns (IFlyoverConfigurations.PegConfiguration memory c)
+        returns (IFlyoverConfigurations.PegInConfiguration memory c)
     {
         c = _altConfig();
         vm.prank(owner);
@@ -261,7 +282,7 @@ abstract contract ConfigurationsTestBase is Test {
     function _wideMin()
         internal
         pure
-        returns (IFlyoverConfigurations.PegConfiguration memory c)
+        returns (IFlyoverConfigurations.PegInConfiguration memory c)
     {
         c.fixedFee = WIDE_MIN_FIXED_FEE;
         c.percentageFee = WIDE_MIN_PCT;
@@ -270,13 +291,15 @@ abstract contract ConfigurationsTestBase is Test {
         c.registrantFee = WIDE_MIN_REGISTRANT_FEE;
         c.claimGasFee = WIDE_MIN_CLAIM_GAS_FEE;
         c.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
+        c.penaltyFee = WIDE_MIN_PENALTY_FEE;
+        c.claimWindow = WIDE_MIN_CLAIM_WINDOW;
     }
 
     /// @notice Widened upper bounds: strictly above the deployment max on every field.
     function _wideMax()
         internal
         pure
-        returns (IFlyoverConfigurations.PegConfiguration memory c)
+        returns (IFlyoverConfigurations.PegInConfiguration memory c)
     {
         c.fixedFee = WIDE_MAX_FIXED_FEE;
         c.percentageFee = WIDE_MAX_PCT;
@@ -285,6 +308,8 @@ abstract contract ConfigurationsTestBase is Test {
         c.registrantFee = WIDE_MAX_REGISTRANT_FEE;
         c.claimGasFee = WIDE_MAX_CLAIM_GAS_FEE;
         c.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
+        c.penaltyFee = WIDE_MAX_PENALTY_FEE;
+        c.claimWindow = WIDE_MAX_CLAIM_WINDOW;
     }
 
     /// @notice Convenience: queue the widened bounds as the admin.
@@ -295,8 +320,8 @@ abstract contract ConfigurationsTestBase is Test {
 
     /// @notice Queue a bounds pair as the admin, wait the delay, and apply it.
     function _applyBounds(
-        IFlyoverConfigurations.PegConfiguration memory min,
-        IFlyoverConfigurations.PegConfiguration memory max
+        IFlyoverConfigurations.PegInConfiguration memory min,
+        IFlyoverConfigurations.PegInConfiguration memory max
     ) internal {
         vm.prank(owner);
         config.queueBoundsChange(min, max);
@@ -307,7 +332,7 @@ abstract contract ConfigurationsTestBase is Test {
 
     /// @notice Queue a configuration as the admin, wait the delay, and apply it.
     function _applyConfig(
-        IFlyoverConfigurations.PegConfiguration memory c
+        IFlyoverConfigurations.PegInConfiguration memory c
     ) internal {
         vm.prank(owner);
         config.queueChange(c);

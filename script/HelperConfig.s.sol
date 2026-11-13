@@ -51,9 +51,9 @@ contract HelperConfig is Script {
     /// @notice Seed values for FlyoverConfigurations.initialize
     struct FlyoverConfigurationSeeds {
         uint256 timelockDelay;
-        IFlyoverConfigurations.PegConfiguration pegInConfig;
-        IFlyoverConfigurations.PegConfiguration pegInMin;
-        IFlyoverConfigurations.PegConfiguration pegInMax;
+        IFlyoverConfigurations.PegInConfiguration pegInConfig;
+        IFlyoverConfigurations.PegInConfiguration pegInMin;
+        IFlyoverConfigurations.PegInConfiguration pegInMax;
         IFlyoverConfigurations.PegOutConfiguration pegOutConfig;
         IFlyoverConfigurations.PegOutConfiguration pegOutMin;
         IFlyoverConfigurations.PegOutConfiguration pegOutMax;
@@ -401,32 +401,38 @@ contract HelperConfig is Script {
             memory noTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
 
         seeds.timelockDelay = 5 minutes;
-        seeds.pegInConfig = IFlyoverConfigurations.PegConfiguration({
+        seeds.pegInConfig = IFlyoverConfigurations.PegInConfiguration({
             fixedFee: 0.0001 ether,
             percentageFee: 10,
             minAmount: 0.005 ether,
             maxAmount: 10 ether,
             registrantFee: 1e14,
             claimGasFee: 0,
-            confirmationTiers: _localConfirmationTiers()
+            confirmationTiers: _localConfirmationTiers(),
+            penaltyFee: 0.01 ether,
+            claimWindow: 3 hours
         });
-        seeds.pegInMin = IFlyoverConfigurations.PegConfiguration({
+        seeds.pegInMin = IFlyoverConfigurations.PegInConfiguration({
             fixedFee: 0.0001 ether,
             percentageFee: 0,
             minAmount: 0.001 ether,
             maxAmount: 0.01 ether,
             registrantFee: 0,
             claimGasFee: 0,
-            confirmationTiers: noTiers
+            confirmationTiers: noTiers,
+            penaltyFee: 0.001 ether,
+            claimWindow: 3 hours
         });
-        seeds.pegInMax = IFlyoverConfigurations.PegConfiguration({
+        seeds.pegInMax = IFlyoverConfigurations.PegInConfiguration({
             fixedFee: 0.01 ether,
             percentageFee: 1_000,
             minAmount: 1 ether,
             maxAmount: 1_000 ether,
             registrantFee: 0.001 ether - 1,
             claimGasFee: 0.001 ether,
-            confirmationTiers: noTiers
+            confirmationTiers: noTiers,
+            penaltyFee: 1 ether,
+            claimWindow: 1 days
         });
         seeds.pegOutConfig = IFlyoverConfigurations.PegOutConfiguration({
             fixedFee: 0.0001 ether,

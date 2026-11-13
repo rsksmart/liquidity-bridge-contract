@@ -13,10 +13,10 @@ import {IFlyoverConfigurations} from "../../src/interfaces/IFlyoverConfiguration
 /// (4) a second queue replaces the pending change.
 /// Plus exact-eta success, applying with nothing queued, and event emission.
 contract TimelockTest is ConfigurationsTestBase {
-    /// @dev pending.fixedFee lives at the mutable namespace base + 7 (activePegIn occupies the
-    /// first 7 slots: six scalars + confirmationTiers-length).
+    /// @dev pending.fixedFee lives at the mutable namespace base + 9 (activePegIn occupies the
+    /// first 9 slots: eight scalars + confirmationTiers-length).
     bytes32 private constant _PENDING_FIXED_FEE_SLOT =
-        bytes32(uint256(STORAGE_SLOT) + 7);
+        bytes32(uint256(STORAGE_SLOT) + 9);
 
     function setUp() public {
         _deploy();
@@ -25,7 +25,7 @@ contract TimelockTest is ConfigurationsTestBase {
     // ------------------------------------------------------ case 1: queue then apply succeeds
 
     function test_case1_queueThenApplyAfterDelay_succeeds() public {
-        IFlyoverConfigurations.PegConfiguration memory c = _queueAlt();
+        IFlyoverConfigurations.PegInConfiguration memory c = _queueAlt();
 
         // Not applied yet: active config is still the seed.
         assertEq(config.getPegInConfiguration().fixedFee, SEED_FIXED_FEE);
@@ -34,7 +34,7 @@ contract TimelockTest is ConfigurationsTestBase {
         vm.prank(owner);
         config.applyChange();
 
-        IFlyoverConfigurations.PegConfiguration memory active = config
+        IFlyoverConfigurations.PegInConfiguration memory active = config
             .getPegInConfiguration();
         assertEq(active.fixedFee, c.fixedFee);
         assertEq(active.percentageFee, c.percentageFee);
@@ -100,7 +100,7 @@ contract TimelockTest is ConfigurationsTestBase {
     // ------------------------------------------------------ case 3: out-of-bounds at both steps
 
     function test_case3_outOfBounds_revertsAtQueueTime() public {
-        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
         c.fixedFee = BOUND_MAX_FIXED_FEE + 1;
         vm.prank(owner);
         vm.expectRevert(
@@ -129,7 +129,7 @@ contract TimelockTest is ConfigurationsTestBase {
             bytes32(BOUND_MAX_FIXED_FEE + 1)
         );
         // Sanity: the poke landed on the pending value.
-        (IFlyoverConfigurations.PegConfiguration memory pending, ) = config
+        (IFlyoverConfigurations.PegInConfiguration memory pending, ) = config
             .getPendingChange();
         assertEq(pending.fixedFee, BOUND_MAX_FIXED_FEE + 1);
 
@@ -154,7 +154,7 @@ contract TimelockTest is ConfigurationsTestBase {
 
     function test_case4_secondQueueReplacesPending() public {
         // First queued change.
-        IFlyoverConfigurations.PegConfiguration memory first = _altConfig();
+        IFlyoverConfigurations.PegInConfiguration memory first = _altConfig();
         first.fixedFee = 2000 * SAT;
         vm.prank(owner);
         config.queueChange(first);
@@ -164,13 +164,13 @@ contract TimelockTest is ConfigurationsTestBase {
         uint256 expectedEta = block.timestamp + TIMELOCK_DELAY;
 
         // Second queued change replaces the first.
-        IFlyoverConfigurations.PegConfiguration memory second = _altConfig();
+        IFlyoverConfigurations.PegInConfiguration memory second = _altConfig();
         second.fixedFee = 3000 * SAT;
         vm.prank(owner);
         config.queueChange(second);
 
         (
-            IFlyoverConfigurations.PegConfiguration memory pending,
+            IFlyoverConfigurations.PegInConfiguration memory pending,
             uint256 eta
         ) = config.getPendingChange();
         assertEq(
@@ -190,7 +190,7 @@ contract TimelockTest is ConfigurationsTestBase {
     // ------------------------------------------------------ events
 
     function test_queueChange_emitsChangeQueued() public {
-        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
         uint256 expectedEta = block.timestamp + TIMELOCK_DELAY;
 
         vm.expectEmit(true, true, true, true, address(config));
@@ -200,7 +200,7 @@ contract TimelockTest is ConfigurationsTestBase {
     }
 
     function test_applyChange_emitsChangeApplied() public {
-        IFlyoverConfigurations.PegConfiguration memory c = _queueAlt();
+        IFlyoverConfigurations.PegInConfiguration memory c = _queueAlt();
         vm.warp(block.timestamp + TIMELOCK_DELAY);
 
         vm.expectEmit(true, true, true, true, address(config));
@@ -215,10 +215,10 @@ contract TimelockTest is ConfigurationsTestBase {
     // the four cases above for the bounds path, then pin the two rules unique to it: a pair may
     // not invert, and a pair the active configuration falls outside is rejected at apply time.
 
-    /// @dev pendingMin.fixedFee lives at the bounds namespace base + 15 (timelockDelay occupies
-    /// slot 0, then min and max take 7 slots each: six scalars + confirmationTiers-length).
+    /// @dev pendingMin.fixedFee lives at the bounds namespace base + 19 (timelockDelay occupies
+    /// slot 0, then min and max take 9 slots each: eight scalars + confirmationTiers-length).
     bytes32 private constant _PENDING_MIN_FIXED_FEE_SLOT =
-        bytes32(uint256(BOUNDS_SLOT) + 15);
+        bytes32(uint256(BOUNDS_SLOT) + 19);
 
     // ------------------------------------------------ case 1: queue then apply after the delay
 
@@ -226,7 +226,7 @@ contract TimelockTest is ConfigurationsTestBase {
         _queueWideBounds();
 
         // Not applied yet: the active bounds are still the deployment ones.
-        (IFlyoverConfigurations.PegConfiguration memory minBefore, ) = config
+        (IFlyoverConfigurations.PegInConfiguration memory minBefore, ) = config
             .getPegInConfigurationBounds();
         assertEq(minBefore.fixedFee, BOUND_MIN_FIXED_FEE);
 
@@ -235,8 +235,8 @@ contract TimelockTest is ConfigurationsTestBase {
         config.applyBoundsChange();
 
         (
-            IFlyoverConfigurations.PegConfiguration memory min,
-            IFlyoverConfigurations.PegConfiguration memory max
+            IFlyoverConfigurations.PegInConfiguration memory min,
+            IFlyoverConfigurations.PegInConfiguration memory max
         ) = config.getPegInConfigurationBounds();
         assertEq(min.fixedFee, WIDE_MIN_FIXED_FEE);
         assertEq(min.percentageFee, WIDE_MIN_PCT);
@@ -258,7 +258,7 @@ contract TimelockTest is ConfigurationsTestBase {
         vm.warp(eta); // block.timestamp == eta is allowed (>=)
         vm.prank(owner);
         config.applyBoundsChange();
-        (IFlyoverConfigurations.PegConfiguration memory min, ) = config
+        (IFlyoverConfigurations.PegInConfiguration memory min, ) = config
             .getPegInConfigurationBounds();
         assertEq(min.fixedFee, WIDE_MIN_FIXED_FEE);
     }
@@ -269,7 +269,7 @@ contract TimelockTest is ConfigurationsTestBase {
         uint256 highFee = BOUND_MAX_FIXED_FEE + SAT; // above the old max, below the new one
 
         // Rejected under the deployment bounds.
-        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
         c.fixedFee = highFee;
         // minAmount must be above the fee, or queueChange reverts.
         c.minAmount = WIDE_MAX_MIN_AMOUNT;
@@ -290,7 +290,7 @@ contract TimelockTest is ConfigurationsTestBase {
         // Accepted under the widened bounds.
         vm.prank(owner);
         config.queueChange(c);
-        (IFlyoverConfigurations.PegConfiguration memory pending, ) = config
+        (IFlyoverConfigurations.PegInConfiguration memory pending, ) = config
             .getPendingChange();
         assertEq(pending.fixedFee, highFee);
     }
@@ -302,11 +302,12 @@ contract TimelockTest is ConfigurationsTestBase {
 
         // Tighten the fixed-fee ceiling to just below that value. The seed config's fixedFee is
         // lower still, so the active configuration stays inside the new pair.
-        IFlyoverConfigurations.PegConfiguration memory tightMax = _boundsMax();
+        IFlyoverConfigurations.PegInConfiguration
+            memory tightMax = _boundsMax();
         tightMax.fixedFee = fee - 1;
         _applyBounds(_boundsMin(), tightMax);
 
-        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
         vm.prank(owner);
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -338,7 +339,7 @@ contract TimelockTest is ConfigurationsTestBase {
         config.applyBoundsChange();
 
         // The active bounds are untouched.
-        (IFlyoverConfigurations.PegConfiguration memory min, ) = config
+        (IFlyoverConfigurations.PegInConfiguration memory min, ) = config
             .getPegInConfigurationBounds();
         assertEq(min.fixedFee, BOUND_MIN_FIXED_FEE);
     }
@@ -352,7 +353,7 @@ contract TimelockTest is ConfigurationsTestBase {
     // ----------------------------------------------------- case 3: re-validated at both steps
 
     function test_bounds_invertedPair_revertsAtQueueTime() public {
-        IFlyoverConfigurations.PegConfiguration memory min = _boundsMin();
+        IFlyoverConfigurations.PegInConfiguration memory min = _boundsMin();
         min.fixedFee = BOUND_MAX_FIXED_FEE + 1; // min above max
         vm.prank(owner);
         vm.expectRevert(
@@ -381,8 +382,11 @@ contract TimelockTest is ConfigurationsTestBase {
             bytes32(corrupted)
         );
         // Sanity: the poke landed on the pending min.
-        (IFlyoverConfigurations.PegConfiguration memory pendingMin, , ) = config
-            .getPendingBoundsChange();
+        (
+            IFlyoverConfigurations.PegInConfiguration memory pendingMin,
+            ,
+
+        ) = config.getPendingBoundsChange();
         assertEq(pendingMin.fixedFee, corrupted);
 
         vm.warp(eta);
@@ -398,7 +402,7 @@ contract TimelockTest is ConfigurationsTestBase {
         config.applyBoundsChange();
 
         // The active bounds remain the deployment ones.
-        (IFlyoverConfigurations.PegConfiguration memory min, ) = config
+        (IFlyoverConfigurations.PegInConfiguration memory min, ) = config
             .getPegInConfigurationBounds();
         assertEq(min.fixedFee, BOUND_MIN_FIXED_FEE);
     }
@@ -407,7 +411,7 @@ contract TimelockTest is ConfigurationsTestBase {
 
     function test_bounds_secondQueueReplacesPending() public {
         // First queued pair.
-        IFlyoverConfigurations.PegConfiguration memory firstMax = _wideMax();
+        IFlyoverConfigurations.PegInConfiguration memory firstMax = _wideMax();
         firstMax.fixedFee = 2 ether;
         vm.prank(owner);
         config.queueBoundsChange(_wideMin(), firstMax);
@@ -417,14 +421,14 @@ contract TimelockTest is ConfigurationsTestBase {
         uint256 expectedEta = block.timestamp + TIMELOCK_DELAY;
 
         // Second queued pair replaces the first.
-        IFlyoverConfigurations.PegConfiguration memory secondMax = _wideMax();
+        IFlyoverConfigurations.PegInConfiguration memory secondMax = _wideMax();
         secondMax.fixedFee = 3 ether;
         vm.prank(owner);
         config.queueBoundsChange(_wideMin(), secondMax);
 
         (
             ,
-            IFlyoverConfigurations.PegConfiguration memory pendingMax,
+            IFlyoverConfigurations.PegInConfiguration memory pendingMax,
             uint256 eta
         ) = config.getPendingBoundsChange();
         assertEq(
@@ -438,7 +442,7 @@ contract TimelockTest is ConfigurationsTestBase {
         vm.warp(eta);
         vm.prank(owner);
         config.applyBoundsChange();
-        (, IFlyoverConfigurations.PegConfiguration memory max) = config
+        (, IFlyoverConfigurations.PegInConfiguration memory max) = config
             .getPegInConfigurationBounds();
         assertEq(max.fixedFee, 3 ether);
     }
@@ -450,7 +454,7 @@ contract TimelockTest is ConfigurationsTestBase {
     /// is always within the active bounds, with no qualification a reader has to know about.
     function test_bounds_applyRejectedWhenActiveConfigFallsOutside() public {
         // Tighten the fixed-fee floor above the seed config's fixedFee.
-        IFlyoverConfigurations.PegConfiguration memory min = _boundsMin();
+        IFlyoverConfigurations.PegInConfiguration memory min = _boundsMin();
         min.fixedFee = SEED_FIXED_FEE + 1;
 
         vm.prank(owner);
@@ -470,7 +474,7 @@ contract TimelockTest is ConfigurationsTestBase {
         config.applyBoundsChange();
 
         // Nothing moved: the bounds and the active configuration are both unchanged.
-        (IFlyoverConfigurations.PegConfiguration memory activeMin, ) = config
+        (IFlyoverConfigurations.PegInConfiguration memory activeMin, ) = config
             .getPegInConfigurationBounds();
         assertEq(activeMin.fixedFee, BOUND_MIN_FIXED_FEE);
         assertEq(config.getPegInConfiguration().fixedFee, SEED_FIXED_FEE);
@@ -484,14 +488,14 @@ contract TimelockTest is ConfigurationsTestBase {
     {
         uint256 newFloor = SEED_FIXED_FEE + 1000 * SAT;
 
-        IFlyoverConfigurations.PegConfiguration memory min = _boundsMin();
+        IFlyoverConfigurations.PegInConfiguration memory min = _boundsMin();
         min.fixedFee = newFloor;
 
         // Queue the tightening now; the configuration move happens during its delay.
         vm.prank(owner);
         config.queueBoundsChange(min, _boundsMax());
 
-        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
         c.fixedFee = newFloor; // inside both the old and the new bounds
         _applyConfig(c);
 
@@ -500,7 +504,7 @@ contract TimelockTest is ConfigurationsTestBase {
         vm.prank(owner);
         config.applyBoundsChange();
 
-        (IFlyoverConfigurations.PegConfiguration memory activeMin, ) = config
+        (IFlyoverConfigurations.PegInConfiguration memory activeMin, ) = config
             .getPegInConfigurationBounds();
         assertEq(activeMin.fixedFee, newFloor);
         assertEq(config.getPegInConfiguration().fixedFee, newFloor);
@@ -511,15 +515,15 @@ contract TimelockTest is ConfigurationsTestBase {
     /// @notice A queued bounds change and a queued configuration change occupy independent slots,
     /// so queueing one never clobbers the other.
     function test_bounds_pendingSlotIsIndependentOfConfigPending() public {
-        IFlyoverConfigurations.PegConfiguration memory c = _queueAlt();
+        IFlyoverConfigurations.PegInConfiguration memory c = _queueAlt();
         _queueWideBounds();
 
         (
-            IFlyoverConfigurations.PegConfiguration memory pending,
+            IFlyoverConfigurations.PegInConfiguration memory pending,
             uint256 cEta
         ) = config.getPendingChange();
         (
-            IFlyoverConfigurations.PegConfiguration memory pendingMin,
+            IFlyoverConfigurations.PegInConfiguration memory pendingMin,
             ,
             uint256 bEta
         ) = config.getPendingBoundsChange();
@@ -545,8 +549,8 @@ contract TimelockTest is ConfigurationsTestBase {
     // ------------------------------------------------------------------------------ events
 
     function test_queueBoundsChange_emitsBoundsChangeQueued() public {
-        IFlyoverConfigurations.PegConfiguration memory min = _wideMin();
-        IFlyoverConfigurations.PegConfiguration memory max = _wideMax();
+        IFlyoverConfigurations.PegInConfiguration memory min = _wideMin();
+        IFlyoverConfigurations.PegInConfiguration memory max = _wideMax();
         uint256 expectedEta = block.timestamp + TIMELOCK_DELAY;
 
         vm.expectEmit(true, true, true, true, address(config));

@@ -28,7 +28,7 @@ contract AdminGatingTest is ConfigurationsTestBase {
     // ------------------------------------------------------------------ role gating
 
     function test_queueChange_nonAdminReverts() public {
-        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
         // Precompute the expected error before pranking: reading DEFAULT_ADMIN_ROLE() is itself
         // a call that would otherwise consume the prank.
         bytes memory err = _unauthorized(stranger);
@@ -60,7 +60,7 @@ contract AdminGatingTest is ConfigurationsTestBase {
     // ------------------------------------------------------------------ tier validation
 
     function test_queueChange_emptyTiersReverts() public {
-        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
         c.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](0);
         vm.prank(owner);
         vm.expectRevert(FlyoverConfigurations.EmptyTiers.selector);
@@ -68,7 +68,7 @@ contract AdminGatingTest is ConfigurationsTestBase {
     }
 
     function test_queueChange_nonAscendingTiersReverts() public {
-        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
         c.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](2);
         c.confirmationTiers[0] = IFlyoverConfigurations.ConfirmationTier({
             maxAmount: 10 ether,
@@ -85,7 +85,7 @@ contract AdminGatingTest is ConfigurationsTestBase {
 
     function test_queueChange_equalAdjacentTiersReverts() public {
         // Strictly ascending: equal adjacent maxAmounts are rejected too.
-        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
         c.confirmationTiers = new IFlyoverConfigurations.ConfirmationTier[](2);
         c.confirmationTiers[0] = IFlyoverConfigurations.ConfirmationTier({
             maxAmount: 1 ether,
@@ -104,7 +104,7 @@ contract AdminGatingTest is ConfigurationsTestBase {
 
     /// @notice The fixed-fee floor (2·D) cannot be undercut even by the admin role.
     function test_queueChange_fixedFeeBelowFloorReverts() public {
-        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
         c.fixedFee = BOUND_MIN_FIXED_FEE - 1;
         vm.prank(owner);
         vm.expectRevert(
@@ -120,7 +120,7 @@ contract AdminGatingTest is ConfigurationsTestBase {
     }
 
     function test_queueChange_fixedFeeAboveMaxReverts() public {
-        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
         c.fixedFee = BOUND_MAX_FIXED_FEE + 1;
         vm.prank(owner);
         vm.expectRevert(
@@ -136,7 +136,7 @@ contract AdminGatingTest is ConfigurationsTestBase {
     }
 
     function test_queueChange_percentageFeeOutOfBoundsReverts() public {
-        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
         c.percentageFee = BOUND_MAX_PCT + 1;
         vm.prank(owner);
         vm.expectRevert(
@@ -152,7 +152,7 @@ contract AdminGatingTest is ConfigurationsTestBase {
     }
 
     function test_queueChange_minAmountOutOfBoundsReverts() public {
-        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
         c.minAmount = BOUND_MAX_MIN_AMOUNT + 1;
         vm.prank(owner);
         vm.expectRevert(
@@ -168,7 +168,7 @@ contract AdminGatingTest is ConfigurationsTestBase {
     }
 
     function test_queueChange_maxAmountOutOfBoundsReverts() public {
-        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
         c.maxAmount = BOUND_MAX_MAX_AMOUNT + 1;
         vm.prank(owner);
         vm.expectRevert(
@@ -188,7 +188,7 @@ contract AdminGatingTest is ConfigurationsTestBase {
     /// @notice percentageFee within bounds but above the 100% denominator is rejected.
     function test_queueChange_invalidPercentageFeeReverts() public {
         uint256 badPct = PCT_DENOMINATOR + 5000; // 15000: within [0, 20000] bound, but > 100%
-        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
         c.percentageFee = badPct;
         vm.prank(owner);
         vm.expectRevert(
@@ -202,7 +202,7 @@ contract AdminGatingTest is ConfigurationsTestBase {
 
     /// @notice minAmount greater than maxAmount is rejected, even when both are within bounds.
     function test_queueChange_invalidAmountLimitsReverts() public {
-        IFlyoverConfigurations.PegConfiguration memory c = _altConfig();
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
         c.minAmount = 1 ether; // within [0, 1 ether]
         c.maxAmount = 0.5 ether; // within [0, 10000 ether] but < minAmount
         vm.prank(owner);
@@ -221,8 +221,8 @@ contract AdminGatingTest is ConfigurationsTestBase {
     // ------------------------------------------------------------------ role gating
 
     function test_queueBoundsChange_nonAdminReverts() public {
-        IFlyoverConfigurations.PegConfiguration memory min = _wideMin();
-        IFlyoverConfigurations.PegConfiguration memory max = _wideMax();
+        IFlyoverConfigurations.PegInConfiguration memory min = _wideMin();
+        IFlyoverConfigurations.PegInConfiguration memory max = _wideMax();
         bytes memory err = _unauthorized(stranger);
         vm.prank(stranger);
         vm.expectRevert(err);
@@ -243,7 +243,7 @@ contract AdminGatingTest is ConfigurationsTestBase {
         vm.warp(block.timestamp + TIMELOCK_DELAY);
         vm.prank(owner);
         config.applyBoundsChange();
-        (IFlyoverConfigurations.PegConfiguration memory min, ) = config
+        (IFlyoverConfigurations.PegInConfiguration memory min, ) = config
             .getPegInConfigurationBounds();
         assertEq(min.fixedFee, WIDE_MIN_FIXED_FEE);
     }
@@ -266,7 +266,7 @@ contract AdminGatingTest is ConfigurationsTestBase {
     // ------------------------------------------------------ inverted pair, one case per field
 
     function test_queueBoundsChange_invertedFixedFeeReverts() public {
-        IFlyoverConfigurations.PegConfiguration memory max = _boundsMax();
+        IFlyoverConfigurations.PegInConfiguration memory max = _boundsMax();
         max.fixedFee = BOUND_MIN_FIXED_FEE - 1; // max below min
         vm.prank(owner);
         vm.expectRevert(
@@ -281,7 +281,7 @@ contract AdminGatingTest is ConfigurationsTestBase {
     }
 
     function test_queueBoundsChange_invertedPercentageFeeReverts() public {
-        IFlyoverConfigurations.PegConfiguration memory min = _boundsMin();
+        IFlyoverConfigurations.PegInConfiguration memory min = _boundsMin();
         min.percentageFee = BOUND_MAX_PCT + 1;
         vm.prank(owner);
         vm.expectRevert(
@@ -296,7 +296,7 @@ contract AdminGatingTest is ConfigurationsTestBase {
     }
 
     function test_queueBoundsChange_invertedMinAmountReverts() public {
-        IFlyoverConfigurations.PegConfiguration memory min = _boundsMin();
+        IFlyoverConfigurations.PegInConfiguration memory min = _boundsMin();
         min.minAmount = BOUND_MAX_MIN_AMOUNT + 1;
         vm.prank(owner);
         vm.expectRevert(
@@ -311,7 +311,7 @@ contract AdminGatingTest is ConfigurationsTestBase {
     }
 
     function test_queueBoundsChange_invertedMaxAmountReverts() public {
-        IFlyoverConfigurations.PegConfiguration memory min = _boundsMin();
+        IFlyoverConfigurations.PegInConfiguration memory min = _boundsMin();
         min.maxAmount = BOUND_MAX_MAX_AMOUNT + 1;
         vm.prank(owner);
         vm.expectRevert(
@@ -327,8 +327,8 @@ contract AdminGatingTest is ConfigurationsTestBase {
 
     /// @notice min == max is a degenerate but well-formed pair: it pins the field to one value.
     function test_queueBoundsChange_equalMinAndMaxAccepted() public {
-        IFlyoverConfigurations.PegConfiguration memory min = _boundsMin();
-        IFlyoverConfigurations.PegConfiguration memory max = _boundsMax();
+        IFlyoverConfigurations.PegInConfiguration memory min = _boundsMin();
+        IFlyoverConfigurations.PegInConfiguration memory max = _boundsMax();
         min.fixedFee = SEED_FIXED_FEE;
         max.fixedFee = SEED_FIXED_FEE;
 
@@ -339,8 +339,8 @@ contract AdminGatingTest is ConfigurationsTestBase {
         config.applyBoundsChange();
 
         (
-            IFlyoverConfigurations.PegConfiguration memory activeMin,
-            IFlyoverConfigurations.PegConfiguration memory activeMax
+            IFlyoverConfigurations.PegInConfiguration memory activeMin,
+            IFlyoverConfigurations.PegInConfiguration memory activeMax
         ) = config.getPegInConfigurationBounds();
         assertEq(activeMin.fixedFee, SEED_FIXED_FEE);
         assertEq(activeMax.fixedFee, SEED_FIXED_FEE);
