@@ -138,6 +138,7 @@ test = "test"
 out = "out"
 cache_path = "cache"
 solc_version = "0.8.25"
+evm_version = "cancun"
 optimizer = true
 optimizer_runs = 1
 
@@ -146,6 +147,12 @@ rskRegtest = "${REGTEST_RPC_URL}"
 rskTestnet = "${TESTNET_RPC_URL}"
 rskMainnet = "${MAINNET_RPC_URL}"
 ```
+
+#### Compiler and EVM version
+
+Both the compiler (`solc_version = "0.8.25"`) and the target EVM (`evm_version = "cancun"`) are pinned in the default profile, so the bytecode depends only on the repo and not on the installed Foundry release. Without `evm_version`, Foundry picks its own default target, and a Foundry upgrade could change the bytecode with no change in the repo.
+
+Cancun is the target the live mainnet implementations were built with: PegInContract, PegOutContract, CollateralManagement, FlyoverDiscovery and PauseRegistry already use `PUSH0` (Shanghai) and `MCOPY` (Cancun). An older target doesn't build either, because OpenZeppelin 5.5 uses `mcopy`. Changing the target is its own decision: it changes the bytecode of every contract and must be supported by Rootstock.
 
 ## Makefile Overview
 
