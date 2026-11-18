@@ -14,6 +14,9 @@ contract CollateralManagementMock is ICollateralManagement {
     /// @dev Incremented on each successful {globalSlash} call.
     uint256 public globalSlashCalls;
     uint256 public lastGlobalSlashTotal;
+    /// @dev Incremented on each successful {globalSlashPegIn} call.
+    uint256 public globalSlashPegInCalls;
+    uint256 public lastGlobalSlashPegInTotal;
 
     /// @dev Stub revert used by PegOutEscrow tests that expect GlobalSlashSkipped.
     error GlobalSlashStubReverts();
@@ -52,6 +55,14 @@ contract CollateralManagementMock is ICollateralManagement {
         }
         ++globalSlashCalls;
         lastGlobalSlashTotal = total;
+    }
+
+    function globalSlashPegIn(uint256 total) external {
+        if (globalSlashReverts) {
+            revert GlobalSlashStubReverts();
+        }
+        ++globalSlashPegInCalls;
+        lastGlobalSlashPegInTotal = total;
     }
 
     function withdrawRewards() external {
