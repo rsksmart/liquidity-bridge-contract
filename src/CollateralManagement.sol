@@ -48,7 +48,7 @@ contract CollateralManagementContract is
     IFlyoverDiscovery private _flyoverDiscovery;
     /// @dev Block at which peg-out collateral last went from 0 to positive. Left at 0 for LPs that
     /// already held peg-out collateral before the upgrade. Read it through
-    /// {_effectivePegOutRegistrationBlock}, never directly.
+    /// {_effectiveRegistrationBlock}, never directly.
     mapping(address => uint256) private _pegOutRegistrationBlock;
     uint256 private _globalSlashGraceBlocks;
     /// @dev Block at which {initializePegOutRegistrationBlocks} ran. Stands in for the registration
@@ -270,14 +270,7 @@ contract CollateralManagementContract is
     /// @dev Intentionally not paused: slashing must remain available so PegOutEscrow can
     ///      enforce penalties from refundOnNoClaim. Provider set is FlyoverDiscovery.getProviders.
     function globalSlash(uint256 total) external onlyRole(COLLATERAL_SLASHER) override {
-        if (total == 0) revert GlobalSlashZeroAmount();
-        if (address(_flyoverDiscovery) == address(0)) revert FlyoverDiscoveryNotSet();
-
-        (address[] memory lps, uint256[] memory amounts, uint256 sum, uint256 n) =
-            _eligiblePegOutProviders();
-        if (sum == 0) revert GlobalSlashNoEligibleProviders();
-
-        _distributeGlobalSlash(total, lps, amounts, sum, n);
+        _globalSlash(total, Flyover.ProviderType.PegOut);
     }
 
     /// @inheritdoc ICollateralManagement
@@ -350,7 +343,7 @@ contract CollateralManagementContract is
     /// @return The registration block used by the global-slash grace window, or 0 if unset
     // solhint-disable-next-line comprehensive-interface
     function getPegOutRegistrationBlock(address addr) external view returns (uint256) {
-        return _effectivePegOutRegistrationBlock(addr);
+        return _effectiveRegistrationBlock(addr, Flyover.ProviderType.PegOut);
     }
 
     /// @notice Gets the FlyoverDiscovery used as the provider-set source of truth
@@ -455,22 +448,36 @@ contract CollateralManagementContract is
         emit ICollateralManagement.PegOutCollateralAdded(addr, amount);
     }
 
-    /// @notice Takes `min(total, sum)` from eligible LPs proportional to peg-out collateral.
+    /// @notice Slashes `min(total, sum)` from the eligible LPs of one side
+    /// @param total Requested slash amount
+    /// @param side The side whose collateral is slashed
+    function _globalSlash(uint256 total, Flyover.ProviderType side) private {
+        if (total == 0) revert GlobalSlashZeroAmount();
+        if (address(_flyoverDiscovery) == address(0)) revert FlyoverDiscoveryNotSet();
+        (address[] memory lps, uint256[] memory amounts, uint256 sum, uint256 n) = _eligibleProviders(side);
+        if (sum == 0) revert GlobalSlashNoEligibleProviders();
+        _distributeGlobalSlash(total, lps, amounts, sum, n, side);
+    }
+
+    /// @notice Takes `min(total, sum)` from eligible LPs proportional to the collateral of the slashed side.
     /// @dev Last LP receives the remainder, capped at their collateral, so rounding dust stays in the split.
     /// TODO: Confirm whether global slash should stay proportional to collateral
     /// or move to an equal/fixed split
     /// @param total Requested slash amount
     /// @param lps Eligible provider addresses
-    /// @param amounts Peg-out collateral of each eligible provider
-    /// @param sum Total peg-out collateral of eligible providers
+    /// @param amounts Collateral of the slashed side of each eligible provider
+    /// @param sum Total collateral of the slashed side of eligible providers
     /// @param n Number of eligible providers
+    /// @param side The side whose collateral is slashed
     function _distributeGlobalSlash(
         uint256 total,
         address[] memory lps,
         uint256[] memory amounts,
         uint256 sum,
-        uint256 n
+        uint256 n,
+        Flyover.ProviderType side
     ) private {
+        mapping(address => uint256) storage collateral = _collateral(side);
         uint256 toTake = Math.min(total, sum);
         uint256 distributed;
         for (uint256 i; i < n; ++i) {
@@ -478,35 +485,39 @@ contract CollateralManagementContract is
                 ? Math.min(toTake - distributed, amounts[i])
                 : (toTake * amounts[i]) / sum;
             if (share == 0) continue;
-            _pegOutCollateral[lps[i]] -= share;
+            collateral[lps[i]] -= share;
             distributed += share;
             emit GlobalSlashShare(lps[i], share);
         }
         _penalties += distributed;
     }
 
-    /// @notice Listed PegOut/Both LPs outside the grace window, with their peg-out collateral.
+    /// @notice Listed LPs of the slashed side (single type or Both) outside the grace window, with
+    /// their collateral of the slashed side.
     /// @dev Arrays are sized to `getProviders().length`; only the first `n` entries are populated.
+    /// @param side The side whose collateral is slashed
     /// @return lps Eligible provider addresses
-    /// @return amounts Peg-out collateral of each eligible provider
-    /// @return sum Total peg-out collateral of eligible providers
+    /// @return amounts Collateral of the slashed side of each eligible provider
+    /// @return sum Total collateral of the slashed side of eligible providers
     /// @return n Number of eligible providers
-    function _eligiblePegOutProviders()
+    function _eligibleProviders(Flyover.ProviderType side)
         private
         view
         returns (address[] memory lps, uint256[] memory amounts, uint256 sum, uint256 n)
     {
         Flyover.LiquidityProvider[] memory providers = _flyoverDiscovery.getProviders();
+        mapping(address => uint256) storage collateral = _collateral(side);
         uint256 length = providers.length;
         lps = new address[](length);
         amounts = new uint256[](length);
 
         for (uint256 i; i < length; ++i) {
-            if (providers[i].providerType == Flyover.ProviderType.PegIn) continue;
+            Flyover.ProviderType providerType = providers[i].providerType;
+            if (providerType != side && providerType != Flyover.ProviderType.Both) continue;
             address lp = providers[i].providerAddress;
-            if (_isInGlobalSlashGraceWindow(lp)) continue;
+            if (_isInGlobalSlashGraceWindow(lp, side)) continue;
             lps[n] = lp;
-            amounts[n] = _pegOutCollateral[lp];
+            amounts[n] = collateral[lp];
             sum += amounts[n];
             ++n;
         }
@@ -515,18 +526,27 @@ contract CollateralManagementContract is
     /// @notice Whether an LP is still inside the global-slash grace window
     /// @dev `regBlock == 0` (never recorded and no backfill) is eligible, not in grace.
     /// @param addr The liquidity provider address
+    /// @param side The side whose collateral is slashed
     /// @return True if the LP must be skipped by {globalSlash}
-    function _isInGlobalSlashGraceWindow(address addr) private view returns (bool) {
-        uint256 regBlock = _effectivePegOutRegistrationBlock(addr);
+    function _isInGlobalSlashGraceWindow(address addr, Flyover.ProviderType side) private view returns (bool) {
+        uint256 regBlock = _effectiveRegistrationBlock(addr, side);
         if (regBlock == 0) return false;
         return block.number < regBlock + _globalSlashGraceBlocks;
     }
 
-    /// @notice The peg-out registration block the grace window uses for an LP
-    /// @dev Falls back to the backfill block for LPs with peg-out collateral but no recorded block
+    /// @notice The collateral mapping of one side
+    /// @dev Only peg-out collateral can be globally slashed today, so the side is not read yet
+    /// @return The collateral mapping of the side
+    function _collateral(Flyover.ProviderType /* side */) private view returns (mapping(address => uint256) storage) {
+        return _pegOutCollateral;
+    }
+
+    /// @notice The registration block the grace window uses for an LP
+    /// @dev Falls back to the backfill block for LPs with collateral but no recorded block. Only
+    /// peg-out registration blocks are recorded today, so the side is not read yet.
     /// @param addr The liquidity provider address
     /// @return The recorded block, the backfill block, or 0
-    function _effectivePegOutRegistrationBlock(address addr) private view returns (uint256) {
+    function _effectiveRegistrationBlock(address addr, Flyover.ProviderType /* side */) private view returns (uint256) {
         uint256 regBlock = _pegOutRegistrationBlock[addr];
         if (regBlock != 0 || _pegOutCollateral[addr] == 0) return regBlock;
         return _pegOutBackfillBlock;
