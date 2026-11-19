@@ -84,6 +84,11 @@ contract PegInContract is
     string constant public NAME = "PegInContract";
     Flyover.ProviderType constant private _PEG_TYPE = Flyover.ProviderType.PegIn;
     uint256 constant private _MAX_REFUND_GAS_LIMIT = 2300;
+    uint256 constant private _BTC_HEADER_LENGTH = 80;
+    /// @dev Lower bound on the RSK block interval, used to estimate when an address was registered.
+    /// Below the shortest 3-hour average seen on mainnet (22.7 s) and the usual 30 s average, so the
+    /// estimate is never earlier than the real registration and LPs never get a shorter window.
+    uint256 constant private _MIN_RSK_BLOCK_TIME = 20;
     int256 constant private _BRIDGE_UNPROCESSABLE_TX_VALIDATIONS_ERROR = -303;
     int256 constant private _BRIDGE_REFUNDED_USER_ERROR_CODE = -100;
     int256 constant private _BRIDGE_REFUNDED_LP_ERROR_CODE = -200;
@@ -356,7 +361,7 @@ contract PegInContract is
         }
 
         if (claim.claimer == address(0)) {
-            _settleUnclaimedPegIn(pegInId, rskAddr, uint256(registerResult));
+            _settleUnclaimedPegIn(pegInId, rskAddr, btcRawTransaction, height, uint256(registerResult));
         } else {
             _creditResolvedPegIn(pegInId, rskAddr, claim, uint256(registerResult));
         }
@@ -453,11 +458,26 @@ contract PegInContract is
 
     /// @dev No LP fronted anything, so the whole release belongs to the user and no fee is taken.
     /// A release the user does not accept is credited to the user's balance, so the user can
-    /// withdraw it.
-    function _settleUnclaimedPegIn(bytes32 pegInId, address rskAddr, uint256 released) private {
+    /// withdraw it. Peg-in LPs are slashed first when they had a fair chance to claim the deposit.
+    function _settleUnclaimedPegIn(
+        bytes32 pegInId,
+        address rskAddr,
+        bytes calldata btcRawTransaction,
+        uint256 height,
+        uint256 released
+    ) private {
         _pegInSettled[pegInId] = true;
         // A stored claimer makes requestPegIn revert, so no LP fronts RBTC that settlement cannot repay
         _pegInClaims[pegInId].claimer = msg.sender;
+
+        (bool slashable, uint256 penalty) = _isSlashableUnclaimedPegIn(rskAddr, btcRawTransaction, height);
+        if (slashable) {
+            // The slash must never block the user's payout
+            // solhint-disable-next-line no-empty-blocks
+            try _collateralManagement.globalSlashPegIn(penalty) {} catch {
+                emit GlobalSlashSkipped(pegInId);
+            }
+        }
 
         bool success = _payPegInUser(rskAddr, released);
         emit UserRemainderRefunded(pegInId, rskAddr, released, success);
@@ -635,8 +655,46 @@ contract PegInContract is
         pegInId = keccak256(abi.encodePacked(rskAddr, BtcUtils.hashBtcTx(btcRawTransaction)));
     }
 
+    /// @dev True when LPs had a fair chance to claim this deposit: the address is registered, the
+    /// deposit passes the amount rules of requestPegIn, and claimWindow seconds plus hard-pause time
+    /// have passed since the later of the tier time and the registration time. Never reverts, so
+    /// settlement is never blocked.
+    function _isSlashableUnclaimedPegIn(address rskAddr, bytes calldata btcRawTransaction, uint256 height)
+        private
+        view
+        returns (bool slashable, uint256 penalty)
+    {
+        uint256 registrationBlock = _pegInAddressRegistry.getRegistrationBlock(rskAddr);
+        if (registrationBlock == 0) return (false, 0);
+        IFlyoverConfigurations.PegInConfiguration memory configuration = _configurations.getPegInConfiguration();
+        (DepositRuleResult result, DepositTerms memory terms) =
+            _checkDepositRules(rskAddr, btcRawTransaction, configuration);
+        if (result != DepositRuleResult.Accepted) return (false, 0);
+        uint256 tier = _configurations.getRequiredPegInBtcConfirmations(terms.amount);
+        bytes memory header = _bridge.getBtcBlockchainBlockHeaderByHeight(height + tier - 1);
+        if (header.length != _BTC_HEADER_LENGTH) return (false, 0);
+        uint256 start = _max(BtcUtils.getBtcBlockTimestamp(header), _estimatedRegistrationTime(registrationBlock));
+        uint256 pauseTime = pauseRegistry().computePauseOverlap(start, block.timestamp);
+        if (block.timestamp > start + configuration.claimWindow + pauseTime) {
+            return (true, configuration.penaltyFee);
+        }
+        return (false, 0);
+    }
+
+    /// @dev Never earlier than the real registration time, because _MIN_RSK_BLOCK_TIME is below the
+    /// real block interval
+    function _estimatedRegistrationTime(uint256 registrationBlock) private view returns (uint256) {
+        uint256 elapsed = (block.number - registrationBlock) * _MIN_RSK_BLOCK_TIME;
+        return elapsed < block.timestamp ? block.timestamp - elapsed : 0;
+    }
+
     /// @dev Utility function to return the minimum of two uint256 values
     function _min(uint a, uint b) private pure returns (uint) {
         return a < b ? a : b;
+    }
+
+    /// @dev Utility function to return the maximum of two uint256 values
+    function _max(uint a, uint b) private pure returns (uint) {
+        return a > b ? a : b;
     }
 }

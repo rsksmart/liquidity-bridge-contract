@@ -95,6 +95,13 @@ interface IPegInCommitFirst {
         uint256 released
     );
 
+    /// @notice Emitted when the global slash of the peg-in LPs was attempted on an unclaimed peg-in
+    /// and reverted
+    /// @dev The revert is caught so the user is still paid. Not emitted when the slash rules skip the
+    /// slash; those settles show UnclaimedPegInSettled with no PegInGlobalSlashShare events.
+    /// @param pegInId The id of the settled peg-in
+    event GlobalSlashSkipped(bytes32 indexed pegInId);
+
     /// @notice Reverts requestPegIn when the peg-in already has a claimer, and resolvePegIn
     /// when the peg-in is already settled
     /// @dev First check in requestPegIn, so the loser of a claim race burns minimal gas. The
@@ -219,11 +226,11 @@ interface IPegInCommitFirst {
     /// from storage.
     ///
     /// When no LP claimed, the whole release goes to rskAddr with no fee, and the caller is
-    /// stored as the claimer. The settle does not check that LPs had a chance to claim. It
-    /// assumes that the configured confirmation tiers are below the bridge depth, and that the
-    /// address was registered before the deposit reached that depth. Nothing enforces either
-    /// assumption. A penalty on this path must check whether LPs could claim before it treats
-    /// them as having missed the peg-in.
+    /// stored as the claimer. Before the payout, peg-in LPs past the grace window are slashed
+    /// penaltyFee in proportion to their peg-in collateral, but only when the address is
+    /// registered, an LP could claim the deposit, and claimWindow seconds plus any hard-pause time
+    /// have passed since the later of two times: the deposit reached its confirmation tier, and
+    /// the address was registered. A failed slash never blocks the payout.
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param btcRawTransaction The raw witness-stripped deposit transaction
     /// @param partialMerkleTree The partial merkle tree proving the deposit's inclusion
