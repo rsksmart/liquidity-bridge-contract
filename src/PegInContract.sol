@@ -32,6 +32,16 @@ contract PegInContract is
     IPegIn,
     IPegInCommitFirst
 {
+    /// @notice The first deposit rule a deposit fails, or Accepted
+    /// @dev The deposit rules are shared by requestPegIn and the unclaimed-settlement slash
+    enum DepositRuleResult {
+        Accepted,
+        OutputNotFound,
+        OutputBelowBridgeMinimum,
+        AmountBelowMinimum,
+        AmountBelowDeduction
+    }
+
     /// @notice This struct is used to store the information of a call on behalf of the user
     /// @param timestamp The timestamp of the call
     /// @param success Whether the call was successful or not
@@ -54,6 +64,18 @@ contract PegInContract is
         uint256 feeAtClaim;
         uint256 gasFeeAtClaim;
         uint256 requestBlock;
+    }
+
+    /// @notice Values read or computed while checking the deposit rules
+    /// @param amount The first matching output, in wei
+    /// @param cappedAmount min(amount, maxAmount)
+    /// @param fee The service fee on cappedAmount
+    /// @param smallestOutputSats The smallest matching output, in satoshis
+    struct DepositTerms {
+        uint256 amount;
+        uint256 cappedAmount;
+        uint256 fee;
+        uint256 smallestOutputSats;
     }
 
     /// @notice The version of the contract
@@ -261,29 +283,27 @@ contract PegInContract is
         if (!_pegInAddressRegistry.isRegistered(rskAddr)) {
             revert AddressNotRegistered(rskAddr);
         }
-        uint256 amount;
-        {
-            (uint256 firstSats, uint256 smallestOutputSats) =
-                _readDepositOutputs(rskAddr, btcTxSerialized, btcTxHash);
-            _requireBridgeMinimum(smallestOutputSats);
-            amount = firstSats * Flyover.SAT_TO_WEI_CONVERSION;
-        }
         IFlyoverConfigurations.PegInConfiguration memory configuration = _configurations.getPegInConfiguration();
-        if (amount < configuration.minAmount) {
-            revert PegInBelowMinimum(amount, configuration.minAmount);
+        (DepositRuleResult result, DepositTerms memory terms) =
+            _checkDepositRules(rskAddr, btcTxSerialized, configuration);
+        if (result == DepositRuleResult.OutputNotFound) revert DepositOutputNotFound(rskAddr, btcTxHash);
+        if (result == DepositRuleResult.OutputBelowBridgeMinimum) {
+            revert DepositBelowBridgeMinimum(terms.smallestOutputSats, _BRIDGE_MIN_DEPOSIT_SATS);
         }
-        _requirePegInConfirmations(amount, btcTxHash, btcBlockHash, merkleBranchPath, merkleBranchHashes);
+        if (result == DepositRuleResult.AmountBelowMinimum) {
+            revert PegInBelowMinimum(terms.amount, configuration.minAmount);
+        }
+        _requirePegInConfirmations(terms.amount, btcTxHash, btcBlockHash, merkleBranchPath, merkleBranchHashes);
+        if (result == DepositRuleResult.AmountBelowDeduction) revert IncorrectFronting(0, msg.value);
 
         // Settlement pays the user the part of the deposit above the cap, from the bridge release.
-        uint256 cappedAmount = _min(amount, configuration.maxAmount);
-        uint256 fee = _configurations.calculatePegInFee(cappedAmount);
-        uint256 expected = _requireCorrectFronting(cappedAmount, fee + configuration.claimGasFee);
+        uint256 expected = _requireCorrectFronting(terms.cappedAmount, terms.fee + configuration.claimGasFee);
 
         _pegInClaims[pegInId] = PegInClaim({
             claimer: msg.sender,
             success: true,
             frontedAmount: expected,
-            feeAtClaim: fee,
+            feeAtClaim: terms.fee,
             gasFeeAtClaim: configuration.claimGasFee,
             requestBlock: block.number
         });
@@ -297,7 +317,7 @@ contract PegInContract is
             // The LP keeps the RBTC it fronted, so settlement repays only the fee + claimGasFee
             _increaseBalance(msg.sender, msg.value);
         }
-        emit PegInRequested(pegInId, msg.sender, rskAddr, amount, expected, success);
+        emit PegInRequested(pegInId, msg.sender, rskAddr, terms.amount, expected, success);
     }
 
     /// @inheritdoc IPegInCommitFirst
@@ -500,7 +520,7 @@ contract PegInContract is
         if (address(_configurations) == address(0)) revert FlyoverConfigurationsNotSet();
     }
 
-    /// @notice Reads the outputs paying the deposit address out of the deposit transaction
+    /// @notice Checks the deposit rules of requestPegIn in order and returns the first that fails
     /// @dev Two different operations, and only the first is a derivation: the deposit
     /// scriptPubkey for rskAddr is DERIVED (a formula over this proxy's address and the live
     /// powpeg script), and the outputs paying that script are then READ. The first one sets the
@@ -521,30 +541,35 @@ contract PegInContract is
     /// agree with the flag the registry was initialized with: the BTC placeholders mixed into the
     /// derivation are per-network, so a disagreement derives a script no deposit pays and every
     /// claim reverts DepositOutputNotFound.
+    ///
+    /// Returns a result instead of reverting, so the unclaimed settlement can use the same rules
+    /// without blocking the user's payout.
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param btcTxSerialized The witness-stripped raw deposit transaction
-    /// @param btcTxHash The txid hashed from btcTxSerialized, for the revert reason
-    /// @return firstSats The first matching output, in satoshis
-    /// @return smallestOutputSats The smallest matching output, in satoshis
-    function _readDepositOutputs(address rskAddr, bytes calldata btcTxSerialized, bytes32 btcTxHash)
-        private
-        view
-        returns (uint256 firstSats, uint256 smallestOutputSats)
-    {
+    /// @param configuration The active peg-in configuration
+    /// @return result The first rule the deposit fails, or Accepted
+    /// @return terms The values read or computed up to that rule
+    function _checkDepositRules(
+        address rskAddr,
+        bytes calldata btcTxSerialized,
+        IFlyoverConfigurations.PegInConfiguration memory configuration
+    ) private view returns (DepositRuleResult result, DepositTerms memory terms) {
         bytes memory pkScript = PegInDerivation.depositPkScript(
             rskAddr, address(this), _bridge.getActivePowpegRedeemScript(), _mainnet
         );
-        bool found;
-        (firstSats, smallestOutputSats, found) = BtcTransactionReader.findOutputsPaying(btcTxSerialized, pkScript);
-        if (!found) {
-            revert DepositOutputNotFound(rskAddr, btcTxHash);
+        (uint256 firstSats, uint256 smallestOutputSats, bool found) =
+            BtcTransactionReader.findOutputsPaying(btcTxSerialized, pkScript);
+        if (!found) return (DepositRuleResult.OutputNotFound, terms);
+        terms.smallestOutputSats = smallestOutputSats;
+        if (smallestOutputSats < _BRIDGE_MIN_DEPOSIT_SATS) return (DepositRuleResult.OutputBelowBridgeMinimum, terms);
+        terms.amount = firstSats * Flyover.SAT_TO_WEI_CONVERSION;
+        if (terms.amount < configuration.minAmount) return (DepositRuleResult.AmountBelowMinimum, terms);
+        terms.cappedAmount = _min(terms.amount, configuration.maxAmount);
+        terms.fee = _configurations.calculatePegInFee(terms.cappedAmount);
+        if (terms.cappedAmount < terms.fee + configuration.claimGasFee) {
+            return (DepositRuleResult.AmountBelowDeduction, terms);
         }
-    }
-
-    function _requireBridgeMinimum(uint256 smallestOutputSats) private view {
-        if (smallestOutputSats < _BRIDGE_MIN_DEPOSIT_SATS) {
-            revert DepositBelowBridgeMinimum(smallestOutputSats, _BRIDGE_MIN_DEPOSIT_SATS);
-        }
+        return (DepositRuleResult.Accepted, terms);
     }
 
     /// @notice Reverts unless the bridge accepts the proof and its confirmations meet the configured tier for amount
@@ -569,9 +594,6 @@ contract PegInContract is
 
     /// @notice Validates msg.value equals amount minus fee; returns the expected net
     function _requireCorrectFronting(uint256 amount, uint256 fee) private view returns (uint256 expected) {
-        if (amount < fee) {
-            revert IncorrectFronting(0, msg.value);
-        }
         expected = amount - fee;
         if (msg.value != expected) {
             revert IncorrectFronting(expected, msg.value);
