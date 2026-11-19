@@ -546,4 +546,97 @@ contract ConfigurationTest is CollateralTestBase {
         );
         assertEq(collateralManagement.getPegOutRegistrationBlock(zeroed), 20);
     }
+
+    // ============ initializePegInRegistrationBlocks ============
+
+    function _approvePegIn(address lp, uint256 amount) internal {
+        vm.deal(lp, amount);
+        vm.prank(lp, lp);
+        discovery.register{value: amount}(
+            "LP",
+            "http://localhost/api",
+            true,
+            Flyover.ProviderType.PegIn
+        );
+        vm.prank(owner);
+        discovery.approveRegistration(lp);
+    }
+
+    function test_InitializePegInRegistrationBlocks_OnlyWritesZeroedBlocks()
+        public
+    {
+        _deployAndWireDiscovery();
+        address kept = makeAddr("keptRegBlock");
+        address zeroed = makeAddr("zeroedRegBlock");
+
+        vm.roll(10);
+        _approvePegIn(kept, BASE_COLLATERAL);
+        uint256 keptBlock = collateralManagement.getPegInRegistrationBlock(
+            kept
+        );
+
+        vm.roll(11);
+        _approvePegIn(zeroed, BASE_COLLATERAL);
+        stdstore
+            .target(address(collateralManagement))
+            .sig("getPegInRegistrationBlock(address)")
+            .with_key(zeroed)
+            .checked_write(uint256(0));
+
+        vm.roll(20);
+        vm.prank(owner);
+        collateralManagement.initializePegInRegistrationBlocks();
+
+        assertEq(
+            collateralManagement.getPegInRegistrationBlock(kept),
+            keptBlock
+        );
+        assertEq(collateralManagement.getPegInRegistrationBlock(zeroed), 20);
+    }
+
+    function test_InitializePegInRegistrationBlocks_DoesNotOverwriteExistingBlocks()
+        public
+    {
+        _deployAndWireDiscovery();
+        address lp = makeAddr("pegInLpBackfill");
+        _approvePegIn(lp, BASE_COLLATERAL);
+        uint256 original = collateralManagement.getPegInRegistrationBlock(lp);
+        assertGt(original, 0);
+
+        vm.roll(block.number + 50);
+        vm.prank(owner);
+        collateralManagement.initializePegInRegistrationBlocks();
+
+        assertEq(
+            collateralManagement.getPegInRegistrationBlock(lp),
+            original,
+            "live-path registration block must be kept"
+        );
+    }
+
+    function test_InitializePegInRegistrationBlocks_OnlyAllowsOwner() public {
+        bytes32 defaultAdminRole = collateralManagement.DEFAULT_ADMIN_ROLE();
+
+        vm.prank(notOwner);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                notOwner,
+                defaultAdminRole
+            )
+        );
+        collateralManagement.initializePegInRegistrationBlocks();
+    }
+
+    function test_InitializePegInRegistrationBlocks_AllowsInitializeOnlyOnce()
+        public
+    {
+        _deployAndWireDiscovery();
+        vm.prank(owner);
+        collateralManagement.initializePegInRegistrationBlocks();
+
+        vm.prank(owner);
+        vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
+        collateralManagement.initializePegInRegistrationBlocks();
+    }
 }

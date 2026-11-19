@@ -54,6 +54,13 @@ contract CollateralManagementContract is
     /// @dev Block at which {initializePegOutRegistrationBlocks} ran. Stands in for the registration
     /// block of LPs that held peg-out collateral before registration blocks were recorded.
     uint256 private _pegOutBackfillBlock;
+    /// @dev Block at which peg-in collateral last went from 0 to positive. Left at 0 for LPs that
+    /// already held peg-in collateral before the upgrade. Read it through
+    /// {_effectiveRegistrationBlock}, never directly.
+    mapping(address => uint256) private _pegInRegistrationBlock;
+    /// @dev Block at which {initializePegInRegistrationBlocks} ran. Stands in for the registration
+    /// block of LPs that held peg-in collateral before registration blocks were recorded.
+    uint256 private _pegInBackfillBlock;
 
     /// @notice Emitted when the minimum collateral is set
     /// @param oldMinCollateral The old minimum collateral
@@ -168,6 +175,19 @@ contract CollateralManagementContract is
         _pegOutBackfillBlock = block.number;
     }
 
+    /// @notice Backfills the peg-in registration block of LPs with peg-in collateral but no recorded block.
+    /// @dev Records the current block once. Every such LP is treated as registered at this block,
+    /// whether or not FlyoverDiscovery lists it, so the result does not depend on the listing rules
+    /// or on the upgrade order. Runs after {initializePegOutRegistrationBlocks}, which uses version 2.
+    // solhint-disable-next-line comprehensive-interface
+    function initializePegInRegistrationBlocks()
+        external
+        reinitializer(3)
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        _pegInBackfillBlock = block.number;
+    }
+
     /// @notice Sets the minimum collateral required for a liquidity provider **per operation**
     /// @param minCollateral The new minimum collateral
     // solhint-disable-next-line comprehensive-interface
@@ -196,8 +216,9 @@ contract CollateralManagementContract is
         _rewardPercentage = rewardPercentage;
     }
 
-    /// @notice Sets the no-penalty grace window (blocks after peg-out registration) for global slash
-    /// @dev Default is 0 (no LP is in-window until configured).
+    /// @notice Sets the no-penalty grace window for global slash
+    /// @dev The window counts blocks after the LP's registration on the slashed side.
+    /// Default is 0 (no LP is in-window until configured).
     /// @param graceBlocks The new grace window length in blocks
     // solhint-disable-next-line comprehensive-interface
     function setGlobalSlashGraceBlocks(uint256 graceBlocks) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -274,6 +295,13 @@ contract CollateralManagementContract is
     }
 
     /// @inheritdoc ICollateralManagement
+    /// @dev Intentionally not paused: slashing must remain available so PegInContract can
+    ///      enforce penalties on an unclaimed settle. Provider set is FlyoverDiscovery.getProviders.
+    function globalSlashPegIn(uint256 total) external onlyRole(COLLATERAL_SLASHER) override {
+        _globalSlash(total, Flyover.ProviderType.PegIn);
+    }
+
+    /// @inheritdoc ICollateralManagement
     function withdrawCollateral() external nonReentrant whenNotHardPaused override {
         _withdrawCollateralTo(payable(msg.sender));
     }
@@ -344,6 +372,16 @@ contract CollateralManagementContract is
     // solhint-disable-next-line comprehensive-interface
     function getPegOutRegistrationBlock(address addr) external view returns (uint256) {
         return _effectiveRegistrationBlock(addr, Flyover.ProviderType.PegOut);
+    }
+
+    /// @notice Gets the block at which an account's peg-in collateral first became positive
+    /// @dev LPs with peg-in collateral but no recorded block report the backfill block. Zero means
+    /// no peg-in collateral and no recorded block, or a pre-upgrade LP before the backfill ran.
+    /// @param addr The liquidity provider address
+    /// @return The registration block used by the global-slash grace window, or 0 if unset
+    // solhint-disable-next-line comprehensive-interface
+    function getPegInRegistrationBlock(address addr) external view returns (uint256) {
+        return _effectiveRegistrationBlock(addr, Flyover.ProviderType.PegIn);
     }
 
     /// @notice Gets the FlyoverDiscovery used as the provider-set source of truth
@@ -426,10 +464,14 @@ contract CollateralManagementContract is
 
     /// @notice Adds peg in collateral to an account
     /// @dev Is very important for this function to remain private as the public function
-    /// is the one protected by the role checks
+    /// is the one protected by the role checks. Records the registration block on first
+    /// peg-in collateral for the global-slash grace window.
     /// @param addr The address of the account
     /// @param amount The amount of peg in collateral to add
     function _addPegInCollateralTo(address addr, uint256 amount) private {
+        if (_pegInCollateral[addr] == 0 && amount > 0) {
+            _pegInRegistrationBlock[addr] = block.number;
+        }
         _pegInCollateral[addr] += amount;
         emit ICollateralManagement.PegInCollateralAdded(addr, amount);
     }
@@ -487,7 +529,8 @@ contract CollateralManagementContract is
             if (share == 0) continue;
             collateral[lps[i]] -= share;
             distributed += share;
-            emit GlobalSlashShare(lps[i], share);
+            if (side == Flyover.ProviderType.PegIn) emit PegInGlobalSlashShare(lps[i], share);
+            else emit GlobalSlashShare(lps[i], share);
         }
         _penalties += distributed;
     }
@@ -535,21 +578,23 @@ contract CollateralManagementContract is
     }
 
     /// @notice The collateral mapping of one side
-    /// @dev Only peg-out collateral can be globally slashed today, so the side is not read yet
-    /// @return The collateral mapping of the side
-    function _collateral(Flyover.ProviderType /* side */) private view returns (mapping(address => uint256) storage) {
+    /// @param side The side whose collateral is returned
+    /// @return The collateral mapping of `side`
+    function _collateral(Flyover.ProviderType side) private view returns (mapping(address => uint256) storage) {
+        if (side == Flyover.ProviderType.PegIn) return _pegInCollateral;
         return _pegOutCollateral;
     }
 
     /// @notice The registration block the grace window uses for an LP
-    /// @dev Falls back to the backfill block for LPs with collateral but no recorded block. Only
-    /// peg-out registration blocks are recorded today, so the side is not read yet.
+    /// @dev Falls back to the backfill block for LPs with collateral but no recorded block
     /// @param addr The liquidity provider address
+    /// @param side The side whose registration block is returned
     /// @return The recorded block, the backfill block, or 0
-    function _effectiveRegistrationBlock(address addr, Flyover.ProviderType /* side */) private view returns (uint256) {
-        uint256 regBlock = _pegOutRegistrationBlock[addr];
-        if (regBlock != 0 || _pegOutCollateral[addr] == 0) return regBlock;
-        return _pegOutBackfillBlock;
+    function _effectiveRegistrationBlock(address addr, Flyover.ProviderType side) private view returns (uint256) {
+        bool isPegIn = side == Flyover.ProviderType.PegIn;
+        uint256 registrationBlock = isPegIn ? _pegInRegistrationBlock[addr] : _pegOutRegistrationBlock[addr];
+        if (registrationBlock != 0 || _collateral(side)[addr] == 0) return registrationBlock;
+        return isPegIn ? _pegInBackfillBlock : _pegOutBackfillBlock;
     }
 
     /// @notice Checks if an account is registered
