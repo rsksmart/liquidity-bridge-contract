@@ -33,6 +33,16 @@ contract FlyoverConfigurationsMock is IFlyoverConfigurations {
         _config.claimGasFee = claimGasFee;
     }
 
+    /// @notice Sets the penalty fee directly
+    function setPenaltyFee(uint256 penaltyFee) external {
+        _config.penaltyFee = penaltyFee;
+    }
+
+    /// @notice Sets the claim window directly
+    function setClaimWindow(uint256 claimWindow) external {
+        _config.claimWindow = claimWindow;
+    }
+
     /// @notice Sets the amount bounds directly
     function setAmountBounds(uint256 minAmount, uint256 maxAmount) external {
         _config.minAmount = minAmount;
