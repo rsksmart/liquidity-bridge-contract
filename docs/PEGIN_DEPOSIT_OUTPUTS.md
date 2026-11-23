@@ -6,7 +6,7 @@ This document records how `PegInContract.requestPegIn` reads a BTC deposit trans
 
 1. **Every output to the deposit address must be at least the bridge minimum.** If any such output is below `getBridgeMinDepositSats()`, `requestPegIn` reverts with `DepositBelowBridgeMinimum`. The error reports the smallest output.
 2. **The peg-in amount is the value of the first output to the deposit address.** The other outputs to the deposit address do not add to the amount.
-3. **Outputs to other addresses are not checked.** For example, a small change output does not block the peg-in.
+3. **Outputs to other addresses are not checked.** For example, a small change output does not block the peg-in. An OP_RETURN output never adds to the amount; docs/PEGIN_OP_RETURN.md describes how it is read.
 
 `BtcTransactionReader.findOutputsPaying` reads all outputs in one pass and returns both values: the first one (rule 2) and the smallest one (rule 1).
 
