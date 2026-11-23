@@ -83,6 +83,8 @@ interface IFlyoverConfigurations {
     /// @notice Queues a configuration change, the first step of the time-locked admin change
     /// @dev Admin-only. The change activates only through applyChange after the configured
     /// delay; the values are validated against the active bounds at queue time.
+    /// Some changes affect deposits already in flight, and a new call replaces the pending change.
+    /// Before queueing, do the checks in docs/CONFIGURATION_KNOWN_FAULTS.md.
     /// Returns nothing. Walkthrough anchors: step 2, decision block 2·D.
     /// @param newConfiguration The configuration to activate after the delay
     function queueChange(PegInConfiguration calldata newConfiguration) external;
@@ -92,6 +94,8 @@ interface IFlyoverConfigurations {
     /// @dev Admin-only. Reverts before the configured delay has elapsed; the values are
     /// re-validated against the active bounds at apply time, which may themselves have moved
     /// during the delay through the implementation's own time-locked bounds change.
+    /// Before applying, repeat the checks in docs/CONFIGURATION_KNOWN_FAULTS.md against the
+    /// deposits pending at that moment.
     /// Returns nothing.
     /// Walkthrough anchors: step 2, decision block 2·D.
     function applyChange() external;
