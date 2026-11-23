@@ -45,8 +45,6 @@ library BtcTransactionReader {
     uint256 internal constant FLYOVER_CALL_DATA_OFFSET = 26;
 
     bytes1 private constant _OP_RETURN = 0x6a;
-    uint8 private constant _MIN_DIRECT_PUSH = 0x01;
-    uint8 private constant _MAX_DIRECT_PUSH = 0x4b;
     uint8 private constant _OP_PUSHDATA1 = 0x4c;
     bytes1 private constant _FLYOVER_MAGIC = 0xF0;
     uint8 private constant _FLYOVER_VERSION = 1;
@@ -257,7 +255,8 @@ library BtcTransactionReader {
         uint8 opcode = uint8(script[1]);
         uint256 dataStart;
         uint256 dataLength;
-        if (opcode >= _MIN_DIRECT_PUSH && opcode <= _MAX_DIRECT_PUSH) {
+        // A direct push is 0x01-0x4b: the opcode is the data length
+        if (opcode > 0 && opcode < _OP_PUSHDATA1) {
             dataStart = 2;
             dataLength = opcode;
         } else if (opcode == _OP_PUSHDATA1) {
