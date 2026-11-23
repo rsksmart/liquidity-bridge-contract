@@ -411,8 +411,7 @@ contract HelperConfig is Script {
             confirmationTiers: _localConfirmationTiers(),
             penaltyFee: 0.01 ether,
             claimWindow: 3 hours,
-            // 0 keeps contract calls off
-            maxCallGas: 0
+            maxCallGas: 500_000
         });
         seeds.pegInMin = IFlyoverConfigurations.PegInConfiguration({
             fixedFee: 0.0001 ether,

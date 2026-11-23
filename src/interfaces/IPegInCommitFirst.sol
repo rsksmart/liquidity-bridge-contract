@@ -16,18 +16,24 @@ interface IPegInCommitFirst {
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param amount The gross peg-in amount, in wei — the deposit output's satoshi value
     /// scaled by 10**10, never a caller-supplied figure
-    /// @param netToUser The amount sent to the user, in wei: min(amount, maxAmount) - fee -
-    /// claimGasFee; delivered only when callSuccess is true. For a deposit above maxAmount,
-    /// settlement pays the user the part above maxAmount
-    /// @param callSuccess Whether the destination accepted the RBTC. On false the fronted
-    /// amount stays in the claimer's balance
+    /// @param netToUser The amount sent to destination, in wei: min(amount, maxAmount) - fee -
+    /// claimGasFee - callGasFee; delivered only when callSuccess is true. For a deposit above
+    /// maxAmount, settlement pays rskAddr the part above maxAmount
+    /// @param callSuccess Whether the destination accepted the RBTC, or the contract call
+    /// succeeded. On false the fronted amount stays in the claimer's balance
+    /// @param destination The address that received netToUser: rskAddr, or the contract named by
+    /// the deposit's OP_RETURN
+    /// @param callGasFee The fee for the gas forwarded to the contract call, in wei; 0 without an
+    /// OP_RETURN
     event PegInRequested(
         bytes32 indexed pegInId,
         address indexed claimer,
         address indexed rskAddr,
         uint256 amount,
         uint256 netToUser,
-        bool callSuccess
+        bool callSuccess,
+        address destination,
+        uint256 callGasFee
     );
 
     /// @notice Emitted when a peg-in is settled against the bridge and the released funds
@@ -175,6 +181,21 @@ interface IPegInCommitFirst {
     /// @param maxGasLimit The gas the OP_RETURN requests for the call
     /// @param maxCallGas The configured maximum
     error CallGasOutOfRange(uint256 maxGasLimit, uint256 maxCallGas);
+
+    /// @notice Reverts requestPegIn when too little gas is left to forward maxGasLimit to the
+    /// contract call
+    /// @dev Without this check an LP could send just enough gas to start the call but not to
+    /// finish it, so the call fails and the LP still collects its fees. The LP can retry with
+    /// more gas.
+    /// @param gasLeft The gas left before the call
+    /// @param required The gas the call needs: maxGasLimit plus the cost of the CALL itself
+    error InsufficientCallGas(uint256 gasLeft, uint256 required);
+
+    /// @notice Reverts requestPegIn when the call gas fee is more than the amount the LP fronts
+    /// @dev callGasFee is maxGasLimit * tx.gasprice. The LP can retry with a lower gas price.
+    /// @param callGasFee The fee for the gas forwarded to the call, in wei
+    /// @param available The amount the LP fronts, in wei
+    error CallGasFeeTooHigh(uint256 callGasFee, uint256 available);
 
     /// @notice Reverts requestPegIn when msg.value is not the required fronting
     /// @param expected The required msg.value, in wei
