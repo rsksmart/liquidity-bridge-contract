@@ -32,6 +32,7 @@ abstract contract RequestPegInTestBase is PegInTestBase {
     uint256 internal constant DEFAULT_MAX_AMOUNT = 100 ether;
     uint256 internal constant DEFAULT_TIER_CONFIRMATIONS = 10;
     uint256 internal constant CLAIM_GAS_FEE = 0.0001 ether;
+    uint256 internal constant DEFAULT_MAX_CALL_GAS = 300_000;
 
     PegInAddressRegistryHarness internal registry;
     FlyoverConfigurationsMock internal configurations;
@@ -113,6 +114,7 @@ abstract contract RequestPegInTestBase is PegInTestBase {
         configurations.setFee(DEFAULT_FIXED_FEE, DEFAULT_PERCENTAGE_FEE);
         configurations.setRegistrantFee(1e14);
         configurations.setAmountBounds(TEST_MIN_PEGIN, DEFAULT_MAX_AMOUNT);
+        configurations.setMaxCallGas(DEFAULT_MAX_CALL_GAS);
         IFlyoverConfigurations.ConfirmationTier[]
             memory tiers = new IFlyoverConfigurations.ConfirmationTier[](1);
         tiers[0] = IFlyoverConfigurations.ConfirmationTier({
@@ -349,6 +351,67 @@ abstract contract RequestPegInTestBase is PegInTestBase {
         uint256 amount
     ) internal view returns (bytes memory) {
         return _depositTx(rskAddr, amount, DEFAULT_TX_NONCE);
+    }
+
+    /// @notice A Flyover OP_RETURN payload:
+    /// `magic:1 (0xF0) | version:1 (1) | destContract:20 | maxGasLimit:4 (big-endian) | callData`
+    function _callPayload(
+        address destination,
+        uint32 maxGasLimit,
+        bytes memory callData
+    ) internal pure returns (bytes memory) {
+        return
+            abi.encodePacked(
+                bytes1(0xF0),
+                uint8(1),
+                destination,
+                maxGasLimit,
+                callData
+            );
+    }
+
+    /// @notice An OP_RETURN script that pushes `data` with a direct push, or with OP_PUSHDATA1
+    /// when it is longer than 75 bytes.
+    function _opReturnScript(
+        bytes memory data
+    ) internal pure returns (bytes memory) {
+        if (data.length <= 75) {
+            return abi.encodePacked(hex"6a", uint8(data.length), data);
+        }
+        return abi.encodePacked(hex"6a4c", uint8(data.length), data);
+    }
+
+    /// @notice A deposit to `rskAddr`'s derived address followed by an output with `script`.
+    function _depositTxWithScript(
+        address rskAddr,
+        uint256 amount,
+        bytes memory script
+    ) internal view returns (bytes memory) {
+        bytes[] memory pkScripts = new bytes[](2);
+        pkScripts[0] = _depositPkScript(rskAddr);
+        pkScripts[1] = script;
+        uint64[] memory valuesSats = new uint64[](2);
+        valuesSats[0] = _toSats(amount);
+        valuesSats[1] = 0;
+        return _buildTx(pkScripts, valuesSats, DEFAULT_TX_NONCE);
+    }
+
+    /// @notice A deposit to `rskAddr`'s derived address with a Flyover OP_RETURN after it.
+    function _depositTxWithCall(
+        address rskAddr,
+        uint256 amount,
+        address destination,
+        uint32 maxGasLimit,
+        bytes memory callData
+    ) internal view returns (bytes memory) {
+        return
+            _depositTxWithScript(
+                rskAddr,
+                amount,
+                _opReturnScript(
+                    _callPayload(destination, maxGasLimit, callData)
+                )
+            );
     }
 
     /// @notice The default deposit fixture: DEFAULT_AMOUNT paid to rskUser's derived address.

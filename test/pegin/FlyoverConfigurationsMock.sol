@@ -43,6 +43,11 @@ contract FlyoverConfigurationsMock is IFlyoverConfigurations {
         _config.claimWindow = claimWindow;
     }
 
+    /// @notice Sets the largest gas a deposit's OP_RETURN may request directly
+    function setMaxCallGas(uint256 maxCallGas) external {
+        _config.maxCallGas = maxCallGas;
+    }
+
     /// @notice Sets the amount bounds directly
     function setAmountBounds(uint256 minAmount, uint256 maxAmount) external {
         _config.minAmount = minAmount;

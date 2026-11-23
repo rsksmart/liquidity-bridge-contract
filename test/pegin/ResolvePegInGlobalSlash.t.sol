@@ -218,6 +218,132 @@ contract ResolvePegInGlobalSlashTest is ResolvePegInTestBase {
         _assertSkipped(_settle(rskUser, _unrelatedTx()));
     }
 
+    // ---- OP_RETURN: a deposit no LP may claim is not slashable ----
+
+    function test_unclaimed_deposit_with_bad_push_op_return_skips_slash()
+        public
+    {
+        _setTierHeader(uint32(T));
+        _passClaimWindow();
+
+        _assertSkipped(
+            _settle(
+                rskUser,
+                _depositTxWithScript(rskUser, DEFAULT_AMOUNT, hex"6a")
+            )
+        );
+    }
+
+    function test_unclaimed_deposit_with_wrong_magic_op_return_skips_slash()
+        public
+    {
+        bytes memory payload = _callPayload(
+            makeAddr("destination"),
+            100_000,
+            ""
+        );
+        payload[0] = 0xF1;
+        _setTierHeader(uint32(T));
+        _passClaimWindow();
+
+        _assertSkipped(
+            _settle(
+                rskUser,
+                _depositTxWithScript(
+                    rskUser,
+                    DEFAULT_AMOUNT,
+                    _opReturnScript(payload)
+                )
+            )
+        );
+    }
+
+    function test_unclaimed_deposit_with_zero_destination_op_return_skips_slash()
+        public
+    {
+        _setTierHeader(uint32(T));
+        _passClaimWindow();
+
+        _assertSkipped(
+            _settle(
+                rskUser,
+                _depositTxWithCall(
+                    rskUser,
+                    DEFAULT_AMOUNT,
+                    address(0),
+                    100_000,
+                    ""
+                )
+            )
+        );
+    }
+
+    function test_unclaimed_deposit_with_zero_max_gas_limit_skips_slash()
+        public
+    {
+        _setTierHeader(uint32(T));
+        _passClaimWindow();
+
+        _assertSkipped(
+            _settle(
+                rskUser,
+                _depositTxWithCall(
+                    rskUser,
+                    DEFAULT_AMOUNT,
+                    makeAddr("destination"),
+                    0,
+                    ""
+                )
+            )
+        );
+    }
+
+    function test_unclaimed_deposit_with_max_gas_limit_above_max_call_gas_skips_slash()
+        public
+    {
+        _setTierHeader(uint32(T));
+        _passClaimWindow();
+
+        _assertSkipped(
+            _settle(
+                rskUser,
+                _depositTxWithCall(
+                    rskUser,
+                    DEFAULT_AMOUNT,
+                    makeAddr("destination"),
+                    uint32(DEFAULT_MAX_CALL_GAS + 1),
+                    ""
+                )
+            )
+        );
+    }
+
+    /// @notice A valid OP_RETURN does not change the slash rule, and the unclaimed settlement pays
+    /// rskAddr without calling the destination
+    function test_unclaimed_deposit_with_valid_op_return_slashes_and_makes_no_call()
+        public
+    {
+        address callTarget = makeAddr("destination");
+        bytes memory callData = hex"deadbeef";
+        _setTierHeader(uint32(T));
+        _passClaimWindow();
+        uint256 collateralBefore = _totalPegInCollateral();
+
+        vm.expectCall(callTarget, callData, 0);
+        Vm.Log[] memory logs = _settle(
+            rskUser,
+            _depositTxWithCall(
+                rskUser,
+                DEFAULT_AMOUNT,
+                callTarget,
+                100_000,
+                callData
+            )
+        );
+
+        _assertSlashed(logs, collateralBefore);
+    }
+
     function test_unclaimed_deposit_to_unregistered_address_skips_slash()
         public
     {
