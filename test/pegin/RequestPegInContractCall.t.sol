@@ -221,9 +221,22 @@ contract RequestPegInContractCallTest is ResolvePegInTestBase {
         _assertFailedCall(address(new GasBurningDestination()));
     }
 
-    function test_reentrantDestination_marksTheClaimFailed() public {
-        _assertFailedCall(
-            address(new ReentrantDestination(address(pegInContract)))
+    /// @notice The destination re-enters during the call, and only the reentrancy guard stops
+    /// it: the destination succeeds only when the re-entry fails with ReentrancyGuardReentrantCall
+    function test_reentrantDestination_isBlockedByTheGuard() public {
+        ReentrantDestination destination = new ReentrantDestination(
+            address(pegInContract)
+        );
+        bytes memory depositTx = _callTx(address(destination), CALL_GAS);
+        bytes32 pegInId = _pegInIdForTx(rskUser, depositTx);
+
+        _requestPegInTx(claimer, rskUser, depositTx, _expected());
+
+        assertTrue(destination.reentryBlockedByGuard());
+        assertTrue(_claimSuccess(pegInId));
+        assertEq(
+            address(destination).balance,
+            _expected() - uint256(CALL_GAS) * GAS_PRICE
         );
     }
 

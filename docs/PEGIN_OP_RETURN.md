@@ -10,13 +10,13 @@ The user must sign the deposit with `SIGHASH_ALL`, the default in wallets. Then 
 
 The OP_RETURN pushes one payload:
 
-| Offset | Size | Field          | Value                                            |
-| ------ | ---- | -------------- | ------------------------------------------------ |
-| 0      | 1    | `magic`        | `0xF0`                                           |
-| 1      | 1    | `version`      | `1`                                              |
-| 2      | 20   | `destContract` | The RSK address to call; not the zero address    |
-| 22     | 4    | `maxGasLimit`  | `uint32`, big-endian: the exact gas for the call |
-| 26     | any  | `callData`     | The data for the call; can be empty              |
+| Offset | Size | Field          | Value                                         |
+| ------ | ---- | -------------- | --------------------------------------------- |
+| 0      | 1    | `magic`        | `0xF0`                                        |
+| 1      | 1    | `version`      | `1`                                           |
+| 2      | 20   | `destContract` | The RSK address to call; not the zero address |
+| 22     | 4    | `maxGasLimit`  | `uint32`, big-endian: the gas for the call    |
+| 26     | any  | `callData`     | The data for the call; can be empty           |
 
 The fixed part is 26 bytes (`BtcTransactionReader.FLYOVER_CALL_DATA_OFFSET`). With only an address and no call data, the payload is exactly 26 bytes.
 
@@ -52,7 +52,7 @@ In a Bitcoin script, a push opcode states how many bytes follow. `BtcUtils.parse
 `requestPegIn` checks the payload with the deposit rules, then makes the call. Without an OP_RETURN, nothing changes: the LP pays `rskAddr`.
 
 1. **`maxGasLimit` must be greater than 0 and at most `PegInConfiguration.maxCallGas`.** Otherwise `requestPegIn` reverts with `CallGasOutOfRange`. `maxCallGas = 0` turns contract calls off.
-2. **The call gets exactly `maxGasLimit` gas.** The LP cannot change it. If the LP's transaction has too little gas left to forward all of it, `requestPegIn` reverts with `InsufficientCallGas`, and the LP can retry with more gas.
+2. **The call gets `maxGasLimit` gas.** The LP cannot change it. When the call sends value, Rootstock adds a 2,300-gas stipend on top; the LP pays for that extra gas, not the user. If the LP's transaction has too little gas left to forward all of it, `requestPegIn` reverts with `InsufficientCallGas`, and the LP can retry with more gas.
 3. **The user pays `callGasFee = maxGasLimit * tx.gasprice`.** This is the gas forwarded, not the gas used, because the value sent must be fixed before the call. If `callGasFee` is more than the amount the LP fronts, `requestPegIn` reverts with `CallGasFeeTooHigh`.
 4. **The destination receives `netToUser = expected - callGasFee`**, where `expected` is what the LP fronts without a call. The LP gets the unforwarded `callGasFee` back in its balance at once, and is repaid the usual amount at settlement.
 5. **If the call fails, the LP keeps all it fronted.** The claim is marked failed, and settlement repays the LP only its fees: the service fee, `claimGasFee` and `callGasFee`. The rest of the release goes to `rskAddr`, the refund address.
@@ -63,7 +63,7 @@ In a Bitcoin script, a push opcode states how many bytes follow. `BtcUtils.parse
 - **0 is rejected.** With "0 means no cap", the call would get all the gas left in the LP's transaction. The LP sets that gas limit, and the user pays for all gas forwarded, so the LP would choose the user's fee.
 - **`maxCallGas` is the maximum.** A deposit that asks for more gas than an LP can send cannot be claimed. The deposit rules reject it, so its unclaimed settlement does not slash LPs. Without the maximum, one such deposit could slash all peg-in LPs.
 
-The maximum protects LPs; the call still gets exactly the gas the user signed. Governance must keep `maxCallGas` well below the Rootstock block gas limit, and `maxCallGas` times the minimum gas price below the smallest amount an LP fronts.
+The maximum protects LPs; the call still gets the gas the user signed. Governance must keep `maxCallGas` well below the Rootstock block gas limit, and `maxCallGas` times the minimum gas price below the smallest amount an LP fronts.
 
 ## Why an invalid OP_RETURN is not slashable
 

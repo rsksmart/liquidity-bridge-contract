@@ -39,9 +39,14 @@ contract GasBurningDestination {
     }
 }
 
-/// @notice Calls back into the peg-in contract during the call
+/// @notice Calls back into the peg-in contract during the call, and succeeds only when the
+/// reentrancy guard is what stops it
 contract ReentrantDestination {
+    bytes4 private constant _GUARD_ERROR =
+        bytes4(keccak256("ReentrancyGuardReentrantCall()"));
+
     address public immutable target;
+    bool public reentryBlockedByGuard;
 
     constructor(address target_) {
         target = target_;
@@ -59,12 +64,11 @@ contract ReentrantDestination {
         (bool ok, bytes memory reason) = target.call(
             abi.encodeWithSignature("withdraw(uint256)", 1)
         );
-        if (!ok) {
-            // solhint-disable-next-line no-inline-assembly
-            assembly {
-                revert(add(reason, 0x20), mload(reason))
-            }
-        }
+        require(
+            !ok && reason.length == 4 && bytes4(reason) == _GUARD_ERROR,
+            "reentry not blocked by the guard"
+        );
+        reentryBlockedByGuard = true;
     }
 }
 

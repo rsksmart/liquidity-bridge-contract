@@ -711,14 +711,15 @@ contract PegInContract is
     }
 
     /// @notice Makes the contract call that the deposit's OP_RETURN asks for
-    /// @dev Forwards exactly gasLimit, which the user signed, so the LP cannot change it. When less
-    /// gas is left than requested, Rootstock gives the destination only what is left, so the gas
-    /// check makes sure the destination gets all of gasLimit: otherwise an LP could make the call
-    /// fail by sending too little gas. Copies no return data, so a large return cannot use up the
-    /// gas left after the call.
+    /// @dev Forwards gasLimit, which the user signed, so the LP cannot change it. When the call
+    /// sends value, Rootstock adds a 2,300-gas stipend on top; the LP pays for that extra gas.
+    /// When less gas is left than requested, Rootstock gives the destination only what is left,
+    /// so the gas check makes sure the destination gets all of gasLimit: otherwise an LP could
+    /// make the call fail by sending too little gas. Copies no return data, so a large return
+    /// cannot use up the gas left after the call.
     /// @param destination The contract to call
     /// @param value The RBTC to send with the call
-    /// @param gasLimit The exact gas to forward
+    /// @param gasLimit The gas to forward, before the stipend
     /// @param payload The OP_RETURN payload; callData starts at
     /// {BtcTransactionReader-FLYOVER_CALL_DATA_OFFSET}
     /// @return success False when the call reverted or ran out of gas
