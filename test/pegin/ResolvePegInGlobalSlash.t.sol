@@ -223,6 +223,21 @@ contract ResolvePegInGlobalSlashTest is ResolvePegInTestBase {
         _assertSkipped(_settle(rskUser, depositTx));
     }
 
+    function test_unclaimed_deposit_output_below_bridge_minimum_skips_slash()
+        public
+    {
+        _setTierHeader(uint32(T));
+        _passClaimWindow();
+        bytes[] memory pkScripts = new bytes[](2);
+        pkScripts[0] = _depositPkScript(rskUser);
+        pkScripts[1] = _depositPkScript(rskUser);
+        uint64[] memory valuesSats = new uint64[](2);
+        valuesSats[0] = _toSats(DEFAULT_AMOUNT);
+        valuesSats[1] = uint64(TEST_BRIDGE_MIN_DEPOSIT_SATS - 1);
+
+        _assertSkipped(_settle(rskUser, _buildTx(pkScripts, valuesSats, 1)));
+    }
+
     function test_unclaimed_deposit_below_deduction_skips_slash() public {
         configurations.setFee(DEFAULT_AMOUNT + 1, 0);
         _setTierHeader(uint32(T));
