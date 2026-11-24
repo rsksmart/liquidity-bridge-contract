@@ -10,15 +10,16 @@ All peg-in values live in `FlyoverConfigurations` and change in two steps: `queu
 2. For each changed field, find it in the table and do its check.
 3. Repeat the checks just before `applyChange`, against the deposits pending at that moment.
 
-| Field changed                                      | Faults |
-| -------------------------------------------------- | ------ |
-| `minAmount` (lower)                                | 1, 5   |
-| `fixedFee`, `percentageFee`, `claimGasFee` (lower) | 1      |
-| `maxCallGas` (raise)                               | 1, 4   |
-| `confirmationTiers`                                | 2, 3   |
-| `claimWindow` (shorter), `penaltyFee` (higher)     | 2      |
-| `registrantFee`                                    | 7      |
-| any (a second `queueChange`)                       | 6      |
+| Field changed                                      | Faults  |
+| -------------------------------------------------- | ------- |
+| `minAmount` (lower)                                | 1, 4, 5 |
+| `maxAmount` (lower)                                | 4       |
+| `fixedFee`, `percentageFee`, `claimGasFee` (raise) | 4       |
+| `maxCallGas` (raise)                               | 1, 4    |
+| `confirmationTiers`                                | 2, 3    |
+| `claimWindow` (shorter), `penaltyFee` (higher)     | 2       |
+| `registrantFee`                                    | 7       |
+| any (a second `queueChange`)                       | 6       |
 
 Peg-out is not affected by these faults: `PegOutEscrow` copies the fee, the confirmations and the windows into each request when it is made, so a later change does not reach it.
 
@@ -28,11 +29,15 @@ Peg-in cannot copy the values the same way. The user's BTC deposit is the only c
 
 **What happens.** When nobody claims a deposit, `resolvePegIn` slashes the peg-in LPs only if they could have claimed it. It checks the deposit against the deposit rules of the configuration active at settlement, but it counts the claim window from the deposit's own confirmation (or registration) time. A deposit that the old rules rejected can pass the new rules with its claim window already over. Anyone can then settle it, and all peg-in LPs are slashed although they never had a chance to claim it.
 
-**Example.** `maxCallGas` is 0, so every deposit with an OP_RETURN is rejected. A user makes such a deposit and does not settle it. Ten days later governance raises `maxCallGas`. Right after the change, the user settles the old deposit, and the LPs are slashed. The same happens when `minAmount` or a fee is lowered.
+**Example.** `maxCallGas` is 0, so every deposit with an OP_RETURN is rejected. A user makes such a deposit and does not settle it. Ten days later governance raises `maxCallGas`. Right after the change, the user settles the old deposit, and the LPs are slashed. The same happens when `minAmount` is lowered.
+
+Lowering a fee does not cause this fault. The configuration rules make every deposit of at least `minAmount` cover its fees, so no valid configuration rejects a deposit for its fees.
 
 **Status.** WONTFIX. Fixing it needs a record of when each rule changed, read by the slash check. Configuration changes are rare and public in advance, so the check below covers it.
 
-**Check.** Find the unsettled deposits to registered addresses that the new values make claimable. Settle them, or pause, before `applyChange`. Pending deposits are not stored on-chain until they are settled, so this needs a scan of Bitcoin.
+**Check.** Find the unsettled deposits to registered addresses that the new values make claimable, and settle them under the old rules before `applyChange`. Pending deposits are not stored on-chain until they are settled, so this needs a scan of Bitcoin.
+
+A pause does not replace this step. A soft pause still allows settlement. A hard pause blocks settlement only while it lasts, and it extends a claim window by the pause length, so a window that had already ended stays ended after the pause.
 
 Sources: [#596](https://github.com/rsksmart/liquidity-bridge-contract/pull/596#discussion_r4625436229), [#598](https://github.com/rsksmart/liquidity-bridge-contract/pull/598#discussion_r4663326177).
 
@@ -64,21 +69,31 @@ Sources: [#509](https://github.com/rsksmart/liquidity-bridge-contract/pull/509#p
 
 **What happens.** The LP pays the call gas fee, `maxGasLimit * tx.gasprice`, out of the amount it fronts. If that fee is larger than the amount, `requestPegIn` reverts with `CallGasFeeTooHigh`, and no LP can claim the deposit. The same happens when `maxGasLimit` is more gas than a Rootstock block can hold. In both cases the deposit rules still accept the deposit, so its unclaimed settlement slashes the LPs.
 
+The fault can appear without any change to `maxCallGas`. Raising a fee, or lowering `maxAmount` or `minAmount`, makes the amount an LP fronts smaller, so the same call gas fee can become larger than it.
+
 **Example.** `minAmount` is 0.005 RBTC and the fixed fee is 0.00499999 RBTC, so the LP fronts 1 satoshi. A 500,000-gas call at 0.06 gwei costs about 3,000 satoshi.
 
 **Status.** WONTFIX. An on-chain check needs a gas-price floor in the configuration, because miners set the Rootstock minimum gas price and it can change.
 
-**Check.** `maxCallGas` times the Rootstock minimum gas price is below what an LP fronts for `minAmount` (`minAmount` minus its fee and `claimGasFee`), with a margin. `maxCallGas` is also well below the Rootstock block gas limit.
+**Check.** With the new values, `maxCallGas` times the Rootstock minimum gas price is below what an LP fronts for `minAmount` (`minAmount` minus its fee and `claimGasFee`), with a margin. `maxCallGas` is also well below the Rootstock block gas limit. Do this check for every change to `maxCallGas`, a fee, `minAmount` or `maxAmount`.
 
 Source: [#600](https://github.com/rsksmart/liquidity-bridge-contract/pull/600#discussion_r4664303476).
 
-## 5. `minAmount` below the bridge minimum
+## 5. `minAmount` below a bridge minimum
 
-**What happens.** `PegInContract` holds the bridge minimum as an immutable value, and `requestPegIn` rejects any deposit output below it. `PegInAddressRegistry` checks only `minAmount`. If `minAmount` is below the bridge minimum, the registry accepts registration deposits that `requestPegIn` then rejects.
+**What happens.** Two contracts each hold their own copy of the bridge minimum:
+
+- `PegInContract` holds it as an immutable value (`getBridgeMinDepositSats()`). `requestPegIn` rejects any deposit output below it.
+- `PegInAddressRegistry` stores its own copy, set when the registry is initialized. Registration reverts with `ConfigMinBelowBridge` when `minAmount` is below that copy.
+
+This gives two cases:
+
+- **`minAmount` is below the registry's copy.** Every registration fails, even for large deposits.
+- **The registry's copy is lower than `PegInContract`'s, and `minAmount` is between them.** The registry accepts registration deposits that `requestPegIn` then rejects.
 
 **Status.** WONTFIX. A change of the bridge minimum ships as one release that updates `FlyoverConfigurations`, the registry and `PegInContract` together.
 
-**Check.** `minAmount` is at least `getBridgeMinDepositSats()` times 10^10.
+**Check.** The two copies are equal, and `minAmount` is at least that value times 10^10. No getter returns the registry's copy: read it from the deployment record or the registry's storage. `getMinDepositSats()` returns `minAmount` and reverts in the first case.
 
 Source: [#581](https://github.com/rsksmart/liquidity-bridge-contract/pull/581#discussion_r4411226861).
 
