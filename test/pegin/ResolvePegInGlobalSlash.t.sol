@@ -14,6 +14,7 @@ contract ResolvePegInGlobalSlashTest is ResolvePegInTestBase {
     uint256 internal constant CLAIM_WINDOW = 3 hours;
     uint256 internal constant BRIDGE_RELEASE = DEFAULT_AMOUNT;
     uint256 internal constant RESOLVE_HEIGHT = 100;
+    uint256 internal constant MAX_SLASHABLE_TX_SIZE = 3_000;
 
     address internal secondLp;
     address internal thirdParty;
@@ -98,6 +99,27 @@ contract ResolvePegInGlobalSlashTest is ResolvePegInTestBase {
             BRIDGE_RELEASE,
             "user must receive the whole release"
         );
+    }
+
+    /// @dev A deposit to rskAddr padded with empty-script outputs to exactly `size` bytes
+    function _depositTxOfSize(
+        address rskAddr,
+        uint256 size
+    ) internal view returns (bytes memory) {
+        uint256 padding = size - _defaultTx().length;
+        uint256 outputCount = 1 + (padding + 260) / 261;
+        bytes[] memory pkScripts = new bytes[](outputCount);
+        uint64[] memory valuesSats = new uint64[](outputCount);
+        pkScripts[0] = _depositPkScript(rskAddr);
+        valuesSats[0] = _toSats(DEFAULT_AMOUNT);
+        for (uint256 i = 1; i < outputCount; ++i) {
+            uint256 outputSize = padding / (outputCount - i);
+            pkScripts[i] = new bytes(outputSize - 9);
+            padding -= outputSize;
+        }
+        bytes memory depositTx = _buildTx(pkScripts, valuesSats, 1);
+        assertEq(depositTx.length, size);
+        return depositTx;
     }
 
     function _count(
@@ -227,6 +249,29 @@ contract ResolvePegInGlobalSlashTest is ResolvePegInTestBase {
 
         _assertSkipped(
             _settle(unregistered, _depositTx(unregistered, DEFAULT_AMOUNT))
+        );
+    }
+
+    function test_unclaimed_deposit_at_size_limit_slashes() public {
+        _setTierHeader(uint32(T));
+        _passClaimWindow();
+        uint256 collateralBefore = _totalPegInCollateral();
+
+        _assertSlashed(
+            _settle(rskUser, _depositTxOfSize(rskUser, MAX_SLASHABLE_TX_SIZE)),
+            collateralBefore
+        );
+    }
+
+    function test_unclaimed_deposit_above_size_limit_skips_slash() public {
+        _setTierHeader(uint32(T));
+        _passClaimWindow();
+
+        _assertSkipped(
+            _settle(
+                rskUser,
+                _depositTxOfSize(rskUser, MAX_SLASHABLE_TX_SIZE + 1)
+            )
         );
     }
 
