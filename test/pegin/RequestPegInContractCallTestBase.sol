@@ -33,6 +33,14 @@ abstract contract RequestPegInContractCallTestBase is ResolvePegInTestBase {
         return (gasLimit + 2300) * gasPrice;
     }
 
+    /// @dev What the LP fronts and the destination receives
+    function _netToUser(
+        uint256 gasLimit,
+        uint256 gasPrice
+    ) internal pure returns (uint256) {
+        return _expected() - _gasFee(gasLimit, gasPrice);
+    }
+
     function _callTx(
         address destination,
         uint32 maxGasLimit

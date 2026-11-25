@@ -192,11 +192,12 @@ interface IPegInCommitFirst {
     /// @param required The gas the call needs: maxGasLimit plus the cost of the CALL itself
     error InsufficientCallGas(uint256 gasLeft, uint256 required);
 
-    /// @notice Reverts requestPegIn when the call gas fee is more than the amount the LP fronts
+    /// @notice Reverts requestPegIn when the call gas fee is more than the amount left after the
+    /// fee and claimGasFee
     /// @dev See the callGasFee of {PegInRequested}. The LP can retry with a lower gas price.
     /// @param callGasFee The fee for the gas forwarded to the destination, in wei
-    /// @param available The amount the LP fronts, in wei
-    error CallGasFeeTooHigh(uint256 callGasFee, uint256 available);
+    /// @param remainingAmount min(amount, maxAmount) - fee - claimGasFee, in wei
+    error CallGasFeeTooHigh(uint256 callGasFee, uint256 remainingAmount);
 
     /// @notice Reverts requestPegIn when msg.value is not the required fronting
     /// @param expected The required msg.value, in wei
@@ -219,10 +220,12 @@ interface IPegInCommitFirst {
     /// from the same bytes, so the SPV proof, the peg-in id and the amount provably describe
     /// one transaction. Nothing about the deposit's value is caller-supplied.
     ///
-    /// Payable: msg.value must equal min(amount, maxAmount) - fee - claimGasFee, where the fee is
-    /// on the capped amount. maxAmount limits what one provider advances per peg-in.
+    /// Payable: msg.value must equal min(amount, maxAmount) - fee - claimGasFee - callGasFee,
+    /// where the fee is on the capped amount and callGasFee is as in {PegInRequested}. maxAmount
+    /// limits what one provider advances per peg-in.
     ///
-    /// Settlement distributes any bridge release above the fronted amount + fee + claimGasFee.
+    /// Settlement distributes any bridge release above the fronted amount + fee + claimGasFee +
+    /// callGasFee.
     /// A remainder greater than dustThreshold is sent to rskAddr with a 2,300-gas call;
     /// if the send fails, it is credited to rskAddr's balance, and only rskAddr can withdraw it.
     /// A remainder at or below dustThreshold is credited to the claimer instead.

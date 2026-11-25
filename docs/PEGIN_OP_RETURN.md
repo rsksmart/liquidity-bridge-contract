@@ -54,7 +54,7 @@ In a Bitcoin script, a push opcode states how many bytes follow. `BtcUtils.parse
 1. **`maxGasLimit` must be greater than 0 and at most `PegInConfiguration.maxCallGas`.** Otherwise `requestPegIn` reverts with `CallGasOutOfRange`. `maxCallGas = 0` turns contract calls off.
 2. **The call gets `maxGasLimit` gas.** The LP cannot change it. When the call sends value, Rootstock adds a 2,300-gas stipend on top. If the LP's transaction has too little gas left to forward all of it, `requestPegIn` reverts with `InsufficientCallGas`, and the LP can retry with more gas.
 3. **The user pays `callGasFee = (maxGasLimit + 2300) * tx.gasprice`.** The 2,300 is the stipend. This is the gas forwarded, not the gas used, because the value sent must be fixed before the call. If `callGasFee` is more than the amount the LP fronts, `requestPegIn` reverts with `CallGasFeeTooHigh`.
-4. **The destination receives `netToUser = expected - callGasFee`**, where `expected` is what the LP fronts without a call. The LP gets the unforwarded `callGasFee` back in its balance at once, and is repaid the usual amount at settlement.
+4. **The LP fronts exactly what the destination receives: `netToUser = min(amount, maxAmount) - fee - claimGasFee - callGasFee`.** The LP computes `callGasFee` from the gas price of its own transaction. Settlement repays the LP `netToUser` plus all the fees, `callGasFee` included.
 5. **If the call fails, the LP keeps all it fronted.** The claim is marked failed, and settlement repays the LP only its fees: the service fee, `claimGasFee` and `callGasFee`. The rest of the release goes to `rskAddr`, the refund address.
 6. **An unclaimed deposit makes no call.** `resolvePegIn` pays `rskAddr`.
 

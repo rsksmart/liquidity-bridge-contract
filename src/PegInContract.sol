@@ -328,8 +328,7 @@ contract PegInContract is
         }
 
         // Settlement pays the user the part of the deposit above the cap, from the bridge release.
-        uint256 requiredFronting = _requireCorrectFronting(terms.cappedAmount, terms.fee + configuration.claimGasFee);
-        _recordClaimAndPay(pegInId, rskAddr, terms, configuration.claimGasFee, requiredFronting);
+        _recordClaimAndPay(pegInId, rskAddr, terms, configuration.claimGasFee);
     }
 
     /// @inheritdoc IPegInCommitFirst
@@ -660,23 +659,24 @@ contract PegInContract is
     }
 
     /// @notice Records the claim, then pays rskAddr or makes the OP_RETURN contract call
+    /// @dev The LP fronts exactly what the destination receives. Every fee, including the call gas
+    /// fee, is repaid to the LP at settlement through the claim record.
     /// @param pegInId The id of the claimed peg-in
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param terms The deposit terms from {_checkDepositRules}
     /// @param claimGasFee The flat gas fee of the active configuration
-    /// @param requiredFronting The amount the LP must front, which is msg.value
     function _recordClaimAndPay(
         bytes32 pegInId,
         address rskAddr,
         DepositTerms memory terms,
-        uint256 claimGasFee,
-        uint256 requiredFronting
+        uint256 claimGasFee
     ) private {
         // The user pays for the gas forwarded to the destination, on both paths
         uint256 gasLimit = terms.hasCall ? terms.maxGasLimit : _MAX_REFUND_GAS_LIMIT;
         uint256 callGasFee = _forwardedGasFee(gasLimit, tx.gasprice);
-        if (callGasFee > requiredFronting) revert CallGasFeeTooHigh(callGasFee, requiredFronting);
-        uint256 netToUser = requiredFronting - callGasFee;
+        uint256 remainingAmount = terms.cappedAmount - terms.fee - claimGasFee;
+        if (callGasFee > remainingAmount) revert CallGasFeeTooHigh(callGasFee, remainingAmount);
+        uint256 netToUser = _requireCorrectFronting(terms.cappedAmount, terms.fee + claimGasFee + callGasFee);
 
         _pegInClaims[pegInId] = PegInClaim({
             claimer: msg.sender,
@@ -692,10 +692,7 @@ contract PegInContract is
         bool success = terms.hasCall
             ? _callDestination(destination, netToUser, gasLimit, terms.opReturnData)
             : _payPegInUser(rskAddr, netToUser, gasLimit);
-        if (success) {
-            // msg.value is requiredFronting; the part not forwarded is the LP's own RBTC
-            if (callGasFee > 0) _increaseBalance(msg.sender, callGasFee);
-        } else {
+        if (!success) {
             PegInClaim storage claim = _pegInClaims[pegInId];
             claim.success = false;
             claim.frontedAmount = 0;
