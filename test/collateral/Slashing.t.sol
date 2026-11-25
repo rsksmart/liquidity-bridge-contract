@@ -796,7 +796,7 @@ contract SlashingTest is CollateralTestBase {
 
         uint256 backfillBlock = block.number;
         vm.prank(owner);
-        collateralManagement.initializePegOutRegistrationBlocks();
+        collateralManagement.initializeRegistrationBlocks();
 
         assertEq(
             collateralManagement.getPegOutRegistrationBlock(lpA),
@@ -824,7 +824,7 @@ contract SlashingTest is CollateralTestBase {
             .checked_write(uint256(0));
 
         vm.prank(owner);
-        collateralManagement.initializePegOutRegistrationBlocks();
+        collateralManagement.initializeRegistrationBlocks();
 
         vm.prank(slasher);
         vm.expectRevert(
@@ -849,7 +849,7 @@ contract SlashingTest is CollateralTestBase {
     function _backfill() internal returns (uint256 backfillBlock) {
         backfillBlock = block.number;
         vm.prank(owner);
-        collateralManagement.initializePegOutRegistrationBlocks();
+        collateralManagement.initializeRegistrationBlocks();
     }
 
     /// @dev The LP is listed again inside the grace window: not slashed until the window ends.
@@ -1439,5 +1439,123 @@ contract SlashingTest is CollateralTestBase {
         collateralManagement.globalSlash(SLASH_TOTAL);
 
         assertEq(collateralManagement.getPegOutCollateral(lpB), COLLATERAL_B);
+    }
+
+    // ============ globalSlashPegIn function tests ============
+
+    function test_GlobalSlashPegIn_ProportionalToPegInCollateral() public {
+        _approveBoth(lpA, 2 * COLLATERAL_A);
+        _approvePegIn(lpB, COLLATERAL_B);
+
+        uint256 pegOutBefore = collateralManagement.getPegOutCollateral(lpA);
+        uint256 penaltiesBefore = collateralManagement.getPenalties();
+
+        vm.expectEmit(true, true, false, true, address(collateralManagement));
+        emit ICollateralManagement.PegInGlobalSlashShare(lpA, 1 ether);
+        vm.expectEmit(true, true, false, true, address(collateralManagement));
+        emit ICollateralManagement.PegInGlobalSlashShare(lpB, 2 ether);
+
+        vm.prank(slasher);
+        collateralManagement.globalSlashPegIn(SLASH_TOTAL);
+
+        assertEq(
+            collateralManagement.getPegInCollateral(lpA),
+            COLLATERAL_A - 1 ether,
+            "lpA should lose 1/3 of slash"
+        );
+        assertEq(
+            collateralManagement.getPegInCollateral(lpB),
+            COLLATERAL_B - 2 ether,
+            "lpB should lose 2/3 of slash"
+        );
+        assertEq(
+            collateralManagement.getPegOutCollateral(lpA),
+            pegOutBefore,
+            "peg-out collateral must be untouched"
+        );
+        assertEq(
+            collateralManagement.getPenalties(),
+            penaltiesBefore + SLASH_TOTAL,
+            "full slash must go to penalties"
+        );
+    }
+
+    function test_GlobalSlashPegIn_SkipsPegOutOnly() public {
+        _approvePegOut(lpB, COLLATERAL_B);
+        _approvePegIn(lpA, COLLATERAL_A);
+
+        vm.prank(slasher);
+        collateralManagement.globalSlashPegIn(SLASH_TOTAL);
+
+        assertEq(collateralManagement.getPegOutCollateral(lpB), COLLATERAL_B);
+        assertEq(
+            collateralManagement.getPegInCollateral(lpA),
+            COLLATERAL_A - SLASH_TOTAL
+        );
+    }
+
+    function test_GlobalSlashPegIn_GraceCountsFromPegInRegistration() public {
+        uint256 grace = 100;
+        vm.prank(owner);
+        collateralManagement.setGlobalSlashGraceBlocks(grace);
+
+        uint256 regBlock = block.number;
+        _approveBoth(lpA, 2 * COLLATERAL_A);
+        stdstore
+            .target(address(collateralManagement))
+            .sig("getPegInRegistrationBlock(address)")
+            .with_key(lpA)
+            .checked_write(regBlock + grace);
+
+        vm.roll(regBlock + 150);
+        vm.prank(slasher);
+        collateralManagement.globalSlash(SLASH_TOTAL);
+        vm.prank(slasher);
+        vm.expectRevert(
+            ICollateralManagement.GlobalSlashNoEligibleProviders.selector
+        );
+        collateralManagement.globalSlashPegIn(SLASH_TOTAL);
+
+        vm.roll(regBlock + 2 * grace);
+        vm.prank(slasher);
+        collateralManagement.globalSlashPegIn(SLASH_TOTAL);
+        assertEq(
+            collateralManagement.getPegInCollateral(lpA),
+            COLLATERAL_A - SLASH_TOTAL
+        );
+    }
+
+    function test_GlobalSlashPegIn_UnauthorizedReverts() public {
+        _approvePegIn(lpA, COLLATERAL_A);
+        bytes32 slasherRole = collateralManagement.COLLATERAL_SLASHER();
+
+        vm.prank(notSlasher);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                notSlasher,
+                slasherRole
+            )
+        );
+        collateralManagement.globalSlashPegIn(SLASH_TOTAL);
+    }
+
+    function test_GlobalSlashPegIn_TopUpDoesNotResetGraceWindow() public {
+        uint256 grace = 100;
+        vm.prank(owner);
+        collateralManagement.setGlobalSlashGraceBlocks(grace);
+
+        _approvePegIn(lpA, COLLATERAL_A);
+        uint256 regBlock = collateralManagement.getPegInRegistrationBlock(lpA);
+
+        vm.roll(block.number + 10);
+        vm.prank(adder);
+        collateralManagement.addPegInCollateralTo{value: 1 ether}(lpA);
+
+        assertEq(
+            collateralManagement.getPegInRegistrationBlock(lpA),
+            regBlock,
+            "top-up must not refresh registration block"
+        );
     }
 }

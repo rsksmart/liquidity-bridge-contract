@@ -60,6 +60,11 @@ interface ICollateralManagement is IPausable {
     /// @param amount The peg-out collateral taken from this LP
     event GlobalSlashShare(address indexed liquidityProvider, uint256 indexed amount);
 
+    /// @notice Emitted for each eligible LP whose peg-in collateral was reduced by a global slash
+    /// @param liquidityProvider The LP that was slashed
+    /// @param amount The peg-in collateral taken from this LP
+    event PegInGlobalSlashShare(address indexed liquidityProvider, uint256 indexed amount);
+
     /// @notice Emitted when a liquidity provider has already resigned
     /// @param from The address of the liquidity provider
     error AlreadyResigned(address from);
@@ -95,7 +100,7 @@ interface ICollateralManagement is IPausable {
     /// @notice Raised when {globalSlash} is called with a zero aggregate amount
     error GlobalSlashZeroAmount();
 
-    /// @notice Raised when {globalSlash} finds no eligible peg-out LPs past the grace window
+    /// @notice Raised when a global slash finds no eligible LPs of the slashed side past the grace window
     error GlobalSlashNoEligibleProviders();
 
     /// @notice Adds peg in collateral to an account
@@ -163,6 +168,18 @@ interface ICollateralManagement is IPausable {
     /// refund should wrap this in try/catch.
     /// @param total Aggregate penalty amount to distribute across eligible peg-out LPs
     function globalSlash(uint256 total) external;
+
+    /// @notice Slashes `total` proportionally across listed peg-in LPs past the
+    /// grace window.
+    /// @dev Requires the COLLATERAL_SLASHER role. The provider set is
+    /// {IFlyoverDiscovery-getProviders}, with the same listing rules as {globalSlash}.
+    /// Only PegIn / Both types are slashed. Peg-out
+    /// collateral and peg-out-only LPs are untouched. LPs still inside the grace window that
+    /// starts at their peg-in registration are skipped. 100% of the taken amount is credited to
+    /// protocol {getPenalties}; there is no punisher reward. Callers that must not block a user
+    /// payment should wrap this in try/catch.
+    /// @param total Aggregate penalty amount to distribute across eligible peg-in LPs
+    function globalSlashPegIn(uint256 total) external;
 
     /// @notice Withdraws rewards from the contract. Sends to the caller. Use withdrawRewards(address payable to)
     /// to send to a different address (e.g. if the caller cannot receive ETH).

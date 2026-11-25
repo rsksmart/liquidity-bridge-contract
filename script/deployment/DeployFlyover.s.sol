@@ -345,7 +345,7 @@ contract DeployFlyover is Script {
         cm.grantRole(slasher, d.pegOutProxy);
         cm.grantRole(slasher, d.pegOutEscrowProxy);
         cm.setFlyoverDiscovery(d.flyoverDiscoveryProxy);
-        cm.initializePegOutRegistrationBlocks();
+        cm.initializeRegistrationBlocks();
     }
 
     function _log(FlyoverDeployment memory d) private pure {
