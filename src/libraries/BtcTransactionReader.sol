@@ -19,9 +19,8 @@ import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcU
 /// copies of the loop could drift, and a drift there means an address registers against one value
 /// and settles against another.
 ///
-/// It also decodes the Flyover payload of a deposit's OP_RETURN output ({readFlyoverOpReturn}).
-/// That payload is a value inside the transaction, so reading it is a lookup like the others: it
-/// builds nothing. docs/PEGIN_OP_RETURN.md describes the layout.
+/// It also reads the Flyover contract call in a deposit's OP_RETURN output
+/// ({readFlyoverOpReturn}). docs/PEGIN_OP_RETURN.md describes the layout.
 library BtcTransactionReader {
     /// @notice Why a deposit's first OP_RETURN output is not a valid Flyover contract call
     /// @dev Layout: `magic:1 (0xF0) | version:1 (1) | destContract:20 | maxGasLimit:4 (big-endian) |
@@ -39,6 +38,21 @@ library BtcTransactionReader {
         WrongMagic,
         WrongVersion,
         ZeroDestination
+    }
+
+    /// @notice A deposit's first OP_RETURN output, read as a Flyover contract call
+    /// @param found Whether any output script starts with OP_RETURN
+    /// @param fault The first check the OP_RETURN fails; None when it is valid or not found
+    /// @param destination The contract to call; zero unless found and fault is None
+    /// @param maxGasLimit The gas the call requests; 0 unless found and fault is None
+    /// @param data The whole payload; callData starts at {FLYOVER_CALL_DATA_OFFSET}. Empty unless
+    /// found and fault is None
+    struct FlyoverOpReturn {
+        bool found;
+        OpReturnFault fault;
+        address destination;
+        uint256 maxGasLimit;
+        bytes data;
     }
 
     /// @notice Offset of callData inside a Flyover OP_RETURN payload; also the payload's minimum length
@@ -128,8 +142,7 @@ library BtcTransactionReader {
     /// docs/PEGIN_DEPOSIT_OUTPUTS.md.
     ///
     /// Takes the parsed outputs, not the raw transaction, so a caller that reads more than one
-    /// thing from the same transaction parses it once. `BtcUtils.getOutputs` copies every output
-    /// script into memory, so each extra parse costs gas in proportion to the transaction size.
+    /// value from the same transaction parses it only once.
     /// @param outputs The outputs of the witness-stripped raw transaction, from
     /// `BtcUtils.getOutputs`
     /// @param pkScript The scriptPubkey to search for, from {PegInDerivation-depositPkScript}
@@ -175,9 +188,6 @@ library BtcTransactionReader {
     /// bare OP_RETURN, `OP_0`, `OP_PUSHDATA2`, `OP_PUSHDATA4`, a second push, or a length that
     /// does not match, is not well formed. Data longer than 255 bytes needs `OP_PUSHDATA2`, so it
     /// is not well formed either.
-    ///
-    /// `BtcUtils.parseNullDataScript` is not used: it removes only the OP_RETURN byte and returns
-    /// the push opcode as the first data byte.
     /// @param outputs The outputs of the witness-stripped raw transaction, from
     /// `BtcUtils.getOutputs`
     /// @return found Whether any output script starts with OP_RETURN
@@ -200,38 +210,40 @@ library BtcTransactionReader {
     }
 
     /// @notice Reads the first OP_RETURN output as a Flyover contract call
-    /// @dev Finds the output with {findFirstOpReturn}, then decodes its payload. Any first
-    /// OP_RETURN counts as a Flyover OP_RETURN, so one from another protocol returns a fault,
-    /// usually WrongMagic. The caller decides what a fault means; this function only reads.
+    /// @dev Reads the same output as {findFirstOpReturn}. Any first OP_RETURN counts as a Flyover
+    /// OP_RETURN, so one from another protocol returns a fault, usually WrongMagic. The caller
+    /// decides what a fault means; this function only reads.
     ///
     /// maxGasLimit is returned as read. Its allowed range is a contract rule, not part of the
     /// format, so this function does not check it.
     /// @param outputs The outputs of the witness-stripped raw transaction, from
     /// `BtcUtils.getOutputs`
-    /// @return found Whether any output script starts with OP_RETURN
-    /// @return fault The first check the OP_RETURN fails; None when it is valid or not found
-    /// @return destination The contract to call; zero unless found and fault is None
-    /// @return maxGasLimit The gas the call requests; 0 unless found and fault is None
-    /// @return data The whole payload; callData starts at {FLYOVER_CALL_DATA_OFFSET}. Empty unless
-    /// found and fault is None
+    /// @return result The OP_RETURN as read; see {FlyoverOpReturn}
     function readFlyoverOpReturn(BtcUtils.TxRawOutput[] memory outputs)
         internal
         pure
-        returns (bool found, OpReturnFault fault, address destination, uint256 maxGasLimit, bytes memory data)
+        returns (FlyoverOpReturn memory result)
     {
-        bool wellFormed;
-        bytes memory payload;
-        (found, wellFormed, payload) = findFirstOpReturn(outputs);
-        if (!found) return (false, OpReturnFault.None, address(0), 0, data);
-        if (!wellFormed) return (true, OpReturnFault.BadPush, address(0), 0, data);
+        (bool found, bool wellFormed, bytes memory payload) = findFirstOpReturn(outputs);
+        if (!found) return result;
+        result.found = true;
+        if (!wellFormed) {
+            result.fault = OpReturnFault.BadPush;
+            return result;
+        }
 
-        fault = _checkFlyoverPayload(payload);
-        if (fault != OpReturnFault.None) return (true, fault, address(0), 0, data);
+        result.fault = _checkFlyoverPayload(payload);
+        if (result.fault != OpReturnFault.None) return result;
 
-        destination = address(uint160(_readBigEndian(payload, _FLYOVER_DESTINATION_OFFSET, _FLYOVER_GAS_OFFSET)));
-        if (destination == address(0)) return (true, OpReturnFault.ZeroDestination, address(0), 0, data);
-        maxGasLimit = _readBigEndian(payload, _FLYOVER_GAS_OFFSET, FLYOVER_CALL_DATA_OFFSET);
-        return (true, OpReturnFault.None, destination, maxGasLimit, payload);
+        address destination =
+            address(uint160(_readBigEndian(payload, _FLYOVER_DESTINATION_OFFSET, _FLYOVER_GAS_OFFSET)));
+        if (destination == address(0)) {
+            result.fault = OpReturnFault.ZeroDestination;
+            return result;
+        }
+        result.destination = destination;
+        result.maxGasLimit = _readBigEndian(payload, _FLYOVER_GAS_OFFSET, FLYOVER_CALL_DATA_OFFSET);
+        result.data = payload;
     }
 
     /// @dev Checks the fixed header of a Flyover payload: its length, the magic byte and the version

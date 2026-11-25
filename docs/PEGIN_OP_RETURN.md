@@ -1,6 +1,6 @@
 # Peg-in OP_RETURN
 
-This document records the layout of the OP_RETURN output that a BTC deposit can carry to ask for a contract call, and how `BtcTransactionReader` reads it (FLY-2870). The SDK builds this output and the LPS parses it, so both must follow this layout.
+This document records the layout of the OP_RETURN output that a BTC deposit can carry to ask for a contract call, and how `BtcTransactionReader` reads it. The SDK builds this output and the LPS parses it, so both must follow this layout.
 
 An OP_RETURN output is a Bitcoin output whose script starts with `0x6a`. It can never be spent, so it only carries data.
 
