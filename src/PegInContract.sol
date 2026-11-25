@@ -324,8 +324,8 @@ contract PegInContract is
         }
 
         // Settlement pays the user the part of the deposit above the cap, from the bridge release.
-        uint256 expected = _requireCorrectFronting(terms.cappedAmount, terms.fee + configuration.claimGasFee);
-        _recordClaimAndPay(pegInId, rskAddr, terms, configuration.claimGasFee, expected);
+        uint256 requiredFronting = _requireCorrectFronting(terms.cappedAmount, terms.fee + configuration.claimGasFee);
+        _recordClaimAndPay(pegInId, rskAddr, terms, configuration.claimGasFee, requiredFronting);
     }
 
     /// @inheritdoc IPegInCommitFirst
@@ -660,19 +660,19 @@ contract PegInContract is
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param terms The deposit terms from {_checkDepositRules}
     /// @param claimGasFee The flat gas fee of the active configuration
-    /// @param expected The amount the LP fronts, which is msg.value
+    /// @param requiredFronting The amount the LP must front, which is msg.value
     function _recordClaimAndPay(
         bytes32 pegInId,
         address rskAddr,
         DepositTerms memory terms,
         uint256 claimGasFee,
-        uint256 expected
+        uint256 requiredFronting
     ) private {
         // The user pays for the gas forwarded to the call, not the gas it uses: the value sent
         // must be fixed before the call
         uint256 callGasFee = terms.hasCall ? terms.maxGasLimit * tx.gasprice : 0;
-        if (callGasFee > expected) revert CallGasFeeTooHigh(callGasFee, expected);
-        uint256 netToUser = expected - callGasFee;
+        if (callGasFee > requiredFronting) revert CallGasFeeTooHigh(callGasFee, requiredFronting);
+        uint256 netToUser = requiredFronting - callGasFee;
 
         _pegInClaims[pegInId] = PegInClaim({
             claimer: msg.sender,
@@ -689,7 +689,7 @@ contract PegInContract is
             ? _callDestination(destination, netToUser, terms.maxGasLimit, terms.opReturnData)
             : _payPegInUser(rskAddr, netToUser);
         if (success) {
-            // msg.value is expected; the part not forwarded is the LP's own RBTC
+            // msg.value is requiredFronting; the part not forwarded is the LP's own RBTC
             if (callGasFee > 0) _increaseBalance(msg.sender, callGasFee);
         } else {
             PegInClaim storage claim = _pegInClaims[pegInId];
