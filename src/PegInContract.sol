@@ -597,25 +597,19 @@ contract PegInContract is
         if (terms.cappedAmount < terms.fee + configuration.claimGasFee) {
             return (DepositRuleResult.AmountBelowDeduction, terms);
         }
-        (
-            bool opReturnFound,
-            BtcTransactionReader.OpReturnFault fault,
-            address destination,
-            uint256 maxGasLimit,
-            bytes memory opReturnData
-        ) = BtcTransactionReader.readFlyoverOpReturn(outputs);
-        if (!opReturnFound) return (DepositRuleResult.Accepted, terms);
-        if (fault != BtcTransactionReader.OpReturnFault.None) {
-            terms.opReturnFault = fault;
+        BtcTransactionReader.FlyoverOpReturn memory opReturn = BtcTransactionReader.readFlyoverOpReturn(outputs);
+        if (!opReturn.found) return (DepositRuleResult.Accepted, terms);
+        if (opReturn.fault != BtcTransactionReader.OpReturnFault.None) {
+            terms.opReturnFault = opReturn.fault;
             return (DepositRuleResult.InvalidOpReturn, terms);
         }
-        terms.maxGasLimit = maxGasLimit;
-        if (maxGasLimit == 0 || maxGasLimit > configuration.maxCallGas) {
+        terms.maxGasLimit = opReturn.maxGasLimit;
+        if (opReturn.maxGasLimit == 0 || opReturn.maxGasLimit > configuration.maxCallGas) {
             return (DepositRuleResult.CallGasOutOfRange, terms);
         }
         terms.hasCall = true;
-        terms.destination = destination;
-        terms.opReturnData = opReturnData;
+        terms.destination = opReturn.destination;
+        terms.opReturnData = opReturn.data;
         return (DepositRuleResult.Accepted, terms);
     }
 
