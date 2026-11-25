@@ -604,15 +604,14 @@ contract PegInContract is
         if (terms.cappedAmount < terms.fee + configuration.claimGasFee) {
             return (DepositRuleResult.AmountBelowDeduction, terms);
         }
-        (bool opReturnFound, BtcTransactionReader.OpReturnFault fault,, uint256 maxGasLimit,) =
-            BtcTransactionReader.readFlyoverOpReturn(outputs);
-        if (!opReturnFound) return (DepositRuleResult.Accepted, terms);
-        if (fault != BtcTransactionReader.OpReturnFault.None) {
-            terms.opReturnFault = fault;
+        BtcTransactionReader.FlyoverOpReturn memory opReturn = BtcTransactionReader.readFlyoverOpReturn(outputs);
+        if (!opReturn.found) return (DepositRuleResult.Accepted, terms);
+        if (opReturn.fault != BtcTransactionReader.OpReturnFault.None) {
+            terms.opReturnFault = opReturn.fault;
             return (DepositRuleResult.InvalidOpReturn, terms);
         }
-        if (maxGasLimit == 0 || maxGasLimit > configuration.maxCallGas) {
-            terms.maxGasLimit = maxGasLimit;
+        if (opReturn.maxGasLimit == 0 || opReturn.maxGasLimit > configuration.maxCallGas) {
+            terms.maxGasLimit = opReturn.maxGasLimit;
             return (DepositRuleResult.CallGasOutOfRange, terms);
         }
         return (DepositRuleResult.Accepted, terms);
