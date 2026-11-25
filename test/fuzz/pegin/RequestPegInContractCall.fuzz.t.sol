@@ -47,7 +47,9 @@ contract RequestPegInContractCallFuzzTest is RequestPegInContractCallTestBase {
         uint64 gasPrice
     ) public {
         maxGasLimit = uint32(bound(maxGasLimit, 1, DEFAULT_MAX_CALL_GAS));
-        gasPrice = uint64(bound(gasPrice, 0, _expected() / maxGasLimit));
+        gasPrice = uint64(
+            bound(gasPrice, 0, _expected() / (uint256(maxGasLimit) + 2300))
+        );
         vm.txGasPrice(gasPrice);
         // A plain address accepts RBTC with any gas, so the call always succeeds
         address wallet = makeAddr("wallet");
@@ -62,7 +64,7 @@ contract RequestPegInContractCallFuzzTest is RequestPegInContractCallTestBase {
 
         _requestPegInTx(claimer, rskUser, depositTx, _expected());
 
-        uint256 callGasFee = uint256(maxGasLimit) * gasPrice;
+        uint256 callGasFee = _gasFee(maxGasLimit, gasPrice);
         (, uint256 frontedAmount, uint256 feeAtClaim, ) = _readClaim(pegInId);
         assertEq(wallet.balance + callGasFee, _expected());
         assertEq(

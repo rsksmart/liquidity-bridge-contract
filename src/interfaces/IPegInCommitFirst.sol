@@ -23,8 +23,9 @@ interface IPegInCommitFirst {
     /// succeeded. On false the fronted amount stays in the claimer's balance
     /// @param destination The address that received netToUser: rskAddr, or the contract named by
     /// the deposit's OP_RETURN
-    /// @param callGasFee The fee for the gas forwarded to the contract call, in wei; 0 without an
-    /// OP_RETURN
+    /// @param callGasFee The fee for the gas forwarded to destination, in wei: the requested gas
+    /// plus the 2,300-gas stipend, times tx.gasprice. The requested gas is maxGasLimit for a
+    /// contract call, and 2,300 for a payment to rskAddr
     event PegInRequested(
         bytes32 indexed pegInId,
         address indexed claimer,
@@ -192,8 +193,8 @@ interface IPegInCommitFirst {
     error InsufficientCallGas(uint256 gasLeft, uint256 required);
 
     /// @notice Reverts requestPegIn when the call gas fee is more than the amount the LP fronts
-    /// @dev callGasFee is maxGasLimit * tx.gasprice. The LP can retry with a lower gas price.
-    /// @param callGasFee The fee for the gas forwarded to the call, in wei
+    /// @dev See the callGasFee of {PegInRequested}. The LP can retry with a lower gas price.
+    /// @param callGasFee The fee for the gas forwarded to the destination, in wei
     /// @param available The amount the LP fronts, in wei
     error CallGasFeeTooHigh(uint256 callGasFee, uint256 available);
 

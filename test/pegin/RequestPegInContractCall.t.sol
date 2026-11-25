@@ -12,7 +12,7 @@ contract RequestPegInContractCallTest is RequestPegInContractCallTestBase {
     function test_call_deliversValueAndCallData_andRecordsTheFee() public {
         bytes memory depositTx = _callTx(address(recorder), CALL_GAS);
         bytes32 pegInId = _pegInIdForTx(rskUser, depositTx);
-        uint256 callGasFee = uint256(CALL_GAS) * GAS_PRICE;
+        uint256 callGasFee = _gasFee(CALL_GAS, GAS_PRICE);
         uint256 netToUser = _expected() - callGasFee;
 
         vm.expectEmit(true, true, true, true);
@@ -72,18 +72,18 @@ contract RequestPegInContractCallTest is RequestPegInContractCallTestBase {
         _requestPegInTx(claimer, rskUser, depositTx, _expected());
         assertEq(
             _readGasFeeAtClaim(pegInId),
-            CLAIM_GAS_FEE + uint256(CALL_GAS) * 1 gwei
+            CLAIM_GAS_FEE + _gasFee(CALL_GAS, 1 gwei)
         );
     }
 
     function test_callGasFeeAboveExpected_reverts() public {
-        uint256 gasPrice = _expected() / CALL_GAS + 1;
+        uint256 gasPrice = _expected() / (CALL_GAS + 2300) + 1;
         vm.txGasPrice(gasPrice);
         bytes memory depositTx = _callTx(address(recorder), CALL_GAS);
         vm.expectRevert(
             abi.encodeWithSelector(
                 IPegInCommitFirst.CallGasFeeTooHigh.selector,
-                uint256(CALL_GAS) * gasPrice,
+                _gasFee(CALL_GAS, gasPrice),
                 _expected()
             )
         );
@@ -104,12 +104,26 @@ contract RequestPegInContractCallTest is RequestPegInContractCallTestBase {
         );
     }
 
+    /// @notice Without an OP_RETURN, the user pays for the 2,300 gas of the payment to rskAddr by
+    /// the same rule as for a contract call
+    function test_plainPayment_chargesTheForwardedGas() public {
+        bytes memory depositTx = _depositTx(rskUser, DEFAULT_AMOUNT);
+        bytes32 pegInId = _pegInIdForTx(rskUser, depositTx);
+        uint256 gasFee = _gasFee(2300, GAS_PRICE);
+        uint256 balanceBefore = rskUser.balance;
+
+        _requestPegInTx(claimer, rskUser, depositTx, _expected());
+
+        assertEq(rskUser.balance - balanceBefore, _expected() - gasFee);
+        assertEq(_readGasFeeAtClaim(pegInId), CLAIM_GAS_FEE + gasFee);
+    }
+
     // ---- the call fails ----
 
     function _assertFailedCall(address destination) internal {
         bytes memory depositTx = _callTx(destination, CALL_GAS);
         bytes32 pegInId = _pegInIdForTx(rskUser, depositTx);
-        uint256 callGasFee = uint256(CALL_GAS) * GAS_PRICE;
+        uint256 callGasFee = _gasFee(CALL_GAS, GAS_PRICE);
 
         vm.expectEmit(true, true, true, true);
         emit IPegInCommitFirst.PegInRequested(
@@ -159,7 +173,7 @@ contract RequestPegInContractCallTest is RequestPegInContractCallTestBase {
         assertTrue(_claimSuccess(pegInId));
         assertEq(
             address(destination).balance,
-            _expected() - uint256(CALL_GAS) * GAS_PRICE
+            _expected() - _gasFee(CALL_GAS, GAS_PRICE)
         );
     }
 
@@ -181,7 +195,7 @@ contract RequestPegInContractCallTest is RequestPegInContractCallTestBase {
             ""
         );
         _requestPegInTx(claimer, rskUser, depositTx, _expected());
-        assertEq(wallet.balance, _expected() - 2300 * GAS_PRICE);
+        assertEq(wallet.balance, _expected() - _gasFee(2300, GAS_PRICE));
     }
 
     // ---- settlement ----
@@ -191,7 +205,7 @@ contract RequestPegInContractCallTest is RequestPegInContractCallTestBase {
     {
         RevertingDestination destination = new RevertingDestination();
         bytes memory depositTx = _callTx(address(destination), CALL_GAS);
-        uint256 callGasFee = uint256(CALL_GAS) * GAS_PRICE;
+        uint256 callGasFee = _gasFee(CALL_GAS, GAS_PRICE);
         uint256 fees = _expectedFee(DEFAULT_AMOUNT) +
             CLAIM_GAS_FEE +
             callGasFee;

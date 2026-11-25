@@ -96,7 +96,11 @@ contract PegInContract is
     /// @notice The name of the contract (used for EIP712)
     string constant public NAME = "PegInContract";
     Flyover.ProviderType constant private _PEG_TYPE = Flyover.ProviderType.PegIn;
+    /// @dev Gas sent with a plain payment to rskAddr. A contract choice that matches Solidity's
+    /// transfer(): enough for a plain wallet to receive RBTC
     uint256 constant private _MAX_REFUND_GAS_LIMIT = 2300;
+    /// @dev Gas that Rootstock adds on top of the requested gas when a call sends RBTC
+    uint256 constant private _CALL_STIPEND = 2300;
     uint256 constant private _BTC_HEADER_LENGTH = 80;
     /// @dev Gas the contract call needs on top of maxGasLimit before the destination starts. On
     /// Rootstock the CALL costs 700, plus 9,000 for the value transfer, plus 25,000 when the
@@ -482,7 +486,7 @@ contract PegInContract is
             }
         }
 
-        bool success = _payPegInUser(rskAddr, released);
+        bool success = _payPegInUser(rskAddr, released, _MAX_REFUND_GAS_LIMIT);
         emit UserRemainderRefunded(pegInId, rskAddr, released, success);
         uint256 userPayout = 0;
         if (success) {
@@ -642,16 +646,16 @@ contract PegInContract is
     }
 
     /// @notice Sends RBTC to the peg-in destination address
-    /// @dev Forwards _MAX_REFUND_GAS_LIMIT gas, plus the 2300-gas stipend when expected > 0:
+    /// @dev Forwards gasLimit gas, plus the 2300-gas stipend when expected > 0:
     /// Rootstock has no 63/64 rule, so an unlimited call lets the destination spend all gas and
     /// revert the claim. Copies no return data, so a large return cannot spend the gas left after
     /// the call.
     /// @return success False when the destination refused the RBTC or ran out of gas
     // slither-disable-next-line arbitrary-send-eth,low-level-calls
-    function _payPegInUser(address rskAddr, uint256 expected) private returns (bool success) {
+    function _payPegInUser(address rskAddr, uint256 expected, uint256 gasLimit) private returns (bool success) {
         // solhint-disable-next-line no-inline-assembly
         assembly {
-            success := call(_MAX_REFUND_GAS_LIMIT, rskAddr, expected, 0, 0, 0, 0)
+            success := call(gasLimit, rskAddr, expected, 0, 0, 0, 0)
         }
     }
 
@@ -668,9 +672,9 @@ contract PegInContract is
         uint256 claimGasFee,
         uint256 requiredFronting
     ) private {
-        // The user pays for the gas forwarded to the call, not the gas it uses: the value sent
-        // must be fixed before the call
-        uint256 callGasFee = terms.hasCall ? terms.maxGasLimit * tx.gasprice : 0;
+        // The user pays for the gas forwarded to the destination, on both paths
+        uint256 gasLimit = terms.hasCall ? terms.maxGasLimit : _MAX_REFUND_GAS_LIMIT;
+        uint256 callGasFee = _forwardedGasFee(gasLimit, tx.gasprice);
         if (callGasFee > requiredFronting) revert CallGasFeeTooHigh(callGasFee, requiredFronting);
         uint256 netToUser = requiredFronting - callGasFee;
 
@@ -686,8 +690,8 @@ contract PegInContract is
         // did during it, so no re-entry can act on a paid claim that is later marked failed
         address destination = terms.hasCall ? terms.destination : rskAddr;
         bool success = terms.hasCall
-            ? _callDestination(destination, netToUser, terms.maxGasLimit, terms.opReturnData)
-            : _payPegInUser(rskAddr, netToUser);
+            ? _callDestination(destination, netToUser, gasLimit, terms.opReturnData)
+            : _payPegInUser(rskAddr, netToUser, gasLimit);
         if (success) {
             // msg.value is requiredFronting; the part not forwarded is the LP's own RBTC
             if (callGasFee > 0) _increaseBalance(msg.sender, callGasFee);
@@ -704,9 +708,21 @@ contract PegInContract is
         );
     }
 
+    /// @notice The fee the user pays for the gas forwarded to the destination
+    /// @dev The fee is for the gas forwarded, not the gas used, because the value sent must be
+    /// fixed before the call. It includes the 2,300-gas stipend that Rootstock adds when a call
+    /// sends RBTC. The stipend is charged even when no RBTC is sent: that happens only when this
+    /// fee takes all the LP fronts, so the destination gets nothing either way.
+    /// @param gasLimit The gas requested for the call, before the stipend
+    /// @param gasPrice The price of one unit of gas, in wei
+    /// @return The fee, in wei
+    function _forwardedGasFee(uint256 gasLimit, uint256 gasPrice) private pure returns (uint256) {
+        return (gasLimit + _CALL_STIPEND) * gasPrice;
+    }
+
     /// @notice Makes the contract call that the deposit's OP_RETURN asks for
     /// @dev Forwards gasLimit, which the user signed, so the LP cannot change it. When the call
-    /// sends value, Rootstock adds a 2,300-gas stipend on top; the LP pays for that extra gas.
+    /// sends value, Rootstock adds a 2,300-gas stipend on top, which the user also pays for.
     /// When less gas is left than requested, Rootstock gives the destination only what is left,
     /// so the gas check makes sure the destination gets all of gasLimit: otherwise an LP could
     /// make the call fail by sending too little gas. Copies no return data, so a large return
