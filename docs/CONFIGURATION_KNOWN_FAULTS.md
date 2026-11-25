@@ -93,7 +93,7 @@ This gives two cases:
 
 **Status.** WONTFIX. A change of the bridge minimum ships as one release that updates `FlyoverConfigurations`, the registry and `PegInContract` together.
 
-**Check.** The two copies are equal, and `minAmount` is at least that value times 10^10. No getter returns the registry's copy: read it from the deployment record or the registry's storage. `getMinDepositSats()` returns `minAmount` and reverts in the first case.
+**Check.** The two copies are equal, and `minAmount` is at least that value in wei. Both copies are in satoshis and `minAmount` is in wei, so multiply by 10^10 (1 satoshi = 10^10 wei, `Flyover.SAT_TO_WEI_CONVERSION`). Read the registry's copy from its current storage: the admin can change it after deployment with `setMinDepositSats`, so the deployment value is current only together with every later `MinDepositSatsSet` event. No getter returns it: `getMinDepositSats()` returns `minAmount` and reverts in the first case.
 
 Source: [#581](https://github.com/rsksmart/liquidity-bridge-contract/pull/581#discussion_r4411226861).
 
@@ -101,7 +101,7 @@ Source: [#581](https://github.com/rsksmart/liquidity-bridge-contract/pull/581#di
 
 **What happens.** `queueChange` overwrites the pending configuration and restarts the delay, with no warning. The same holds for `queueBoundsChange`. A change applied after a later queue may not be the one that was reviewed.
 
-**Status.** WONTFIX here. Who may queue and apply changes is handled in FLY-2613.
+**Status.** WONTFIX here. Who may queue and apply changes is a separate access-control change.
 
 **Check.** Before `applyChange`, read `getPendingChange` and compare it with the reviewed values.
 
