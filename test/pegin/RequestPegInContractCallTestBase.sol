@@ -25,6 +25,22 @@ abstract contract RequestPegInContractCallTestBase is ResolvePegInTestBase {
         return DEFAULT_AMOUNT - _expectedFee(DEFAULT_AMOUNT) - CLAIM_GAS_FEE;
     }
 
+    /// @dev The requested gas plus the 2,300-gas stipend, times the gas price
+    function _gasFee(
+        uint256 gasLimit,
+        uint256 gasPrice
+    ) internal pure returns (uint256) {
+        return (gasLimit + 2300) * gasPrice;
+    }
+
+    /// @dev What the LP fronts and the destination receives
+    function _netToUser(
+        uint256 gasLimit,
+        uint256 gasPrice
+    ) internal pure returns (uint256) {
+        return _expected() - _gasFee(gasLimit, gasPrice);
+    }
+
     function _callTx(
         address destination,
         uint32 maxGasLimit

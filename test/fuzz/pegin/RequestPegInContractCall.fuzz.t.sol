@@ -14,7 +14,7 @@ contract RequestPegInContractCallFuzzTest is RequestPegInContractCallTestBase {
         lpGas = bound(lpGas, 300_000, 1_500_000);
         bytes memory depositTx = _callTx(address(recorder), CALL_GAS);
         bytes32 pegInId = _pegInIdForTx(rskUser, depositTx);
-        uint256 value = _expected();
+        uint256 value = _netToUser(CALL_GAS, GAS_PRICE);
 
         vm.prank(claimer);
         try
@@ -40,14 +40,15 @@ contract RequestPegInContractCallFuzzTest is RequestPegInContractCallTestBase {
         }
     }
 
-    /// @notice The value sent plus the call gas fee is what the LP fronts, and the LP's share at
-    /// settlement is the same as without a call
+    /// @notice The LP fronts the value sent, and the value sent plus all the fees is the deposit
     function testFuzz_amounts_addUp(
         uint32 maxGasLimit,
         uint64 gasPrice
     ) public {
         maxGasLimit = uint32(bound(maxGasLimit, 1, DEFAULT_MAX_CALL_GAS));
-        gasPrice = uint64(bound(gasPrice, 0, _expected() / maxGasLimit));
+        gasPrice = uint64(
+            bound(gasPrice, 0, _expected() / (uint256(maxGasLimit) + 2300))
+        );
         vm.txGasPrice(gasPrice);
         // A plain address accepts RBTC with any gas, so the call always succeeds
         address wallet = makeAddr("wallet");
@@ -60,9 +61,9 @@ contract RequestPegInContractCallFuzzTest is RequestPegInContractCallTestBase {
         );
         bytes32 pegInId = _pegInIdForTx(rskUser, depositTx);
 
-        _requestPegInTx(claimer, rskUser, depositTx, _expected());
+        uint256 callGasFee = _gasFee(maxGasLimit, gasPrice);
+        _requestPegInTx(claimer, rskUser, depositTx, _expected() - callGasFee);
 
-        uint256 callGasFee = uint256(maxGasLimit) * gasPrice;
         (, uint256 frontedAmount, uint256 feeAtClaim, ) = _readClaim(pegInId);
         assertEq(wallet.balance + callGasFee, _expected());
         assertEq(
