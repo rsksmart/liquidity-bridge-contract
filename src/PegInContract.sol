@@ -32,6 +32,16 @@ contract PegInContract is
     IPegIn,
     IPegInCommitFirst
 {
+    /// @notice The first deposit rule a deposit fails, or Accepted
+    /// @dev The deposit rules are shared by requestPegIn and the unclaimed-settlement slash
+    enum DepositRuleResult {
+        Accepted,
+        OutputNotFound,
+        OutputBelowBridgeMinimum,
+        AmountBelowMinimum,
+        AmountBelowDeduction
+    }
+
     /// @notice This struct is used to store the information of a call on behalf of the user
     /// @param timestamp The timestamp of the call
     /// @param success Whether the call was successful or not
@@ -56,12 +66,32 @@ contract PegInContract is
         uint256 requestBlock;
     }
 
+    /// @notice Values read or computed while checking the deposit rules
+    /// @param amount The first matching output, in wei
+    /// @param cappedAmount min(amount, maxAmount)
+    /// @param fee The service fee on cappedAmount
+    /// @param smallestOutputSats The smallest matching output, in satoshis
+    struct DepositTerms {
+        uint256 amount;
+        uint256 cappedAmount;
+        uint256 fee;
+        uint256 smallestOutputSats;
+    }
+
     /// @notice The version of the contract
     string constant public VERSION = "1.0.0";
     /// @notice The name of the contract (used for EIP712)
     string constant public NAME = "PegInContract";
     Flyover.ProviderType constant private _PEG_TYPE = Flyover.ProviderType.PegIn;
     uint256 constant private _MAX_REFUND_GAS_LIMIT = 2300;
+    uint256 constant private _BTC_HEADER_LENGTH = 80;
+    /// @dev Lower bound on the RSK block interval, used to estimate when an address was registered.
+    /// Below the shortest 3-hour average seen on mainnet (22.7 s) and the usual 30 s average, so the
+    /// estimate is never earlier than the real registration and LPs never get a shorter window.
+    uint256 constant private _MIN_RSK_BLOCK_TIME = 20;
+    /// @dev Parsing gas grows with the square of the transaction size. Above this size the slash
+    /// check could need more gas than an RSK block allows and block the user's payout.
+    uint256 constant private _MAX_SLASHABLE_TX_SIZE = 3_000;
     int256 constant private _BRIDGE_UNPROCESSABLE_TX_VALIDATIONS_ERROR = -303;
     int256 constant private _BRIDGE_REFUNDED_USER_ERROR_CODE = -100;
     int256 constant private _BRIDGE_REFUNDED_LP_ERROR_CODE = -200;
@@ -261,29 +291,27 @@ contract PegInContract is
         if (!_pegInAddressRegistry.isRegistered(rskAddr)) {
             revert AddressNotRegistered(rskAddr);
         }
-        uint256 amount;
-        {
-            (uint256 firstSats, uint256 smallestOutputSats) =
-                _readDepositOutputs(rskAddr, btcTxSerialized, btcTxHash);
-            _requireBridgeMinimum(smallestOutputSats);
-            amount = firstSats * Flyover.SAT_TO_WEI_CONVERSION;
-        }
         IFlyoverConfigurations.PegInConfiguration memory configuration = _configurations.getPegInConfiguration();
-        if (amount < configuration.minAmount) {
-            revert PegInBelowMinimum(amount, configuration.minAmount);
+        (DepositRuleResult result, DepositTerms memory terms) =
+            _checkDepositRules(rskAddr, btcTxSerialized, configuration);
+        if (result == DepositRuleResult.OutputNotFound) revert DepositOutputNotFound(rskAddr, btcTxHash);
+        if (result == DepositRuleResult.OutputBelowBridgeMinimum) {
+            revert DepositBelowBridgeMinimum(terms.smallestOutputSats, _BRIDGE_MIN_DEPOSIT_SATS);
         }
-        _requirePegInConfirmations(amount, btcTxHash, btcBlockHash, merkleBranchPath, merkleBranchHashes);
+        if (result == DepositRuleResult.AmountBelowMinimum) {
+            revert PegInBelowMinimum(terms.amount, configuration.minAmount);
+        }
+        _requirePegInConfirmations(terms.amount, btcTxHash, btcBlockHash, merkleBranchPath, merkleBranchHashes);
+        if (result == DepositRuleResult.AmountBelowDeduction) revert IncorrectFronting(0, msg.value);
 
         // Settlement pays the user the part of the deposit above the cap, from the bridge release.
-        uint256 cappedAmount = _min(amount, configuration.maxAmount);
-        uint256 fee = _configurations.calculatePegInFee(cappedAmount);
-        uint256 expected = _requireCorrectFronting(cappedAmount, fee + configuration.claimGasFee);
+        uint256 expected = _requireCorrectFronting(terms.cappedAmount, terms.fee + configuration.claimGasFee);
 
         _pegInClaims[pegInId] = PegInClaim({
             claimer: msg.sender,
             success: true,
             frontedAmount: expected,
-            feeAtClaim: fee,
+            feeAtClaim: terms.fee,
             gasFeeAtClaim: configuration.claimGasFee,
             requestBlock: block.number
         });
@@ -297,7 +325,7 @@ contract PegInContract is
             // The LP keeps the RBTC it fronted, so settlement repays only the fee + claimGasFee
             _increaseBalance(msg.sender, msg.value);
         }
-        emit PegInRequested(pegInId, msg.sender, rskAddr, amount, expected, success);
+        emit PegInRequested(pegInId, msg.sender, rskAddr, terms.amount, expected, success);
     }
 
     /// @inheritdoc IPegInCommitFirst
@@ -336,7 +364,7 @@ contract PegInContract is
         }
 
         if (claim.claimer == address(0)) {
-            _settleUnclaimedPegIn(pegInId, rskAddr, uint256(registerResult));
+            _settleUnclaimedPegIn(pegInId, rskAddr, btcRawTransaction, height, uint256(registerResult));
         } else {
             _creditResolvedPegIn(pegInId, rskAddr, claim, uint256(registerResult));
         }
@@ -433,11 +461,26 @@ contract PegInContract is
 
     /// @dev No LP fronted anything, so the whole release belongs to the user and no fee is taken.
     /// A release the user does not accept is credited to the user's balance, so the user can
-    /// withdraw it.
-    function _settleUnclaimedPegIn(bytes32 pegInId, address rskAddr, uint256 released) private {
+    /// withdraw it. Peg-in LPs are slashed first when they had a fair chance to claim the deposit.
+    function _settleUnclaimedPegIn(
+        bytes32 pegInId,
+        address rskAddr,
+        bytes calldata btcRawTransaction,
+        uint256 height,
+        uint256 released
+    ) private {
         _pegInSettled[pegInId] = true;
         // A stored claimer makes requestPegIn revert, so no LP fronts RBTC that settlement cannot repay
         _pegInClaims[pegInId].claimer = msg.sender;
+
+        (bool slashable, uint256 penalty) = _isSlashableUnclaimedPegIn(rskAddr, btcRawTransaction, height);
+        if (slashable) {
+            // The slash must never block the user's payout
+            // solhint-disable-next-line no-empty-blocks
+            try _collateralManagement.globalSlashPegIn(penalty) {} catch {
+                emit GlobalSlashSkipped(pegInId);
+            }
+        }
 
         bool success = _payPegInUser(rskAddr, released);
         emit UserRemainderRefunded(pegInId, rskAddr, released, success);
@@ -500,7 +543,7 @@ contract PegInContract is
         if (address(_configurations) == address(0)) revert FlyoverConfigurationsNotSet();
     }
 
-    /// @notice Reads the outputs paying the deposit address out of the deposit transaction
+    /// @notice Checks the deposit rules of requestPegIn in order and returns the first that fails
     /// @dev Two different operations, and only the first is a derivation: the deposit
     /// scriptPubkey for rskAddr is DERIVED (a formula over this proxy's address and the live
     /// powpeg script), and the outputs paying that script are then READ. The first one sets the
@@ -521,30 +564,35 @@ contract PegInContract is
     /// agree with the flag the registry was initialized with: the BTC placeholders mixed into the
     /// derivation are per-network, so a disagreement derives a script no deposit pays and every
     /// claim reverts DepositOutputNotFound.
+    ///
+    /// Returns a result instead of reverting, so the unclaimed settlement can use the same rules
+    /// without blocking the user's payout.
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param btcTxSerialized The witness-stripped raw deposit transaction
-    /// @param btcTxHash The txid hashed from btcTxSerialized, for the revert reason
-    /// @return firstSats The first matching output, in satoshis
-    /// @return smallestOutputSats The smallest matching output, in satoshis
-    function _readDepositOutputs(address rskAddr, bytes calldata btcTxSerialized, bytes32 btcTxHash)
-        private
-        view
-        returns (uint256 firstSats, uint256 smallestOutputSats)
-    {
+    /// @param configuration The active peg-in configuration
+    /// @return result The first rule the deposit fails, or Accepted
+    /// @return terms The values read or computed up to that rule
+    function _checkDepositRules(
+        address rskAddr,
+        bytes calldata btcTxSerialized,
+        IFlyoverConfigurations.PegInConfiguration memory configuration
+    ) private view returns (DepositRuleResult result, DepositTerms memory terms) {
         bytes memory pkScript = PegInDerivation.depositPkScript(
             rskAddr, address(this), _bridge.getActivePowpegRedeemScript(), _mainnet
         );
-        bool found;
-        (firstSats, smallestOutputSats, found) = BtcTransactionReader.findOutputsPaying(btcTxSerialized, pkScript);
-        if (!found) {
-            revert DepositOutputNotFound(rskAddr, btcTxHash);
+        (uint256 firstSats, uint256 smallestOutputSats, bool found) =
+            BtcTransactionReader.findOutputsPaying(btcTxSerialized, pkScript);
+        if (!found) return (DepositRuleResult.OutputNotFound, terms);
+        terms.smallestOutputSats = smallestOutputSats;
+        if (smallestOutputSats < _BRIDGE_MIN_DEPOSIT_SATS) return (DepositRuleResult.OutputBelowBridgeMinimum, terms);
+        terms.amount = firstSats * Flyover.SAT_TO_WEI_CONVERSION;
+        if (terms.amount < configuration.minAmount) return (DepositRuleResult.AmountBelowMinimum, terms);
+        terms.cappedAmount = _min(terms.amount, configuration.maxAmount);
+        terms.fee = _configurations.calculatePegInFee(terms.cappedAmount);
+        if (terms.cappedAmount < terms.fee + configuration.claimGasFee) {
+            return (DepositRuleResult.AmountBelowDeduction, terms);
         }
-    }
-
-    function _requireBridgeMinimum(uint256 smallestOutputSats) private view {
-        if (smallestOutputSats < _BRIDGE_MIN_DEPOSIT_SATS) {
-            revert DepositBelowBridgeMinimum(smallestOutputSats, _BRIDGE_MIN_DEPOSIT_SATS);
-        }
+        return (DepositRuleResult.Accepted, terms);
     }
 
     /// @notice Reverts unless the bridge accepts the proof and its confirmations meet the configured tier for amount
@@ -569,9 +617,6 @@ contract PegInContract is
 
     /// @notice Validates msg.value equals amount minus fee; returns the expected net
     function _requireCorrectFronting(uint256 amount, uint256 fee) private view returns (uint256 expected) {
-        if (amount < fee) {
-            revert IncorrectFronting(0, msg.value);
-        }
         expected = amount - fee;
         if (msg.value != expected) {
             revert IncorrectFronting(expected, msg.value);
@@ -613,8 +658,47 @@ contract PegInContract is
         pegInId = keccak256(abi.encodePacked(rskAddr, BtcUtils.hashBtcTx(btcRawTransaction)));
     }
 
+    /// @dev True when LPs had a fair chance to claim this deposit: the transaction is at most
+    /// _MAX_SLASHABLE_TX_SIZE bytes, the address is registered, the deposit passes the amount rules
+    /// of requestPegIn, and claimWindow seconds plus hard-pause time have passed since the later of
+    /// the tier time and the registration time. Never reverts, so settlement is never blocked.
+    function _isSlashableUnclaimedPegIn(address rskAddr, bytes calldata btcRawTransaction, uint256 height)
+        private
+        view
+        returns (bool slashable, uint256 penalty)
+    {
+        if (btcRawTransaction.length > _MAX_SLASHABLE_TX_SIZE) return (false, 0);
+        uint256 registrationBlock = _pegInAddressRegistry.getRegistrationBlock(rskAddr);
+        if (registrationBlock == 0) return (false, 0);
+        IFlyoverConfigurations.PegInConfiguration memory configuration = _configurations.getPegInConfiguration();
+        (DepositRuleResult result, DepositTerms memory terms) =
+            _checkDepositRules(rskAddr, btcRawTransaction, configuration);
+        if (result != DepositRuleResult.Accepted) return (false, 0);
+        uint256 tier = _configurations.getRequiredPegInBtcConfirmations(terms.amount);
+        bytes memory header = _bridge.getBtcBlockchainBlockHeaderByHeight(height + tier - 1);
+        if (header.length != _BTC_HEADER_LENGTH) return (false, 0);
+        uint256 start = _max(BtcUtils.getBtcBlockTimestamp(header), _estimatedRegistrationTime(registrationBlock));
+        uint256 pauseTime = pauseRegistry().computePauseOverlap(start, block.timestamp);
+        if (block.timestamp > start + configuration.claimWindow + pauseTime) {
+            return (true, configuration.penaltyFee);
+        }
+        return (false, 0);
+    }
+
+    /// @dev Never earlier than the real registration time, because _MIN_RSK_BLOCK_TIME is below the
+    /// real block interval
+    function _estimatedRegistrationTime(uint256 registrationBlock) private view returns (uint256) {
+        uint256 elapsed = (block.number - registrationBlock) * _MIN_RSK_BLOCK_TIME;
+        return elapsed < block.timestamp ? block.timestamp - elapsed : 0;
+    }
+
     /// @dev Utility function to return the minimum of two uint256 values
     function _min(uint a, uint b) private pure returns (uint) {
         return a < b ? a : b;
+    }
+
+    /// @dev Utility function to return the maximum of two uint256 values
+    function _max(uint a, uint b) private pure returns (uint) {
+        return a > b ? a : b;
     }
 }
