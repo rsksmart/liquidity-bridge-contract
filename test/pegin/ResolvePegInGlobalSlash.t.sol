@@ -14,6 +14,10 @@ contract ResolvePegInGlobalSlashTest is ResolvePegInTestBase {
     uint256 internal constant CLAIM_WINDOW = 3 hours;
     uint256 internal constant BRIDGE_RELEASE = DEFAULT_AMOUNT;
     uint256 internal constant RESOLVE_HEIGHT = 100;
+    uint256 internal constant MAX_SLASHABLE_TX_SIZE = 3_000;
+    /// @dev RSK's 10M block gas limit minus room for the real bridge call, which the mock does
+    /// not charge
+    uint256 internal constant SETTLE_GAS_BUDGET = 8_000_000;
 
     address internal secondLp;
     address internal thirdParty;
@@ -98,6 +102,53 @@ contract ResolvePegInGlobalSlashTest is ResolvePegInTestBase {
             BRIDGE_RELEASE,
             "user must receive the whole release"
         );
+    }
+
+    /// @dev A deposit to rskAddr padded to exactly `size` bytes with empty-script outputs. Many
+    /// short outputs cost the most gas to parse per byte, so this is the worst case for a size.
+    function _depositTxOfSize(
+        address rskAddr,
+        uint256 size
+    ) internal view returns (bytes memory depositTx) {
+        bytes memory pkScript = _depositPkScript(rskAddr);
+        uint64 sats = _toSats(DEFAULT_AMOUNT);
+        bytes memory value = new bytes(8);
+        for (uint256 i; i < 8; ++i) {
+            value[i] = bytes1(uint8(sats >> (8 * i)));
+        }
+        bytes memory outputs = abi.encodePacked(
+            value,
+            bytes1(uint8(pkScript.length)),
+            pkScript
+        );
+        // version, input count, input, 3-byte output count, locktime
+        uint256 padding = size - (4 + 1 + 41 + 3 + 4) - outputs.length;
+        uint256 paddingOutputs = padding / 9;
+        for (uint256 i = 1; i < paddingOutputs; ++i) {
+            outputs = bytes.concat(outputs, new bytes(9));
+        }
+        uint256 lastScriptLength = padding - 9 * paddingOutputs;
+        outputs = bytes.concat(
+            outputs,
+            new bytes(8),
+            bytes1(uint8(lastScriptLength)),
+            new bytes(lastScriptLength)
+        );
+        uint256 outputCount = 1 + paddingOutputs;
+        depositTx = abi.encodePacked(
+            hex"01000000", // version
+            hex"01", // input count
+            bytes32(DEFAULT_TX_NONCE), // prevout txid
+            hex"00000000", // prevout index
+            hex"00", // empty scriptSig
+            hex"ffffffff", // sequence
+            hex"fd",
+            bytes1(uint8(outputCount)),
+            bytes1(uint8(outputCount >> 8)),
+            outputs,
+            hex"00000000" // locktime
+        );
+        assertEq(depositTx.length, size);
     }
 
     function _count(
@@ -199,6 +250,21 @@ contract ResolvePegInGlobalSlashTest is ResolvePegInTestBase {
         );
 
         _assertSkipped(_settle(rskUser, depositTx));
+    }
+
+    function test_unclaimed_deposit_output_below_bridge_minimum_skips_slash()
+        public
+    {
+        _setTierHeader(uint32(T));
+        _passClaimWindow();
+        bytes[] memory pkScripts = new bytes[](2);
+        pkScripts[0] = _depositPkScript(rskUser);
+        pkScripts[1] = _depositPkScript(rskUser);
+        uint64[] memory valuesSats = new uint64[](2);
+        valuesSats[0] = _toSats(DEFAULT_AMOUNT);
+        valuesSats[1] = uint64(TEST_BRIDGE_MIN_DEPOSIT_SATS - 1);
+
+        _assertSkipped(_settle(rskUser, _buildTx(pkScripts, valuesSats, 1)));
     }
 
     function test_unclaimed_deposit_below_deduction_skips_slash() public {
@@ -353,6 +419,44 @@ contract ResolvePegInGlobalSlashTest is ResolvePegInTestBase {
 
         _assertSkipped(
             _settle(unregistered, _depositTx(unregistered, DEFAULT_AMOUNT))
+        );
+    }
+
+    function test_unclaimed_deposit_at_size_limit_slashes_within_gas_budget()
+        public
+    {
+        _setTierHeader(uint32(T));
+        _passClaimWindow();
+        bytes memory depositTx = _depositTxOfSize(
+            rskUser,
+            MAX_SLASHABLE_TX_SIZE
+        );
+        uint256 collateralBefore = _totalPegInCollateral();
+        uint256 userBefore = rskUser.balance;
+        _fund(rskUser);
+
+        vm.recordLogs();
+        vm.prank(thirdParty);
+        pegInContract.resolvePegIn{gas: SETTLE_GAS_BUDGET}(
+            rskUser,
+            depositTx,
+            hex"00",
+            RESOLVE_HEIGHT
+        );
+
+        assertEq(rskUser.balance - userBefore, BRIDGE_RELEASE);
+        _assertSlashed(vm.getRecordedLogs(), collateralBefore);
+    }
+
+    function test_unclaimed_deposit_above_size_limit_skips_slash() public {
+        _setTierHeader(uint32(T));
+        _passClaimWindow();
+
+        _assertSkipped(
+            _settle(
+                rskUser,
+                _depositTxOfSize(rskUser, MAX_SLASHABLE_TX_SIZE + 1)
+            )
         );
     }
 

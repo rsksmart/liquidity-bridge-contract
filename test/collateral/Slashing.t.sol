@@ -796,7 +796,7 @@ contract SlashingTest is CollateralTestBase {
 
         uint256 backfillBlock = block.number;
         vm.prank(owner);
-        collateralManagement.initializePegOutRegistrationBlocks();
+        collateralManagement.initializeRegistrationBlocks();
 
         assertEq(
             collateralManagement.getPegOutRegistrationBlock(lpA),
@@ -824,7 +824,7 @@ contract SlashingTest is CollateralTestBase {
             .checked_write(uint256(0));
 
         vm.prank(owner);
-        collateralManagement.initializePegOutRegistrationBlocks();
+        collateralManagement.initializeRegistrationBlocks();
 
         vm.prank(slasher);
         vm.expectRevert(
@@ -849,7 +849,7 @@ contract SlashingTest is CollateralTestBase {
     function _backfill() internal returns (uint256 backfillBlock) {
         backfillBlock = block.number;
         vm.prank(owner);
-        collateralManagement.initializePegOutRegistrationBlocks();
+        collateralManagement.initializeRegistrationBlocks();
     }
 
     /// @dev The LP is listed again inside the grace window: not slashed until the window ends.

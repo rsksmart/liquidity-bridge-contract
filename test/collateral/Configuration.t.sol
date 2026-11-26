@@ -406,7 +406,7 @@ contract ConfigurationTest is CollateralTestBase {
         assertEq(collateralManagement.getMinCollateral(), 1);
     }
 
-    // ============ initializePegOutRegistrationBlocks ============
+    // ============ initializeRegistrationBlocks ============
 
     function _deployAndWireDiscovery() internal {
         FlyoverDiscovery impl = new FlyoverDiscovery();
@@ -446,109 +446,6 @@ contract ConfigurationTest is CollateralTestBase {
         discovery.approveRegistration(lp);
     }
 
-    function test_InitializePegOutRegistrationBlocks_DoesNotRequireDiscovery()
-        public
-    {
-        vm.prank(owner);
-        collateralManagement.initializePegOutRegistrationBlocks();
-
-        assertEq(
-            collateralManagement.getPegOutRegistrationBlock(
-                makeAddr("noCollateral")
-            ),
-            0,
-            "an address without peg-out collateral has no registration block"
-        );
-    }
-
-    function test_InitializePegOutRegistrationBlocks_OnlyAllowsOwner() public {
-        bytes32 defaultAdminRole = collateralManagement.DEFAULT_ADMIN_ROLE();
-
-        vm.prank(notOwner);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector,
-                notOwner,
-                defaultAdminRole
-            )
-        );
-        collateralManagement.initializePegOutRegistrationBlocks();
-    }
-
-    function test_InitializePegOutRegistrationBlocks_EmptyProviderSetSucceeds()
-        public
-    {
-        _deployAndWireDiscovery();
-        vm.prank(owner);
-        collateralManagement.initializePegOutRegistrationBlocks();
-    }
-
-    function test_InitializePegOutRegistrationBlocks_AllowsInitializeOnlyOnce()
-        public
-    {
-        _deployAndWireDiscovery();
-        vm.prank(owner);
-        collateralManagement.initializePegOutRegistrationBlocks();
-
-        vm.prank(owner);
-        vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
-        collateralManagement.initializePegOutRegistrationBlocks();
-    }
-
-    function test_InitializePegOutRegistrationBlocks_DoesNotOverwriteExistingBlocks()
-        public
-    {
-        _deployAndWireDiscovery();
-        address lp = makeAddr("pegOutLpBackfill");
-        _approvePegOut(lp, BASE_COLLATERAL);
-        uint256 original = collateralManagement.getPegOutRegistrationBlock(lp);
-        assertGt(original, 0);
-
-        vm.roll(block.number + 50);
-        vm.prank(owner);
-        collateralManagement.initializePegOutRegistrationBlocks();
-
-        assertEq(
-            collateralManagement.getPegOutRegistrationBlock(lp),
-            original,
-            "live-path registration block must be kept"
-        );
-    }
-
-    function test_InitializePegOutRegistrationBlocks_OnlyWritesZeroedBlocks()
-        public
-    {
-        _deployAndWireDiscovery();
-        address kept = makeAddr("keptRegBlock");
-        address zeroed = makeAddr("zeroedRegBlock");
-
-        vm.roll(10);
-        _approvePegOut(kept, BASE_COLLATERAL);
-        uint256 keptBlock = collateralManagement.getPegOutRegistrationBlock(
-            kept
-        );
-
-        vm.roll(11);
-        _approvePegOut(zeroed, BASE_COLLATERAL);
-        stdstore
-            .target(address(collateralManagement))
-            .sig("getPegOutRegistrationBlock(address)")
-            .with_key(zeroed)
-            .checked_write(uint256(0));
-
-        vm.roll(20);
-        vm.prank(owner);
-        collateralManagement.initializePegOutRegistrationBlocks();
-
-        assertEq(
-            collateralManagement.getPegOutRegistrationBlock(kept),
-            keptBlock
-        );
-        assertEq(collateralManagement.getPegOutRegistrationBlock(zeroed), 20);
-    }
-
-    // ============ initializePegInRegistrationBlocks ============
-
     function _approvePegIn(address lp, uint256 amount) internal {
         vm.deal(lp, amount);
         vm.prank(lp, lp);
@@ -562,59 +459,22 @@ contract ConfigurationTest is CollateralTestBase {
         discovery.approveRegistration(lp);
     }
 
-    function test_InitializePegInRegistrationBlocks_OnlyWritesZeroedBlocks()
+    function test_InitializeRegistrationBlocks_DoesNotRequireDiscovery()
         public
     {
-        _deployAndWireDiscovery();
-        address kept = makeAddr("keptRegBlock");
-        address zeroed = makeAddr("zeroedRegBlock");
-
-        vm.roll(10);
-        _approvePegIn(kept, BASE_COLLATERAL);
-        uint256 keptBlock = collateralManagement.getPegInRegistrationBlock(
-            kept
-        );
-
-        vm.roll(11);
-        _approvePegIn(zeroed, BASE_COLLATERAL);
-        stdstore
-            .target(address(collateralManagement))
-            .sig("getPegInRegistrationBlock(address)")
-            .with_key(zeroed)
-            .checked_write(uint256(0));
-
-        vm.roll(20);
         vm.prank(owner);
-        collateralManagement.initializePegInRegistrationBlocks();
+        collateralManagement.initializeRegistrationBlocks();
 
         assertEq(
-            collateralManagement.getPegInRegistrationBlock(kept),
-            keptBlock
-        );
-        assertEq(collateralManagement.getPegInRegistrationBlock(zeroed), 20);
-    }
-
-    function test_InitializePegInRegistrationBlocks_DoesNotOverwriteExistingBlocks()
-        public
-    {
-        _deployAndWireDiscovery();
-        address lp = makeAddr("pegInLpBackfill");
-        _approvePegIn(lp, BASE_COLLATERAL);
-        uint256 original = collateralManagement.getPegInRegistrationBlock(lp);
-        assertGt(original, 0);
-
-        vm.roll(block.number + 50);
-        vm.prank(owner);
-        collateralManagement.initializePegInRegistrationBlocks();
-
-        assertEq(
-            collateralManagement.getPegInRegistrationBlock(lp),
-            original,
-            "live-path registration block must be kept"
+            collateralManagement.getPegOutRegistrationBlock(
+                makeAddr("noCollateral")
+            ),
+            0,
+            "an address without peg-out collateral has no registration block"
         );
     }
 
-    function test_InitializePegInRegistrationBlocks_OnlyAllowsOwner() public {
+    function test_InitializeRegistrationBlocks_OnlyAllowsOwner() public {
         bytes32 defaultAdminRole = collateralManagement.DEFAULT_ADMIN_ROLE();
 
         vm.prank(notOwner);
@@ -625,18 +485,90 @@ contract ConfigurationTest is CollateralTestBase {
                 defaultAdminRole
             )
         );
-        collateralManagement.initializePegInRegistrationBlocks();
+        collateralManagement.initializeRegistrationBlocks();
     }
 
-    function test_InitializePegInRegistrationBlocks_AllowsInitializeOnlyOnce()
+    function test_InitializeRegistrationBlocks_EmptyProviderSetSucceeds()
         public
     {
         _deployAndWireDiscovery();
         vm.prank(owner);
-        collateralManagement.initializePegInRegistrationBlocks();
+        collateralManagement.initializeRegistrationBlocks();
+    }
+
+    function test_InitializeRegistrationBlocks_AllowsInitializeOnlyOnce()
+        public
+    {
+        _deployAndWireDiscovery();
+        vm.prank(owner);
+        collateralManagement.initializeRegistrationBlocks();
 
         vm.prank(owner);
         vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
-        collateralManagement.initializePegInRegistrationBlocks();
+        collateralManagement.initializeRegistrationBlocks();
+    }
+
+    /// @dev A proxy upgraded through v2.6 already ran a version-2 reinitializer.
+    function test_InitializeRegistrationBlocks_RunsAfterVersionTwo() public {
+        // ERC-7201 slot of OpenZeppelin InitializableStorage; _initialized is its low 64 bits.
+        bytes32 initializableSlot = 0xf0c57e16840df040f15088dc2f81fe391c3923bec73e23a9662efc9c229c6a00;
+        vm.store(
+            address(collateralManagement),
+            initializableSlot,
+            bytes32(uint256(2))
+        );
+
+        vm.prank(owner);
+        collateralManagement.initializeRegistrationBlocks();
+    }
+
+    function test_InitializeRegistrationBlocks_OnlyWritesZeroedBlocks() public {
+        _deployAndWireDiscovery();
+        address keptOut = makeAddr("keptPegOut");
+        address zeroedOut = makeAddr("zeroedPegOut");
+        address keptIn = makeAddr("keptPegIn");
+        address zeroedIn = makeAddr("zeroedPegIn");
+
+        vm.roll(10);
+        _approvePegOut(keptOut, BASE_COLLATERAL);
+        _approvePegIn(keptIn, BASE_COLLATERAL);
+        uint256 keptOutBlock = collateralManagement.getPegOutRegistrationBlock(
+            keptOut
+        );
+        uint256 keptInBlock = collateralManagement.getPegInRegistrationBlock(
+            keptIn
+        );
+
+        vm.roll(11);
+        _approvePegOut(zeroedOut, BASE_COLLATERAL);
+        _approvePegIn(zeroedIn, BASE_COLLATERAL);
+        stdstore
+            .target(address(collateralManagement))
+            .sig("getPegOutRegistrationBlock(address)")
+            .with_key(zeroedOut)
+            .checked_write(uint256(0));
+        stdstore
+            .target(address(collateralManagement))
+            .sig("getPegInRegistrationBlock(address)")
+            .with_key(zeroedIn)
+            .checked_write(uint256(0));
+
+        vm.roll(20);
+        vm.prank(owner);
+        collateralManagement.initializeRegistrationBlocks();
+
+        assertEq(
+            collateralManagement.getPegOutRegistrationBlock(keptOut),
+            keptOutBlock
+        );
+        assertEq(
+            collateralManagement.getPegInRegistrationBlock(keptIn),
+            keptInBlock
+        );
+        assertEq(
+            collateralManagement.getPegOutRegistrationBlock(zeroedOut),
+            20
+        );
+        assertEq(collateralManagement.getPegInRegistrationBlock(zeroedIn), 20);
     }
 }
