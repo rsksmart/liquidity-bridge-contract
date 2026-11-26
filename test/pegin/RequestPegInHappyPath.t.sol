@@ -4,9 +4,14 @@ pragma solidity 0.8.25;
 import {RequestPegInTestBase} from "./RequestPegInTestBase.sol";
 import {IPegInCommitFirst} from "../../src/interfaces/IPegInCommitFirst.sol";
 import {WalletMock} from "../../src/test-contracts/WalletMock.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /// @title requestPegIn claim record, payment result, fee snapshot, and event tests
 contract RequestPegInHappyPathTest is RequestPegInTestBase {
+    bytes32 internal constant REENTRANCY_GUARD_SLOT =
+        0x9b779b17422d0df92223018b32b4d1fa46e071723d6817e2486d003becc55f00;
+    uint256 internal constant REENTRANCY_GUARD_ENTERED = 2;
+
     function test_setUp_deploysWiresAndSeeds() public view {
         assertEq(
             pegInContract.getPegInAddressRegistry(),
@@ -298,5 +303,61 @@ contract RequestPegInHappyPathTest is RequestPegInTestBase {
             true
         );
         _requestPegInTx(claimer, rskUser, btcTx, net);
+    }
+
+    function test_getPegInClaim_returns_recorded_claim() public {
+        configurations.setClaimGasFee(CLAIM_GAS_FEE);
+        uint256 fee = _expectedFee(DEFAULT_AMOUNT);
+        uint256 net = DEFAULT_AMOUNT - fee - CLAIM_GAS_FEE;
+        bytes32 pegInId = _requestPegInTx(claimer, rskUser, _defaultTx(), net);
+
+        Claim memory claim = _getClaim(pegInId);
+
+        assertEq(claim.claimer, claimer, "claimer");
+        assertTrue(claim.success, "payment succeeded");
+        assertEq(claim.frontedAmount, net, "fronted amount");
+        assertEq(claim.feeAtClaim, fee, "fee snapshot");
+        assertEq(claim.gasFeeAtClaim, CLAIM_GAS_FEE, "gas fee snapshot");
+        assertEq(claim.requestBlock, block.number, "claim block");
+    }
+
+    function test_getPegInClaim_returns_failed_payment() public {
+        configurations.setClaimGasFee(CLAIM_GAS_FEE);
+        uint256 fee = _expectedFee(DEFAULT_AMOUNT);
+        uint256 net = DEFAULT_AMOUNT - fee - CLAIM_GAS_FEE;
+        (
+            address recipient,
+            bytes memory depositTx
+        ) = _registerRefusingRecipient();
+        bytes32 pegInId = _requestPegInTx(claimer, recipient, depositTx, net);
+
+        Claim memory claim = _getClaim(pegInId);
+
+        assertEq(claim.claimer, claimer, "claimer");
+        assertFalse(claim.success, "payment failed");
+        assertEq(claim.frontedAmount, 0, "nothing delivered");
+        assertEq(claim.feeAtClaim, fee, "fee snapshot");
+        assertEq(claim.gasFeeAtClaim, CLAIM_GAS_FEE, "gas fee snapshot");
+        assertEq(claim.requestBlock, block.number, "claim block");
+    }
+
+    function test_getPegInClaim_returns_empty_claim_when_unclaimed()
+        public
+        view
+    {
+        Claim memory claim = _getClaim(_pegInIdForTx(rskUser, _defaultTx()));
+
+        _assertNoLpClaim(claim, address(0));
+    }
+
+    function test_getPegInClaim_reverts_during_guarded_call() public {
+        vm.store(
+            address(pegInContract),
+            REENTRANCY_GUARD_SLOT,
+            bytes32(REENTRANCY_GUARD_ENTERED)
+        );
+
+        vm.expectRevert(ReentrancyGuard.ReentrancyGuardReentrantCall.selector);
+        pegInContract.getPegInClaim(bytes32(0));
     }
 }

@@ -247,4 +247,25 @@ interface IPegInCommitFirst {
 
     /// @dev In satoshis, unlike the wei amounts in the Flyover configuration.
     function getBridgeMinDepositSats() external view returns (uint256 bridgeMinDepositSats);
+
+    /// @notice Returns the claim record kept for a peg-in
+    /// @param pegInId keccak256 of the RSK destination address packed with the BTC deposit txid
+    /// @return claimer The account that fronted the RBTC; address(0) while nobody has claimed the
+    /// peg-in. After a peg-in nobody claimed is resolved, it is the resolver, with requestBlock 0
+    /// @return success Whether the RBTC payment to the user succeeded
+    /// @return frontedAmount The net amount delivered to the user; 0 when the payment failed
+    /// @return feeAtClaim The service fee snapshot at claim time
+    /// @return gasFeeAtClaim The gas fee snapshot at claim time
+    /// @return requestBlock The RSK block number of the claim; 0 when no LP claimed the peg-in
+    function getPegInClaim(bytes32 pegInId)
+        external
+        view
+        returns (
+            address claimer,
+            bool success,
+            uint256 frontedAmount,
+            uint256 feeAtClaim,
+            uint256 gasFeeAtClaim,
+            uint256 requestBlock
+        );
 }
