@@ -265,7 +265,9 @@ contract RequestPegInRevertsTest is RequestPegInTestBase {
             rskUser,
             amount,
             net,
-            true
+            true,
+            rskUser,
+            0
         );
         _requestPegInTx(claimer, rskUser, btcTx, net);
     }

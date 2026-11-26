@@ -16,18 +16,26 @@ interface IPegInCommitFirst {
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param amount The gross peg-in amount, in wei — the deposit output's satoshi value
     /// scaled by 10**10, never a caller-supplied figure
-    /// @param netToUser The amount sent to the user, in wei: min(amount, maxAmount) - fee -
-    /// claimGasFee; delivered only when callSuccess is true. For a deposit above maxAmount,
-    /// settlement pays the user the part above maxAmount
-    /// @param callSuccess Whether the destination accepted the RBTC. On false the fronted
-    /// amount stays in the claimer's balance
+    /// @param netToUser The amount sent to destination, in wei: min(amount, maxAmount) - fee -
+    /// claimGasFee - callGasFee; delivered only when callSuccess is true. For a deposit above
+    /// maxAmount, settlement pays rskAddr the part above maxAmount
+    /// @param callSuccess Whether the destination accepted the RBTC, or the contract call
+    /// succeeded. On false the fronted amount stays in the claimer's balance
+    /// @param destination The address that received netToUser: rskAddr, or the contract named by
+    /// the deposit's OP_RETURN
+    /// @param callGasFee The fee for the gas forwarded to destination, in wei: the requested gas
+    /// plus the 2,300-gas stipend, times tx.gasprice capped at maxGasPriceAboveBaseFee above
+    /// block.basefee. The requested gas is maxGasLimit for a contract call, and 2,300 for a
+    /// payment to rskAddr
     event PegInRequested(
         bytes32 indexed pegInId,
         address indexed claimer,
         address indexed rskAddr,
         uint256 amount,
         uint256 netToUser,
-        bool callSuccess
+        bool callSuccess,
+        address destination,
+        uint256 callGasFee
     );
 
     /// @notice Emitted when a peg-in is settled against the bridge and the released funds
@@ -176,6 +184,22 @@ interface IPegInCommitFirst {
     /// @param maxCallGas The configured maximum
     error CallGasOutOfRange(uint256 maxGasLimit, uint256 maxCallGas);
 
+    /// @notice Reverts requestPegIn when too little gas is left to forward maxGasLimit to the
+    /// contract call
+    /// @dev Without this check an LP could send just enough gas to start the call but not to
+    /// finish it, so the call fails and the LP still collects its fees. The LP can retry with
+    /// more gas.
+    /// @param gasLeft The gas left before the call
+    /// @param required The gas the call needs: maxGasLimit plus the cost of the CALL itself
+    error InsufficientCallGas(uint256 gasLeft, uint256 required);
+
+    /// @notice Reverts requestPegIn when callGasFee is more than the amount left after fee and
+    /// claimGasFee
+    /// @dev The LP can retry with a lower gas price.
+    /// @param callGasFee As in {PegInRequested}, in wei
+    /// @param remainingAmount min(amount, maxAmount) - fee - claimGasFee, in wei
+    error CallGasFeeTooHigh(uint256 callGasFee, uint256 remainingAmount);
+
     /// @notice Reverts requestPegIn when msg.value is not the required fronting
     /// @param expected The required msg.value, in wei
     /// @param actual The msg.value sent, in wei
@@ -197,10 +221,13 @@ interface IPegInCommitFirst {
     /// from the same bytes, so the SPV proof, the peg-in id and the amount provably describe
     /// one transaction. Nothing about the deposit's value is caller-supplied.
     ///
-    /// Payable: msg.value must equal min(amount, maxAmount) - fee - claimGasFee, where the fee is
-    /// on the capped amount. maxAmount limits what one provider advances per peg-in.
+    /// Payable: msg.value must equal min(amount, maxAmount) - fee - claimGasFee - callGasFee,
+    /// where the fee is on the capped amount and callGasFee is as in {PegInRequested}. When
+    /// tx.gasprice is above the cap, callGasFee depends on the block.basefee of the block that
+    /// includes the transaction. maxAmount limits what one provider advances per peg-in.
     ///
-    /// Settlement distributes any bridge release above the fronted amount + fee + claimGasFee.
+    /// Settlement distributes any bridge release above the fronted amount + fee + claimGasFee +
+    /// callGasFee.
     /// A remainder greater than dustThreshold is sent to rskAddr with a 2,300-gas call;
     /// if the send fails, it is credited to rskAddr's balance, and only rskAddr can withdraw it.
     /// A remainder at or below dustThreshold is credited to the claimer instead.

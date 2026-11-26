@@ -10,13 +10,13 @@ The user must sign the deposit with `SIGHASH_ALL`, the default in wallets. Then 
 
 The OP_RETURN pushes one payload:
 
-| Offset | Size | Field          | Value                                            |
-| ------ | ---- | -------------- | ------------------------------------------------ |
-| 0      | 1    | `magic`        | `0xF0`                                           |
-| 1      | 1    | `version`      | `1`                                              |
-| 2      | 20   | `destContract` | The RSK address to call; not the zero address    |
-| 22     | 4    | `maxGasLimit`  | `uint32`, big-endian: the exact gas for the call |
-| 26     | any  | `callData`     | The data for the call; can be empty              |
+| Offset | Size | Field          | Value                                         |
+| ------ | ---- | -------------- | --------------------------------------------- |
+| 0      | 1    | `magic`        | `0xF0`                                        |
+| 1      | 1    | `version`      | `1`                                           |
+| 2      | 20   | `destContract` | The RSK address to call; not the zero address |
+| 22     | 4    | `maxGasLimit`  | `uint32`, big-endian: the gas for the call    |
+| 26     | any  | `callData`     | The data for the call; can be empty           |
 
 The fixed part is 26 bytes (`BtcTransactionReader.FLYOVER_CALL_DATA_OFFSET`). With only an address and no call data, the payload is exactly 26 bytes.
 
@@ -46,3 +46,31 @@ Peg-out reads its OP_RETURN at a fixed position (output 1), because the LP build
 ## Why the push opcode is checked
 
 In a Bitcoin script, a push opcode states how many bytes follow. `BtcUtils.parseNullDataScript` removes only the `0x6a` byte, so the push opcode would be read as the first payload byte, and every valid payload would fail the magic check. The reader strips the push opcode first and accepts only the two push forms a payload of up to 255 bytes needs.
+
+## The contract call
+
+`requestPegIn` checks the payload with the deposit rules, then makes the call. Without an OP_RETURN, the LP pays `rskAddr` with 2,300 gas, and the user pays for that gas by the same rule as for a call (rule 3).
+
+1. **`maxGasLimit` must be greater than 0 and at most `PegInConfiguration.maxCallGas`.** Otherwise `requestPegIn` reverts with `CallGasOutOfRange`. `maxCallGas = 0` turns contract calls off.
+2. **The call gets `maxGasLimit` gas.** The LP cannot change it. When the call sends value, Rootstock adds a 2,300-gas stipend on top. If the LP's transaction has too little gas left to forward all of it, `requestPegIn` reverts with `InsufficientCallGas`, and the LP can retry with more gas.
+3. **The user pays `callGasFee = (maxGasLimit + 2300) * gasPrice`.** The 2,300 is the stipend. This is the gas forwarded, not the gas used, because the value sent must be fixed before the call. `gasPrice` is `tx.gasprice`, capped at `block.basefee * (10,000 + maxGasPriceAboveBaseFee) / 10,000`. The LP can pay a higher gas price, but the user pays at most the cap. If `callGasFee` is more than `min(amount, maxAmount) - fee - claimGasFee`, `requestPegIn` reverts with `CallGasFeeTooHigh`.
+4. **The LP fronts exactly what the destination receives: `netToUser = min(amount, maxAmount) - fee - claimGasFee - callGasFee`.** The LP computes `callGasFee` with the `gasPrice` of rule 3. `msg.value` must be exact, so the LPS keeps `tx.gasprice` below the cap, with a margin: then `gasPrice` is `tx.gasprice`, and the LP knows `callGasFee` when it signs. Settlement repays the LP `netToUser` plus all the fees, `callGasFee` included.
+5. **If the call fails, the LP keeps all it fronted.** The claim is marked failed, and settlement repays the LP only `fee`, `claimGasFee` and `callGasFee`. The rest of the release goes to `rskAddr`, the refund address.
+6. **An unclaimed deposit makes no call.** `resolvePegIn` pays `rskAddr`.
+
+## Why `msg.value` must be exact
+
+`requestPegIn` only fronts the user's money. It returns nothing to the LP, except the whole `msg.value` when the destination refuses the payment. Every repayment to the LP happens in `resolvePegIn`.
+
+Above the cap, `callGasFee` depends on the `block.basefee` of the block that includes the transaction. The LP cannot know that value when it signs. Accepting a `msg.value` above `netToUser` would fix this, but the claim would then have to store the excess until `resolvePegIn` returns it. Instead, the LPS keeps `tx.gasprice` below the cap. An LP that bids above the cap to win a race accepts that a base-fee change before inclusion makes `requestPegIn` revert with `IncorrectFronting`.
+
+## Why `maxGasLimit` has limits
+
+- **0 is rejected.** With "0 means no cap", the call would get all the gas left in the LP's transaction. The LP sets that gas limit, and the user pays for all gas forwarded, so the LP would choose the user's fee.
+- **`maxCallGas` is the maximum.** A deposit that asks for more gas than an LP can send cannot be claimed. The deposit rules reject it, so its unclaimed settlement does not slash LPs. Without the maximum, one such deposit could slash all peg-in LPs.
+
+The maximum protects LPs; the call still gets the gas the user signed. Governance must keep `maxCallGas` well below the Rootstock block gas limit, and `(maxCallGas + 2300)` times the gas price cap below `minAmount` minus its fee and `claimGasFee`.
+
+## Why an invalid OP_RETURN is not slashable
+
+A deposit whose first OP_RETURN is invalid, or asks for gas outside `1..maxCallGas`, fails the deposit rules. LPs cannot claim it, so `resolvePegIn` does not slash them for it. The deposit still settles, and `rskAddr` gets the release.

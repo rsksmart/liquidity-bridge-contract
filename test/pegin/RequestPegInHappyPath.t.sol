@@ -48,7 +48,9 @@ contract RequestPegInHappyPathTest is RequestPegInTestBase {
             rskUser,
             amount,
             expectedNet,
-            true
+            true,
+            rskUser,
+            0
         );
 
         bytes32 returnedId = _requestPegInTx(
@@ -114,7 +116,9 @@ contract RequestPegInHappyPathTest is RequestPegInTestBase {
             recipient,
             DEFAULT_AMOUNT,
             net,
-            false
+            false,
+            recipient,
+            0
         );
         _requestPegInTx(claimer, recipient, depositTx, net);
 
@@ -157,7 +161,9 @@ contract RequestPegInHappyPathTest is RequestPegInTestBase {
             recipient,
             DEFAULT_AMOUNT,
             net,
-            false
+            false,
+            recipient,
+            0
         );
         _requestPegInTx(claimer, recipient, depositTx, net);
 
@@ -252,7 +258,9 @@ contract RequestPegInHappyPathTest is RequestPegInTestBase {
             rskUser,
             small,
             small - _expectedFee(small),
-            true
+            true,
+            rskUser,
+            0
         );
         _requestPegInTx(claimer, rskUser, smallTx, small - _expectedFee(small));
 
@@ -263,7 +271,9 @@ contract RequestPegInHappyPathTest is RequestPegInTestBase {
             second,
             large,
             large - _expectedFee(large),
-            true
+            true,
+            second,
+            0
         );
         _requestPegInTx(claimer, second, largeTx, large - _expectedFee(large));
     }
@@ -295,7 +305,9 @@ contract RequestPegInHappyPathTest is RequestPegInTestBase {
             rskUser,
             expectedAmount,
             net,
-            true
+            true,
+            rskUser,
+            0
         );
         _requestPegInTx(claimer, rskUser, btcTx, net);
     }

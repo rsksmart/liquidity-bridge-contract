@@ -33,6 +33,7 @@ abstract contract RequestPegInTestBase is PegInTestBase {
     uint256 internal constant DEFAULT_TIER_CONFIRMATIONS = 10;
     uint256 internal constant CLAIM_GAS_FEE = 0.0001 ether;
     uint256 internal constant DEFAULT_MAX_CALL_GAS = 300_000;
+    uint256 internal constant DEFAULT_MAX_GAS_PRICE_ABOVE_BASE_FEE = 2_000;
 
     PegInAddressRegistryHarness internal registry;
     FlyoverConfigurationsMock internal configurations;
@@ -115,6 +116,9 @@ abstract contract RequestPegInTestBase is PegInTestBase {
         configurations.setRegistrantFee(1e14);
         configurations.setAmountBounds(TEST_MIN_PEGIN, DEFAULT_MAX_AMOUNT);
         configurations.setMaxCallGas(DEFAULT_MAX_CALL_GAS);
+        configurations.setMaxGasPriceAboveBaseFee(
+            DEFAULT_MAX_GAS_PRICE_ABOVE_BASE_FEE
+        );
         IFlyoverConfigurations.ConfirmationTier[]
             memory tiers = new IFlyoverConfigurations.ConfirmationTier[](1);
         tiers[0] = IFlyoverConfigurations.ConfirmationTier({

@@ -39,6 +39,9 @@ interface IFlyoverConfigurations {
     /// call, in gas units. It protects LPs: a deposit that asks for more gas than an LP can send is
     /// rejected by the deposit rules, so its unclaimed settlement does not slash them. 0 turns off
     /// contract calls, so every deposit with an OP_RETURN is rejected
+    /// @param maxGasPriceAboveBaseFee How far above block.basefee the gas price for callGasFee may
+    /// be, in basis points over 10,000. callGasFee uses tx.gasprice, capped at
+    /// block.basefee * (10,000 + maxGasPriceAboveBaseFee) / 10,000
     struct PegInConfiguration {
         uint256 fixedFee;
         uint256 percentageFee;
@@ -50,6 +53,7 @@ interface IFlyoverConfigurations {
         uint256 penaltyFee;
         uint256 claimWindow;
         uint256 maxCallGas;
+        uint256 maxGasPriceAboveBaseFee;
     }
 
     /// @notice Returns the active peg-in parameter set

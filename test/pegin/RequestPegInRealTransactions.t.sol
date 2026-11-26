@@ -289,7 +289,9 @@ contract RequestPegInRealTransactionsTest is RequestPegInTestBase {
             rskUser,
             expectedAmount,
             net,
-            true
+            true,
+            rskUser,
+            0
         );
         _requestPegInTx(claimer, rskUser, btcTx, net);
 

@@ -74,7 +74,11 @@ contract PegInContract is
     /// @param fee The service fee on cappedAmount
     /// @param smallestOutputSats The smallest matching output, in satoshis
     /// @param opReturnFault Why the first OP_RETURN is invalid, when the result is InvalidOpReturn
-    /// @param maxGasLimit The gas the OP_RETURN requests, when the result is CallGasOutOfRange
+    /// @param maxGasLimit The gas the OP_RETURN requests
+    /// @param hasCall Whether the deposit carries a valid OP_RETURN contract call
+    /// @param destination The contract to call; zero when hasCall is false
+    /// @param opReturnData The whole OP_RETURN payload; callData starts at
+    /// {BtcTransactionReader-FLYOVER_CALL_DATA_OFFSET}
     struct DepositTerms {
         uint256 amount;
         uint256 cappedAmount;
@@ -82,6 +86,9 @@ contract PegInContract is
         uint256 smallestOutputSats;
         BtcTransactionReader.OpReturnFault opReturnFault;
         uint256 maxGasLimit;
+        bool hasCall;
+        address destination;
+        bytes opReturnData;
     }
 
     /// @notice The version of the contract
@@ -89,8 +96,18 @@ contract PegInContract is
     /// @notice The name of the contract (used for EIP712)
     string constant public NAME = "PegInContract";
     Flyover.ProviderType constant private _PEG_TYPE = Flyover.ProviderType.PegIn;
+    /// @dev Gas sent with a plain payment to rskAddr. A contract choice that matches Solidity's
+    /// transfer(): enough for a plain wallet to receive RBTC
     uint256 constant private _MAX_REFUND_GAS_LIMIT = 2300;
+    /// @dev Gas that Rootstock adds on top of the requested gas when a call sends RBTC
+    uint256 constant private _CALL_STIPEND = 2300;
+    uint256 constant private _BASIS_POINTS = 10_000;
     uint256 constant private _BTC_HEADER_LENGTH = 80;
+    /// @dev Gas the contract call needs on top of maxGasLimit before the destination starts. On
+    /// Rootstock the CALL costs 700, plus 9,000 for the value transfer, plus 25,000 when the
+    /// destination account does not exist yet, plus memory expansion. The rest covers the few
+    /// operations between the gas check and the CALL.
+    uint256 constant private _CALL_GAS_RESERVE = 40_000;
     /// @dev Lower bound on the RSK block interval, used to estimate when an address was registered.
     /// Below the shortest 3-hour average seen on mainnet (22.7 s) and the usual 30 s average, so the
     /// estimate is never earlier than the real registration and LPs never get a shorter window.
@@ -314,28 +331,9 @@ contract PegInContract is
             revert CallGasOutOfRange(terms.maxGasLimit, configuration.maxCallGas);
         }
 
-        // Settlement pays the user the part of the deposit above the cap, from the bridge release.
-        uint256 expected = _requireCorrectFronting(terms.cappedAmount, terms.fee + configuration.claimGasFee);
-
-        _pegInClaims[pegInId] = PegInClaim({
-            claimer: msg.sender,
-            success: true,
-            frontedAmount: expected,
-            feeAtClaim: terms.fee,
-            gasFeeAtClaim: configuration.claimGasFee,
-            requestBlock: block.number
-        });
-        // Stored as paid before the call: a failed call also reverts anything the destination
-        // did during it, so no re-entry can act on a paid claim that is later marked failed
-        bool success = _payPegInUser(rskAddr, expected);
-        if (!success) {
-            PegInClaim storage claim = _pegInClaims[pegInId];
-            claim.success = false;
-            claim.frontedAmount = 0;
-            // The LP keeps the RBTC it fronted, so settlement repays only the fee + claimGasFee
-            _increaseBalance(msg.sender, msg.value);
-        }
-        emit PegInRequested(pegInId, msg.sender, rskAddr, terms.amount, expected, success);
+        _recordClaimAndPay(
+            pegInId, rskAddr, terms, configuration.claimGasFee, configuration.maxGasPriceAboveBaseFee
+        );
     }
 
     /// @inheritdoc IPegInCommitFirst
@@ -492,7 +490,7 @@ contract PegInContract is
             }
         }
 
-        bool success = _payPegInUser(rskAddr, released);
+        bool success = _payPegInUser(rskAddr, released, _MAX_REFUND_GAS_LIMIT);
         emit UserRemainderRefunded(pegInId, rskAddr, released, success);
         uint256 userPayout = 0;
         if (success) {
@@ -613,10 +611,13 @@ contract PegInContract is
             terms.opReturnFault = opReturn.fault;
             return (DepositRuleResult.InvalidOpReturn, terms);
         }
+        terms.maxGasLimit = opReturn.maxGasLimit;
         if (opReturn.maxGasLimit == 0 || opReturn.maxGasLimit > configuration.maxCallGas) {
-            terms.maxGasLimit = opReturn.maxGasLimit;
             return (DepositRuleResult.CallGasOutOfRange, terms);
         }
+        terms.hasCall = true;
+        terms.destination = opReturn.destination;
+        terms.opReturnData = opReturn.data;
         return (DepositRuleResult.Accepted, terms);
     }
 
@@ -649,16 +650,120 @@ contract PegInContract is
     }
 
     /// @notice Sends RBTC to the peg-in destination address
-    /// @dev Forwards _MAX_REFUND_GAS_LIMIT gas, plus the 2300-gas stipend when expected > 0:
+    /// @dev Forwards gasLimit gas, plus the 2300-gas stipend when expected > 0:
     /// Rootstock has no 63/64 rule, so an unlimited call lets the destination spend all gas and
     /// revert the claim. Copies no return data, so a large return cannot spend the gas left after
     /// the call.
     /// @return success False when the destination refused the RBTC or ran out of gas
     // slither-disable-next-line arbitrary-send-eth,low-level-calls
-    function _payPegInUser(address rskAddr, uint256 expected) private returns (bool success) {
+    function _payPegInUser(address rskAddr, uint256 expected, uint256 gasLimit) private returns (bool success) {
         // solhint-disable-next-line no-inline-assembly
         assembly {
-            success := call(_MAX_REFUND_GAS_LIMIT, rskAddr, expected, 0, 0, 0, 0)
+            success := call(gasLimit, rskAddr, expected, 0, 0, 0, 0)
+        }
+    }
+
+    /// @notice Records the claim, then pays rskAddr or makes the OP_RETURN contract call
+    /// @dev The LP fronts exactly what the destination receives. Settlement repays the LP the fee,
+    /// claimGasFee and callGasFee through the claim record.
+    /// @param pegInId The id of the claimed peg-in
+    /// @param rskAddr The RSK destination address of the peg-in
+    /// @param terms The deposit terms from {_checkDepositRules}
+    /// @param claimGasFee The flat gas fee of the active configuration
+    /// @param maxGasPriceAboveBaseFee The gas price cap of the active configuration
+    function _recordClaimAndPay(
+        bytes32 pegInId,
+        address rskAddr,
+        DepositTerms memory terms,
+        uint256 claimGasFee,
+        uint256 maxGasPriceAboveBaseFee
+    ) private {
+        uint256 gasLimit = terms.hasCall ? terms.maxGasLimit : _MAX_REFUND_GAS_LIMIT;
+        uint256 gasPrice = _cappedGasPrice(tx.gasprice, block.basefee, maxGasPriceAboveBaseFee);
+        uint256 callGasFee = _forwardedGasFee(gasLimit, gasPrice);
+        uint256 remainingAmount = terms.cappedAmount - terms.fee - claimGasFee;
+        if (callGasFee > remainingAmount) revert CallGasFeeTooHigh(callGasFee, remainingAmount);
+        // Settlement pays rskAddr the part of the deposit above the cap, from the bridge release
+        uint256 netToUser = _requireCorrectFronting(terms.cappedAmount, terms.fee + claimGasFee + callGasFee);
+
+        _pegInClaims[pegInId] = PegInClaim({
+            claimer: msg.sender,
+            success: true,
+            frontedAmount: netToUser,
+            feeAtClaim: terms.fee,
+            gasFeeAtClaim: claimGasFee + callGasFee,
+            requestBlock: block.number
+        });
+        // Stored as paid before the call: a failed call also reverts anything the destination
+        // did during it, so no re-entry can act on a paid claim that is later marked failed
+        address destination = terms.hasCall ? terms.destination : rskAddr;
+        bool success = terms.hasCall
+            ? _callDestination(destination, netToUser, gasLimit, terms.opReturnData)
+            : _payPegInUser(rskAddr, netToUser, gasLimit);
+        if (!success) {
+            PegInClaim storage claim = _pegInClaims[pegInId];
+            claim.success = false;
+            claim.frontedAmount = 0;
+            // The LP keeps the RBTC it fronted, so settlement repays only the fees: fee,
+            // claimGasFee and callGasFee
+            _increaseBalance(msg.sender, msg.value);
+        }
+        emit PegInRequested(
+            pegInId, msg.sender, rskAddr, terms.amount, netToUser, success, destination, callGasFee
+        );
+    }
+
+    /// @notice The callGasFee: what the user pays for the gas forwarded to the destination
+    /// @dev Charges the gas forwarded, not the gas used, because the value sent must be fixed
+    /// before the call. The stipend is charged even when netToUser is 0 and Rootstock adds no
+    /// stipend; the destination then receives nothing either way.
+    /// @param gasLimit The gas requested for the call, before the stipend
+    /// @param gasPrice The price of one unit of gas, in wei
+    /// @return The fee, in wei
+    function _forwardedGasFee(uint256 gasLimit, uint256 gasPrice) private pure returns (uint256) {
+        return (gasLimit + _CALL_STIPEND) * gasPrice;
+    }
+
+    /// @notice The gas price that callGasFee uses
+    /// @dev The LP chooses tx.gasprice and can pay more to be mined sooner. The cap limits how much
+    /// of that the user pays.
+    /// @param gasPrice The gas price of the LP's transaction, in wei
+    /// @param baseFee The block's base fee, in wei; on Rootstock, the block's minimum gas price
+    /// @param maxAboveBaseFee How far above baseFee the price may be, in basis points over 10,000
+    /// @return The lower of gasPrice and the cap, in wei
+    function _cappedGasPrice(uint256 gasPrice, uint256 baseFee, uint256 maxAboveBaseFee)
+        private
+        pure
+        returns (uint256)
+    {
+        uint256 cap = baseFee * (_BASIS_POINTS + maxAboveBaseFee) / _BASIS_POINTS;
+        return gasPrice < cap ? gasPrice : cap;
+    }
+
+    /// @notice Makes the contract call that the deposit's OP_RETURN asks for
+    /// @dev Forwards gasLimit from the OP_RETURN, so the LP cannot change it. Reverts with
+    /// {InsufficientCallGas} when less than gasLimit + _CALL_GAS_RESERVE is left, because Rootstock
+    /// gives the destination only the gas that is left. Copies no return data, so a large return
+    /// cannot use up the gas left after the call.
+    /// @param destination The contract to call
+    /// @param value The RBTC to send with the call
+    /// @param gasLimit The gas to forward, before the stipend
+    /// @param payload The OP_RETURN payload; callData starts at
+    /// {BtcTransactionReader-FLYOVER_CALL_DATA_OFFSET}
+    /// @return success False when the call reverted or ran out of gas
+    // slither-disable-next-line arbitrary-send-eth,low-level-calls
+    function _callDestination(address destination, uint256 value, uint256 gasLimit, bytes memory payload)
+        private
+        returns (bool success)
+    {
+        uint256 required = gasLimit + _CALL_GAS_RESERVE;
+        if (gasleft() < required) revert InsufficientCallGas(gasleft(), required);
+        uint256 offset = BtcTransactionReader.FLYOVER_CALL_DATA_OFFSET;
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            let callData := add(add(payload, 0x20), offset)
+            let callDataLength := sub(mload(payload), offset)
+            success := call(gasLimit, destination, value, callData, callDataLength, 0, 0)
         }
     }
 

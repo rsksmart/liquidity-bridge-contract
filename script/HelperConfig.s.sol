@@ -411,8 +411,8 @@ contract HelperConfig is Script {
             confirmationTiers: _localConfirmationTiers(),
             penaltyFee: 0.01 ether,
             claimWindow: 3 hours,
-            // 0 keeps contract calls off
-            maxCallGas: 0
+            maxCallGas: 500_000,
+            maxGasPriceAboveBaseFee: 2_000
         });
         seeds.pegInMin = IFlyoverConfigurations.PegInConfiguration({
             fixedFee: 0.0001 ether,
@@ -424,7 +424,8 @@ contract HelperConfig is Script {
             confirmationTiers: noTiers,
             penaltyFee: 0.001 ether,
             claimWindow: 3 hours,
-            maxCallGas: 0
+            maxCallGas: 0,
+            maxGasPriceAboveBaseFee: 0
         });
         seeds.pegInMax = IFlyoverConfigurations.PegInConfiguration({
             fixedFee: 0.01 ether,
@@ -436,7 +437,8 @@ contract HelperConfig is Script {
             confirmationTiers: noTiers,
             penaltyFee: 1 ether,
             claimWindow: 6 hours,
-            maxCallGas: 2_000_000
+            maxCallGas: 2_000_000,
+            maxGasPriceAboveBaseFee: 10_000
         });
         seeds.pegOutConfig = IFlyoverConfigurations.PegOutConfiguration({
             fixedFee: 0.0001 ether,
