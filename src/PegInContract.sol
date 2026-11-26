@@ -101,6 +101,7 @@ contract PegInContract is
     uint256 constant private _MAX_REFUND_GAS_LIMIT = 2300;
     /// @dev Gas that Rootstock adds on top of the requested gas when a call sends RBTC
     uint256 constant private _CALL_STIPEND = 2300;
+    uint256 constant private _BASIS_POINTS = 10_000;
     uint256 constant private _BTC_HEADER_LENGTH = 80;
     /// @dev Gas the contract call needs on top of maxGasLimit before the destination starts. On
     /// Rootstock the CALL costs 700, plus 9,000 for the value transfer, plus 25,000 when the
@@ -327,7 +328,9 @@ contract PegInContract is
             revert CallGasOutOfRange(terms.maxGasLimit, configuration.maxCallGas);
         }
 
-        _recordClaimAndPay(pegInId, rskAddr, terms, configuration.claimGasFee);
+        _recordClaimAndPay(
+            pegInId, rskAddr, terms, configuration.claimGasFee, configuration.maxGasPriceAboveBaseFee
+        );
     }
 
     /// @inheritdoc IPegInCommitFirst
@@ -664,14 +667,17 @@ contract PegInContract is
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param terms The deposit terms from {_checkDepositRules}
     /// @param claimGasFee The flat gas fee of the active configuration
+    /// @param maxGasPriceAboveBaseFee The gas price cap of the active configuration
     function _recordClaimAndPay(
         bytes32 pegInId,
         address rskAddr,
         DepositTerms memory terms,
-        uint256 claimGasFee
+        uint256 claimGasFee,
+        uint256 maxGasPriceAboveBaseFee
     ) private {
         uint256 gasLimit = terms.hasCall ? terms.maxGasLimit : _MAX_REFUND_GAS_LIMIT;
-        uint256 callGasFee = _forwardedGasFee(gasLimit, tx.gasprice);
+        uint256 gasPrice = _cappedGasPrice(tx.gasprice, block.basefee, maxGasPriceAboveBaseFee);
+        uint256 callGasFee = _forwardedGasFee(gasLimit, gasPrice);
         uint256 remainingAmount = terms.cappedAmount - terms.fee - claimGasFee;
         if (callGasFee > remainingAmount) revert CallGasFeeTooHigh(callGasFee, remainingAmount);
         // Settlement pays rskAddr the part of the deposit above the cap, from the bridge release
@@ -713,6 +719,22 @@ contract PegInContract is
     /// @return The fee, in wei
     function _forwardedGasFee(uint256 gasLimit, uint256 gasPrice) private pure returns (uint256) {
         return (gasLimit + _CALL_STIPEND) * gasPrice;
+    }
+
+    /// @notice The gas price that callGasFee uses
+    /// @dev The LP chooses tx.gasprice and can pay more to be mined sooner. The cap limits how much
+    /// of that the user pays.
+    /// @param gasPrice The gas price of the LP's transaction, in wei
+    /// @param baseFee The block's base fee, in wei; on Rootstock, the block's minimum gas price
+    /// @param maxAboveBaseFee How far above baseFee the price may be, in basis points over 10,000
+    /// @return The lower of gasPrice and the cap, in wei
+    function _cappedGasPrice(uint256 gasPrice, uint256 baseFee, uint256 maxAboveBaseFee)
+        private
+        pure
+        returns (uint256)
+    {
+        uint256 cap = baseFee * (_BASIS_POINTS + maxAboveBaseFee) / _BASIS_POINTS;
+        return gasPrice < cap ? gasPrice : cap;
     }
 
     /// @notice Makes the contract call that the deposit's OP_RETURN asks for

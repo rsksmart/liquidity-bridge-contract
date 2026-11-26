@@ -62,6 +62,7 @@ contract RequestPegInContractCallTest is RequestPegInContractCallTestBase {
     }
 
     function test_callGasFee_followsTheTransactionGasPrice() public {
+        vm.fee(1 gwei);
         vm.txGasPrice(1 gwei);
         bytes memory depositTx = _callTx(address(recorder), CALL_GAS);
         bytes32 pegInId = _pegInIdForTx(rskUser, depositTx);
@@ -79,6 +80,7 @@ contract RequestPegInContractCallTest is RequestPegInContractCallTestBase {
 
     function test_callGasFeeAboveExpected_reverts() public {
         uint256 gasPrice = _expected() / (CALL_GAS + 2300) + 1;
+        vm.fee(gasPrice);
         vm.txGasPrice(gasPrice);
         bytes memory depositTx = _callTx(address(recorder), CALL_GAS);
         vm.expectRevert(
@@ -89,6 +91,26 @@ contract RequestPegInContractCallTest is RequestPegInContractCallTestBase {
             )
         );
         _requestPegInTx(claimer, rskUser, depositTx, _expected());
+    }
+
+    function test_gasPriceAboveTheCap_chargesTheCap() public {
+        vm.txGasPrice(1 gwei);
+        bytes memory depositTx = _callTx(address(recorder), CALL_GAS);
+        bytes32 pegInId = _pegInIdForTx(rskUser, depositTx);
+        // 20% above the 0.06 gwei base fee
+        uint256 callGasFee = (uint256(CALL_GAS) + 2300) * 0.072 gwei;
+        _requestPegInTx(claimer, rskUser, depositTx, _expected() - callGasFee);
+        assertEq(_readGasFeeAtClaim(pegInId), CLAIM_GAS_FEE + callGasFee);
+    }
+
+    function test_zeroGasPriceAboveBaseFee_chargesTheBaseFee() public {
+        configurations.setMaxGasPriceAboveBaseFee(0);
+        vm.txGasPrice(0.07 gwei);
+        bytes memory depositTx = _callTx(address(recorder), CALL_GAS);
+        bytes32 pegInId = _pegInIdForTx(rskUser, depositTx);
+        uint256 callGasFee = (uint256(CALL_GAS) + 2300) * BASE_FEE;
+        _requestPegInTx(claimer, rskUser, depositTx, _expected() - callGasFee);
+        assertEq(_readGasFeeAtClaim(pegInId), CLAIM_GAS_FEE + callGasFee);
     }
 
     function test_tooLittleGas_revertsInsufficientCallGas() public {

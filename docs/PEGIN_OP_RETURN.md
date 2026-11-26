@@ -53,9 +53,9 @@ In a Bitcoin script, a push opcode states how many bytes follow. `BtcUtils.parse
 
 1. **`maxGasLimit` must be greater than 0 and at most `PegInConfiguration.maxCallGas`.** Otherwise `requestPegIn` reverts with `CallGasOutOfRange`. `maxCallGas = 0` turns contract calls off.
 2. **The call gets `maxGasLimit` gas.** The LP cannot change it. When the call sends value, Rootstock adds a 2,300-gas stipend on top. If the LP's transaction has too little gas left to forward all of it, `requestPegIn` reverts with `InsufficientCallGas`, and the LP can retry with more gas.
-3. **The user pays `callGasFee = (maxGasLimit + 2300) * tx.gasprice`.** The 2,300 is the stipend. This is the gas forwarded, not the gas used, because the value sent must be fixed before the call. If `callGasFee` is more than the amount the LP fronts, `requestPegIn` reverts with `CallGasFeeTooHigh`.
-4. **The LP fronts exactly what the destination receives: `netToUser = min(amount, maxAmount) - fee - claimGasFee - callGasFee`.** The LP computes `callGasFee` from the gas price of its own transaction. Settlement repays the LP `netToUser` plus all the fees, `callGasFee` included.
-5. **If the call fails, the LP keeps all it fronted.** The claim is marked failed, and settlement repays the LP only its fees: the service fee, `claimGasFee` and `callGasFee`. The rest of the release goes to `rskAddr`, the refund address.
+3. **The user pays `callGasFee = (maxGasLimit + 2300) * gasPrice`.** The 2,300 is the stipend. This is the gas forwarded, not the gas used, because the value sent must be fixed before the call. `gasPrice` is `tx.gasprice`, capped at `block.basefee * (10,000 + maxGasPriceAboveBaseFee) / 10,000`. The LP can pay a higher gas price, but the user pays at most the cap. If `callGasFee` is more than `min(amount, maxAmount) - fee - claimGasFee`, `requestPegIn` reverts with `CallGasFeeTooHigh`.
+4. **The LP fronts exactly what the destination receives: `netToUser = min(amount, maxAmount) - fee - claimGasFee - callGasFee`.** The LP computes `callGasFee` with the `gasPrice` of rule 3. Settlement repays the LP `netToUser` plus all the fees, `callGasFee` included.
+5. **If the call fails, the LP keeps all it fronted.** The claim is marked failed, and settlement repays the LP only `fee`, `claimGasFee` and `callGasFee`. The rest of the release goes to `rskAddr`, the refund address.
 6. **An unclaimed deposit makes no call.** `resolvePegIn` pays `rskAddr`.
 
 ## Why `maxGasLimit` has limits
@@ -63,7 +63,7 @@ In a Bitcoin script, a push opcode states how many bytes follow. `BtcUtils.parse
 - **0 is rejected.** With "0 means no cap", the call would get all the gas left in the LP's transaction. The LP sets that gas limit, and the user pays for all gas forwarded, so the LP would choose the user's fee.
 - **`maxCallGas` is the maximum.** A deposit that asks for more gas than an LP can send cannot be claimed. The deposit rules reject it, so its unclaimed settlement does not slash LPs. Without the maximum, one such deposit could slash all peg-in LPs.
 
-The maximum protects LPs; the call still gets the gas the user signed. Governance must keep `maxCallGas` well below the Rootstock block gas limit, and `maxCallGas` times the minimum gas price below the smallest amount an LP fronts.
+The maximum protects LPs; the call still gets the gas the user signed. Governance must keep `maxCallGas` well below the Rootstock block gas limit, and `(maxCallGas + 2300)` times the gas price cap below `minAmount` minus its fee and `claimGasFee`.
 
 ## Why an invalid OP_RETURN is not slashable
 

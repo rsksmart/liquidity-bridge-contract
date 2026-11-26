@@ -49,6 +49,8 @@ contract RequestPegInContractCallFuzzTest is RequestPegInContractCallTestBase {
         gasPrice = uint64(
             bound(gasPrice, 0, _expected() / (uint256(maxGasLimit) + 2300))
         );
+        // Base fees below and above gasPrice, so both the capped and uncapped price are covered
+        vm.fee(uint256(gasPrice) / 2 + (uint256(maxGasLimit) % 2) * gasPrice);
         vm.txGasPrice(gasPrice);
         // A plain address accepts RBTC with any gas, so the call always succeeds
         address wallet = makeAddr("wallet");

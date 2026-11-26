@@ -83,6 +83,14 @@ abstract contract ConfigurationsTestBase is Test {
     uint256 internal constant WIDE_MIN_MAX_CALL_GAS = 0;
     uint256 internal constant WIDE_MAX_MAX_CALL_GAS = 2_000_000;
 
+    // --- peg-in maxGasPriceAboveBaseFee, in basis points ---
+    uint256 internal constant PEGIN_SEED_MAX_GAS_PRICE_ABOVE_BASE_FEE = 2_000;
+    uint256 internal constant PEGIN_BOUND_MIN_MAX_GAS_PRICE_ABOVE_BASE_FEE = 0;
+    uint256 internal constant PEGIN_BOUND_MAX_MAX_GAS_PRICE_ABOVE_BASE_FEE =
+        10_000;
+    uint256 internal constant WIDE_MIN_MAX_GAS_PRICE_ABOVE_BASE_FEE = 0;
+    uint256 internal constant WIDE_MAX_MAX_GAS_PRICE_ABOVE_BASE_FEE = 20_000;
+
     // --- peg-out seed / bounds ---
     uint256 internal constant SEED_PENALTY_FEE = 0.01 ether;
     uint256 internal constant SEED_CLAIM_WINDOW = 30 minutes;
@@ -192,6 +200,7 @@ abstract contract ConfigurationsTestBase is Test {
         c.penaltyFee = PEGIN_SEED_PENALTY_FEE;
         c.claimWindow = PEGIN_SEED_CLAIM_WINDOW;
         c.maxCallGas = PEGIN_SEED_MAX_CALL_GAS;
+        c.maxGasPriceAboveBaseFee = PEGIN_SEED_MAX_GAS_PRICE_ABOVE_BASE_FEE;
     }
 
     /// @notice Seed tiers: (1e18,1) (10e18,3) (100e18,6), strictly ascending.
@@ -231,6 +240,8 @@ abstract contract ConfigurationsTestBase is Test {
         c.penaltyFee = PEGIN_BOUND_MIN_PENALTY_FEE;
         c.claimWindow = PEGIN_BOUND_MIN_CLAIM_WINDOW;
         c.maxCallGas = PEGIN_BOUND_MIN_MAX_CALL_GAS;
+        c
+            .maxGasPriceAboveBaseFee = PEGIN_BOUND_MIN_MAX_GAS_PRICE_ABOVE_BASE_FEE;
     }
 
     function _boundsMax()
@@ -248,6 +259,8 @@ abstract contract ConfigurationsTestBase is Test {
         c.penaltyFee = PEGIN_BOUND_MAX_PENALTY_FEE;
         c.claimWindow = PEGIN_BOUND_MAX_CLAIM_WINDOW;
         c.maxCallGas = PEGIN_BOUND_MAX_MAX_CALL_GAS;
+        c
+            .maxGasPriceAboveBaseFee = PEGIN_BOUND_MAX_MAX_GAS_PRICE_ABOVE_BASE_FEE;
     }
 
     /// @notice A valid config distinct from the seed, for queue/apply tests so the applied change
@@ -275,6 +288,7 @@ abstract contract ConfigurationsTestBase is Test {
         c.penaltyFee = 0.02 ether;
         c.claimWindow = 5 hours;
         c.maxCallGas = 400_000;
+        c.maxGasPriceAboveBaseFee = 1_000;
     }
 
     /// @notice Convenience: queue `_altConfig()` as the admin and return it.
@@ -305,6 +319,7 @@ abstract contract ConfigurationsTestBase is Test {
         c.penaltyFee = WIDE_MIN_PENALTY_FEE;
         c.claimWindow = WIDE_MIN_CLAIM_WINDOW;
         c.maxCallGas = WIDE_MIN_MAX_CALL_GAS;
+        c.maxGasPriceAboveBaseFee = WIDE_MIN_MAX_GAS_PRICE_ABOVE_BASE_FEE;
     }
 
     /// @notice Widened upper bounds: strictly above the deployment max on every field.
@@ -323,6 +338,7 @@ abstract contract ConfigurationsTestBase is Test {
         c.penaltyFee = WIDE_MAX_PENALTY_FEE;
         c.claimWindow = WIDE_MAX_CLAIM_WINDOW;
         c.maxCallGas = WIDE_MAX_MAX_CALL_GAS;
+        c.maxGasPriceAboveBaseFee = WIDE_MAX_MAX_GAS_PRICE_ABOVE_BASE_FEE;
     }
 
     /// @notice Convenience: queue the widened bounds as the admin.
