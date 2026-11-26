@@ -39,7 +39,8 @@ contract FlyoverConfigurations is
         ExpireBlocks,
         MaxMinerFee,
         ClaimGasFee,
-        MaxCallGas
+        MaxCallGas,
+        MaxGasPriceAboveBaseFee
     }
 
     /// @custom:storage-location erc7201:rsk.flyover.FlyoverConfigurations
@@ -502,6 +503,30 @@ contract FlyoverConfigurations is
     /// confirmation tiers non-empty and strictly ascending by maxAmount. The tier array itself is
     /// only ordering/non-emptiness checked; it is not min/max-bounded.
     function _validateConfig(PegInConfiguration memory config) private view {
+        _checkScalarBounds(config);
+
+        if (config.registrantFee >= MAX_REGISTRANT_FEE_EXCLUSIVE) {
+            revert RegistrantFeeTooHigh(config.registrantFee, MAX_REGISTRANT_FEE_EXCLUSIVE);
+        }
+        if (config.fixedFee < config.registrantFee) {
+            revert InsufficientFixedFeeForRegistrant(config.fixedFee, config.registrantFee);
+        }
+
+        if (config.percentageFee > FEE_PERCENTAGE_DENOMINATOR) {
+            revert InvalidPercentageFee(config.percentageFee);
+        }
+        if (config.minAmount > config.maxAmount) {
+            revert InvalidAmountLimits(config.minAmount, config.maxAmount);
+        }
+        if (config.claimWindow < MIN_PEGIN_CLAIM_WINDOW) {
+            revert PegInClaimWindowTooShort(config.claimWindow, MIN_PEGIN_CLAIM_WINDOW);
+        }
+        _validateAmountLimits(config);
+        _validateTiers(config.confirmationTiers);
+    }
+
+    /// @dev Checks every scalar of config against the active bounds
+    function _checkScalarBounds(PegInConfiguration memory config) private view {
         FlyoverConfigurationsBounds storage bounds = _getBounds();
         PegInConfiguration storage minConfigBoundary = bounds.min;
         PegInConfiguration storage maxConfigBoundary = bounds.max;
@@ -531,25 +556,12 @@ contract FlyoverConfigurations is
         _checkBound(
             Field.MaxCallGas, config.maxCallGas, minConfigBoundary.maxCallGas, maxConfigBoundary.maxCallGas
         );
-
-        if (config.registrantFee >= MAX_REGISTRANT_FEE_EXCLUSIVE) {
-            revert RegistrantFeeTooHigh(config.registrantFee, MAX_REGISTRANT_FEE_EXCLUSIVE);
-        }
-        if (config.fixedFee < config.registrantFee) {
-            revert InsufficientFixedFeeForRegistrant(config.fixedFee, config.registrantFee);
-        }
-
-        if (config.percentageFee > FEE_PERCENTAGE_DENOMINATOR) {
-            revert InvalidPercentageFee(config.percentageFee);
-        }
-        if (config.minAmount > config.maxAmount) {
-            revert InvalidAmountLimits(config.minAmount, config.maxAmount);
-        }
-        if (config.claimWindow < MIN_PEGIN_CLAIM_WINDOW) {
-            revert PegInClaimWindowTooShort(config.claimWindow, MIN_PEGIN_CLAIM_WINDOW);
-        }
-        _validateAmountLimits(config);
-        _validateTiers(config.confirmationTiers);
+        _checkBound(
+            Field.MaxGasPriceAboveBaseFee,
+            config.maxGasPriceAboveBaseFee,
+            minConfigBoundary.maxGasPriceAboveBaseFee,
+            maxConfigBoundary.maxGasPriceAboveBaseFee
+        );
     }
 
     /// @dev Enforces the invariant that makes the bounds readable at all: the active
@@ -575,6 +587,12 @@ contract FlyoverConfigurations is
         _checkActiveField(Field.PenaltyFee, active.penaltyFee, min.penaltyFee, max.penaltyFee);
         _checkActiveField(Field.ClaimWindow, active.claimWindow, min.claimWindow, max.claimWindow);
         _checkActiveField(Field.MaxCallGas, active.maxCallGas, min.maxCallGas, max.maxCallGas);
+        _checkActiveField(
+            Field.MaxGasPriceAboveBaseFee,
+            active.maxGasPriceAboveBaseFee,
+            min.maxGasPriceAboveBaseFee,
+            max.maxGasPriceAboveBaseFee
+        );
     }
 
     function _validatePegOutConfig(PegOutConfiguration memory config) private view {
@@ -664,7 +682,7 @@ contract FlyoverConfigurations is
         }
     }
 
-    /// @dev A bounds pair is well-formed when no field inverts, i.e. `min <= max` on all nine
+    /// @dev A bounds pair is well-formed when no field inverts, i.e. `min <= max` on all ten
     /// scalars. An inverted field admits no value at all, which would wedge every future
     /// configuration change. `confirmationTiers` carries no bound and is not inspected.
     function _validateBoundsPair(PegInConfiguration memory min, PegInConfiguration memory max)
@@ -680,6 +698,7 @@ contract FlyoverConfigurations is
         _checkPairOrdered(Field.PenaltyFee, min.penaltyFee, max.penaltyFee);
         _checkPairOrdered(Field.ClaimWindow, min.claimWindow, max.claimWindow);
         _checkPairOrdered(Field.MaxCallGas, min.maxCallGas, max.maxCallGas);
+        _checkPairOrdered(Field.MaxGasPriceAboveBaseFee, min.maxGasPriceAboveBaseFee, max.maxGasPriceAboveBaseFee);
     }
 
     function _checkPairOrdered(Field field, uint256 minV, uint256 maxV) private pure {

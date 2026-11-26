@@ -24,8 +24,9 @@ interface IPegInCommitFirst {
     /// @param destination The address that received netToUser: rskAddr, or the contract named by
     /// the deposit's OP_RETURN
     /// @param callGasFee The fee for the gas forwarded to destination, in wei: the requested gas
-    /// plus the 2,300-gas stipend, times tx.gasprice. The requested gas is maxGasLimit for a
-    /// contract call, and 2,300 for a payment to rskAddr
+    /// plus the 2,300-gas stipend, times tx.gasprice capped at maxGasPriceAboveBaseFee above
+    /// block.basefee. The requested gas is maxGasLimit for a contract call, and 2,300 for a
+    /// payment to rskAddr
     event PegInRequested(
         bytes32 indexed pegInId,
         address indexed claimer,

@@ -48,6 +48,13 @@ contract FlyoverConfigurationsMock is IFlyoverConfigurations {
         _config.maxCallGas = maxCallGas;
     }
 
+    /// @notice Sets the gas price cap above block.basefee directly, in basis points
+    function setMaxGasPriceAboveBaseFee(
+        uint256 maxGasPriceAboveBaseFee
+    ) external {
+        _config.maxGasPriceAboveBaseFee = maxGasPriceAboveBaseFee;
+    }
+
     /// @notice Sets the amount bounds directly
     function setAmountBounds(uint256 minAmount, uint256 maxAmount) external {
         _config.minAmount = minAmount;

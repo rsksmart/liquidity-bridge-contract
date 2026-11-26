@@ -8,6 +8,7 @@ import {RecordingDestination} from "./CallDestinationMocks.sol";
 abstract contract RequestPegInContractCallTestBase is ResolvePegInTestBase {
     uint32 internal constant CALL_GAS = 100_000;
     uint256 internal constant GAS_PRICE = 0.06 gwei;
+    uint256 internal constant BASE_FEE = 0.06 gwei;
     bytes internal constant CALL_DATA = hex"d0e30db0"; // deposit()
 
     RecordingDestination internal recorder;
@@ -16,6 +17,7 @@ abstract contract RequestPegInContractCallTestBase is ResolvePegInTestBase {
         super.setUp();
         configurations.setClaimGasFee(CLAIM_GAS_FEE);
         recorder = new RecordingDestination();
+        vm.fee(BASE_FEE);
         vm.txGasPrice(GAS_PRICE);
     }
 
@@ -25,19 +27,22 @@ abstract contract RequestPegInContractCallTestBase is ResolvePegInTestBase {
         return DEFAULT_AMOUNT - _expectedFee(DEFAULT_AMOUNT) - CLAIM_GAS_FEE;
     }
 
-    /// @dev The requested gas plus the 2,300-gas stipend, times the gas price
+    /// @dev The requested gas plus the 2,300-gas stipend, times the gas price capped at
+    /// DEFAULT_MAX_GAS_PRICE_ABOVE_BASE_FEE above block.basefee
     function _gasFee(
         uint256 gasLimit,
         uint256 gasPrice
-    ) internal pure returns (uint256) {
-        return (gasLimit + 2300) * gasPrice;
+    ) internal view returns (uint256) {
+        uint256 cap = (block.basefee *
+            (10_000 + DEFAULT_MAX_GAS_PRICE_ABOVE_BASE_FEE)) / 10_000;
+        return (gasLimit + 2300) * (gasPrice < cap ? gasPrice : cap);
     }
 
     /// @dev What the LP fronts and the destination receives
     function _netToUser(
         uint256 gasLimit,
         uint256 gasPrice
-    ) internal pure returns (uint256) {
+    ) internal view returns (uint256) {
         return _expected() - _gasFee(gasLimit, gasPrice);
     }
 
