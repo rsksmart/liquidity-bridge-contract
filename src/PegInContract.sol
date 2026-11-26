@@ -580,8 +580,9 @@ contract PegInContract is
         bytes memory pkScript = PegInDerivation.depositPkScript(
             rskAddr, address(this), _bridge.getActivePowpegRedeemScript(), _mainnet
         );
+        BtcUtils.TxRawOutput[] memory outputs = BtcUtils.getOutputs(btcTxSerialized);
         (uint256 firstSats, uint256 smallestOutputSats, bool found) =
-            BtcTransactionReader.findOutputsPaying(btcTxSerialized, pkScript);
+            BtcTransactionReader.findOutputsPaying(outputs, pkScript);
         if (!found) return (DepositRuleResult.OutputNotFound, terms);
         terms.smallestOutputSats = smallestOutputSats;
         if (smallestOutputSats < _BRIDGE_MIN_DEPOSIT_SATS) return (DepositRuleResult.OutputBelowBridgeMinimum, terms);
