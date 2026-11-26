@@ -327,7 +327,6 @@ contract PegInContract is
             revert CallGasOutOfRange(terms.maxGasLimit, configuration.maxCallGas);
         }
 
-        // Settlement pays the user the part of the deposit above the cap, from the bridge release.
         _recordClaimAndPay(pegInId, rskAddr, terms, configuration.claimGasFee);
     }
 
@@ -659,8 +658,8 @@ contract PegInContract is
     }
 
     /// @notice Records the claim, then pays rskAddr or makes the OP_RETURN contract call
-    /// @dev The LP fronts exactly what the destination receives. Every fee, including the call gas
-    /// fee, is repaid to the LP at settlement through the claim record.
+    /// @dev The LP fronts exactly what the destination receives. Settlement repays the LP the fee,
+    /// claimGasFee and callGasFee through the claim record.
     /// @param pegInId The id of the claimed peg-in
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param terms The deposit terms from {_checkDepositRules}
@@ -671,11 +670,11 @@ contract PegInContract is
         DepositTerms memory terms,
         uint256 claimGasFee
     ) private {
-        // The user pays for the gas forwarded to the destination, on both paths
         uint256 gasLimit = terms.hasCall ? terms.maxGasLimit : _MAX_REFUND_GAS_LIMIT;
         uint256 callGasFee = _forwardedGasFee(gasLimit, tx.gasprice);
         uint256 remainingAmount = terms.cappedAmount - terms.fee - claimGasFee;
         if (callGasFee > remainingAmount) revert CallGasFeeTooHigh(callGasFee, remainingAmount);
+        // Settlement pays rskAddr the part of the deposit above the cap, from the bridge release
         uint256 netToUser = _requireCorrectFronting(terms.cappedAmount, terms.fee + claimGasFee + callGasFee);
 
         _pegInClaims[pegInId] = PegInClaim({
@@ -705,11 +704,10 @@ contract PegInContract is
         );
     }
 
-    /// @notice The fee the user pays for the gas forwarded to the destination
-    /// @dev The fee is for the gas forwarded, not the gas used, because the value sent must be
-    /// fixed before the call. It includes the 2,300-gas stipend that Rootstock adds when a call
-    /// sends RBTC. The stipend is charged even when no RBTC is sent: that happens only when this
-    /// fee takes all the LP fronts, so the destination gets nothing either way.
+    /// @notice The callGasFee: what the user pays for the gas forwarded to the destination
+    /// @dev Charges the gas forwarded, not the gas used, because the value sent must be fixed
+    /// before the call. The stipend is charged even when netToUser is 0 and Rootstock adds no
+    /// stipend; the destination then receives nothing either way.
     /// @param gasLimit The gas requested for the call, before the stipend
     /// @param gasPrice The price of one unit of gas, in wei
     /// @return The fee, in wei
@@ -718,11 +716,9 @@ contract PegInContract is
     }
 
     /// @notice Makes the contract call that the deposit's OP_RETURN asks for
-    /// @dev Forwards gasLimit, which the user signed, so the LP cannot change it. When the call
-    /// sends value, Rootstock adds a 2,300-gas stipend on top, which the user also pays for.
-    /// When less gas is left than requested, Rootstock gives the destination only what is left,
-    /// so the gas check makes sure the destination gets all of gasLimit: otherwise an LP could
-    /// make the call fail by sending too little gas. Copies no return data, so a large return
+    /// @dev Forwards gasLimit from the OP_RETURN, so the LP cannot change it. Reverts with
+    /// {InsufficientCallGas} when less than gasLimit + _CALL_GAS_RESERVE is left, because Rootstock
+    /// gives the destination only the gas that is left. Copies no return data, so a large return
     /// cannot use up the gas left after the call.
     /// @param destination The contract to call
     /// @param value The RBTC to send with the call
