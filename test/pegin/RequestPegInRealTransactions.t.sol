@@ -2,6 +2,7 @@
 pragma solidity 0.8.25;
 
 import {RequestPegInTestBase} from "./RequestPegInTestBase.sol";
+import {BtcTransactionReader} from "../../src/libraries/BtcTransactionReader.sol";
 import {IPegInCommitFirst} from "../../src/interfaces/IPegInCommitFirst.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 
@@ -184,19 +185,30 @@ contract RequestPegInRealTransactionsTest is RequestPegInTestBase {
         );
     }
 
-    /// @notice Deposit alongside a real OP_RETURN. Also the one case where the spliced script is
-    /// SHORTER than the one it replaces (23 bytes over a 25-byte P2PKH), so the output that
-    /// follows shifts and the walk has to find it from the rewritten length prefix.
-    function test_realTx_depositBesideRealOpReturn_readsTheDepositValue()
-        public
-    {
-        _assertReadsAmount(
-            _payToDepositInstead(
-                _realP2pkhWithOpReturn(),
-                _SCRIPT_OP_RETURN_OUT0
-            ),
-            _SATS_OP_RETURN_OUT0
+    /// @notice Deposit alongside a real OP_RETURN from another protocol. Also the one case where
+    /// the spliced script is SHORTER than the one it replaces (23 bytes over a 25-byte P2PKH), so
+    /// the output that follows shifts and the walk has to find it from the rewritten length prefix.
+    ///
+    /// Any first OP_RETURN counts as a Flyover OP_RETURN, and this one's 64-byte payload
+    /// starts with 0x39, so the claim reverts WrongMagic. The revert still proves the walk: the
+    /// amount rules run before the OP_RETURN check, so a misread deposit output would revert
+    /// DepositOutputNotFound or PegInBelowMinimum instead, and a misread push would revert BadPush.
+    function test_realTx_depositBesideRealOpReturn_revertsWrongMagic() public {
+        bytes memory btcTx = _payToDepositInstead(
+            _realP2pkhWithOpReturn(),
+            _SCRIPT_OP_RETURN_OUT0
         );
+        uint256 amount = uint256(_SATS_OP_RETURN_OUT0) *
+            Flyover.SAT_TO_WEI_CONVERSION;
+        uint256 net = amount - _expectedFee(amount);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPegInCommitFirst.InvalidOpReturn.selector,
+                BtcTransactionReader.OpReturnFault.WrongMagic
+            )
+        );
+        _requestPegInTx(claimer, rskUser, btcTx, net);
     }
 
     /// @notice Both outputs of a real transaction pay the derived deposit address. Today the

@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
+import {BtcTransactionReader} from "../libraries/BtcTransactionReader.sol";
+
 /// @title Commit-first peg-in interface
 /// @notice The claim and settlement surface of the commit-first peg-in redesign: the user's
 /// BTC deposit is the only commitment, and liquidity providers compete to serve it by
 /// fronting RBTC (requestPegIn) and later settling against the bridge (resolvePegIn).
 /// PegInContract implements this surface next to the untouched quote flow.
-/// @dev This interface is frozen (S0): any change to it is a cross-lane ABI event, not a
-/// side effect of another task.
 interface IPegInCommitFirst {
     /// @notice Emitted when a peg-in is claimed; the payment to the user, made in the same
     /// transaction, may fail
-    /// @dev Event fields and indexing are ABI, so they freeze here.
     /// @param pegInId The id under which the claim was recorded
     /// @param claimer The account that fronted the RBTC and holds the claim
     /// @param rskAddr The RSK destination address of the peg-in
@@ -159,6 +158,23 @@ interface IPegInCommitFirst {
     /// no retry guarantee for -3. -4 is final for the deposit, and -5 needs a correct proof
     /// @param errorCode The negative code returned by getBtcTransactionConfirmations
     error UnableToGetConfirmations(int256 errorCode);
+
+    /// @notice Reverts requestPegIn when the deposit's first OP_RETURN output is not a valid
+    /// Flyover contract call
+    /// @dev Any first OP_RETURN counts as a Flyover OP_RETURN, so one from another protocol also
+    /// reverts. LPs cannot claim such a deposit, so its unclaimed settlement does not slash them.
+    /// See docs/PEGIN_OP_RETURN.md.
+    /// @param fault The first check the OP_RETURN fails
+    error InvalidOpReturn(BtcTransactionReader.OpReturnFault fault);
+
+    /// @notice Reverts requestPegIn when the OP_RETURN's maxGasLimit is 0 or above the configured
+    /// maxCallGas
+    /// @dev 0 is rejected so the LP never chooses the gas the user pays for. The maximum keeps a
+    /// deposit that no LP can claim from being slashable. Like InvalidOpReturn, such a deposit
+    /// settles unclaimed without a slash.
+    /// @param maxGasLimit The gas the OP_RETURN requests for the call
+    /// @param maxCallGas The configured maximum
+    error CallGasOutOfRange(uint256 maxGasLimit, uint256 maxCallGas);
 
     /// @notice Reverts requestPegIn when msg.value is not the required fronting
     /// @param expected The required msg.value, in wei

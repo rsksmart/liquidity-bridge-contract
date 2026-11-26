@@ -39,7 +39,9 @@ contract PegInContract is
         OutputNotFound,
         OutputBelowBridgeMinimum,
         AmountBelowMinimum,
-        AmountBelowDeduction
+        AmountBelowDeduction,
+        InvalidOpReturn,
+        CallGasOutOfRange
     }
 
     /// @notice This struct is used to store the information of a call on behalf of the user
@@ -71,11 +73,15 @@ contract PegInContract is
     /// @param cappedAmount min(amount, maxAmount)
     /// @param fee The service fee on cappedAmount
     /// @param smallestOutputSats The smallest matching output, in satoshis
+    /// @param opReturnFault Why the first OP_RETURN is invalid, when the result is InvalidOpReturn
+    /// @param maxGasLimit The gas the OP_RETURN requests, when the result is CallGasOutOfRange
     struct DepositTerms {
         uint256 amount;
         uint256 cappedAmount;
         uint256 fee;
         uint256 smallestOutputSats;
+        BtcTransactionReader.OpReturnFault opReturnFault;
+        uint256 maxGasLimit;
     }
 
     /// @notice The version of the contract
@@ -303,6 +309,10 @@ contract PegInContract is
         }
         _requirePegInConfirmations(terms.amount, btcTxHash, btcBlockHash, merkleBranchPath, merkleBranchHashes);
         if (result == DepositRuleResult.AmountBelowDeduction) revert IncorrectFronting(0, msg.value);
+        if (result == DepositRuleResult.InvalidOpReturn) revert InvalidOpReturn(terms.opReturnFault);
+        if (result == DepositRuleResult.CallGasOutOfRange) {
+            revert CallGasOutOfRange(terms.maxGasLimit, configuration.maxCallGas);
+        }
 
         // Settlement pays the user the part of the deposit above the cap, from the bridge release.
         uint256 expected = _requireCorrectFronting(terms.cappedAmount, terms.fee + configuration.claimGasFee);
@@ -567,6 +577,10 @@ contract PegInContract is
     ///
     /// Returns a result instead of reverting, so the unclaimed settlement can use the same rules
     /// without blocking the user's payout.
+    ///
+    /// The first OP_RETURN is checked last. A deposit whose OP_RETURN is invalid, or asks for gas
+    /// outside 1..maxCallGas, does not return Accepted: requestPegIn reverts on it, and
+    /// {_isSlashableUnclaimedPegIn} does not slash LPs for a deposit they could not claim.
     /// @param rskAddr The RSK destination address of the peg-in
     /// @param btcTxSerialized The witness-stripped raw deposit transaction
     /// @param configuration The active peg-in configuration
@@ -592,6 +606,16 @@ contract PegInContract is
         terms.fee = _configurations.calculatePegInFee(terms.cappedAmount);
         if (terms.cappedAmount < terms.fee + configuration.claimGasFee) {
             return (DepositRuleResult.AmountBelowDeduction, terms);
+        }
+        BtcTransactionReader.FlyoverOpReturn memory opReturn = BtcTransactionReader.readFlyoverOpReturn(outputs);
+        if (!opReturn.found) return (DepositRuleResult.Accepted, terms);
+        if (opReturn.fault != BtcTransactionReader.OpReturnFault.None) {
+            terms.opReturnFault = opReturn.fault;
+            return (DepositRuleResult.InvalidOpReturn, terms);
+        }
+        if (opReturn.maxGasLimit == 0 || opReturn.maxGasLimit > configuration.maxCallGas) {
+            terms.maxGasLimit = opReturn.maxGasLimit;
+            return (DepositRuleResult.CallGasOutOfRange, terms);
         }
         return (DepositRuleResult.Accepted, terms);
     }
