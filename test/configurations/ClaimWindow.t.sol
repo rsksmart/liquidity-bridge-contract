@@ -57,6 +57,33 @@ contract ClaimWindowTest is ConfigurationsTestBase {
         assertEq(pending.claimWindow, config.MIN_PEGIN_CLAIM_WINDOW());
     }
 
+    function test_queueChange_rejects_claimWindow_above_maximum_when_bounds_allow_it()
+        public
+    {
+        uint256 maximum = config.MAX_PEGIN_CLAIM_WINDOW();
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
+        c.claimWindow = maximum + 1;
+        vm.prank(owner);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                FlyoverConfigurations.PegInClaimWindowTooLong.selector,
+                maximum + 1,
+                maximum
+            )
+        );
+        config.queueChange(c);
+    }
+
+    function test_queueChange_accepts_claimWindow_at_maximum() public {
+        IFlyoverConfigurations.PegInConfiguration memory c = _altConfig();
+        c.claimWindow = config.MAX_PEGIN_CLAIM_WINDOW();
+        vm.prank(owner);
+        config.queueChange(c);
+        (IFlyoverConfigurations.PegInConfiguration memory pending, ) = config
+            .getPendingChange();
+        assertEq(pending.claimWindow, config.MAX_PEGIN_CLAIM_WINDOW());
+    }
+
     function test_queueBoundsChange_rejects_inverted_claimWindow_pair() public {
         IFlyoverConfigurations.PegInConfiguration memory min = _boundsMin();
         min.claimWindow = PEGIN_BOUND_MAX_CLAIM_WINDOW + 1;

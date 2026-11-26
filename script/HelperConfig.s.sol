@@ -436,7 +436,7 @@ contract HelperConfig is Script {
             claimGasFee: 0.001 ether,
             confirmationTiers: noTiers,
             penaltyFee: 1 ether,
-            claimWindow: 1 days,
+            claimWindow: 6 hours,
             maxCallGas: 2_000_000,
             maxGasPriceAboveBaseFee: 10_000
         });
