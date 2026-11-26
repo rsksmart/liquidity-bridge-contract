@@ -222,8 +222,9 @@ interface IPegInCommitFirst {
     /// one transaction. Nothing about the deposit's value is caller-supplied.
     ///
     /// Payable: msg.value must equal min(amount, maxAmount) - fee - claimGasFee - callGasFee,
-    /// where the fee is on the capped amount and callGasFee is as in {PegInRequested}. maxAmount
-    /// limits what one provider advances per peg-in.
+    /// where the fee is on the capped amount and callGasFee is as in {PegInRequested}. When
+    /// tx.gasprice is above the cap, callGasFee depends on the block.basefee of the block that
+    /// includes the transaction. maxAmount limits what one provider advances per peg-in.
     ///
     /// Settlement distributes any bridge release above the fronted amount + fee + claimGasFee +
     /// callGasFee.

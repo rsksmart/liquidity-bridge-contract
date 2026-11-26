@@ -54,9 +54,15 @@ In a Bitcoin script, a push opcode states how many bytes follow. `BtcUtils.parse
 1. **`maxGasLimit` must be greater than 0 and at most `PegInConfiguration.maxCallGas`.** Otherwise `requestPegIn` reverts with `CallGasOutOfRange`. `maxCallGas = 0` turns contract calls off.
 2. **The call gets `maxGasLimit` gas.** The LP cannot change it. When the call sends value, Rootstock adds a 2,300-gas stipend on top. If the LP's transaction has too little gas left to forward all of it, `requestPegIn` reverts with `InsufficientCallGas`, and the LP can retry with more gas.
 3. **The user pays `callGasFee = (maxGasLimit + 2300) * gasPrice`.** The 2,300 is the stipend. This is the gas forwarded, not the gas used, because the value sent must be fixed before the call. `gasPrice` is `tx.gasprice`, capped at `block.basefee * (10,000 + maxGasPriceAboveBaseFee) / 10,000`. The LP can pay a higher gas price, but the user pays at most the cap. If `callGasFee` is more than `min(amount, maxAmount) - fee - claimGasFee`, `requestPegIn` reverts with `CallGasFeeTooHigh`.
-4. **The LP fronts exactly what the destination receives: `netToUser = min(amount, maxAmount) - fee - claimGasFee - callGasFee`.** The LP computes `callGasFee` with the `gasPrice` of rule 3. Settlement repays the LP `netToUser` plus all the fees, `callGasFee` included.
+4. **The LP fronts exactly what the destination receives: `netToUser = min(amount, maxAmount) - fee - claimGasFee - callGasFee`.** The LP computes `callGasFee` with the `gasPrice` of rule 3. `msg.value` must be exact, so the LPS keeps `tx.gasprice` below the cap, with a margin: then `gasPrice` is `tx.gasprice`, and the LP knows `callGasFee` when it signs. Settlement repays the LP `netToUser` plus all the fees, `callGasFee` included.
 5. **If the call fails, the LP keeps all it fronted.** The claim is marked failed, and settlement repays the LP only `fee`, `claimGasFee` and `callGasFee`. The rest of the release goes to `rskAddr`, the refund address.
 6. **An unclaimed deposit makes no call.** `resolvePegIn` pays `rskAddr`.
+
+## Why `msg.value` must be exact
+
+`requestPegIn` only fronts the user's money. It returns nothing to the LP, except the whole `msg.value` when the destination refuses the payment. Every repayment to the LP happens in `resolvePegIn`.
+
+Above the cap, `callGasFee` depends on the `block.basefee` of the block that includes the transaction. The LP cannot know that value when it signs. Accepting a `msg.value` above `netToUser` would fix this, but the claim would then have to store the excess until `resolvePegIn` returns it. Instead, the LPS keeps `tx.gasprice` below the cap. An LP that bids above the cap to win a race accepts that a base-fee change before inclusion makes `requestPegIn` revert with `IncorrectFronting`.
 
 ## Why `maxGasLimit` has limits
 
