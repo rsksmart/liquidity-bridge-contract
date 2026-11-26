@@ -51,14 +51,14 @@ contract CollateralManagementContract is
     /// {_effectiveRegistrationBlock}, never directly.
     mapping(address => uint256) private _pegOutRegistrationBlock;
     uint256 private _globalSlashGraceBlocks;
-    /// @dev Block at which {initializePegOutRegistrationBlocks} ran. Stands in for the registration
+    /// @dev Block at which {initializeRegistrationBlocks} ran. Stands in for the registration
     /// block of LPs that held peg-out collateral before registration blocks were recorded.
     uint256 private _pegOutBackfillBlock;
     /// @dev Block at which peg-in collateral last went from 0 to positive. Left at 0 for LPs that
     /// already held peg-in collateral before the upgrade. Read it through
     /// {_effectiveRegistrationBlock}, never directly.
     mapping(address => uint256) private _pegInRegistrationBlock;
-    /// @dev Block at which {initializePegInRegistrationBlocks} ran. Stands in for the registration
+    /// @dev Block at which {initializeRegistrationBlocks} ran. Stands in for the registration
     /// block of LPs that held peg-in collateral before registration blocks were recorded.
     uint256 private _pegInBackfillBlock;
 
@@ -162,29 +162,17 @@ contract CollateralManagementContract is
         _rewardPercentage = rewardPercentage;
     }
 
-    /// @notice Backfills the peg-out registration block of LPs with peg-out collateral but no recorded block.
-    /// @dev Records the current block once. Every such LP is treated as registered at this block,
-    /// whether or not FlyoverDiscovery lists it, so the result does not depend on the listing rules
-    /// or on the upgrade order.
+    /// @notice Backfills the registration block of LPs with collateral but no recorded block, on both sides.
+    /// @dev Records the current block once for peg-in and peg-out. Every such LP is treated as registered
+    /// at this block, whether or not FlyoverDiscovery lists it, so the result does not depend on the listing
+    /// rules or on the upgrade order. Uses version 3 because v2.6's initializeV2_1_0 already took version 2.
     // solhint-disable-next-line comprehensive-interface
-    function initializePegOutRegistrationBlocks()
-        external
-        reinitializer(2)
-        onlyRole(DEFAULT_ADMIN_ROLE)
-    {
-        _pegOutBackfillBlock = block.number;
-    }
-
-    /// @notice Backfills the peg-in registration block of LPs with peg-in collateral but no recorded block.
-    /// @dev Records the current block once. Every such LP is treated as registered at this block,
-    /// whether or not FlyoverDiscovery lists it, so the result does not depend on the listing rules
-    /// or on the upgrade order. Runs after {initializePegOutRegistrationBlocks}, which uses version 2.
-    // solhint-disable-next-line comprehensive-interface
-    function initializePegInRegistrationBlocks()
+    function initializeRegistrationBlocks()
         external
         reinitializer(3)
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
+        _pegOutBackfillBlock = block.number;
         _pegInBackfillBlock = block.number;
     }
 

@@ -89,6 +89,9 @@ contract PegInContract is
     /// Below the shortest 3-hour average seen on mainnet (22.7 s) and the usual 30 s average, so the
     /// estimate is never earlier than the real registration and LPs never get a shorter window.
     uint256 constant private _MIN_RSK_BLOCK_TIME = 20;
+    /// @dev Parsing gas grows with the square of the transaction size. Above this size the slash
+    /// check could need more gas than an RSK block allows and block the user's payout.
+    uint256 constant private _MAX_SLASHABLE_TX_SIZE = 3_000;
     int256 constant private _BRIDGE_UNPROCESSABLE_TX_VALIDATIONS_ERROR = -303;
     int256 constant private _BRIDGE_REFUNDED_USER_ERROR_CODE = -100;
     int256 constant private _BRIDGE_REFUNDED_LP_ERROR_CODE = -200;
@@ -656,15 +659,16 @@ contract PegInContract is
         pegInId = keccak256(abi.encodePacked(rskAddr, BtcUtils.hashBtcTx(btcRawTransaction)));
     }
 
-    /// @dev True when LPs had a fair chance to claim this deposit: the address is registered, the
-    /// deposit passes the amount rules of requestPegIn, and claimWindow seconds plus hard-pause time
-    /// have passed since the later of the tier time and the registration time. Never reverts, so
-    /// settlement is never blocked.
+    /// @dev True when LPs had a fair chance to claim this deposit: the transaction is at most
+    /// _MAX_SLASHABLE_TX_SIZE bytes, the address is registered, the deposit passes the amount rules
+    /// of requestPegIn, and claimWindow seconds plus hard-pause time have passed since the later of
+    /// the tier time and the registration time. Never reverts, so settlement is never blocked.
     function _isSlashableUnclaimedPegIn(address rskAddr, bytes calldata btcRawTransaction, uint256 height)
         private
         view
         returns (bool slashable, uint256 penalty)
     {
+        if (btcRawTransaction.length > _MAX_SLASHABLE_TX_SIZE) return (false, 0);
         uint256 registrationBlock = _pegInAddressRegistry.getRegistrationBlock(rskAddr);
         if (registrationBlock == 0) return (false, 0);
         IFlyoverConfigurations.PegInConfiguration memory configuration = _configurations.getPegInConfiguration();

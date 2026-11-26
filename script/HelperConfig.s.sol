@@ -432,7 +432,7 @@ contract HelperConfig is Script {
             claimGasFee: 0.001 ether,
             confirmationTiers: noTiers,
             penaltyFee: 1 ether,
-            claimWindow: 1 days
+            claimWindow: 6 hours
         });
         seeds.pegOutConfig = IFlyoverConfigurations.PegOutConfiguration({
             fixedFee: 0.0001 ether,
