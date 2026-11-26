@@ -69,7 +69,7 @@ Sources: [#509](https://github.com/rsksmart/liquidity-bridge-contract/pull/509#p
 
 `maxCallGas` is the configured upper limit for the `maxGasLimit` that a deposit's OP_RETURN requests.
 
-**What happens.** The call gas fee is `(maxGasLimit + 2300) * tx.gasprice`, where 2,300 is the gas that Rootstock adds when a call sends RBTC. A plain payment to `rskAddr` also pays a fee, for 2,300 + 2,300 gas. The fee must fit in the amount that is left after the fee and `claimGasFee`. If it does not fit, `requestPegIn` reverts with `CallGasFeeTooHigh`, and no LP can claim the deposit. The same happens when `maxGasLimit` is more gas than a Rootstock block can hold. In both cases the deposit rules still accept the deposit, so its unclaimed settlement slashes the LPs.
+**What happens.** The call gas fee is `(maxGasLimit + 2300) * gasPrice`, where 2,300 is the gas that Rootstock adds when a call sends RBTC. `gasPrice` is `tx.gasprice`, capped at `maxGasPriceAboveBaseFee` above `block.basefee`. A plain payment to `rskAddr` also pays a fee, for 2,300 + 2,300 gas. The fee must fit in the amount that is left after the fee and `claimGasFee`. If it does not fit, `requestPegIn` reverts with `CallGasFeeTooHigh`, and no LP can claim the deposit. The same happens when `maxGasLimit` is more gas than a Rootstock block can hold. In both cases the deposit rules still accept the deposit, so its unclaimed settlement slashes the LPs.
 
 The fault can appear without any change to `maxCallGas`. Raising a fee, or lowering `maxAmount` or `minAmount`, makes the amount left after these fees smaller, so the same call gas fee can become larger than it.
 
@@ -77,11 +77,11 @@ The fault can appear without any change to `maxCallGas`. Raising a fee, or lower
 
 **Status.** WONTFIX. An on-chain check needs a gas-price floor in the configuration, because miners set the Rootstock minimum gas price and it can change.
 
-**Check.** Do this check for every change to `maxCallGas`, a fee, `minAmount` or `maxAmount`:
+**Check.** Do this check for every change to `maxCallGas`, `maxGasPriceAboveBaseFee`, a fee, `minAmount` or `maxAmount`:
 
-1. Calculate the largest gas fee: `(maxCallGas + 2300) * Rootstock minimum gas price`.
+1. Calculate the largest gas fee: `(maxCallGas + 2300) * Rootstock minimum gas price * (10,000 + maxGasPriceAboveBaseFee) / 10,000`.
 2. Calculate what is left of the smallest deposit: `minAmount - fee - claimGasFee`.
-3. Make sure that the result of step 1 is much smaller than the result of step 2. LPs usually pay more than the minimum gas price, so keep a margin.
+3. Make sure that the result of step 1 is much smaller than the result of step 2. Miners can raise the minimum gas price, so keep a margin.
 4. Make sure that `maxCallGas` is much smaller than the Rootstock block gas limit of 10,000,000 gas.
 
 Source: [#600](https://github.com/rsksmart/liquidity-bridge-contract/pull/600#discussion_r4664303476).
