@@ -192,10 +192,10 @@ interface IPegInCommitFirst {
     /// @param required The gas the call needs: maxGasLimit plus the cost of the CALL itself
     error InsufficientCallGas(uint256 gasLeft, uint256 required);
 
-    /// @notice Reverts requestPegIn when the call gas fee is more than the amount left after the
-    /// fee and claimGasFee
-    /// @dev See the callGasFee of {PegInRequested}. The LP can retry with a lower gas price.
-    /// @param callGasFee The fee for the gas forwarded to the destination, in wei
+    /// @notice Reverts requestPegIn when callGasFee is more than the amount left after fee and
+    /// claimGasFee
+    /// @dev The LP can retry with a lower gas price.
+    /// @param callGasFee As in {PegInRequested}, in wei
     /// @param remainingAmount min(amount, maxAmount) - fee - claimGasFee, in wei
     error CallGasFeeTooHigh(uint256 callGasFee, uint256 remainingAmount);
 
