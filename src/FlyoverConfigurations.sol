@@ -88,6 +88,13 @@ contract FlyoverConfigurations is
     /// LPs that had no fair chance to claim. Fixed here because the bounds can be changed later.
     uint256 public constant MIN_PEGIN_CLAIM_WINDOW = 3 hours;
 
+    /// @notice Rejects a peg-in claimWindow above this cap (6 hours). The window can start hours
+    /// late, because PegInContract estimates the registration time from 20-second blocks. Anyone can
+    /// settle once the bridge accepts the deposit (about 16 hours), so a longer window could still be
+    /// open at settlement, and LPs that did not claim would not be slashed. Fixed here because the
+    /// bounds can be changed later.
+    uint256 public constant MAX_PEGIN_CLAIM_WINDOW = 6 hours;
+
     // ERC-7201: keccak256(abi.encode(uint256(keccak256("rsk.flyover.FlyoverConfigurations")) - 1)) &
     // ~bytes32(uint256(0xff))
     bytes32 private constant _FLYOVER_CONFIGURATIONS_STORAGE =
@@ -150,6 +157,9 @@ contract FlyoverConfigurations is
     /// @notice Raised when the peg-in claimWindow is below {MIN_PEGIN_CLAIM_WINDOW}, even if the
     /// active bounds allow it.
     error PegInClaimWindowTooShort(uint256 claimWindow, uint256 minimum);
+    /// @notice Raised when the peg-in claimWindow is above {MAX_PEGIN_CLAIM_WINDOW}, even if the
+    /// active bounds allow it.
+    error PegInClaimWindowTooLong(uint256 claimWindow, uint256 maximum);
     /// @notice Raised when registrantFee is at or above {MAX_REGISTRANT_FEE_EXCLUSIVE}.
     error RegistrantFeeTooHigh(uint256 registrantFee, uint256 maxExclusive);
     /// @notice Raised when fixedFee is below registrantFee.
@@ -547,6 +557,9 @@ contract FlyoverConfigurations is
         }
         if (config.claimWindow < MIN_PEGIN_CLAIM_WINDOW) {
             revert PegInClaimWindowTooShort(config.claimWindow, MIN_PEGIN_CLAIM_WINDOW);
+        }
+        if (config.claimWindow > MAX_PEGIN_CLAIM_WINDOW) {
+            revert PegInClaimWindowTooLong(config.claimWindow, MAX_PEGIN_CLAIM_WINDOW);
         }
         _validateAmountLimits(config);
         _validateTiers(config.confirmationTiers);
