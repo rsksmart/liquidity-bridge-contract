@@ -407,7 +407,7 @@ contract HelperConfig is Script {
             minAmount: 0.005 ether,
             maxAmount: 10 ether,
             registrantFee: 1e14,
-            claimGasFee: 0,
+            claimGasFee: 0.00005 ether,
             confirmationTiers: _localConfirmationTiers(),
             penaltyFee: 0.01 ether,
             claimWindow: 3 hours

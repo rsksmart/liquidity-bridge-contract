@@ -14,6 +14,7 @@ import {PegOutEscrow} from "../../src/PegOutEscrow.sol";
 contract DeployFlyoverWiringTest is Test {
     /// @dev Written out, not read from DeployFlyover, so a wrong value in the script fails here.
     uint256 private constant BRIDGE_MIN_DEPOSIT_SATS = 500_000;
+    uint256 private constant LOCAL_CLAIM_GAS_FEE = 0.00005 ether;
     // Anvil account 0. Used when DEV_SIGNER_PRIVATE_KEY is not in the environment.
     string internal constant TEST_SIGNER_KEY =
         "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
@@ -89,6 +90,13 @@ contract DeployFlyoverWiringTest is Test {
                 .pegInConfig
                 .minAmount,
             "peg-in minAmount floor not seeded"
+        );
+        assertEq(
+            FlyoverConfigurations(payable(d.flyoverConfigurationsProxy))
+                .getPegInConfiguration()
+                .claimGasFee,
+            LOCAL_CLAIM_GAS_FEE,
+            "peg-in claimGasFee not seeded"
         );
     }
 }
