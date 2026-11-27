@@ -405,7 +405,6 @@ contract PegInContract is
         external
         view
         override
-        nonReentrantView
         returns (
             address claimer,
             bool success,
