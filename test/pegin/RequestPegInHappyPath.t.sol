@@ -299,4 +299,49 @@ contract RequestPegInHappyPathTest is RequestPegInTestBase {
         );
         _requestPegInTx(claimer, rskUser, btcTx, net);
     }
+
+    function test_getPegInClaim_returns_recorded_claim() public {
+        configurations.setClaimGasFee(CLAIM_GAS_FEE);
+        uint256 fee = _expectedFee(DEFAULT_AMOUNT);
+        uint256 net = DEFAULT_AMOUNT - fee - CLAIM_GAS_FEE;
+        bytes32 pegInId = _requestPegInTx(claimer, rskUser, _defaultTx(), net);
+
+        Claim memory claim = _getClaim(pegInId);
+
+        assertEq(claim.claimer, claimer, "claimer");
+        assertTrue(claim.success, "payment succeeded");
+        assertEq(claim.frontedAmount, net, "fronted amount");
+        assertEq(claim.feeAtClaim, fee, "fee snapshot");
+        assertEq(claim.gasFeeAtClaim, CLAIM_GAS_FEE, "gas fee snapshot");
+        assertEq(claim.requestBlock, block.number, "claim block");
+    }
+
+    function test_getPegInClaim_returns_failed_payment() public {
+        configurations.setClaimGasFee(CLAIM_GAS_FEE);
+        uint256 fee = _expectedFee(DEFAULT_AMOUNT);
+        uint256 net = DEFAULT_AMOUNT - fee - CLAIM_GAS_FEE;
+        (
+            address recipient,
+            bytes memory depositTx
+        ) = _registerRefusingRecipient();
+        bytes32 pegInId = _requestPegInTx(claimer, recipient, depositTx, net);
+
+        Claim memory claim = _getClaim(pegInId);
+
+        assertEq(claim.claimer, claimer, "claimer");
+        assertFalse(claim.success, "payment failed");
+        assertEq(claim.frontedAmount, 0, "nothing delivered");
+        assertEq(claim.feeAtClaim, fee, "fee snapshot");
+        assertEq(claim.gasFeeAtClaim, CLAIM_GAS_FEE, "gas fee snapshot");
+        assertEq(claim.requestBlock, block.number, "claim block");
+    }
+
+    function test_getPegInClaim_returns_empty_claim_when_unclaimed()
+        public
+        view
+    {
+        Claim memory claim = _getClaim(_pegInIdForTx(rskUser, _defaultTx()));
+
+        _assertNoLpClaim(claim, address(0));
+    }
 }

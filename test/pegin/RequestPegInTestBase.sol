@@ -6,6 +6,7 @@ import {FlyoverConfigurationsMock} from "./FlyoverConfigurationsMock.sol";
 import {PegInContract} from "../../src/PegInContract.sol";
 import {PegInAddressRegistryHarness} from "../pegin-registry/PegInAddressRegistryHarness.sol";
 import {IFlyoverConfigurations} from "../../src/interfaces/IFlyoverConfigurations.sol";
+import {IPegInCommitFirst} from "../../src/interfaces/IPegInCommitFirst.sol";
 import {PegInDerivation} from "../../src/libraries/PegInDerivation.sol";
 import {Flyover} from "../../src/libraries/Flyover.sol";
 import {WalletMock} from "../../src/test-contracts/WalletMock.sol";
@@ -14,8 +15,8 @@ import {BtcUtils} from "@rsksmart/btc-transaction-solidity-helper/contracts/BtcU
 
 /// @title Base for commit-first requestPegIn tests
 /// @notice Deploys and wires a PegInContract against a real PegInAddressRegistry (seeded through
-/// its harness) and a settable FlyoverConfigurationsMock, and reads the private claim record
-/// through storage slots (no production getter exists on the implementation under test).
+/// its harness) and a settable FlyoverConfigurationsMock, and reads the claim record through
+/// storage slots or getPegInClaim.
 abstract contract RequestPegInTestBase is PegInTestBase {
     /// @dev Storage slot of PegInContract._pegInClaims under the lockfile-pinned OpenZeppelin
     /// 5.5.0 remapping in foundry.toml (contracts package under node_modules). OZ 5.5+ stores
@@ -421,5 +422,39 @@ abstract contract RequestPegInTestBase is PegInTestBase {
             DEFAULT_FIXED_FEE +
             (amount * DEFAULT_PERCENTAGE_FEE) /
             BASIS_POINTS;
+    }
+
+    struct Claim {
+        address claimer;
+        bool success;
+        uint256 frontedAmount;
+        uint256 feeAtClaim;
+        uint256 gasFeeAtClaim;
+        uint256 requestBlock;
+    }
+
+    function _getClaim(
+        bytes32 pegInId
+    ) internal view returns (Claim memory claim) {
+        (
+            claim.claimer,
+            claim.success,
+            claim.frontedAmount,
+            claim.feeAtClaim,
+            claim.gasFeeAtClaim,
+            claim.requestBlock
+        ) = IPegInCommitFirst(address(pegInContract)).getPegInClaim(pegInId);
+    }
+
+    function _assertNoLpClaim(
+        Claim memory claim,
+        address expectedClaimer
+    ) internal pure {
+        assertEq(claim.claimer, expectedClaimer, "claimer");
+        assertFalse(claim.success, "no payment");
+        assertEq(claim.frontedAmount, 0, "no fronted amount");
+        assertEq(claim.feeAtClaim, 0, "no fee snapshot");
+        assertEq(claim.gasFeeAtClaim, 0, "no gas fee snapshot");
+        assertEq(claim.requestBlock, 0, "no claim block");
     }
 }

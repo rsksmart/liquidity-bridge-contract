@@ -180,6 +180,26 @@ contract ResolvePegInTest is ResolvePegInTestBase {
         _requestPegInTx(claimer, rskUser, rawTx, 0);
     }
 
+    function test_getPegInClaim_after_unclaimed_settle_returns_resolver()
+        public
+    {
+        address resolver = makeAddr("resolver");
+        bridgeMock.setPegin{value: bridgeRelease}(_derivationHash(rskUser));
+        _resolve(resolver, rskUser, rawTx);
+
+        _assertNoLpClaim(_getClaim(_pegInId(rskUser, btcTxHash)), resolver);
+    }
+
+    function test_getPegInClaim_after_unclaimed_cap_refund_returns_resolver()
+        public
+    {
+        address resolver = makeAddr("resolver");
+        bridgeMock.setPeginError(-100);
+        _resolve(resolver, rskUser, rawTx);
+
+        _assertNoLpClaim(_getClaim(_pegInId(rskUser, btcTxHash)), resolver);
+    }
+
     function test_unclaimed_refused_payment_credits_user_balance() public {
         (
             address recipient,

@@ -398,6 +398,33 @@ contract PegInContract is
         return _balances[addr];
     }
 
+    /// @inheritdoc IPegInCommitFirst
+    function getPegInClaim(
+        bytes32 pegInId
+    )
+        external
+        view
+        override
+        returns (
+            address claimer,
+            bool success,
+            uint256 frontedAmount,
+            uint256 feeAtClaim,
+            uint256 gasFeeAtClaim,
+            uint256 requestBlock
+        )
+    {
+        PegInClaim storage claim = _pegInClaims[pegInId];
+        return (
+            claim.claimer,
+            claim.success,
+            claim.frontedAmount,
+            claim.feeAtClaim,
+            claim.gasFeeAtClaim,
+            claim.requestBlock
+        );
+    }
+
     /// @dev Bridge fast-register with per-network BTC placeholder addresses. The bridge reads
     /// userPaid only when it rejects the deposit over the locking cap: true refunds the BTC to
     /// the LP address, false to the user refund address.
